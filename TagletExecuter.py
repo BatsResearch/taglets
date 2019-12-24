@@ -8,11 +8,10 @@ class TagletExecuter:
     def __init__(self):
         print('initialization')
 
-    def execute(self,taglets):
+    def execute(self, taglets):
         """
-        perfrom run function of all taglets
+        Perform run function of all Taglets
         :return:
         """
         print('execute')
-
 

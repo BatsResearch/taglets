@@ -1,13 +1,13 @@
 import numpy as np
 
 
-class scads:
+class Scads:
     """ scads class
     Structured Collections of Annotated Data Sets (SCADS)
     """
     def __init__(self):
         self.concept = ''
-        self.datasets = [] # list of our datasets
+        self.datasets = []  # list of our datasets
 
     def get_datasets(self):
         '''
@@ -22,7 +22,7 @@ class scads:
         '''
 
 
-    def get_neighbours(self, concept):
+    def get_neighbors(self, concept):
         '''
         get the neighbours with the type of relationship
         :param concept:

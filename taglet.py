@@ -1,8 +1,8 @@
 import numpy as np
 
 
-class taglet:
-    """ taglet class
+class Taglet:
+    """ Taglet class
 
     """
     def __init__(self):
@@ -14,5 +14,4 @@ class taglet:
         :return:
         """
         print('running')
-
 
