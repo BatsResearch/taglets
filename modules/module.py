@@ -3,9 +3,18 @@ import Task
 
 
 class BaseModule:
-    """ Base class for constructing modules.
-
+    """
+    Base class for constructing modules.
     """
     def __init__(self, task):
+        """
+        :param task: The task for the module to consume
+        """
         self.task = task
-        print('base class')
+
+    def get_taglets(self):
+        """
+        Jeff: We could also have a method to load taglets before returning them here.
+        :return: List of taglets
+        """
+        raise NotImplementedError()
