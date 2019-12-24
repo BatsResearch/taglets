@@ -2,16 +2,15 @@ import numpy as np
 
 
 class Taglet:
-    """ Taglet class
-
+    """
+    Taglet class
     """
     def __init__(self):
-        print('initialization')
+        raise NotImplementedError()
 
-    def run(self):
+    def execute(self, images):
         """
-        training the model and create
-        :return:
+        Execute the taglet on a batch of images.
+        :return: A batch of labels
         """
-        print('running')
-
+        raise NotImplementedError()

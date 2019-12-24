@@ -16,10 +16,8 @@ class ScadsNode:
 
     def get_images(self):
         """
-        Jeff: Is this returning the list of paths to images, or the actual numpy arrays?
-
-        Get all images for this concept.
-        :return: List of images for this concept
+        Get all paths to images for this concept.
+        :return: List of paths to images for this concept
         """
         raise NotImplementedError()
 
