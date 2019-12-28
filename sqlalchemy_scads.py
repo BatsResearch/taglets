@@ -20,7 +20,7 @@ class Node(Base):
     name = Column(String)
 
     def __repr__(self):
-        return "<Node(key='%d', name='%s'')>" % (self.key, self.name)
+        return "<Node(key='%s', name='%s'')>" % (self.key, self.name)
 
 
 class Relation(Base):
@@ -33,7 +33,7 @@ class Relation(Base):
     edges = relationship("Edge", back_populates="relation")
 
     def __repr__(self):
-        return "<Node(key='%d', name='%s', type='%s')>" % (self.key, self.name, self.type)
+        return "<Relation(key='%s', name='%s', type='%s')>" % (self.key, self.name, self.type)
 
 
 class Edge(Base):
@@ -49,15 +49,15 @@ class Edge(Base):
     relation = relationship("Relation", back_populates="edges")
 
     def __repr__(self):
-        return "<Edge(key='%d', URI='%s', relation_id='%d',start_node_id='%d', end_node_id='%d'," \
-               "weight='%f', info %s ')>" % (self.key, self.URI, self.relation_id, self.start_node_id,
+        return "<Edge(key='%s', URI='%s', relation_id='%s',start_node_id='%s', end_node_id='%s'," \
+               "weight='%s', info %s ')>" % (self.key, self.URI, self.relation_id, self.start_node_id,
                                              self.end_node_id, self.weight, self.info)
 
 
 def get_relations():
     cwd = os.getcwd()
     all_relations = []
-    with open(Path(cwd+'/sql_data/relations.csv')) as relation_file:
+    with open(os.path.join(cwd, 'sql_data', 'relations.csv'), encoding="utf8") as relation_file:
         for line in relation_file:
             if line.strip():
                 r_key, r_name, r_type = line.strip().split()
@@ -69,7 +69,7 @@ def get_relations():
 def get_nodes():
     cwd = os.getcwd()
     all_nodes = []
-    with open(Path(cwd+'/sql_data/nodes.csv')) as node_file:
+    with open(os.path.join(cwd, 'sql_data', 'nodes.csv'), encoding="utf8") as node_file:
         for line in node_file:
             if line.strip():
                 n_key, n_name = line.strip().split()
@@ -81,13 +81,13 @@ def get_nodes():
 def get_edges():
     cwd = os.getcwd()
     all_edges = []
-    with open(Path(cwd+'/sql_data/edges.csv')) as edge_file:
+    with open(os.path.join(cwd, 'sql_data', 'edges.csv'), encoding="utf8") as edge_file:
         for line in edge_file:
             if line.strip():
                 key, URI, relation_id, start_node_id, end_node_id,weight = line.strip().split()[:6]
                 info = " " .join(line.strip().split()[6:])
                 relation = Edge(key=key,URI=str(URI),relation_id=relation_id, start_node_id=start_node_id,
-                                end_node_id=end_node_id, weight=weight, info = info)
+                                end_node_id=end_node_id, weight=weight, info=info)
                 all_edges.append(relation)
     return all_edges
 
@@ -100,12 +100,14 @@ def main():
     session = Session()
 
     all_relations = get_relations()
-    session.add_all(all_relations)
-
     all_nodes = get_nodes()
-    session.add_all(all_nodes)
-
     all_edges = get_edges()
+    # Top: this assumes the relations in all_relations are already SORTED based on their keys and the keys start at 0
+    for edge in all_edges:
+        edge.relation = all_relations[int(edge.relation_id)]
+
+    session.add_all(all_relations)
+    session.add_all(all_nodes)
     session.add_all(all_edges)
 
     session.commit()
