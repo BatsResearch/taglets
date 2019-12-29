@@ -15,9 +15,10 @@ Session = sessionmaker(bind=engine)
 
 class Node(Base):
     __tablename__ = 'nodes'
-    id = Column(Integer, primary_key=True)
-    key = Column(Integer)
+    key = Column(Integer, primary_key=True)
     name = Column(String)
+    
+    in_edges = relationship("Edge")
 
     def __repr__(self):
         return "<Node(key='%s', name='%s'')>" % (self.key, self.name)
@@ -25,8 +26,7 @@ class Node(Base):
 
 class Relation(Base):
     __tablename__ = 'relations'
-    id = Column(Integer, primary_key=True)
-    key = Column(Integer)
+    key = Column(Integer, primary_key=True)
     name = Column(String)
     type = Column(String)
 
@@ -38,20 +38,19 @@ class Relation(Base):
 
 class Edge(Base):
     __tablename__ = 'edges'
-    id = Column(Integer, primary_key=True)
-    key = Column(Integer)
+    key = Column(Integer, primary_key=True)
     URI = Column(String)
-    relation_id = Column(Integer, ForeignKey('relations.id'))
-    start_node_id = Column(Integer, ForeignKey('nodes.id'))
-    end_node_id = Column(Integer, ForeignKey('nodes.id'))
+    relation_key = Column(Integer, ForeignKey('relations.key'))
+    start_node_key = Column(Integer)
+    end_node_key = Column(Integer, ForeignKey('nodes.key'))
     weight = Column(sa.FLOAT)
     info = Column(String)
     relation = relationship("Relation", back_populates="edges")
 
     def __repr__(self):
-        return "<Edge(key='%s', URI='%s', relation_id='%s',start_node_id='%s', end_node_id='%s'," \
-               "weight='%s', info %s ')>" % (self.key, self.URI, self.relation_id, self.start_node_id,
-                                             self.end_node_id, self.weight, self.info)
+        return "<Edge(key='%s', URI='%s', relation_key='%s',start_node_key='%s', end_node_key='%s'," \
+               "weight='%s', info %s ')>" % (self.key, self.URI, self.relation_key, self.start_node_key,
+                                             self.end_node_key, self.weight, self.info)
 
 
 def get_relations():
@@ -84,10 +83,10 @@ def get_edges():
     with open(os.path.join(cwd, 'sql_data', 'edges.csv'), encoding="utf8") as edge_file:
         for line in edge_file:
             if line.strip():
-                key, URI, relation_id, start_node_id, end_node_id,weight = line.strip().split()[:6]
+                key, URI, relation_key, start_node_key, end_node_key,weight = line.strip().split()[:6]
                 info = " " .join(line.strip().split()[6:])
-                relation = Edge(key=key,URI=str(URI),relation_id=relation_id, start_node_id=start_node_id,
-                                end_node_id=end_node_id, weight=weight, info=info)
+                relation = Edge(key=key,URI=str(URI),relation_key=relation_key, start_node_key=start_node_key,
+                                end_node_key=end_node_key, weight=weight, info=info)
                 all_edges.append(relation)
     return all_edges
 
@@ -102,9 +101,11 @@ def main():
     all_relations = get_relations()
     all_nodes = get_nodes()
     all_edges = get_edges()
+
     # Top: this assumes the relations in all_relations are already SORTED based on their keys and the keys start at 0
     for edge in all_edges:
-        edge.relation = all_relations[int(edge.relation_id)]
+        edge.relation = all_relations[int(edge.relation_key)]
+        all_nodes[int(edge.end_node_key)].in_edges.append(edge)
 
     session.add_all(all_relations)
     session.add_all(all_nodes)
