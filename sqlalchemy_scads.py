@@ -18,7 +18,7 @@ class Node(Base):
     key = Column(Integer, primary_key=True)
     name = Column(String)
     
-    in_edges = relationship("Edge")
+    in_edges = relationship("Edge", back_populates="end_node")
 
     def __repr__(self):
         return "<Node(key='%s', name='%s'')>" % (self.key, self.name)
@@ -46,6 +46,7 @@ class Edge(Base):
     weight = Column(sa.FLOAT)
     info = Column(String)
     relation = relationship("Relation", back_populates="edges")
+    end_node = relationship("Node", back_populates="in_edges")
 
     def __repr__(self):
         return "<Edge(key='%s', URI='%s', relation_key='%s',start_node_key='%s', end_node_key='%s'," \
@@ -101,6 +102,9 @@ def main():
     all_relations = get_relations()
     all_nodes = get_nodes()
     all_edges = get_edges()
+
+    for edge in all_edges:
+        print(edge.end_node_key)
 
     # Top: this assumes the relations in all_relations are already SORTED based on their keys and the keys start at 0
     for edge in all_edges:
