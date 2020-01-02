@@ -14,27 +14,62 @@ Session = sessionmaker(bind=engine)
 
 
 class Node(Base):
+    """Represents a node in SCADS (Structured Collections of Annotated Data Sets).
+
+    E.g.::
+
+        node = Node(key='0', name='apple')
+
+    :param key: the key of node in 'nodes' table. The key should be unique.
+    :param name: the name of node.
+
+    """
+
     __tablename__ = 'nodes'
     key = Column(Integer, primary_key=True)
     name = Column(String)
-    
     in_edges = relationship("Edge", back_populates="end_node")
 
     def __repr__(self):
         return "<Node(key='%s', name='%s'')>" % (self.key, self.name)
 
+
 class Relation(Base):
+    """Represents types of relations between two nodes in SCADS (Structured Collections of Annotated Data Sets).
+
+    See https://github.com/commonsense/conceptnet5/wiki/Relations
+
+    :param key: the key of relation type in 'relations' table. The key should be unique.
+    :param name: the name of relation.
+    :param type: type of relation between two nodes. For example 'HasA', 'IsA', and 'Antonym' are some types of relationship.
+
+    """
+
     __tablename__ = 'relations'
     key = Column(Integer, primary_key=True)
     name = Column(String)
     type = Column(String)
-
     edges = relationship("Edge", back_populates="relation")
 
     def __repr__(self):
         return "<Relation(key='%s', name='%s', type='%s')>" % (self.key, self.name, self.type)
 
+
 class Edge(Base):
+    """Represents edges between two nodes in SCADS (Structured Collections of Annotated Data Sets).
+
+    See https://github.com/commonsense/conceptnet5/wiki/Edges
+
+    :param key: the key of edge in 'edges' table. The key should be unique.
+    :param URI: the URI of the whole edge. See https://github.com/commonsense/conceptnet5/wiki/URI-hierarchy
+    :param relation_key: the key of the relation expressed by the edge. It is a foreign key from 'relations' table.
+    :param start_node_key: the node at the start of the edge. It is a foreign key from 'nodes' table.
+    :param end_node_key: the node at the end of the edge. It is a foreign key from 'nodes' table.
+    :param weight: weight of the edge.
+    :param info: additional information about the edge.
+
+    """
+
     __tablename__ = 'edges'
     key = Column(Integer, primary_key=True)
     URI = Column(String)
@@ -51,7 +86,21 @@ class Edge(Base):
                "weight='%s', info %s ')>" % (self.key, self.URI, self.relation_key, self.start_node_key,
                                              self.end_node_key, self.weight, self.info)
 
+
 class Dataset(Base):
+    """ Represents datasets in SCADS (Structured Collections of Annotated Data Sets).
+
+    We could have several datasets such as ImageNet, CIFAR10, CIFAR100, MNIST, etc. in SCADS.
+
+    E.g.::
+        cifar100 = Dataset(key=0, name='CIFAR100', nb_classes=100)
+
+    :param key: the key of dataset in 'datasets' table. The key should be unique. Key is autoincrement.
+    :param name: the name of dataset.
+    :param nb_classes: total number of classes in dataset.
+
+    """
+
     __tablename__ = 'datasets'
     key = Column(Integer, primary_key=True,autoincrement=True)
     name = Column(String)
@@ -59,7 +108,26 @@ class Dataset(Base):
     def __repr__(self):
         return "<Dataset(name='%s', nb_classes='%s')>" % (self.name, self.nb_classes)
 
+
 class Image(Base):
+    r""" Represents the single image information in SCADS (Structured Collections of Annotated Data Sets).
+
+    E.g.::
+
+          apple_img_1 = Image(dataset_key='cifar100 key', node_key='apple key', mode = 'train', location='directory/apple_1.png')
+
+      Indicates that the an image of apple (with the corresponding apple key in nodes dataset) for cifar100 dataset is
+      located in directory/apple_1.png
+
+    :param key: the key of image in 'images' table. The key should be unique. Key is autoincrement.
+    :param dataset_key: the key of the corresponding dataset for the image. It is a foreign key from 'datasets' table.
+    :param node_key: the key of the corresponding node for the image. It is a foreign key from 'nodes' table.
+    :param mode: shows if the image is saved for 'train' or 'test' in actual dataset. 'None' means in dataset,
+    the image is not categorized based on train and test.
+    :param location: the directory in which the image is located.
+
+    """
+
     __tablename__ = 'images'
     key = Column(Integer, primary_key=True, autoincrement=True)
     dataset_key =  Column(Integer, ForeignKey('relations.key'))
@@ -71,7 +139,25 @@ class Image(Base):
         return "<Image(dataset_key='%s', node_key='%s',mode = '%s', location='%s'')>" % ( self.dataset_key,self.node_key,
                                                                                        self.mode, self.location)
 
+
 class Label_map(Base):
+    """Represents the mapping between the class names in datasets and nodes.
+
+    Each class name in dataset has a corresponding node in nodes table. This class shows the association between class
+    name in each dataset with node in nodes dataset.
+
+    E.g.::
+        map_apple = Label_map(label='apple', node_key='apple_node_key', dataset_key = 'cifar100_key')
+
+    Associates the label name 'apple' in cifar100 dataset with the correspoinding 'apple' in nodes dataset.
+
+    :param key: the key of map in 'label_maps' table. The key should be unique. Key is autoincrement.
+    :param label: name of class label.
+    :param node_key: the key of corresponding node in 'nodes' table.
+    :param dataset_key: the key of corresponding dataset.
+
+    """
+
     __tablename__ = 'label_maps'
     key=Column(Integer, primary_key=True, autoincrement=True)
     label=Column(String)
@@ -81,7 +167,10 @@ class Label_map(Base):
         return "<Image(label = '%s', node_key='%s', dataset_key='%s')>" % (self.label, self.node_key,
                                                                                     self.dataset_key)
 
+
 def get_relations():
+    """ load the csv file containing all relations in conceptnet, and return a list of Relation class."""
+
     cwd = os.getcwd()
     all_relations = []
     with open(os.path.join(cwd, 'sql_data', 'relations.csv'), encoding="utf8") as relation_file:
@@ -92,18 +181,24 @@ def get_relations():
                 all_relations.append(relation)
     return all_relations
 
+
 def get_nodes():
+    """ load the csv file containing all nodes in conceptnet, and return a list of 'Node' class"""
+
     cwd = os.getcwd()
     all_nodes = []
     with open(os.path.join(cwd, 'sql_data', 'nodes.csv'), encoding="utf8") as node_file:
         for line in node_file:
             if line.strip():
                 n_key, n_name = line.strip().split()
-                relation = Node(key=n_key, name=n_name)
-                all_nodes.append(relation)
+                node = Node(key=n_key, name=n_name)
+                all_nodes.append(node)
     return all_nodes
 
+
 def get_edges():
+    """ load the csv file containing all edges in conceptnet, and return a list of 'Edge' class."""
+
     cwd = os.getcwd()
     all_edges = []
     with open(os.path.join(cwd, 'sql_data', 'edges.csv'), encoding="utf8") as edge_file:
@@ -111,18 +206,22 @@ def get_edges():
             if line.strip():
                 key, URI, relation_key, start_node_key, end_node_key,weight = line.strip().split()[:6]
                 info = " " .join(line.strip().split()[6:])
-                relation = Edge(key=key,URI=str(URI),relation_key=relation_key, start_node_key=start_node_key,
+                edge = Edge(key=key,URI=str(URI),relation_key=relation_key, start_node_key=start_node_key,
                                 end_node_key=end_node_key, weight=weight, info=info)
-                all_edges.append(relation)
+                all_edges.append(edge)
     return all_edges
 
+
 def get_label_map(map_dict,dataset_key,session):
-    '''
-    :param map_dict: key is label and value is wordnet id. e.g., {'streetcar':104342573,  'castle': 102983900}
-    :param dataset_key: key of the dataset, e.g., key of cifar100 in datasets table is 0
-    :param session:
+    """ load label name and corresponding wordnet id from map_dict, return a list of 'Label_map' class
+
+    :param map_dict: map dictionary; key is label and value is wordnet id. e.g., {'streetcar':104342573,  'castle': 102983900}
+    :param dataset_key: key of dataset in 'datasets' table
+    :param session: current  sqlalchemy session
     :return: a list of 'Label_map' object that should be inserted into 'label_maps' dataset
-    '''
+
+    """
+
     all_labels = []
     for label_name,wordnet_id in map_dict.items():
         node_results = session.query(Node).filter(Node.name.like('%'+wordnet_id+'%'))
@@ -133,25 +232,35 @@ def get_label_map(map_dict,dataset_key,session):
         all_labels.append(label_map)
     return all_labels
 
+
 def get_cifar100(cifar_key,session):
-    '''
+    """go over all cifar images in cifar directory, and return a list of 'Image' class.
+
+    For each image in cifar dataset, create an object of 'Image', e.g.,:
+        apple_img_1 = Image(dataset_key='cifar100 key', node_key='apple key', mode = 'train', location='directory/apple_1.png')
+
     Images in cifar100 split to train and test.
-    /CIFAR100:
-        /train
-            /fish
-            /bicycle
-            /beaver
-            ...
-        /test
-            /fish
-            /bicycle
-            /beaver
-            ...
-    mode is train or test or none (image in dataset is in test folder or train folder; otherwise it should be none).
-    :param cifar_key: key of cifar dataset
-    :param session:
-    :return: list of directories of all cifar images
-    '''
+        /CIFAR100:
+            /train
+                /fish
+                /bicycle
+                /beaver
+                ...
+            /test
+                /fish
+                /bicycle
+                /beaver
+                ...
+
+    'mode' is 'train' or 'test' or 'none' (image in dataset is in 'test' folder or 'train' folder;
+    otherwise it should be 'none').
+
+    :param cifar_key: key of cifar in datasets table.
+    :param session: current sqlalchemy session.
+    :return: a list of Image class for all of the images in cifar.
+
+    """
+
     cwd = os.getcwd()
     cifar100_dir = os.path.join(cwd, 'sql_data','CIFAR100')
     all_images = []
@@ -174,12 +283,14 @@ def get_cifar100(cifar_key,session):
 
     return all_images
 
+
 def get_map_dic_cifar():
-    '''
-    :return: a dictionary with key as label and value as wordnet id
-    '''
+    """return: a dictionary with key as label and value as wordnet id"""
+
+    # TODO: this dictionary should be completed.
     map_dic = {'streetcar': '104342573', 'castle': '102983900','bicycle':'102837983','motorcycle':'103796045'}
     return map_dic
+
 
 def main():
 
