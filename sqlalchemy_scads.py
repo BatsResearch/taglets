@@ -342,11 +342,23 @@ def main():
     cifar_key = cifar_id._asdict()['key']
     cifar_map_dict = get_map_dic_cifar()
     all_label_maps = get_label_map(cifar_map_dict, cifar_key, session)
+    
+    for label_map in all_label_maps:
+        label_map.dataset = cifar100
+        if label_map.node_key != 9999:
+            label_map.node = session.query(Node).filter(Node.key == label_map.node_key).first()
+    
     session.add_all(all_label_maps)
     session.commit()
 
     ########## fill out images dataset with CIFAR100 images #########
     all_images = get_cifar100(cifar_key, session)
+    
+    for image in all_images:
+        image.dataset = cifar100
+        if image.node_key != 9999:
+            image.node = session.query(Node).filter(Node.key == image.node_key).first()
+    
     session.add_all(all_images)
     session.commit()
 
