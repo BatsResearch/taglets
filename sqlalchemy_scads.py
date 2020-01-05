@@ -138,7 +138,7 @@ class Image(Base):
 
     __tablename__ = 'images'
     key = Column(Integer, primary_key=True, autoincrement=True)
-    dataset_key = Column(Integer, ForeignKey('relations.key'))
+    dataset_key = Column(Integer, ForeignKey('datasets.key'))
     node_key = Column(Integer, ForeignKey('nodes.key'))
     mode = Column(String) # train, test, None
     location = Column(String)
