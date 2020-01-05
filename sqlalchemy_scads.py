@@ -325,7 +325,7 @@ def main():
     # Top: this assumes the relations in all_relations are already SORTED based on their keys and the keys start at 0
     for edge in all_edges:
         edge.relation = all_relations[int(edge.relation_key)]
-        all_nodes[int(edge.end_node_key)].in_edges.append(edge)
+        edge.end_node = all_nodes[int(edge.end_node_key)]
 
     session.add_all(all_relations)
     session.add_all(all_nodes)
