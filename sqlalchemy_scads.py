@@ -28,7 +28,10 @@ class Node(Base):
     __tablename__ = 'nodes'
     key = Column(Integer, primary_key=True)
     name = Column(String)
+    
     in_edges = relationship("Edge", back_populates="end_node")
+    images = relationship("Image", back_populates="node")
+    label_maps = relationship("Label_map", back_populates="node")
 
     def __repr__(self):
         return "<Node(key='%s', name='%s'')>" % (self.key, self.name)
@@ -78,6 +81,7 @@ class Edge(Base):
     end_node_key = Column(Integer, ForeignKey('nodes.key'))
     weight = Column(sa.FLOAT)
     info = Column(String)
+    
     relation = relationship("Relation", back_populates="edges")
     end_node = relationship("Node", back_populates="in_edges")
 
@@ -102,9 +106,13 @@ class Dataset(Base):
     """
 
     __tablename__ = 'datasets'
-    key = Column(Integer, primary_key=True,autoincrement=True)
+    key = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)
     nb_classes = Column(Integer)
+    
+    images = relationship("Image", back_populates="dataset")
+    label_maps = relationship("Label_map", back_populates="dataset")
+    
     def __repr__(self):
         return "<Dataset(name='%s', nb_classes='%s')>" % (self.name, self.nb_classes)
 
@@ -130,10 +138,13 @@ class Image(Base):
 
     __tablename__ = 'images'
     key = Column(Integer, primary_key=True, autoincrement=True)
-    dataset_key =  Column(Integer, ForeignKey('relations.key'))
+    dataset_key = Column(Integer, ForeignKey('relations.key'))
     node_key = Column(Integer, ForeignKey('nodes.key'))
     mode = Column(String) # train, test, None
     location = Column(String)
+    
+    dataset = relationship("Dataset", back_populates="images")
+    node = relationship("Node", back_populates="images")
 
     def __repr__(self):
         return "<Image(dataset_key='%s', node_key='%s',mode = '%s', location='%s'')>" % ( self.dataset_key,self.node_key,
@@ -159,10 +170,14 @@ class Label_map(Base):
     """
 
     __tablename__ = 'label_maps'
-    key=Column(Integer, primary_key=True, autoincrement=True)
-    label=Column(String)
-    node_key=Column(Integer, ForeignKey('nodes.key'))
-    dataset_key=Column(Integer, ForeignKey('datasets.key'))
+    key = Column(Integer, primary_key=True, autoincrement=True)
+    label = Column(String)
+    node_key = Column(Integer, ForeignKey('nodes.key'))
+    dataset_key = Column(Integer, ForeignKey('datasets.key'))
+
+    dataset = relationship("Dataset", back_populates="label_maps")
+    node = relationship("Node", back_populates="label_maps")
+    
     def __repr__(self):
         return "<Image(label = '%s', node_key='%s', dataset_key='%s')>" % (self.label, self.node_key,
                                                                                     self.dataset_key)
@@ -228,7 +243,7 @@ def get_label_map(map_dict,dataset_key,session):
         node_key = 99999
         for r in node_results:
             node_key = r.key
-        label_map = Label_map(label=label_name, node_key=node_key, dataset_key = dataset_key )
+        label_map = Label_map(label=label_name, node_key=node_key, dataset_key=dataset_key)
         all_labels.append(label_map)
     return all_labels
 
@@ -288,7 +303,7 @@ def get_map_dic_cifar():
     """return: a dictionary with key as label and value as wordnet id"""
 
     # TODO: this dictionary should be completed.
-    map_dic = {'streetcar': '104342573', 'castle': '102983900','bicycle':'102837983','motorcycle':'103796045'}
+    map_dic = {'streetcar': '104342573', 'castle': '102983900', 'bicycle': '102837983', 'motorcycle': '103796045'}
     return map_dic
 
 
@@ -312,15 +327,13 @@ def main():
         edge.relation = all_relations[int(edge.relation_key)]
         all_nodes[int(edge.end_node_key)].in_edges.append(edge)
 
-
     session.add_all(all_relations)
     session.add_all(all_nodes)
     session.add_all(all_edges)
     session.commit()
 
-
     ########## insert cifar100 info into datasets table #########
-    cifar100 =  Dataset(key=0, name='CIFAR100',nb_classes=100)
+    cifar100 = Dataset(key=0, name='CIFAR100', nb_classes=100)
     session.add(cifar100)
     session.commit()
 
@@ -328,12 +341,12 @@ def main():
     cifar_id = session.query(Dataset.key).filter_by(name='CIFAR100').first()
     cifar_key = cifar_id._asdict()['key']
     cifar_map_dict = get_map_dic_cifar()
-    all_label_maps = get_label_map(cifar_map_dict,cifar_key,session)
+    all_label_maps = get_label_map(cifar_map_dict, cifar_key, session)
     session.add_all(all_label_maps)
     session.commit()
 
     ########## fill out images dataset with CIFAR100 images #########
-    all_images = get_cifar100(cifar_key,session)
+    all_images = get_cifar100(cifar_key, session)
     session.add_all(all_images)
     session.commit()
 
