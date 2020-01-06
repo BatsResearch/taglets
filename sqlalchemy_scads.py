@@ -227,86 +227,6 @@ def get_edges():
     return all_edges
 
 
-def get_label_map(map_dict,dataset_key,session):
-    """ load label name and corresponding wordnet id from map_dict, return a list of 'Label_map' class
-
-    :param map_dict: map dictionary; key is label and value is wordnet id. e.g., {'streetcar':104342573,  'castle': 102983900}
-    :param dataset_key: key of dataset in 'datasets' table
-    :param session: current  sqlalchemy session
-    :return: a list of 'Label_map' object that should be inserted into 'label_maps' dataset
-
-    """
-
-    all_labels = []
-    for label_name,wordnet_id in map_dict.items():
-        node_results = session.query(Node).filter(Node.name.like('%'+wordnet_id+'%'))
-        node_key = 99999
-        for r in node_results:
-            node_key = r.key
-        label_map = Label_map(label=label_name, node_key=node_key, dataset_key=dataset_key)
-        all_labels.append(label_map)
-    return all_labels
-
-
-def get_cifar100(cifar_key,session):
-    """go over all cifar images in cifar directory, and return a list of 'Image' class.
-
-    For each image in cifar dataset, create an object of 'Image', e.g.,:
-        apple_img_1 = Image(dataset_key='cifar100 key', node_key='apple key', mode = 'train', location='directory/apple_1.png')
-
-    Images in cifar100 split to train and test.
-        /CIFAR100:
-            /train
-                /fish
-                /bicycle
-                /beaver
-                ...
-            /test
-                /fish
-                /bicycle
-                /beaver
-                ...
-
-    'mode' is 'train' or 'test' or 'none' (image in dataset is in 'test' folder or 'train' folder;
-    otherwise it should be 'none').
-
-    :param cifar_key: key of cifar in datasets table.
-    :param session: current sqlalchemy session.
-    :return: a list of Image class for all of the images in cifar.
-
-    """
-
-    cwd = os.getcwd()
-    cifar100_dir = os.path.join(cwd, 'sql_data','CIFAR100')
-    all_images = []
-    for mode in os.listdir(cifar100_dir):
-        if mode.startswith('.'):
-            continue
-        class_dir = os.path.join(cifar100_dir,mode)
-        for label in os.listdir(class_dir):
-            if label.startswith('.'):
-                continue
-            label_map_results = session.query(Label_map).filter(Label_map.label.like('%' + label + '%')).first()
-            if label_map_results == None:
-                node_key = 9999
-            else:
-                node_key = label_map_results.node_key
-            image_dir = os.path.join(class_dir,label)
-            for image in os.listdir(image_dir):
-                img = Image(dataset_key=cifar_key, node_key=node_key, mode = mode, location=os.path.join(image_dir,image))
-                all_images.append(img)
-
-    return all_images
-
-
-def get_map_dic_cifar():
-    """return: a dictionary with key as label and value as wordnet id"""
-
-    # TODO: this dictionary should be completed.
-    map_dic = {'streetcar': '104342573', 'castle': '102983900', 'bicycle': '102837983', 'motorcycle': '103796045'}
-    return map_dic
-
-
 def main():
 
     ########## generate database schema #########
@@ -330,38 +250,6 @@ def main():
     session.add_all(all_relations)
     session.add_all(all_nodes)
     session.add_all(all_edges)
-    session.commit()
-
-    ########## insert cifar100 info into datasets table #########
-    cifar100 = Dataset(key=0, name='CIFAR100', nb_classes=100)
-    session.add(cifar100)
-    session.commit()
-
-    ########## fill label_maps dataset with information from CIFAR100 #########
-    cifar_id = session.query(Dataset.key).filter_by(name='CIFAR100').first()
-    cifar_key = cifar_id._asdict()['key']
-    cifar_map_dict = get_map_dic_cifar()
-    all_label_maps = get_label_map(cifar_map_dict, cifar_key, session)
-    
-    for label_map in all_label_maps:
-        label_map.dataset = cifar100
-        if label_map.node_key != 9999:
-            label_map.node = session.query(Node).filter(Node.key == label_map.node_key).first()
-    
-    session.add_all(all_label_maps)
-    session.commit()
-
-    ########## fill out images dataset with CIFAR100 images #########
-    all_images = get_cifar100(cifar_key, session)
-    
-    for image in all_images:
-        image.dataset = cifar100
-        if image.node_key != 9999:
-            image.node = session.query(Node).filter(Node.key == image.node_key).first()
-    
-    session.add_all(all_images)
-    session.commit()
-
     session.commit()
     session.close()
 
