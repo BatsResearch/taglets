@@ -23,6 +23,9 @@ class TagletExecuter:
         num_images = images.shape[0]
         num_taglets = len(self.taglets)
         label_matrix = np.zeros((num_images, num_taglets))
+        image_size = 224
+
+        # ### call train() of all taglets on labeled data
         
         ct = 0
         while ct < num_images:
