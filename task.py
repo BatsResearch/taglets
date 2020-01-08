@@ -1,5 +1,7 @@
 import numpy as np
 from pathlib import Path
+from modules.module import BaseModule
+from taglet_executer import TagletExecuter
 
 
 class Task:
@@ -28,11 +30,26 @@ class MNIST(Task):
                           {'id': '39791.png', 'label': '4'},
                           {'id': '37059.png', 'label': '0'},
                           {'id': '46244.png', 'label': '5'}]
-        self.data_url = '/datasets/lwll_datasets/mnist/mnist_sample/train',
 
         self.dataset_type = 'image_classification'
 
+        # ##### the data we will be evaluated based on. We submit our prediciton on these data
         self.test_imgs = [f.name for f in Path("/Users/markh/Downloads/mnist/mnist_sample/test").iterdir() if f.is_file()]
+        self.unlabeled_images = 'path to unlabeled imges'
+        self.labeled_images = '/datasets/lwll_datasets/mnist/mnist_sample/train',
+
+
+
+        def workflow():
+            MNIST_module = BaseModule()
+            taglets = MNIST_module.get_taglets()
+            taglet_executer = TagletExecuter(taglets)
+            taglet_executer.train(self.labeled_images)
+            label_matrix = taglet_executer.execute(self.unlabeled_images)
+            # soft_labels = LabelModel.annotate(label_matrix)
+            # end_model = end_model(soft_labels, self.unlabeled_images)
+            # [test_predictions] = end_model.prediction(end_model, self.test_images)
+
 
 
 

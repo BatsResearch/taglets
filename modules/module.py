@@ -1,5 +1,6 @@
 import numpy as np
 import task
+from taglet import resnet_taglet, logistinc_regression_taglet, prototype_taglet
 
 
 class BaseModule:
@@ -17,4 +18,6 @@ class BaseModule:
         Jeff: We could also have a method to load taglets before returning them here.
         :return: List of taglets
         """
-        raise NotImplementedError()
+        # for now this is hard-coded
+        return [resnet_taglet,logistinc_regression_taglet,prototype_taglet]
+
