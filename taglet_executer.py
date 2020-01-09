@@ -19,7 +19,6 @@ class TagletExecuter:
         for taglet in self.taglets:
             taglet.train(labeled_images)
 
-
     def execute(self, unlabeled_images, batch_size=64, use_gpu=True):
         """
         Top: I implement this function in the most straightforward way. If there is a room for optimization,

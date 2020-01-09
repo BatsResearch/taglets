@@ -16,6 +16,7 @@ class Task:
         self.test_data = ''
         self.allowed_datasets = []
 
+
 class MNIST(Task):
     def __init__(self):
         super().__init__()

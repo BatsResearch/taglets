@@ -1,22 +1,12 @@
-import numpy as np
-import sqlalchemy as sa
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey
-from sqlalchemy.orm import relationship, backref
-import os
-from pathlib import Path
 from sqlalchemy_scads import *
-from nltk.corpus import wordnet as wn
 import pandas as pd
-
 
 Base = declarative_base()
 engine = sa.create_engine('sqlite:///sql_data/scads_db.db')
 Session = sessionmaker(bind=engine)
 
 
-def get_label_map(map_dict,dataset_key,session):
+def get_label_map(map_dict, dataset_key, session):
     """load label name and corresponding wordnet id from map_dict, return a list of 'Label_map' class
 
     :param map_dict: map dictionary; key is label and value is wordnet id. e.g., {'streetcar':104342573,  'castle': 102983900}
@@ -27,18 +17,18 @@ def get_label_map(map_dict,dataset_key,session):
     """
 
     all_labels = []
-    for label_name,wordnet_id in map_dict.items():
+    for label_name, wordnet_id in map_dict.items():
         node_results = session.query(Node).filter(Node.name.like('%'+wordnet_id+'%'))
         node_key = 99999
         for r in node_results:
             node_key = r.key
 
-        label_map = Label_map(label=label_name, node_key=node_key, dataset_key=dataset_key)
+        label_map = LabelMap(label=label_name, node_key=node_key, dataset_key=dataset_key)
         all_labels.append(label_map)
     return all_labels
 
 
-def get_image(dataset_key,dataset_name,session):
+def get_image(dataset_key, dataset_name, session):
     """for the given dataset, call the function to return a list of all images related to the dataset.
 
     :param dataset_key: key of dataset we want to retrieve information; could be 0, 1, 2, etc.
@@ -47,12 +37,12 @@ def get_image(dataset_key,dataset_name,session):
     :return:
     """
     if dataset_name == 'CIFAR100':
-        return get_cifar100_images(dataset_key,session)
+        return get_cifar100_images(dataset_key, session)
     elif dataset_name == 'MNIST':
-        return get_MNIST_image(dataset_key,dataset_name,session)
+        return get_MNIST_image(dataset_key, session)
 
 
-def get_cifar100_images(cifar_key,session):
+def get_cifar100_images(cifar_key, session):
     """go over all cifar images in cifar directory, and return a list of 'Image' class.
 
     For each image in cifar dataset, create an object of 'Image', e.g.,:
@@ -81,7 +71,7 @@ def get_cifar100_images(cifar_key,session):
     """
 
     cwd = os.getcwd()
-    cifar100_dir = os.path.join(cwd, 'sql_data','CIFAR100')
+    cifar100_dir = os.path.join(cwd, 'sql_data', 'CIFAR100')
     all_images = []
     for mode in os.listdir(cifar100_dir):
         if mode.startswith('.'):
@@ -90,20 +80,22 @@ def get_cifar100_images(cifar_key,session):
         for label in os.listdir(class_dir):
             if label.startswith('.'):
                 continue
-            label_map_results = session.query(Label_map).filter(Label_map.label.like('%' + label + '%')).first()
-            if label_map_results == None:
+            label_map_results = session.query(LabelMap).filter(LabelMap.label.like('%' + label + '%')).first()
+            if label_map_results is None:
                 node_key = 9999
             else:
                 node_key = label_map_results.node_key
-            image_dir = os.path.join(class_dir,label)
+            image_dir = os.path.join(class_dir, label)
             for image in os.listdir(image_dir):
-                img = Image(dataset_key=cifar_key, node_key=node_key, mode = mode, location=os.path.join(image_dir,image))
+                img = Image(dataset_key=cifar_key,
+                            node_key=node_key,
+                            mode=mode,
+                            location=os.path.join(image_dir, image))
                 all_images.append(img)
-
     return all_images
 
 
-def get_MNIST_image(dataset_key,dataset_name,session):
+def get_MNIST_image(dataset_key, session):
     """go over all images in dataset directory, and return a list of 'Image' class.
 
     For each image in MNIST dataset, create an object of 'Image', e.g.,:
@@ -134,8 +126,8 @@ def get_MNIST_image(dataset_key,dataset_name,session):
     """
 
     cwd = os.getcwd()
-    data_dir = os.path.join(cwd, 'sql_data',dataset_name)
-    mode = ['train','test']
+    data_dir = os.path.join(cwd, 'sql_data', "MNIST")
+    mode = ['train', 'test']
 
     all_images = []
     for mode in mode:
@@ -147,16 +139,18 @@ def get_MNIST_image(dataset_key,dataset_name,session):
             if image.startswith('.'):
                 continue
 
-            label = ((df_label.loc[df_label['id'] ==image].label).values)[0]
-            label_map_results = session.query(Label_map).filter(Label_map.label.like('%' + label + '%')).first()
-            if label_map_results == None:
+            label = df_label.loc[df_label['id'] == image].label.values[0]
+            label_map_results = session.query(LabelMap).filter(LabelMap.label.like('%' + label + '%')).first()
+            if label_map_results is None:
                 node_key = 9999
             else:
                 node_key = label_map_results.node_key
 
-            img = Image(dataset_key=dataset_key, node_key=node_key, mode=mode, location=os.path.join(image_dir, image))
+            img = Image(dataset_key=dataset_key,
+                        node_key=node_key,
+                        mode=mode,
+                        location=os.path.join(image_dir, image))
             all_images.append(img)
-
     return all_images
 
 
@@ -164,8 +158,16 @@ def get_map_dict(dataset_name):
     """return: a dictionary with key as label and value as wordnet id"""
 
     if dataset_name == 'MNIST':
-        map_dic = {'0': '13742358', '1': '13742573', '2': '13743269', '3': '13744044', '4': '13744304', '5':'13744521',
-        '6': '13744722', '7':'13744916', '8':'13745086', '9':'13745270'}
+        map_dic = {'0': '13742358',
+                   '1': '13742573',
+                   '2': '13743269',
+                   '3': '13744044',
+                   '4': '13744304',
+                   '5': '13744521',
+                   '6': '13744722',
+                   '7': '13744916',
+                   '8': '13745086',
+                   '9': '13745270'}
     elif dataset_name == 'CIFAR100':
         # TODO: this dictionary should be completed.
         map_dic = {'streetcar': '104342573', 'castle': '102983900', 'bicycle': '102837983', 'motorcycle': '103796045'}
@@ -184,10 +186,10 @@ def add_dataset(dataset_info):
     dataset_name = dataset_info['dataset_name']
     dataset_nb_classes = dataset_info['nb_classes']
 
-    ########## insert dataset info into datasets table #########
+    ########## Insert dataset info into datasets table #########
     dataset_key = session.query(Dataset.key).filter_by(name=dataset_name).first()
 
-    if dataset_key != None:
+    if dataset_key is not None:
         dataset_key = dataset_key[0]
         dataset = session.query(Dataset).filter_by(key=dataset_key).first()
         print('dataset already exits!')
@@ -195,9 +197,9 @@ def add_dataset(dataset_info):
         dataset = Dataset(name= dataset_name, nb_classes=dataset_nb_classes)
         session.add(dataset)
         session.commit()
-        print(dataset_name +' added to datasets tables.')
+        print(dataset_name, 'added to datasets tables.')
 
-    ########## fill out label_maps dataset with information for dataset #########
+    ########## Fill out label_maps dataset with information for dataset #########
     map_dict = get_map_dict(dataset_name)
 
     all_label_maps = get_label_map(map_dict, dataset_key, session)
@@ -209,7 +211,7 @@ def add_dataset(dataset_info):
 
     session.add_all(all_label_maps)
     session.commit()
-    print('label maps related to '+ dataset_name+ ' added to label_maps dataset.')
+    print("label maps related to", dataset_name, "added to label_maps dataset.")
 
     # ########## fill out images dataset #########
     all_images = get_image(dataset_key, dataset_name, session)
@@ -218,21 +220,23 @@ def add_dataset(dataset_info):
         image.dataset = dataset
         if image.node_key != 9999:
             image.node = session.query(Node).filter(Node.key == image.node_key).first()
-    #
     session.add_all(all_images)
     session.commit()
-    print('all images of '+ dataset_name+ ' are added to images dataset.')
+    print("all images of", dataset_name, "are added to images dataset.")
 
 
 def main():
 
-    ########## generate database schema #########
-    MNIST_info = {'dataset_name':'MNIST', 'nb_classes': 10}
+    ########## Generate database schema #########
+    MNIST_info = {'dataset_name': 'MNIST',
+                  'nb_classes': 10}
     add_dataset(MNIST_info)
 
 
-    CIFAR100_info = {'dataset_name':'CIFAR100', 'nb_classes': 100}
+    CIFAR100_info = {'dataset_name': 'CIFAR100',
+                     'nb_classes': 100}
     add_dataset(CIFAR100_info)
+
 
 if __name__ == "__main__":
     main()

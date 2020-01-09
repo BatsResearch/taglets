@@ -1,12 +1,9 @@
-import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy.orm import relationship
 import os
-from pathlib import Path
-
 
 Base = declarative_base()
 engine = sa.create_engine('sqlite:///sql_data/scads_db.db')
@@ -31,7 +28,7 @@ class Node(Base):
     
     in_edges = relationship("Edge", back_populates="end_node")
     images = relationship("Image", back_populates="node")
-    label_maps = relationship("Label_map", back_populates="node")
+    label_maps = relationship("LabelMap", back_populates="node")
 
     def __repr__(self):
         return "<Node(key='%s', name='%s'')>" % (self.key, self.name)
@@ -111,7 +108,7 @@ class Dataset(Base):
     nb_classes = Column(Integer)
     
     images = relationship("Image", back_populates="dataset")
-    label_maps = relationship("Label_map", back_populates="dataset")
+    label_maps = relationship("LabelMap", back_populates="dataset")
     
     def __repr__(self):
         return "<Dataset(name='%s', nb_classes='%s')>" % (self.name, self.nb_classes)
@@ -140,25 +137,27 @@ class Image(Base):
     key = Column(Integer, primary_key=True, autoincrement=True)
     dataset_key = Column(Integer, ForeignKey('datasets.key'))
     node_key = Column(Integer, ForeignKey('nodes.key'))
-    mode = Column(String) # train, test, None
+    mode = Column(String)   # train, test, None
     location = Column(String)
     
     dataset = relationship("Dataset", back_populates="images")
     node = relationship("Node", back_populates="images")
 
     def __repr__(self):
-        return "<Image(dataset_key='%s', node_key='%s',mode = '%s', location='%s'')>" % ( self.dataset_key,self.node_key,
-                                                                                       self.mode, self.location)
+        return "<Image(dataset_key='%s', node_key='%s',mode = '%s', location='%s'')>" % (self.dataset_key,
+                                                                                         self.node_key,
+                                                                                         self.mode,
+                                                                                         self.location)
 
 
-class Label_map(Base):
+class LabelMap(Base):
     """Represents the mapping between the class names in datasets and nodes.
 
     Each class name in dataset has a corresponding node in nodes table. This class shows the association between class
     name in each dataset with node in nodes dataset.
 
     E.g.::
-        map_apple = Label_map(label='apple', node_key='apple_node_key', dataset_key = 'cifar100_key')
+        map_apple = LabelMap(label='apple', node_key='apple_node_key', dataset_key = 'cifar100_key')
 
     Associates the label name 'apple' in cifar100 dataset with the correspoinding 'apple' in nodes dataset.
 
