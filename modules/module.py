@@ -1,6 +1,6 @@
 import numpy as np
 import task
-from taglet import resnet_taglet, logistinc_regression_taglet, prototype_taglet
+from taglet import ResnetTaglet, LogisticRegressionTaglet, PrototypeTaglet
 
 
 class BaseModule:
@@ -19,5 +19,8 @@ class BaseModule:
         :return: List of taglets
         """
         # for now this is hard-coded
-        return [resnet_taglet,logistinc_regression_taglet,prototype_taglet]
-
+        taglets = [ResnetTaglet(), LogisticRegressionTaglet(), PrototypeTaglet()]
+        labeled_data = None     # TODO
+        for taglet in taglets:
+            taglet.train(labeled_data)
+        return taglets

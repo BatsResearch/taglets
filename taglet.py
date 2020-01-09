@@ -17,7 +17,8 @@ class Taglet:
         """
         raise NotImplementedError()
 
-class resnet_taglet(Taglet):
+
+class ResnetTaglet(Taglet):
     def __init__(self):
         super().__init__()
         self.pretrained = True
@@ -31,7 +32,7 @@ class resnet_taglet(Taglet):
         print('execute vote on unlabeled data')
 
 
-class logistinc_regression_taglet(Taglet):
+class LogisticRegressionTaglet(Taglet):
     def __init__(self):
         super().__init__()
         self.pretrained = True
@@ -45,7 +46,7 @@ class logistinc_regression_taglet(Taglet):
         print('execute vote on unlabeled data')
 
 
-class prototype_taglet(Taglet):
+class PrototypeTaglet(Taglet):
     def __init__(self):
         super().__init__()
         self.pretrained = True
@@ -57,12 +58,3 @@ class prototype_taglet(Taglet):
 
     def execute(self, unlabeled_images, use_gpu=True):
         print('execute vote on unlabeled data')
-
-
-
-
-
-
-
-
-

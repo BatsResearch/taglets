@@ -20,7 +20,7 @@ class MNIST(Task):
     def __init__(self):
         super().__init__()
         self.classes = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-        self.labels =  [{'id': '56847.png', 'label': '2'},
+        self.labels = [{'id': '56847.png', 'label': '2'},
                           {'id': '45781.png', 'label': '3'},
                           {'id': '40214.png', 'label': '7'},
                           {'id': '49851.png', 'label': '8'},
@@ -49,8 +49,3 @@ class MNIST(Task):
             # soft_labels = LabelModel.annotate(label_matrix)
             # end_model = end_model(soft_labels, self.unlabeled_images)
             # [test_predictions] = end_model.prediction(end_model, self.test_images)
-
-
-
-
-
