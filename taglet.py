@@ -9,7 +9,7 @@ class Taglet:
     def __init__(self):
         raise NotImplementedError()
 
-    def execute(self, unlabeled_images, use_gpu=True):
+    def execute(self, unlabeled_images, batch_size=64, use_gpu=True):
         """
         Top: I add use_gpu as another argument for this function.
         Execute the taglet on a batch of images.
@@ -25,7 +25,7 @@ class ResnetTaglet(Taglet):
 
         self.model = models.resnet18(pretrained=self.pretrained)
 
-    def train(self, labeled_data):
+    def train(self, labeled_data, batch_size, use_gpu):
         print('train model on labeled data')
 
     def execute(self, unlabeled_images, use_gpu=True):
@@ -39,7 +39,7 @@ class LogisticRegressionTaglet(Taglet):
 
         # self.model = one layer NN
 
-    def train(self, labeled_data):
+    def train(self, labeled_data, batch_size, use_gpu):
         print('train model on labeled data')
 
     def execute(self, unlabeled_images, use_gpu=True):
@@ -53,7 +53,7 @@ class PrototypeTaglet(Taglet):
 
         # self.model = Peilin will take care of this
 
-    def train(self, labeled_data):
+    def train(self, labeled_data, batch_size, use_gpu):
         print('train model on labeled data')
 
     def execute(self, unlabeled_images, use_gpu=True):
