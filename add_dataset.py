@@ -80,7 +80,8 @@ def get_cifar100_images(cifar_key, session):
         for label in os.listdir(class_dir):
             if label.startswith('.'):
                 continue
-            label_map_results = session.query(LabelMap).filter(LabelMap.label.like('%' + label + '%')).first()
+            label_map_results = session.query(LabelMap).filter(and_(LabelMap.label == label,
+                                                                    LabelMap.dataset_key == cifar_key)).first()
             if label_map_results is None:
                 node_key = None
             else:
@@ -140,7 +141,8 @@ def get_MNIST_image(dataset_key, session):
                 continue
 
             label = df_label.loc[df_label['id'] == image].label.values[0]
-            label_map_results = session.query(LabelMap).filter(LabelMap.label.like('%' + label + '%')).first()
+            label_map_results = session.query(LabelMap).filter(and_(LabelMap.label == label,
+                                                                    LabelMap.dataset_key == dataset_key)).first()
             if label_map_results is None:
                 node_key = None
             else:
