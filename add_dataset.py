@@ -19,7 +19,7 @@ def get_label_map(map_dict, dataset_key, session):
     all_labels = []
     for label_name, wordnet_id in map_dict.items():
         node_results = session.query(Node).filter(Node.name.like('%'+wordnet_id+'%'))
-        node_key = 99999
+        node_key = None
         for r in node_results:
             node_key = r.key
 
@@ -76,13 +76,13 @@ def get_cifar100_images(cifar_key, session):
     for mode in os.listdir(cifar100_dir):
         if mode.startswith('.'):
             continue
-        class_dir = os.path.join(cifar100_dir,mode)
+        class_dir = os.path.join(cifar100_dir, mode)
         for label in os.listdir(class_dir):
             if label.startswith('.'):
                 continue
             label_map_results = session.query(LabelMap).filter(LabelMap.label.like('%' + label + '%')).first()
             if label_map_results is None:
-                node_key = 9999
+                node_key = None
             else:
                 node_key = label_map_results.node_key
             image_dir = os.path.join(class_dir, label)
@@ -127,13 +127,13 @@ def get_MNIST_image(dataset_key, session):
 
     cwd = os.getcwd()
     data_dir = os.path.join(cwd, 'sql_data', "MNIST")
-    mode = ['train', 'test']
+    modes = ['train', 'test']
 
     all_images = []
-    for mode in mode:
+    for mode in modes:
         if mode.startswith('.') or not os.path.isdir(data_dir):
             continue
-        df_label = pd.read_feather(data_dir+'/labels_'+mode+'.feather')
+        df_label = pd.read_feather(data_dir + '/labels_' + mode + '.feather')
         image_dir = os.path.join(data_dir, mode)
         for image in os.listdir(image_dir):
             if image.startswith('.'):
@@ -142,10 +142,9 @@ def get_MNIST_image(dataset_key, session):
             label = df_label.loc[df_label['id'] == image].label.values[0]
             label_map_results = session.query(LabelMap).filter(LabelMap.label.like('%' + label + '%')).first()
             if label_map_results is None:
-                node_key = 9999
+                node_key = None
             else:
                 node_key = label_map_results.node_key
-
             img = Image(dataset_key=dataset_key,
                         node_key=node_key,
                         mode=mode,
@@ -194,7 +193,7 @@ def add_dataset(dataset_info):
         dataset = session.query(Dataset).filter_by(key=dataset_key).first()
         print('dataset already exits!')
     else:
-        dataset = Dataset(name= dataset_name, nb_classes=dataset_nb_classes)
+        dataset = Dataset(name=dataset_name, nb_classes=dataset_nb_classes)
         session.add(dataset)
         session.commit()
         print(dataset_name, 'added to datasets tables.')
@@ -206,7 +205,7 @@ def add_dataset(dataset_info):
 
     for label_map in all_label_maps:
         label_map.dataset = dataset
-        if label_map.node_key != 9999:
+        if label_map.node_key is not None:
             label_map.node = session.query(Node).filter(Node.key == label_map.node_key).first()
 
     session.add_all(all_label_maps)
@@ -218,7 +217,7 @@ def add_dataset(dataset_info):
 
     for image in all_images:
         image.dataset = dataset
-        if image.node_key != 9999:
+        if image.node_key is not None:
             image.node = session.query(Node).filter(Node.key == image.node_key).first()
     session.add_all(all_images)
     session.commit()
