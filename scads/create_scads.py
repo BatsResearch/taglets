@@ -1,4 +1,4 @@
-from sqlalchemy_scads import *
+from scads.sqlalchemy_scads import *
 import pandas as pd
 
 Base = declarative_base()
@@ -226,7 +226,38 @@ def add_dataset(dataset_info):
     print("all images of", dataset_name, "are added to images dataset.")
 
 
+def add_conceptnet():
+    """insert conceptnet information such as nodes, edges, and relations to correspoinding tables. """
+
+    ########## generate database schema #########
+    Base.metadata.create_all(engine)
+
+    session = Session()
+
+    ########## read nodes, edges, and relations from files and insert into corresponding tables #########
+    all_relations = get_relations()
+    all_nodes = get_nodes()
+    all_edges = get_edges()
+
+    for edge in all_edges:
+        print(edge.end_node_key)
+
+    # Top: this assumes the relations in all_relations are already SORTED based on their keys and the keys start at 0
+    for edge in all_edges:
+        edge.relation = all_relations[int(edge.relation_key)]
+        edge.end_node = all_nodes[int(edge.end_node_key)]
+
+    session.add_all(all_relations)
+    session.add_all(all_nodes)
+    session.add_all(all_edges)
+    session.commit()
+    session.close()
+
 def main():
+
+
+    ########## adding conceptnet information such as nodes, edges, relations, etc. #########
+    # add_conceptnet()
 
     ########## Generate database schema #########
     MNIST_info = {'dataset_name': 'MNIST',
@@ -237,6 +268,8 @@ def main():
     CIFAR100_info = {'dataset_name': 'CIFAR100',
                      'nb_classes': 100}
     add_dataset(CIFAR100_info)
+
+
 
 
 if __name__ == "__main__":

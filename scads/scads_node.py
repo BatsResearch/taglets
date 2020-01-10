@@ -1,4 +1,4 @@
-from sqlalchemy_scads import Edge, LabelMap
+from scads.sqlalchemy_scads import Edge, LabelMap
 from scads.scads_edge import ScadsEdge
 
 

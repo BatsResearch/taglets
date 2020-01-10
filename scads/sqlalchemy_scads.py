@@ -224,34 +224,3 @@ def get_edges():
                                 end_node_key=end_node_key, weight=weight, info=info)
                 all_edges.append(edge)
     return all_edges
-
-
-def main():
-
-    ########## generate database schema #########
-    Base.metadata.create_all(engine)
-
-    session = Session()
-
-    ########## read nodes, edges, and relations from files and insert into corresponding tables #########
-    all_relations = get_relations()
-    all_nodes = get_nodes()
-    all_edges = get_edges()
-
-    for edge in all_edges:
-        print(edge.end_node_key)
-
-    # Top: this assumes the relations in all_relations are already SORTED based on their keys and the keys start at 0
-    for edge in all_edges:
-        edge.relation = all_relations[int(edge.relation_key)]
-        edge.end_node = all_nodes[int(edge.end_node_key)]
-
-    session.add_all(all_relations)
-    session.add_all(all_nodes)
-    session.add_all(all_edges)
-    session.commit()
-    session.close()
-
-
-if __name__ == "__main__":
-    main()
