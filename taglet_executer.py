@@ -8,17 +8,6 @@ class TagletExecuter:
     def __init__(self, taglets):
         self.taglets = taglets
 
-    def train(self, labeled_images, batch_size=64, use_gpu=True):
-        """call train function for each taglet in taglet list
-
-        :param labeled_images:
-        :param batch_size:
-        :param use_gpu:
-        :return:
-        """
-        for taglet in self.taglets:
-            taglet.train(labeled_images)
-
     def execute(self, unlabeled_images, batch_size=64, use_gpu=True):
         """
         Top: I implement this function in the most straightforward way. If there is a room for optimization,
