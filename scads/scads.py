@@ -1,7 +1,9 @@
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+
 from sqlalchemy_scads import Node
+from scads.scads_node import ScadsNode
 
 Base = declarative_base()
 engine = sa.create_engine('sqlite:///sql_data/scads_db.db')
@@ -14,6 +16,16 @@ class Scads:
     Structured Collections of Annotated Data Sets (SCADS)
     """
 
+    session = None
+
+    @staticmethod
+    def open():
+        Scads.session = Session()
+
+    @staticmethod
+    def close():
+        Scads.session.close()
+
     @staticmethod
     def get_node(concept):
         """
@@ -22,7 +34,7 @@ class Scads:
         Get a ScadsNode given a concept
         :return: The ScadsNode
         """
-        session = Session()
-        node = session.query(Node).filter(Node.name == concept).first()
-        session.close()
-        return node
+        if Scads.session is None:
+            raise RuntimeError("Session is not opened.")
+        sql_node = Scads.session.query(Node).filter(Node.name == concept).first()
+        return ScadsNode(sql_node, Scads.session)
