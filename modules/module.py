@@ -19,7 +19,7 @@ class BaseModule:
 
     def train_taglets(self, labeled_images, batch_size=64, use_gpu=True):
         for taglet in self.taglets:
-            taglet.train(labeled_images)
+            taglet.train(labeled_images, batch_size, use_gpu)
 
     def get_taglets(self):
         """
