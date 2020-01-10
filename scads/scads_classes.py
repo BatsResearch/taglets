@@ -3,7 +3,6 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, Integer, String, ForeignKey, and_
 from sqlalchemy.orm import relationship
-import os
 
 Base = declarative_base()
 engine = sa.create_engine('sqlite:///sql_data/scads_db.db')
@@ -180,47 +179,3 @@ class LabelMap(Base):
     def __repr__(self):
         return "<Image(label = '%s', node_key='%s', dataset_key='%s')>" % (self.label, self.node_key,
                                                                                     self.dataset_key)
-
-
-def get_relations():
-    """ load the csv file containing all relations in conceptnet, and return a list of Relation class."""
-
-    cwd = os.getcwd()
-    all_relations = []
-    with open(os.path.join(cwd, 'sql_data', 'relations.csv'), encoding="utf8") as relation_file:
-        for line in relation_file:
-            if line.strip():
-                r_key, r_name, r_type = line.strip().split()
-                relation = Relation(key=r_key, name=r_name, type=r_type)
-                all_relations.append(relation)
-    return all_relations
-
-
-def get_nodes():
-    """ load the csv file containing all nodes in conceptnet, and return a list of 'Node' class"""
-
-    cwd = os.getcwd()
-    all_nodes = []
-    with open(os.path.join(cwd, 'sql_data', 'nodes.csv'), encoding="utf8") as node_file:
-        for line in node_file:
-            if line.strip():
-                n_key, n_name = line.strip().split()
-                node = Node(key=n_key, name=n_name)
-                all_nodes.append(node)
-    return all_nodes
-
-
-def get_edges():
-    """ load the csv file containing all edges in conceptnet, and return a list of 'Edge' class."""
-
-    cwd = os.getcwd()
-    all_edges = []
-    with open(os.path.join(cwd, 'sql_data', 'edges.csv'), encoding="utf8") as edge_file:
-        for line in edge_file:
-            if line.strip():
-                key, URI, relation_key, start_node_key, end_node_key,weight = line.strip().split()[:6]
-                info = " " .join(line.strip().split()[6:])
-                edge = Edge(key=key,URI=str(URI),relation_key=relation_key, start_node_key=start_node_key,
-                                end_node_key=end_node_key, weight=weight, info=info)
-                all_edges.append(edge)
-    return all_edges

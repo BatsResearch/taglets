@@ -2,7 +2,7 @@ import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from sqlalchemy_scads import Node
+from scads.scads_classes import Node
 from scads.scads_node import ScadsNode
 
 Base = declarative_base()

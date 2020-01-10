@@ -1,8 +1,13 @@
-from scads import Scads
+from scads import Scads, add_conceptnet, add_datasets
 
 from modules.module import BaseModule
 from taglet_executer import TagletExecuter
 from task import MNIST
+
+
+def create_scads():
+    add_conceptnet()
+    add_datasets()
 
 
 def scads_example():
@@ -15,7 +20,7 @@ def scads_example():
     neighboring_node = outgoing_edges[0].end_node   # Get the neighboring node
 
     # The neighbor is also a ScadsNode
-    print(neighboring_node.get_datasets(), neighboring_node.get_images(), neighboring_node.get_neighbors)
+    print(neighboring_node.get_datasets(), neighboring_node.get_images(), neighboring_node.get_neighbors())
     Scads.close()                                   # Close the session
 
 
@@ -29,3 +34,12 @@ def workflow():
     # soft_labels = LabelModel.annotate(label_matrix)
     # end_model = end_model(soft_labels, self.unlabeled_images)
     # [test_predictions] = end_model.prediction(end_model, self.test_images)
+
+
+def main():
+    create_scads()
+    scads_example()
+
+
+if __name__ == "__main__":
+    main()
