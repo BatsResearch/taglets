@@ -1,5 +1,4 @@
 import numpy as np
-import task
 from taglet import ResnetTaglet, LogisticRegressionTaglet, PrototypeTaglet
 
 
@@ -14,8 +13,7 @@ class BaseModule:
         :param task: The task for the module to consume
         """
         self.task = task
-        # Currently hardcoded
-        self.taglets = [ResnetTaglet(), LogisticRegressionTaglet(), PrototypeTaglet()]
+        self.taglets = []   # List of taglets must be defined in subclasses
 
     def train_taglets(self, labeled_images, batch_size=64, use_gpu=True):
         for taglet in self.taglets:
@@ -28,16 +26,11 @@ class BaseModule:
         return self.taglets
 
 
-class TransferModul(BaseModule):
+class TransferModule(BaseModule):
     """
-    Module related to transfer learning when we have enough amount of labled data for fine tuning
+    Module related to transfer learning when we have enough amount of labeled data for fine tuning
     """
 
     def __init__(self):
         super().__init__()
-        self.taglets = [MTLTaglet(), ResnetTaglet(), LogisticRegressionTaglet()]#TODO add MTLTaglet in tagelet.py
-
-    def get_taglets(self):
-        return self.taglets
-
-
+        self.taglets = [MTLTaglet(), ResnetTaglet(), LogisticRegressionTaglet()]    # TODO: add MTLTaglet in taglet.py
