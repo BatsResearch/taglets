@@ -9,7 +9,7 @@ class Taglet:
     def __init__(self):
         raise NotImplementedError()
 
-    def execute(self, unlabeled_images, batch_size=64, use_gpu=True):
+    def execute(self, unlabeled_images, use_gpu=True):
         """
         Top: I add use_gpu as another argument for this function.
         Execute the taglet on a batch of images.
