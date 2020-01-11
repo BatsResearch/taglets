@@ -10,10 +10,6 @@ class TagletExecuter:
 
     def execute(self, unlabeled_images, batch_size=64, use_gpu=True):
         """
-        Top: I implement this function in the most straightforward way. If there is a room for optimization,
-             please feel free to optimize. Also, I add use_gpu as one of the arguments of this function to
-             tell the taglets if they should execute on gpu, but I am still not sure if this is the correct way
-             to do it.
         Perform execute function of all Taglets
         :param unlabeled_images: unlabeled_images
         :param batch_size: batch size
@@ -23,14 +19,8 @@ class TagletExecuter:
         num_images = unlabeled_images.shape[0]
         num_taglets = len(self.taglets)
         label_matrix = np.zeros((num_images, num_taglets))
-        image_size = 224
 
-        # ### call train() of all taglets on labeled data
+        for i in range(num_taglets):
+            label_matrix[:, i] = self.taglets[i].execute(unlabeled_images, batch_size, use_gpu)
         
-        ct = 0
-        while ct < num_images:
-            batch_images = unlabeled_images[ct:min(ct + batch_size, num_images)]
-            for i in range(num_taglets):
-                label_matrix[ct:min(ct + batch_size, num_images), i] = self.taglets[i].execute(batch_images, use_gpu)
-            ct += batch_size
         return label_matrix
