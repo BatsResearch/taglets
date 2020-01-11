@@ -15,9 +15,12 @@ class BaseModule:
         self.task = task
         self.taglets = []   # List of taglets must be defined in subclasses
 
-    def train_taglets(self, labeled_images, batch_size=64, use_gpu=True):
+    def train_taglets(self, labeled_images, lr=1e-3, num_epochs=100, batch_size=64, use_gpu=True):
+        
+        # TODO: seperate labeled_images to images and labels
+        
         for taglet in self.taglets:
-            taglet.train(labeled_images, batch_size, use_gpu)
+            taglet.train(images, labels, lr=lr, num_epochs=num_epochs, batch_size=batch_size, use_gpu=use_gpu)
 
     def get_taglets(self):
         """
