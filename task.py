@@ -24,4 +24,3 @@ class Task:
         self.test_images = "path to test images"
         self.unlabeled_images = 'path to unlabeled images'
         self.labeled_images = 'path to labeled images'
-

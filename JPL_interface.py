@@ -4,12 +4,12 @@ from pathlib import Path
 import random
 
 
-class JPL():
+class JPL:
     def __init__(self):
         self.secret = '97edc318-11de-4e48-85cb-ef515bb24093'
         self.url = 'http://myserviceloadbalancer-679310346.us-east-1.elb.amazonaws.com'
         self.session_token = ''
-        self.data_type = 'sample' #sample or full
+        self.data_type = 'sample'   # Sample or full
 
     def get_available_tasks(self):
         """List all of the available tasks (or problems). It returns a list of tasks"""
@@ -96,6 +96,4 @@ class JPL():
 
         headers = {'user_secret': self.secret, 'session_token': self.session_token}
         r = requests.post(self.url+"/submit_predictions", json={'predictions': predictions}, headers=headers)
-        return r.jason()
-
-
+        return r.json()

@@ -31,14 +31,12 @@ def workflow():
     task_metadata = JPL_API.get_task_metadata(task_name)
     current_task = Task(task_metadata)
 
-
     JPL_API.create_session(current_task)
     session_status = JPL_API.get_session_status()
     current_dataset = session_status['current_dataset']
     current_task.classes = current_dataset.classes
     current_task.unlabeled_images = current_dataset.data_url
     current_task.labeled_images = JPL_API.get_seed_labels()
-
 
     MNIST_module = BaseModule(task=current_task)
     MNIST_module.train_taglets(current_task.labeled_images)
