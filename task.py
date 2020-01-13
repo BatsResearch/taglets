@@ -5,27 +5,23 @@ from taglet_executer import TagletExecuter
 
 
 class Task:
-    """ Task class
-    Elaheh: I think there should be a json file for task, we load the json file, and create Task Object. All of the
-    information related to Task is in json file
-    """
-    def __init__(self):
+    """ Task class """
+
+    def __init__(self, metadata):
         self.description = ''
-        self.dataset_type = ''
+        self.adaptation_can_use_pretrained_model = metadata.adaptation_can_use_pretrained_model
+        self.adaptation_dataset = metadata.adaptation_dataset
+        self.adaptation_evaluation_metrics = metadata.adaptation_evaluation_metrics
+        self.adaptation_label_budget = metadata.adaptation_label_budget
+        self.base_can_use_pretrained_model = metadata.base_can_use_pretrained_model
+        self.base_dataset = metadata.base_dataset
+        self.base_evaluation_metrics = metadata.base_evaluation_metrics
+        self.base_label_budget = metadata.base_label_budget
+        self.problem_type = metadata.problem_type
+        self.task_id = metadata.metadata
+
         self.classes = []
-        self.test_images = ''
-        self.unlabeled_images = ''
-        self.labeled_images = ''
-
-
-class MNIST(Task):
-    def __init__(self):
-        super().__init__()
-
-        self.description = 'digit recognition'
-        self.dataset_type = 'image_classification'
-        self.classes = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-        # test_images are the ones that we will be evaluated on. We submit our predictions on these data
         self.test_images = "path to test images"
         self.unlabeled_images = 'path to unlabeled images'
         self.labeled_images = 'path to labeled images'
+
