@@ -15,14 +15,14 @@ class JPL:
         """List all of the available tasks (or problems). It returns a list of tasks"""
 
         headers = {'user_secret': self.secret}
-        r = requests.get(self.url + "/list_tasks", headers= headers)
+        r = requests.get(self.url + "/list_tasks", headers=headers)
         return r.json()['tasks']
 
     def get_task_metadata(self, task_name):
         """return task metadata"""
 
         headers = {'user_secret': self.secret}
-        r = requests.get(self.url + "/task_metadata/"+task_name, headers=headers)
+        r = requests.get(self.url + "/task_metadata/" + task_name, headers=headers)
         return r.json()['task_metadata']
 
     def create_session(self, task_name):

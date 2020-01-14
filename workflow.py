@@ -27,11 +27,11 @@ def scads_example():
 def workflow():
     JPL_API = JPL()
     tasks = JPL_API.get_available_tasks()
-    task_name = tasks[1] #problem_test_image_classification
+    task_name = tasks[1]    # Problem_test_image_classification
     task_metadata = JPL_API.get_task_metadata(task_name)
     current_task = Task(task_metadata)
 
-    JPL_API.create_session(current_task)
+    JPL_API.create_session(task_name)
     session_status = JPL_API.get_session_status()
     current_dataset = session_status['current_dataset']
     current_task.classes = current_dataset.classes

@@ -18,7 +18,7 @@ class Task:
         self.base_evaluation_metrics = metadata.base_evaluation_metrics
         self.base_label_budget = metadata.base_label_budget
         self.problem_type = metadata.problem_type
-        self.task_id = metadata.metadata
+        self.task_id = metadata.task_id
 
         self.classes = []
         self.test_images = "path to test images"
