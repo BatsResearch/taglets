@@ -5,6 +5,7 @@ from task import Task
 from JPL_interface import JPL
 
 
+
 def create_scads():
     add_conceptnet()
     add_datasets()
@@ -34,7 +35,7 @@ def workflow():
     JPL_API.create_session(task_name)
     session_status = JPL_API.get_session_status()
     current_dataset = session_status['current_dataset']
-    current_task.classes = current_dataset.classes
+    current_task.classes = current_dataset['classes']
     current_task.unlabeled_images = current_dataset.data_url
     current_task.labeled_images = JPL_API.get_seed_labels()
 
@@ -49,9 +50,9 @@ def workflow():
 
 
 def main():
-    create_scads()
-    scads_example()
-
+    # create_scads()
+    # scads_example()
+    workflow()
 
 if __name__ == "__main__":
     main()

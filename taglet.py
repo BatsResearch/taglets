@@ -32,7 +32,11 @@ class TransferTaglet(Taglet):
         self.use_gpu = True
         self.batch_size = 32
 
-    def train(self, images, labels):
+
+    def pretrain(self, images, labels):
+        raise NotImplementedError
+
+    def finetune(self, images, labels):
         num_images = images.shape[0]
 
         # Top: not sure if this is the most efficient way of doing it
@@ -80,6 +84,30 @@ class TransferTaglet(Taglet):
         all_predicted_labels = np.concatenate(list_predicted_labels)
         return all_predicted_labels
 
+
+class FineTuenTaglet(Taglet):
+    def __init__(self):
+        super().__init__()
+
+    def finetune(self):
+        raise NotImplementedError
+
+    def execute(self, unlabeled_images):
+        raise NotImplementedError
+
+
+class MTLTaglet(Taglet):
+    def __init__(self):
+        super().__init__()
+
+    def train(self):
+        raise NotImplementedError
+
+    def finetune(self):
+        raise NotImplementedError
+
+    def execute(self, unlabeled_images):
+        raise NotImplementedError
 
 
 class PrototypeTaglet(Taglet):

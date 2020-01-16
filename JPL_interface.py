@@ -89,7 +89,7 @@ class JPL:
 
         :param predictions: a dictionary of test images and correspondig labels. For example:
         predictions = {'id': {0: '6831.png', 1: '1186.png', 2: '8149.png', 3: '4773.png', 4: '3752.png'},
-                    'label':{'label': {0: '9',  1: '6',  2: '9',  3: '2',  4: '10'}
+                    'label':{'label': {0: '9',  1: '6',  2: '9',  3: '2',  4: '10'}}}
 
         :return: session status after submitting prediction
         """
