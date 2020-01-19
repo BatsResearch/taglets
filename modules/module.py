@@ -1,6 +1,7 @@
 import numpy as np
 from pathlib import Path
 from random import sample
+from taglet import *
 # from taglet import ResnetTaglet, LogisticRegressionTaglet, PrototypeTaglet
 
 
@@ -11,18 +12,15 @@ class BaseModule:
 
     def __init__(self, task):
         """
-        Jeff: The list of taglets will look different based future subclasses of this BaseModule
         :param task: The task for the module to consume
         """
         self.task = task
         self.taglets = []   # List of taglets must be defined in subclasses
 
-    def train_taglets(self, labeled_images, lr=1e-3, num_epochs=100, batch_size=64, use_gpu=True):
-        
-        # TODO: seperate labeled_images to images and labels
-        raise NotImplementedError
-        # for taglet in self.taglets:
-        #     taglet.train(images, labels, lr=lr, num_epochs=num_epochs, batch_size=batch_size, use_gpu=use_gpu)
+    def train_taglets(self):
+        """call train method for all of taglets in this module"""
+        for taglet in self.taglets:
+            taglet.train()
 
     def get_taglets(self):
         """
@@ -36,10 +34,10 @@ class TransferModule(BaseModule):
     Module related to transfer learning when we have enough amount of labeled data for fine tuning
     """
 
-    def __init__(self):
-        super().__init__()
-        raise NotImplementedError
-        self.taglets = [FineTuen(), TransferTaglet()]    # TODO: add MTLTaglet in taglet.py
+    def __init__(self, task):
+        super().__init__(task)
+
+        self.taglets = [FineTuenTaglet(task)]    # TODO: add Transfer, MTLTaglet in taglet.py
 
 
 class ActiveLearningModule:
@@ -86,6 +84,7 @@ class RandomActiveLearning(ActiveLearningModule):
         """select a random set of candidates to be labeled"""
 
         image_dir = self.task.unlabeled_image_path
+        print((image_dir))
         unlabeled_imgs = [f.name for f in Path(image_dir).iterdir() if f.is_file()]
 
         self.candidates = sample(unlabeled_imgs, self.available_budget)
