@@ -2,8 +2,8 @@ import unittest
 import numpy as np
 
 
-class TestSCADS(unittest.TestCase):
+class TestModule(unittest.TestCase):
 
-    def test_gradient(self):
+    def test_module(self):
 
         raise NotImplementedError

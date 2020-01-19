@@ -2,8 +2,8 @@ import unittest
 import numpy as np
 
 
-class TestTaglet(unittest.TestCase):
+class TestTagletExecuter(unittest.TestCase):
 
-    def test_gradient(self):
+    def test_taglet_executer(self):
 
         raise NotImplementedError
