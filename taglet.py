@@ -159,7 +159,7 @@ class Taglet:
             if val_acc > self._best_val_acc:
                 self.log("Deep copying new best model. (validation of {:.4f}%, over {:.4f}%)".format(val_acc, self._best_val_acc))
                 self._best_val_acc = val_acc
-                if best_model_to_save:
+                if self.select_on_val:
                     best_model_to_save = copy.deepcopy(self.model.state_dict())
                     torch.save(best_model_to_save, self.save_dir + 'model.pth.tar')
 
