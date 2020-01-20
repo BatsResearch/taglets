@@ -2,7 +2,6 @@ import numpy as np
 from pathlib import Path
 from random import sample
 from taglet import *
-# from taglet import ResnetTaglet, LogisticRegressionTaglet, PrototypeTaglet
 
 
 class BaseModule:
@@ -36,8 +35,7 @@ class TransferModule(BaseModule):
 
     def __init__(self, task):
         super().__init__(task)
-
-        self.taglets = [FineTuenTaglet(task)]    # TODO: add Transfer, MTLTaglet in taglet.py
+        self.taglets = [FineTuneTaglet(task)]    # TODO: add Transfer, MTLTaglet in taglet.py
 
 
 class ActiveLearningModule:
@@ -52,7 +50,7 @@ class ActiveLearningModule:
         """
         self.task = task
         self.available_budget = available_budget
-        self.candidates = [] # List of candidates to be labeled
+        self.candidates = []    # List of candidates to be labeled
 
     def find_candidates(self):
         """select a set of candidates to be labeled"""
@@ -84,9 +82,7 @@ class RandomActiveLearning(ActiveLearningModule):
         """select a random set of candidates to be labeled"""
 
         image_dir = self.task.unlabeled_image_path
-        print((image_dir))
+        print(image_dir)
         unlabeled_imgs = [f.name for f in Path(image_dir).iterdir() if f.is_file()]
 
         self.candidates = sample(unlabeled_imgs, self.available_budget)
-
-

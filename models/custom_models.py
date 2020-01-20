@@ -1,6 +1,7 @@
 from torchvision.models.resnet import ResNet, BasicBlock
 import torch
 
+
 class MnistResNet(ResNet):
     def __init__(self):
         super(MnistResNet, self).__init__(BasicBlock, [2, 2, 2, 2], num_classes=10)

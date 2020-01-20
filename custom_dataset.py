@@ -22,9 +22,8 @@ class CustomDataSet(Dataset):
             img = self.transform(img)
 
         label = torch.tensor(int(self.labels[index]))
-        # return img, self.labels[index], index
+        # Return img, self.labels[index], index
         return img, label, index
-
 
     def __len__(self):
         return len(self.images)

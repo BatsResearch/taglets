@@ -4,7 +4,6 @@ from modules.module import BaseModule
 from taglet_executer import TagletExecuter
 
 
-
 class Task:
     """ Task class """
 
@@ -15,8 +14,5 @@ class Task:
         self.classes = []
         self.evaluation_image_path = "path to test images"
         self.unlabeled_image_path = 'path to unlabeled images'
-        self.labeled_images = [] # a list of tuples with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
+        self.labeled_images = []    # A list of tuples with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
         self.number_of_channels = None
-
-
-

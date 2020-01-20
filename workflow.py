@@ -40,7 +40,7 @@ def workflow():
     current_task.labeled_images = JPL_API.get_seed_labels()
 
     MNIST_module = BaseModule(task=current_task)
-    MNIST_module.train_taglets(current_task.labeled_images)
+    MNIST_module.train_taglets()
     taglets = MNIST_module.get_taglets()
     taglet_executer = TagletExecuter(taglets)
     label_matrix = taglet_executer.execute(current_task.unlabeled_images)

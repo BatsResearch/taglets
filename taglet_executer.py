@@ -22,5 +22,5 @@ class TagletExecuter:
 
         for i in range(num_taglets):
             label_matrix[:, i] = self.taglets[i].execute(unlabeled_images, batch_size, use_gpu)
-        
+
         return label_matrix
