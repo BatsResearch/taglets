@@ -42,25 +42,16 @@ class JPL:
 
     def get_seed_labels(self):
         """return seed labels
-
-        It returns a dictionary with the key as the name of image, and value as label. For example:
-
-        {'id': '56847.png', 'label': '2'},
-          {'id': '45781.png', 'label': '3'},
-          {'id': '40214.png', 'label': '7'},
-          {'id': '49851.png', 'label': '8'},
-          {'id': '46024.png', 'label': '6'},
-          {'id': '13748.png', 'label': '1'},
-          {'id': '13247.png', 'label': '9'},
-          {'id': '39791.png', 'label': '4'},
-          {'id': '37059.png', 'label': '0'},
-          {'id': '46244.png', 'label': '5'}
-
+        It returns a list of lists with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
         """
 
         headers = {'user_secret': self.secret, 'session_token': self.session_token}
         r = requests.get(self.url + "/seed_labels", headers=headers)
-        return r.json()['Labels'][0]
+        labels = r.json()['Labels']
+        seed_labels = []
+        for image in labels:
+            seed_labels.append([image["id"], image["label"]])
+        return seed_labels
 
     def request_label(self, query):
         """return the label of requested examples
