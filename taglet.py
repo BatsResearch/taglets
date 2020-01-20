@@ -285,8 +285,8 @@ class TransferTaglet(Taglet):
                     batch_images = batch_images.cuda()
                     batch_labels = batch_labels.cuda()
 
-                predicted_labels = self.model(batch_images)
-                loss = self.criterion(predicted_labels, batch_labels)
+                logits = self.model(batch_images)
+                loss = self.criterion(logits, batch_labels)
 
                 loss.backward()
                 self.optimizer.step()
@@ -298,17 +298,18 @@ class TransferTaglet(Taglet):
             self.model = self.model.cuda()
         else:
             self.model = self.model.cpu()
-        list_predicted_labels = []
+        list_logits = []
         for i in range(0, num_images, self.batch_size):
             batch_images = unlabeled_images[i: i + self.batch_size]
 
             if self.use_gpu:
                 batch_images = batch_images.cuda()
 
-            predicted_labels = self.model(batch_images)
-            list_predicted_labels.append(predicted_labels.cpu().detach().numpy())
-        all_predicted_labels = np.concatenate(list_predicted_labels)
-        return all_predicted_labels
+            logits = self.model(batch_images)
+            list_logits.append(logits.cpu().detach().numpy())
+        all_logits = np.concatenate(list_logits)
+        predicted_labels = all_logits.argmax(axis=1)
+        return predicted_labels
 
 
 class MTLTaglet(Taglet):
@@ -356,9 +357,9 @@ class PrototypeTaglet(Taglet):
                 if use_gpu:
                     batch_images = batch_images.cuda()
                     batch_labels = batch_labels.cuda()
-            
-                predicted_labels = self.model(batch_images)
-                loss = classification_criterion(predicted_labels, batch_labels)
+
+                logits = self.model(batch_images)
+                loss = self.criterion(logits, batch_labels)
             
                 loss.backward()
                 optimizer.step()
@@ -370,14 +371,15 @@ class PrototypeTaglet(Taglet):
             self.model = self.model.cuda()
         else:
             self.model = self.model.cpu()
-        list_predicted_labels = []
+        list_logits = []
         for i in range(0, num_images, batch_size):
             batch_images = unlabeled_images[i: i + batch_size]
         
             if use_gpu:
                 batch_images = batch_images.cuda()
-        
-            predicted_labels = self.model(batch_images)
-            list_predicted_labels.append(predicted_labels.cpu().detach().numpy())
-        all_predicted_labels = np.concatenate(list_predicted_labels)
-        return all_predicted_labels
+
+            logits = self.model(batch_images)
+            list_logits.append(logits.cpu().detach().numpy())
+        all_logits = np.concatenate(list_logits)
+        predicted_labels = all_logits.argmax(axis=1)
+        return predicted_labels
