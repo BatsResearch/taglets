@@ -43,6 +43,7 @@ class Taglet:
 
         self.model.fc = torch.nn.Linear(self.model.fc.in_features, len(self.task.classes))
 
+        self._init_random(self.seed)
         # Parameters needed to be updated based on freezing layer
         params_to_update = []
         for name, param in self.model.named_parameters():
@@ -158,12 +159,9 @@ class Taglet:
             if val_acc > self._best_val_acc:
                 self.log("Deep copying new best model. (validation of {:.4f}%, over {:.4f}%)".format(val_acc, self._best_val_acc))
                 self._best_val_acc = val_acc
-                best_model_to_save = copy.deepcopy(self.model.state_dict())
-                if self.select_on_val:
-                    best_model_wts = copy.deepcopy(self.model.state_dict())
-
-        if best_model_to_save:
-            torch.save(best_model_to_save, self.save_dir + 'model.pth.tar')
+                if best_model_to_save:
+                    best_model_to_save = copy.deepcopy(self.model.state_dict())
+                    torch.save(best_model_to_save, self.save_dir + 'model.pth.tar')
 
         self.log("Epoch {} result: ".format(epoch + 1))
         self.log("Average training loss: {:.4f}".format(train_loss))
@@ -173,7 +171,7 @@ class Taglet:
 
         if self.select_on_val:
             # Reloads best model weights
-            self.model.load_state_dict(best_model_wts)
+            self.model.load_state_dict(best_model_to_save)
 
         test_loss, test_acc = self._validate_epoch(self.test_data_loader)
         self.log('test loss: {:.4f}'.format(test_loss))
