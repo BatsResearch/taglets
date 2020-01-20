@@ -16,3 +16,6 @@ class Task:
         self.unlabeled_image_path = 'path to unlabeled images'
         self.labeled_images = []    # A list of tuples with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
         self.number_of_channels = None
+
+    def add_labeled_images(self, new_labeled_images):
+        self.labeled_images.extend(new_labeled_images)
