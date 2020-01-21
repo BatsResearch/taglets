@@ -13,6 +13,8 @@ class Controller:
         self.api = JPL()
         self.task = self.get_task()
         self.num_checkpoints = 3
+        self.batch_size = 32
+        self.num_workers = 2
 
     def run_checkpoints(self):
         for i in range(self.num_checkpoints):
@@ -49,8 +51,9 @@ class Controller:
         print("Total labeled images:", len(self.task.labeled_images))
 
     def get_predictions(self):
+        train_data_loader, val_data_loader, test_data_loader = self.task.load_labeled_data(self.batch_size, self.num_workers)
         MNIST_module = TransferModule(task=self.task)
-        MNIST_module.train_taglets()
+        MNIST_module.train_taglets(train_data_loader, val_data_loader, test_data_loader)
         taglets = MNIST_module.get_taglets()
         taglet_executer = TagletExecuter(taglets)
         label_matrix = taglet_executer.execute(self.task.get_unlabeled_images(), use_gpu=False)

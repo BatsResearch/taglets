@@ -8,7 +8,6 @@ import copy
 import torchvision.models as models
 import os
 import torchvision.datasets as datasets
-import torchvision.transforms as transforms
 import torch
 from custom_dataset import CustomDataSet
 from torch.utils.data.sampler import SubsetRandomSampler
@@ -31,9 +30,7 @@ class Taglet:
         self.seed = 0
         self.num_epochs = 1
         self.select_on_val = True   # If true, save model on the best validation performance
-        self.batch_size = 32
         self.pretrained = True      # If true, we can load from pretrained model
-        self.num_workers = 2
 
         if task.number_of_channels == 1:
             self.model = custom_models.MnistResNet()
@@ -58,19 +55,9 @@ class Taglet:
 
         self.log = print
         self._best_val_acc = 0.0
-        self.device = self._init_device()
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model = self.model.to(self.device)
         self.model.eval()
-
-        self.train_data_loader, self.val_data_loader, self.test_data_loader = self.load_data()
-
-    @staticmethod
-    def _init_device():
-        """
-        setup GPU device if available
-        """
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        return device
 
     @staticmethod
     def _init_random(seed):
@@ -81,14 +68,14 @@ class Taglet:
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
 
-    def _train_epoch(self):
+    def _train_epoch(self, train_data_loader):
         """
         Training for an epoch
         """
         self.model.train()
         running_loss = 0
         running_acc = 0
-        for batch_idx, batch in enumerate(self.train_data_loader):
+        for batch_idx, batch in enumerate(train_data_loader):
             inputs = batch[0].to(self.device)
             labels = batch[1].to(self.device)
 
@@ -103,21 +90,21 @@ class Taglet:
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels.data)
 
-            if batch_idx >=1:
+            if batch_idx >= 1:
                 break
 
-        epoch_loss = running_loss / len(self.train_data_loader.dataset)
-        epoch_acc = running_acc / len(self.train_data_loader.dataset)
+        epoch_loss = running_loss / len(train_data_loader.dataset)
+        epoch_acc = running_acc / len(train_data_loader.dataset)
 
         return epoch_loss, epoch_acc
 
-    def _validate_epoch(self, data_loader):
+    def _validate_epoch(self, val_data_loader):
         """ validating/testing """
 
         self.model.eval()
         running_loss = 0
         running_acc = 0
-        for batch_idx, batch in enumerate(data_loader):
+        for batch_idx, batch in enumerate(val_data_loader):
             inputs = batch[0].to(self.device)
             labels = batch[1].to(self.device)
             with torch.set_grad_enabled(False):
@@ -130,12 +117,12 @@ class Taglet:
             if batch_idx >= 2:
                 break
 
-        epoch_loss = running_loss / len(data_loader.dataset)
-        epoch_acc = running_acc / len(data_loader.dataset)
+        epoch_loss = running_loss / len(val_data_loader.dataset)
+        epoch_acc = running_acc / len(val_data_loader.dataset)
 
         return epoch_loss, epoch_acc
 
-    def train(self):
+    def train(self, train_data_loader, val_data_loader, test_data_loader):
         """
         Training phase
         """
@@ -144,12 +131,12 @@ class Taglet:
             self.log('epoch: {}'.format(epoch))
 
             # Train on training data
-            train_loss, train_acc = self._train_epoch()
+            train_loss, train_acc = self._train_epoch(train_data_loader)
             self.log('train loss: {:.4f}'.format(train_loss))
             self.log('train acc: {:.4f}%'.format(train_acc*100))
 
             # Evaluation on validation data
-            val_loss, val_acc = self._validate_epoch(self.val_data_loader)
+            val_loss, val_acc = self._validate_epoch(val_data_loader)
             self.log('validation loss: {:.4f}'.format(val_loss))
             self.log('validation acc: {:.4f}%'.format(val_acc*100))
 
@@ -172,7 +159,7 @@ class Taglet:
             # Reloads best model weights
             self.model.load_state_dict(best_model_to_save)
 
-        test_loss, test_acc = self._validate_epoch(self.test_data_loader)
+        test_loss, test_acc = self._validate_epoch(test_data_loader)
         self.log('test loss: {:.4f}'.format(test_loss))
         self.log('test acc: {:.4f}%'.format(test_acc * 100))
 
@@ -199,66 +186,6 @@ class Taglet:
         all_logits = np.concatenate(list_logits)
         predicted_labels = all_logits.argmax(axis=1)
         return predicted_labels
-
-    def load_data(self):
-
-        if self.task.number_of_channels == 3:
-            data_mean = [0.485, 0.456, 0.406]
-            data_std = [0.229, 0.224, 0.225]
-        elif self.task.number_of_channels == 1:
-            data_mean = [0.5]
-            data_std = [0.5]
-
-        transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=data_mean, std=data_std)
-        ])
-
-        image_names = [img_name for img_name, label in self.task.labeled_images]
-        image_labels = [label for img_name, label in self.task.labeled_images]
-        train_val_test_data = CustomDataSet(self.task.unlabeled_image_path,
-                                            image_names,
-                                            image_labels,
-                                            transform,
-                                            self.task.number_of_channels)
-
-        # 70% for training, 15% for validation, and 15% for test
-        train_percent = 0.7
-        num_data = len(train_val_test_data)
-        indices = list(range(num_data))
-        train_split = int(np.floor(train_percent * num_data))
-        np.random.shuffle(indices)
-        train_idx = indices[:train_split]
-        val_test_data = indices[train_split:]
-        val_split = int(np.floor(len(val_test_data)/2))
-        valid_idx = val_test_data[:val_split]
-        test_idx = val_test_data[val_split:]
-
-        train_set = data.Subset(train_val_test_data, train_idx)
-        val_set = data.Subset(train_val_test_data, valid_idx)
-        test_set = data.Subset(train_val_test_data, test_idx)
-
-        # test_data = datasets.ImageFolder(self.task.test_image_path, transform= transform)
-
-        train_data_loader = torch.utils.data.DataLoader(train_set,
-                                                        batch_size=self.batch_size,
-                                                        shuffle=False,
-                                                        num_workers=self.num_workers)
-        val_data_loader = torch.utils.data.DataLoader(val_set,
-                                                      batch_size=self.batch_size,
-                                                      shuffle=False,
-                                                      num_workers=self.num_workers)
-        test_data_loader = torch.utils.data.DataLoader(test_set,
-                                                       batch_size=self.batch_size,
-                                                       shuffle=False,
-                                                        num_workers=self.num_workers)
-
-        self.log('number of training data: %d' % len(train_data_loader.dataset))
-        self.log('number of validation data: %d' % len(val_data_loader.dataset))
-        self.log('number of test data: %d' % len(test_data_loader.dataset))
-
-        return train_data_loader, val_data_loader, test_data_loader
 
 
 class FineTuneTaglet(Taglet):

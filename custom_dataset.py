@@ -13,7 +13,7 @@ class CustomDataSet(Dataset):
         self.num_channels = num_channels
 
     def __getitem__(self, index):
-        img = os.path.join(self.root,self.images[index])
+        img = os.path.join(self.root, self.images[index])
         img = Image.open(img)
         if self.num_channels == 3:
             img = img.convert('RGB')

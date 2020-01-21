@@ -16,10 +16,10 @@ class BaseModule:
         self.task = task
         self.taglets = []   # List of taglets must be defined in subclasses
 
-    def train_taglets(self):
+    def train_taglets(self, train_data_loader, val_data_loader, test_data_loader):
         """call train method for all of taglets in this module"""
         for taglet in self.taglets:
-            taglet.train()
+            taglet.train(train_data_loader, val_data_loader, test_data_loader)
 
     def get_taglets(self):
         """
