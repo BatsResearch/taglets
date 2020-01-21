@@ -172,7 +172,7 @@ class Taglet:
         self.model.eval()
         predicted_labels = []
         for inputs in unlabeled_data_loader:
-            inputs = inputs.to(self.device)
+            inputs = inputs[0].to(self.device)
             with torch.set_grad_enabled(False):
                 outputs = self.model(inputs)
                 _, preds = torch.max(outputs, 1)
