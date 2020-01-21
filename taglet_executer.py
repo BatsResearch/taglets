@@ -8,7 +8,7 @@ class TagletExecuter:
     def __init__(self, taglets):
         self.taglets = taglets
 
-    def execute(self, unlabeled_images, batch_size=64, use_gpu=True):
+    def execute(self, unlabeled_images):
         """
         Perform execute function of all Taglets
         :param unlabeled_images: unlabeled_images
@@ -21,6 +21,6 @@ class TagletExecuter:
         label_matrix = np.zeros((num_images, num_taglets))
 
         for i in range(num_taglets):
-            label_matrix[:, i] = self.taglets[i].execute(unlabeled_images, batch_size, use_gpu)
+            label_matrix[:, i] = self.taglets[i].execute(unlabeled_images)
 
         return label_matrix
