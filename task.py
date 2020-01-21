@@ -86,5 +86,5 @@ class Task:
 
         return train_data_loader, val_data_loader, test_data_loader
 
-    def get_unlabeled_images(self):
+    def get_unlabeled_images(self, batch_size, num_workers):
         raise NotImplementedError()

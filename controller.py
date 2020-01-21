@@ -51,12 +51,14 @@ class Controller:
         print("Total labeled images:", len(self.task.labeled_images))
 
     def get_predictions(self):
-        train_data_loader, val_data_loader, test_data_loader = self.task.load_labeled_data(self.batch_size, self.num_workers)
+        train_data_loader, val_data_loader, test_data_loader = self.task.load_labeled_data(self.batch_size,
+                                                                                           self.num_workers)
         MNIST_module = TransferModule(task=self.task)
         MNIST_module.train_taglets(train_data_loader, val_data_loader, test_data_loader)
         taglets = MNIST_module.get_taglets()
         taglet_executer = TagletExecuter(taglets)
-        label_matrix = taglet_executer.execute(self.task.get_unlabeled_images(), use_gpu=False)
+        label_matrix = taglet_executer.execute(self.task.get_unlabeled_images(self.batch_size,
+                                                                              self.num_workers), use_gpu=False)
 
         # LabelModel implementation
         # soft_labels = LabelModel.annotate(label_matrix)
@@ -64,7 +66,7 @@ class Controller:
         # [test_predictions] = end_model.prediction(end_model, task.evaluation_image_path)
 
         # Temporary implementation
-        test_images = [f.name for f in Path(self.task.test_image_path).iterdir() if f.is_file()]
+        test_images = [f.name for f in Path(self.task.evaluation_image_path).iterdir() if f.is_file()]
         rand_labels = [str(random.randint(0, 10)) for _ in range(len(test_images))]
         df = pd.DataFrame({'id': test_images, 'label': rand_labels})
         predictions = df.to_dict()
