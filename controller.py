@@ -58,7 +58,7 @@ class Controller:
         taglets = MNIST_module.get_taglets()
         taglet_executer = TagletExecuter(taglets)
         label_matrix = taglet_executer.execute(self.task.get_unlabeled_images(self.batch_size,
-                                                                              self.num_workers), use_gpu=False)
+                                                                              self.num_workers))
 
         # LabelModel implementation
         # soft_labels = LabelModel.annotate(label_matrix)
