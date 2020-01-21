@@ -1,6 +1,6 @@
 from scads import Scads, add_conceptnet, add_datasets
 from modules.module import BaseModule
-from taglet_executer import TagletExecuter
+from taglets.taglet_executer import TagletExecuter
 from task import Task
 from JPL_interface import JPL
 

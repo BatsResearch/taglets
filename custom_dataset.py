@@ -21,7 +21,7 @@ class CustomDataSet(Dataset):
         if self.transform is not None:
             img = self.transform(img)
 
-        if self.labels != None:
+        if self.labels:
             label = torch.tensor(int(self.labels[index]))
             return img, label, index
         else:

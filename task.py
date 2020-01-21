@@ -1,14 +1,9 @@
 import numpy as np
-from pathlib import Path
-from PIL import Image
 import os
 import torch
 import torchvision.transforms as transforms
 from custom_dataset import CustomDataSet
 from torch.utils import data
-
-from modules.module import BaseModule
-from taglet_executer import TagletExecuter
 
 
 class Task:
