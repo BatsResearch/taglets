@@ -1,5 +1,6 @@
 from JPL_interface import JPL
 from modules.module import RandomActiveLearning, TransferModule
+from taglet_executer import TagletExecuter
 from task import Task
 import os
 from pathlib import Path
@@ -12,6 +13,8 @@ class Controller:
         self.api = JPL()
         self.task = self.get_task()
         self.num_checkpoints = 3
+
+    def run_checkpoints(self):
         for i in range(self.num_checkpoints):
             self.request_labels()
             predictions = self.get_predictions()
@@ -20,6 +23,7 @@ class Controller:
     def get_task(self):
         task_names = self.api.get_available_tasks()
         task_name = task_names[1]  # Image classification task
+        self.api.create_session(task_name)
         task_metadata = self.api.get_task_metadata(task_name)
 
         task = Task(task_metadata)
@@ -28,9 +32,8 @@ class Controller:
         task.classes = current_dataset['classes']
         task.number_of_channels = current_dataset['number_of_channels']
 
-        task.unlabeled_image_path = '.' + current_dataset['data_url']
-        task.test_image_path = os.path.abspath(
-            os.getcwd()) + '/datasets/lwll_datasets/mnist/mnist_sample/test/'  # Should be updated later
+        task.unlabeled_image_path = "./sql_data/MNIST/train"
+        task.test_image_path = "./sql_data/MNIST/test"  # Should be updated later
         task.labeled_images = self.api.get_seed_labels()
         return task
 
@@ -50,7 +53,7 @@ class Controller:
         MNIST_module.train_taglets()
         taglets = MNIST_module.get_taglets()
         taglet_executer = TagletExecuter(taglets)
-        label_matrix = taglet_executer.execute(self.task.unlabeled_images)
+        label_matrix = taglet_executer.execute(self.task.get_unlabeled_images(), use_gpu=False)
 
         # LabelModel implementation
         # soft_labels = LabelModel.annotate(label_matrix)
@@ -70,3 +73,12 @@ class Controller:
         session_status = self.api.get_session_status()
         print("Checkpoint scores", session_status['checkpoint_scores'])
         print("Phase:", session_status['pair_stage'])
+
+
+def main():
+    controller = Controller()
+    controller.run_checkpoints()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,5 +1,9 @@
 import numpy as np
 from pathlib import Path
+from PIL import Image
+import os
+import torch
+
 from modules.module import BaseModule
 from taglet_executer import TagletExecuter
 
@@ -19,3 +23,11 @@ class Task:
 
     def add_labeled_images(self, new_labeled_images):
         self.labeled_images.extend(new_labeled_images)
+
+    def get_unlabeled_images(self):
+        """
+        read, normalize, and upsample images
+        :param dir: str, directory path
+        :return: 4-d tensor of the images
+        """
+        raise NotImplementedError()

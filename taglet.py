@@ -168,7 +168,7 @@ class Taglet:
         self.log("Average validation loss: {:.4f}".format(val_loss))
         self.log("Average validation accuracy: {:.4f}%".format(val_acc * 100))
 
-        if self.select_on_val:
+        if self.select_on_val and best_model_to_save:
             # Reloads best model weights
             self.model.load_state_dict(best_model_to_save)
 

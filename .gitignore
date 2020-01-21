@@ -132,3 +132,6 @@ dmypy.json
 # Data
 /sql_data
 .DS_Store
+
+# Saved models
+/trained_models
