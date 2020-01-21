@@ -23,11 +23,13 @@ class Task:
         self.unlabeled_image_path = 'path to unlabeled images'
         self.labeled_images = []    # A list of tuples with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
         self.number_of_channels = None
+        self.train_data_loader = None
+
 
     def add_labeled_images(self, new_labeled_images):
         self.labeled_images.extend(new_labeled_images)
 
-    def load_labeled_data(self, batch_size, num_workers):
+    def _transform_image(self):
         if self.number_of_channels == 3:
             data_mean = [0.485, 0.456, 0.406]
             data_std = [0.229, 0.224, 0.225]
@@ -40,7 +42,11 @@ class Task:
             transforms.ToTensor(),
             transforms.Normalize(mean=data_mean, std=data_std)
         ])
+        return transform
 
+    def load_labeled_data(self, batch_size, num_workers):
+
+        transform = self._transform_image()
         image_names = [img_name for img_name, label in self.labeled_images]
         image_labels = [label for img_name, label in self.labeled_images]
         train_val_test_data = CustomDataSet(self.unlabeled_image_path,
@@ -84,7 +90,30 @@ class Task:
         print('number of validation data: %d' % len(val_data_loader.dataset))
         print('number of test data: %d' % len(test_data_loader.dataset))
 
-        return train_data_loader, val_data_loader, test_data_loader
+        return train_data_loader,val_data_loader,test_data_loader
 
-    def get_unlabeled_images(self, batch_size, num_workers):
-        raise NotImplementedError()
+    def get_unlabeled_images(self ,batch_size, num_workers):
+
+        transform = self._transform_image()
+        labeled_image_names = [img_name for img_name, label in self.labeled_images]
+        unlabeled_images_names = []
+
+        for img in os.listdir(self.unlabeled_image_path):
+            if img not in labeled_image_names:
+                unlabeled_images_names.append(img)
+
+
+        unlabeled_data = CustomDataSet(self.unlabeled_image_path,
+                                            unlabeled_images_names,
+                                            None,
+                                            transform,
+                                            self.number_of_channels)
+
+
+        unlabeled_data_loader = torch.utils.data.DataLoader(unlabeled_data,
+                                                        batch_size=batch_size,
+                                                        shuffle=False,
+                                                        num_workers=num_workers)
+
+        return unlabeled_data_loader
+
