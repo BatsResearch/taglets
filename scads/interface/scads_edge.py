@@ -1,6 +1,6 @@
 class ScadsEdge:
     """
-    A class to represent a relationship between two nodes in the SCADS
+    A class representing a relationship between two nodes in the SCADS
     """
     def __init__(self, start_node, end_node, relationship):
         self.start_node = start_node        # The starting ScadsNode in the edge

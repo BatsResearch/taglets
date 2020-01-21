@@ -4,7 +4,7 @@ from scads.interface.scads_edge import ScadsEdge
 
 class ScadsNode:
     """
-    A class to represent a node in the SCADS
+    A class representing a node in the SCADS.
     """
     def __init__(self, node, session):
         self.node = node
@@ -13,7 +13,7 @@ class ScadsNode:
     def get_datasets(self):
         """
         Get list of datasets.
-        :return: List of our datasets
+        :return: List of our datasets containing the node
         """
         datasets = []
         node_key = self.node.key

@@ -12,10 +12,8 @@ Session = sessionmaker(bind=engine)
 
 class Scads:
     """
-    Class to interact with the database
-    Structured Collections of Annotated Data Sets (SCADS)
+    A class providing connection to Structured Collections of Annotated Data Sets (SCADS).
     """
-
     session = None
 
     @staticmethod
@@ -29,9 +27,7 @@ class Scads:
     @staticmethod
     def get_node(concept):
         """
-        Jeff: It's possible that there are different wornet_ids corresponding to a single concept.
-        In that case, it will be difficult to specify which node the user wants.
-        Get a ScadsNode given a concept
+        Get a ScadsNode given a concept.
         :return: The ScadsNode
         """
         if Scads.session is None:
