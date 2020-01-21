@@ -53,6 +53,7 @@ class Taglet:
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
+
         self.log = print
         self._best_val_acc = 0.0
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -68,7 +69,7 @@ class Taglet:
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
 
-    def _train_epoch(self, train_data_loader):
+    def _train_epoch(self,train_data_loader):
         """
         Training for an epoch
         """
@@ -122,7 +123,7 @@ class Taglet:
 
         return epoch_loss, epoch_acc
 
-    def train(self, train_data_loader, val_data_loader, test_data_loader):
+    def train(self,train_data_loader, val_data_loader, test_data_loader):
         """
         Training phase
         """
@@ -163,28 +164,20 @@ class Taglet:
         self.log('test loss: {:.4f}'.format(test_loss))
         self.log('test acc: {:.4f}%'.format(test_acc * 100))
 
-    def execute(self, unlabeled_images, batch_size=64, use_gpu=True):
+    def execute(self, unlabeled_data_loader):
         """
         Execute the taglet on all unlabeled images.
-        :return: A batch of labels
+        :return: A list of predicted labels
         """
-        num_images = unlabeled_images.shape[0]
-        self.model = self.model.eval()
-        if use_gpu:
-            self.model = self.model.cuda()
-        else:
-            self.model = self.model.cpu()
-        list_logits = []
-        for i in range(0, num_images, batch_size):
-            batch_images = unlabeled_images[i: i + batch_size]
+        self.model.eval()
+        predicted_labels = []
+        for inputs in unlabeled_data_loader:
+            inputs = inputs.to(self.device)
+            with torch.set_grad_enabled(False):
+                outputs = self.model(inputs)
+                _, preds = torch.max(outputs, 1)
+                predicted_labels.extend(preds)
 
-            if use_gpu:
-                batch_images = batch_images.cuda()
-
-            logits = self.model(batch_images)
-            list_logits.append(logits.cpu().detach().numpy())
-        all_logits = np.concatenate(list_logits)
-        predicted_labels = all_logits.argmax(axis=1)
         return predicted_labels
 
 
