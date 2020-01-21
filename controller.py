@@ -35,7 +35,7 @@ class Controller:
         task.number_of_channels = current_dataset['number_of_channels']
 
         task.unlabeled_image_path = "./sql_data/MNIST/train"
-        task.test_image_path = "./sql_data/MNIST/test"  # Should be updated later
+        task.evaluation_image_path = "./sql_data/MNIST/test"  # Should be updated later
         task.labeled_images = self.api.get_seed_labels()
         return task
 
