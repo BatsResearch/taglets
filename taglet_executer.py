@@ -16,7 +16,7 @@ class TagletExecuter:
         :param use_gpu: a boolean indicating if the taglets should execute on gpu
         :return: A label matrix of size (num_images, num_taglets)
         """
-        num_images = unlabeled_images.shape[0]
+        num_images = len(unlabeled_images.dataset)
         num_taglets = len(self.taglets)
         label_matrix = np.zeros((num_images, num_taglets))
 

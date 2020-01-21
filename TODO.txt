@@ -1,3 +1,5 @@
+- GPU in controller or taglet? we should make use_gpu consistent for train and execute
+- the end model should be trained based on both predictions based on labelmatrix and  labeled images
 - pep8 warnings
 - active learning module (least confience)
 - complete readme file
