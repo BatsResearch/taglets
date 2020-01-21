@@ -69,7 +69,7 @@ class Taglet:
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
 
-    def _train_epoch(self,train_data_loader):
+    def _train_epoch(self, train_data_loader):
         """
         Training for an epoch
         """
@@ -123,7 +123,7 @@ class Taglet:
 
         return epoch_loss, epoch_acc
 
-    def train(self,train_data_loader, val_data_loader, test_data_loader):
+    def train(self, train_data_loader, val_data_loader, test_data_loader):
         """
         Training phase
         """
