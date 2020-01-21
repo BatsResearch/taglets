@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import random
 import pandas as pd
+from labelmodel import get_label_distribution
 
 
 class Controller:
@@ -53,15 +54,18 @@ class Controller:
     def get_predictions(self):
         train_data_loader, val_data_loader, test_data_loader = self.task.load_labeled_data(self.batch_size,
                                                                                            self.num_workers)
+        unlabeled_data_loader = self.task.load_unlabeled_data(self.batch_size, self.num_workers)
         MNIST_module = TransferModule(task=self.task)
+        print("Training...")
         MNIST_module.train_taglets(train_data_loader, val_data_loader, test_data_loader)
         taglets = MNIST_module.get_taglets()
         taglet_executer = TagletExecuter(taglets)
-        label_matrix = taglet_executer.execute(self.task.get_unlabeled_images(self.batch_size,
-                                                                              self.num_workers))
+        print("Executing...")
+        label_matrix = taglet_executer.execute(unlabeled_data_loader)
 
         # LabelModel implementation
-        # soft_labels = LabelModel.annotate(label_matrix)
+        print("Getting labels...")
+        soft_labels = get_label_distribution(label_matrix, len(self.task.classes))
         # end_model = end_model(...)
         # [test_predictions] = end_model.prediction(end_model, task.evaluation_image_path)
 

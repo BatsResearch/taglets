@@ -25,7 +25,6 @@ class Task:
         self.number_of_channels = None
         self.train_data_loader = None
 
-
     def add_labeled_images(self, new_labeled_images):
         self.labeled_images.extend(new_labeled_images)
 
@@ -92,7 +91,7 @@ class Task:
 
         return train_data_loader,val_data_loader,test_data_loader
 
-    def get_unlabeled_images(self ,batch_size, num_workers):
+    def load_unlabeled_data(self, batch_size, num_workers):
 
         transform = self._transform_image()
         labeled_image_names = [img_name for img_name, label in self.labeled_images]
@@ -102,18 +101,14 @@ class Task:
             if img not in labeled_image_names:
                 unlabeled_images_names.append(img)
 
-
         unlabeled_data = CustomDataSet(self.unlabeled_image_path,
-                                            unlabeled_images_names,
-                                            None,
-                                            transform,
-                                            self.number_of_channels)
-
+                                       unlabeled_images_names,
+                                       None,
+                                       transform,
+                                       self.number_of_channels)
 
         unlabeled_data_loader = torch.utils.data.DataLoader(unlabeled_data,
-                                                        batch_size=batch_size,
-                                                        shuffle=False,
-                                                        num_workers=num_workers)
-
+                                                            batch_size=batch_size,
+                                                            shuffle=False,
+                                                            num_workers=num_workers)
         return unlabeled_data_loader
-

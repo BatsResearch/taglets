@@ -12,7 +12,6 @@ class TagletExecuter:
         """
         Perform execute function of all Taglets
         :param unlabeled_images: unlabeled_images
-        :param batch_size: batch size
         :param use_gpu: a boolean indicating if the taglets should execute on gpu
         :return: A label matrix of size (num_images, num_taglets)
         """
