@@ -7,7 +7,14 @@ import torch.nn as nn
 
 # A Fork from Label Modals
 class ClassConditionalLM(nn.Module):
-    def __init__(self, num_classes, num_lfs, acc_prior=0.025, init_acc=0.9, balance_prior=0.025, init_prop=0.5, opt_cb=True):
+    def __init__(self,
+                 num_classes,
+                 num_lfs,
+                 acc_prior=0.025,
+                 init_acc=0.9,
+                 balance_prior=0.025,
+                 init_prop=0.5,
+                 opt_cb=True):
         super().__init__()
 
         self.num_classes = num_classes

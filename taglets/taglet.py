@@ -48,7 +48,6 @@ class Taglet:
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
-
         self.log = print
         self._best_val_acc = 0.0
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -154,7 +153,8 @@ class Taglet:
                 self.lr_scheduler.step()
 
             if val_acc > self._best_val_acc:
-                self.log("Deep copying new best model. (validation of {:.4f}%, over {:.4f}%)".format(val_acc, self._best_val_acc))
+                self.log("Deep copying new best model." +
+                         "(validation of {:.4f}%, over {:.4f}%)".format(val_acc, self._best_val_acc))
                 self._best_val_acc = val_acc
                 best_model_to_save = copy.deepcopy(self.model.state_dict())
                 torch.save(best_model_to_save, self.save_dir + 'model.pth.tar')

@@ -55,10 +55,10 @@ class Controller:
         train_data_loader, val_data_loader, test_data_loader = self.task.load_labeled_data(self.batch_size,
                                                                                            self.num_workers)
         unlabeled_data_loader = self.task.load_unlabeled_data(self.batch_size, self.num_workers)
-        MNIST_module = TransferModule(task=self.task)
+        mnist_module = TransferModule(task=self.task)
         print("Training...")
-        MNIST_module.train_taglets(train_data_loader, val_data_loader, test_data_loader)
-        taglets = MNIST_module.get_taglets()
+        mnist_module.train_taglets(train_data_loader, val_data_loader, test_data_loader)
+        taglets = mnist_module.get_taglets()
         taglet_executor = TagletExecutor(taglets)
         print("Executing...")
         label_matrix = taglet_executor.execute(unlabeled_data_loader)

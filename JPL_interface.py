@@ -40,7 +40,7 @@ class JPL:
         :return: None
         """
         headers = {'user_secret': self.secret}
-        r = requests.get(self.url + "/auth/get_session_token/" + self.data_type + "/" + task_name, headers= headers)
+        r = requests.get(self.url + "/auth/get_session_token/" + self.data_type + "/" + task_name, headers=headers)
         session_token = r.json()['session_token']
         self.session_token = session_token
 
