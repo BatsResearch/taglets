@@ -12,8 +12,6 @@ from pathlib import Path
 import torch.nn.init as init
 
 
-
-
 class Taglet:
     """
     A class that produces votes for unlabeled images.
@@ -74,7 +72,7 @@ class Taglet:
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data
-        :param cuda: Whether or not to use the GPU
+        :param use_gpu: Whether or not to use the GPU
         :return: None
         """
         self.model.train()
@@ -110,6 +108,7 @@ class Taglet:
         """
         Validate for one epoch.
         :param val_data_loader: A dataloader containing validation data
+        :param use_gpu: Whether or not to use the GPU
         :return: None
         """
         self.model.eval()
@@ -215,7 +214,7 @@ class Taglet:
                     outputs = self.model(data)
                     _, preds = torch.max(outputs, 1)
                     predicted_labels.append(preds.item())
-
+            # For testing
         return predicted_labels
 
 
@@ -224,8 +223,8 @@ class FineTuneTaglet(Taglet):
         super().__init__(task)
         self.name = 'finetune'
 
-class PrototypeTaglet(Taglet):
 
+class PrototypeTaglet(Taglet):
     def __init__(self, task, few_shot_support=1):
         super().__init__(task)
         self.name = 'prototype'
@@ -243,7 +242,6 @@ class PrototypeTaglet(Taglet):
             if param.requires_grad:
                 params_to_update.append(param)
         self._params_to_update = params_to_update
-
 
     def euclidean_metric(self, a, b):
         n = a.shape[0]

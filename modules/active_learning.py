@@ -130,6 +130,6 @@ class RandomActiveLearning(ActiveLearningModule):
         """
         image_dir = self.task.unlabeled_image_path
         unlabeled_images = [f.name for f in Path(image_dir).iterdir() if f.is_file() and f.name not in self.labeled]
-        to_request = sample(unlabeled_images, available_budget)
+        to_request = sample(unlabeled_images, min(len(unlabeled_images), available_budget))
         self.labeled.update(to_request)
         return to_request

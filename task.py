@@ -113,7 +113,7 @@ class Task:
         :return: A data loader containing unlabeled data
         """
         transform = self._transform_image()
-        labeled_image_names = [img_name for img_name, label in self.labeled_images]
+        labeled_image_names = {img_name for img_name, label in self.labeled_images}
         unlabeled_images_names = []
 
         for img in os.listdir(self.unlabeled_image_path):
