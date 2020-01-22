@@ -1,12 +1,13 @@
 import torch
 import numpy as np
 import torch.nn.functional as F
+import torchvision
+
 
 class EndModel(torch.nn.Module):
     """
     EndModel class
     """
-
     def __init__(self):
         super(EndModel, self).__init__()
         pass
@@ -18,12 +19,9 @@ class EndModel(torch.nn.Module):
         pass
 
 
-
 class MNISTNet(EndModel):
-
     def __init__(self):
         super(MNISTNet, self).__init__()
-
         self.conv = torch.nn.Sequential(
             torch.nn.Conv2d(1, 32, 3, 1),
             torch.nn.ReLU(),
@@ -31,21 +29,17 @@ class MNISTNet(EndModel):
             torch.nn.MaxPool2d(2),
             torch.nn.Dropout(0.25),
         )
-
         self.linear = torch.nn.Sequential(
             torch.nn.Linear(9216, 128),
             torch.nn.ReLU(),
             torch.nn.Dropout(0.5),
             torch.nn.Linear(128, 10)
         )
-
         self.trained = False
 
     def forward(self, x):
-
         x = torch.flatten(self.conv(x), 1)
         x = self.linear(x)
-        output = F.softmax(x, dim=1)
         return x
 
     def optimize(self, train_dataloader, test_dataloader, use_gpu=True, cfg=None, save_path='./MNISTNet.ptm'):
@@ -55,10 +49,8 @@ class MNISTNet(EndModel):
             return torch.mean(torch.sum(-target * logs(input), 1))
 
         epoch = 20
-
         # optimizer = torch.optim.Adam(self.parameters(), lr=0.01)
         optimizer = torch.optim.Adadelta(self.parameters(), lr=1.0)
-
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.7)
 
         if use_gpu:
@@ -75,12 +67,12 @@ class MNISTNet(EndModel):
                 img = torch.FloatTensor(img).cuda()
                 label = torch.FloatTensor(label).cuda()
 
-                preds = self(img)
-                loss = soft_cross_entropy(preds, label)
+                predictions = self(img)
+                loss = soft_cross_entropy(predictions, label)
                 loss.backward()
                 optimizer.step()
 
-                accuracy = torch.sum(torch.max(preds, 1)[1] == torch.max(label, 1)[1]).item() / float(len(label))
+                accuracy = torch.sum(torch.max(predictions, 1)[1] == torch.max(label, 1)[1]).item() / float(len(label))
                 tacc.append(accuracy)
                 tlosses.append(loss.item())
 
@@ -92,8 +84,8 @@ class MNISTNet(EndModel):
                 img = torch.FloatTensor(img).cuda()
                 label = torch.FloatTensor(label).cuda()
 
-                preds = self(img)
-                accuracy = torch.sum(torch.max(preds, 1)[1] == torch.max(label, 1)[1]).item() / float(len(label))
+                predictions = self(img)
+                accuracy = torch.sum(torch.max(predictions, 1)[1] == torch.max(label, 1)[1]).item() / float(len(label))
                 eacc.append(accuracy)
 
             print("Epoch: {:d} =| Train Loss: {:f}  Acc: {:f} || Test Acc: {:f}".format(i+1,
@@ -101,7 +93,6 @@ class MNISTNet(EndModel):
                                                                                    np.mean(tacc),
                                                                                    np.mean(eacc)))
             scheduler.step()
-
         torch.save(self.state_dict(), save_path)
 
     def test(self, eval_dataloader, use_gpu=True, save_path='./MNISTNet.ptm'):
@@ -110,8 +101,6 @@ class MNISTNet(EndModel):
 
 
 def main():
-    import torchvision
-
     end_model = MNISTNet()
 
     mnist = torchvision.datasets.MNIST('~/Dataset/', train=True, download=True,
@@ -123,7 +112,6 @@ def main():
             soh[l] = 0.85
             return torch.FloatTensor(soh)
 
-
         # 80 train 20 test
         train_thresh = int(ratio*n)
         #idx = [np.random.randint(len(mnist)) for _ in range(n)]
@@ -132,8 +120,6 @@ def main():
         data = []
         for i, l in dataset:
             data.append((i, tosoft_onehot(l)))
-
-
 
         train_dataset = torch.utils.data.DataLoader(data[:train_thresh], batch_size=256, shuffle=True)
         test_dataset = torch.utils.data.DataLoader(data[train_thresh:], batch_size=128, shuffle=True)
@@ -145,16 +131,5 @@ def main():
     end_model.optimize(traindl, testdl)
 
 
-
-
-
-
-
-
 if __name__ == '__main__':
     main()
-
-
-
-
-

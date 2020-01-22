@@ -204,17 +204,16 @@ class Taglet:
 
         predicted_labels = []
         for inputs in unlabeled_data_loader:
+            inputs = inputs[0]
             if use_gpu:
-                inputs = inputs[0].cuda()
-            else:
-                inputs = inputs[0].cpu()
+                inputs = inputs.cuda()
             with torch.set_grad_enabled(False):
                 for data in inputs:
                     data = torch.unsqueeze(data, dim=0)
                     outputs = self.model(data)
                     _, preds = torch.max(outputs, 1)
                     predicted_labels.append(preds.item())
-            # For testing
+            break   # For testing
         return predicted_labels
 
 
@@ -243,35 +242,29 @@ class PrototypeTaglet(Taglet):
                 params_to_update.append(param)
         self._params_to_update = params_to_update
 
-    def euclidean_metric(self, a, b):
+    @staticmethod
+    def euclidean_metric(a, b):
         n = a.shape[0]
         m = b.shape[0]
         a = a.unsqueeze(1).expand(n, m, -1)
         b = b.unsqueeze(0).expand(n, m, -1)
-        # logits = -((a - b) ** 2).sum(dim=2)
-        # return logits
         return torch.pow(a - b, 2).sum(2)
 
-    def l2_loss(pred, label):
-        return ((pred - label) ** 2).sum() / len(pred) / 2
-
     def onn(self, i):
-
         dist = float("Inf")
         lab = ''
         for key, item in self.prototypes.items():
             prototype = item[0]
-            rel_dist = self.euclidean_metric(prototype, i)
+            rel_dist = PrototypeTaglet.euclidean_metric(prototype, i)
             if rel_dist < dist:
                 dist = rel_dist
                 lab = key
-
         return lab
 
     def train(self, train_data_loader, val_data_loader, test_data_loader, use_gpu):
-        '''
-        for 1-shot, use pretrained model
-        '''
+        """
+        For 1-shot, use pretrained model
+        """
         self.log('-------'+self.name)
 
         if use_gpu:
@@ -280,7 +273,6 @@ class PrototypeTaglet(Taglet):
         else:
             self.model = self.model.cpu()
             self.classifier = self.classifier.cpu()
-
 
         best_model_to_save = None
         for epoch in range(self.num_epochs):
@@ -323,14 +315,13 @@ class PrototypeTaglet(Taglet):
         self.prototypes = {}
         for data in train_data_loader:
             image, label = data[0], data[1]
-            #memorize
+            # Memorize
             if use_gpu:
                 image = image.cuda()
                 label = label.cuda()
 
             for img, lbl in zip(image, label):
-
-                proto = self.model(torch.unsqueeze(img,dim=0))
+                proto = self.model(torch.unsqueeze(img, dim=0))
                 try:
                     # 1-shot only no thoughts
                     self.prototypes[lbl].append(proto)
@@ -357,8 +348,8 @@ class PrototypeTaglet(Taglet):
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
-                representaion = self.model(inputs)
-                outputs = self.classifier(representaion)
+                representation = self.model(inputs)
+                outputs = self.classifier(representation)
                 loss = self.criterion(outputs, labels)
                 loss.backward()
                 self.optimizer.step()
@@ -369,8 +360,6 @@ class PrototypeTaglet(Taglet):
                 break
 
         epoch_loss = running_loss / len(train_data_loader.dataset)
-
-
         return epoch_loss
 
     def _validate_epoch(self, val_data_loader, use_gpu):
@@ -389,8 +378,8 @@ class PrototypeTaglet(Taglet):
                 inputs = inputs.cuda()
                 labels = labels.cuda()
             with torch.set_grad_enabled(False):
-                representaion = self.model(inputs)
-                outputs = self.classifier(representaion)
+                representation = self.model(inputs)
+                outputs = self.classifier(representation)
                 loss = self.criterion(outputs, labels)
                 _, preds = torch.max(outputs, 1)
 
@@ -401,11 +390,9 @@ class PrototypeTaglet(Taglet):
 
         epoch_loss = running_loss / len(val_data_loader.dataset)
         epoch_acc = running_acc / len(val_data_loader.dataset)
-
         return epoch_loss, epoch_acc
 
     def execute(self, unlabeled_data_loader, use_gpu):
-
         self.model.eval()
         if use_gpu:
             self.model = self.model.cuda()
@@ -414,17 +401,16 @@ class PrototypeTaglet(Taglet):
 
         predicted_labels = []
         for inputs in unlabeled_data_loader:
+            inputs = inputs[0]
             if use_gpu:
-                inputs = inputs[0].cuda()
-            else:
-                inputs = inputs[0].cpu()
+                inputs = inputs.cuda()
             with torch.set_grad_enabled(False):
                 for data in inputs:
-                    data = torch.unsqueeze(data,dim=0)
+                    data = torch.unsqueeze(data, dim=0)
                     proto = self.model(data)
                     prediction = self.onn(proto)
                     predicted_labels.append(prediction.item())
-
+            break   # For testing
         return predicted_labels
 
 
@@ -469,4 +455,3 @@ class TransferTaglet(Taglet):
 
                 loss.backward()
                 self.optimizer.step()
-
