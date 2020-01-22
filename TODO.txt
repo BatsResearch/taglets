@@ -1,18 +1,16 @@
 - GPU in controller or taglet? we should make use_gpu consistent for train and execute
-- the end model should be trained based on both predictions based on labelmatrix and  labeled images
+- (Peilin)the end model should be trained based on both predictions based on labelmatrix and  labeled images
+- use trained model during base phase for adaptation phase
 - pep8 warnings
-- active learning module (least confience)
+- (Top) active learning module (least confience)
 - complete readme file
-- check points?! (do we need that?)
-- top 5 accuracy, mean accuracy
 - test units
 - add docstring
 - complete execute function in taglet on all unlabeled data
 - add pre-train + finetune taglet for TransferTaglet
 - connect scads to dataset
 - update transforms for MNIST(train test val)
-- complete labelmodel
-- end model
 - complete a complete JPL process (3 base phases + 3 adapt phases)
+- top 5 accuracy, mean accuracy
 - CIFAR100 data?!
 
