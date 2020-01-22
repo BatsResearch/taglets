@@ -5,7 +5,18 @@ import torch
 
 
 class CustomDataSet(Dataset):
+    """
+    A custom dataset used to create dataloaders.
+    """
     def __init__(self, root, images, labels, transform, num_channels):
+        """
+        Create a new CustomDataSet.
+        :param root: The root directory of the images
+        :param images: A list of filenames
+        :param labels: A list of labels
+        :param transform: A transform to perform on the images
+        :param num_channels: The number of channels
+        """
         self.root = root
         self.images = images
         self.labels = labels

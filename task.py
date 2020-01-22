@@ -7,23 +7,37 @@ from torch.utils import data
 
 
 class Task:
-    """ Task class """
-
+    """
+    A class defining a task.
+    """
     def __init__(self, metadata):
+        """
+        Create a new Task.
+        :param metadata: The metadata of the Task.
+        """
         self.description = ''
         self.problem_type = metadata['problem_type']
         self.task_id = metadata['task_id']
         self.classes = []
         self.evaluation_image_path = "path to test images"
-        self.unlabeled_image_path = 'path to unlabeled images'
+        self.unlabeled_image_path = "path to unlabeled images"
         self.labeled_images = []    # A list of tuples with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
         self.number_of_channels = None
         self.train_data_loader = None
 
     def add_labeled_images(self, new_labeled_images):
+        """
+        Add new labeled images to the Task.
+        :param new_labeled_images: A list of lists containing the name of an image and their labels
+        :return: None
+        """
         self.labeled_images.extend(new_labeled_images)
 
     def _transform_image(self):
+        """
+        Get the transform to be used on an image.
+        :return: A transform
+        """
         if self.number_of_channels == 3:
             data_mean = [0.485, 0.456, 0.406]
             data_std = [0.229, 0.224, 0.225]
@@ -39,7 +53,12 @@ class Task:
         return transform
 
     def load_labeled_data(self, batch_size, num_workers):
-
+        """
+        Get training, validation, and testing data loaders from labeled data.
+        :param batch_size: The batch size
+        :param num_workers: The number of workers
+        :return: Training, validation, and testing data loaders
+        """
         transform = self._transform_image()
         image_names = [img_name for img_name, label in self.labeled_images]
         image_labels = [label for img_name, label in self.labeled_images]
@@ -84,10 +103,15 @@ class Task:
         print('number of validation data: %d' % len(val_data_loader.dataset))
         print('number of test data: %d' % len(test_data_loader.dataset))
 
-        return train_data_loader,val_data_loader,test_data_loader
+        return train_data_loader, val_data_loader, test_data_loader
 
     def load_unlabeled_data(self, batch_size, num_workers):
-
+        """
+        Get a data loader from unlabeled data.
+        :param batch_size: The batch size
+        :param num_workers: The number of workers
+        :return: A data loader containing unlabeled data
+        """
         transform = self._transform_image()
         labeled_image_names = [img_name for img_name, label in self.labeled_images]
         unlabeled_images_names = []

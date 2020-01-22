@@ -11,12 +11,13 @@ from models import custom_models
 
 class Taglet:
     """
-    Taglet class
+    A class that produces votes for unlabeled images.
     """
-
     def __init__(self, task):
-        """Initialize based on configuration dictionary"""
-
+        """
+        Create a new Taglet.
+        :param task: The current task
+        """
         self.name = 'base'
         self.task = task
         self.lr = 0.0001
@@ -56,6 +57,11 @@ class Taglet:
 
     @staticmethod
     def _init_random(seed):
+        """
+        Initialize random numbers with a seed.
+        :param seed: The seed to initialize with
+        :return: None
+        """
         torch.backends.cudnn.deterministic = True
 
         random.seed(seed)
@@ -65,7 +71,9 @@ class Taglet:
 
     def _train_epoch(self, train_data_loader):
         """
-        Training for an epoch
+        Train for one epoch.
+        :param train_data_loader: A dataloader containing training data
+        :return: None
         """
         self.model.train()
         running_loss = 0
@@ -94,8 +102,11 @@ class Taglet:
         return epoch_loss, epoch_acc
 
     def _validate_epoch(self, val_data_loader):
-        """ validating/testing """
-
+        """
+        Validate for one epoch.
+        :param val_data_loader: A dataloader containing validation data
+        :return: None
+        """
         self.model.eval()
         running_loss = 0
         running_acc = 0
@@ -119,7 +130,11 @@ class Taglet:
 
     def train(self, train_data_loader, val_data_loader, test_data_loader):
         """
-        Training phase
+        Train the Taglet.
+        :param train_data_loader: A dataloader containing training data
+        :param val_data_loader: A dataloader containing validation data
+        :param test_data_loader: A dataloader containing test dat
+        :return:
         """
         best_model_to_save = None
         for epoch in range(self.num_epochs):
@@ -160,7 +175,7 @@ class Taglet:
 
     def execute(self, unlabeled_data_loader):
         """
-        Execute the taglet on all unlabeled images.
+        Execute the Taglet on unlabeled images.
         :return: A list of predicted labels
         """
         self.model.eval()
@@ -171,7 +186,6 @@ class Taglet:
                 outputs = self.model(inputs)
                 _, preds = torch.max(outputs, 1)
                 predicted_labels.extend(preds)
-
         return predicted_labels
 
 

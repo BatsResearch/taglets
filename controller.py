@@ -1,7 +1,7 @@
 from JPL_interface import JPL
 from modules.module import TransferModule
 from modules.active_learning import RandomActiveLearning
-from taglets.taglet_executer import TagletExecuter
+from taglets.taglet_executer import TagletExecutor
 from task import Task
 from pathlib import Path
 import random
@@ -59,9 +59,9 @@ class Controller:
         print("Training...")
         MNIST_module.train_taglets(train_data_loader, val_data_loader, test_data_loader)
         taglets = MNIST_module.get_taglets()
-        taglet_executer = TagletExecuter(taglets)
+        taglet_executor = TagletExecutor(taglets)
         print("Executing...")
-        label_matrix = taglet_executer.execute(unlabeled_data_loader)
+        label_matrix = taglet_executor.execute(unlabeled_data_loader)
 
         # LabelModel implementation
         print("Getting labels...")
