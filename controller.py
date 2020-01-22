@@ -1,12 +1,12 @@
 from JPL_interface import JPL
-from modules.module import RandomActiveLearning, TransferModule
-from taglet_executer import TagletExecuter
+from modules.module import TransferModule
+from modules.active_learning import RandomActiveLearning
+from taglets.taglet_executer import TagletExecuter
 from task import Task
-import os
 from pathlib import Path
 import random
 import pandas as pd
-from labelmodel import get_label_distribution
+from label_model import get_label_distribution
 
 
 class Controller:

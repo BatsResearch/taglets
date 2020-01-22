@@ -322,4 +322,4 @@ def get_label_distribution(label_matrix, num_classes):
 
     model.optimize(label_matrix, cfg)
 
-    return model.get_label_distribution(label_matrix)
+    return model.weak_label(label_matrix)

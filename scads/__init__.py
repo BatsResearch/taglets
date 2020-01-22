@@ -1,4 +1,3 @@
-from .scads import Scads
-
-from .create_scads import add_conceptnet
-from .add_datasets import add_datasets
+from scads.interface.scads import Scads
+from scads.build.create_scads import add_conceptnet
+from scads.build.add_datasets import add_datasets
