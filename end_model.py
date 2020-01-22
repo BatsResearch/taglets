@@ -102,33 +102,30 @@ class MNISTNet(EndModel):
 
 def main():
     end_model = MNISTNet()
-
     mnist = torchvision.datasets.MNIST('~/Dataset/', train=True, download=True,
                                        transform=torchvision.transforms.ToTensor())
 
     def shuffle(mnist, n, ratio=0.9):
-        def tosoft_onehot(l):
+        def to_soft_one_hot(l):
             soh = [0.15] * 10
             soh[l] = 0.85
             return torch.FloatTensor(soh)
 
         # 80 train 20 test
-        train_thresh = int(ratio*n)
-        #idx = [np.random.randint(len(mnist)) for _ in range(n)]
+        train_thresh = int(ratio * n)
         idx = [x for x in range(n)]
         dataset = torch.utils.data.Subset(mnist, idx)
         data = []
         for i, l in dataset:
-            data.append((i, tosoft_onehot(l)))
+            data.append((i, to_soft_one_hot(l)))
 
         train_dataset = torch.utils.data.DataLoader(data[:train_thresh], batch_size=256, shuffle=True)
         test_dataset = torch.utils.data.DataLoader(data[train_thresh:], batch_size=128, shuffle=True)
 
         return train_dataset, test_dataset
 
-    traindl, testdl = shuffle(mnist, 20000)
-
-    end_model.optimize(traindl, testdl)
+    train, test = shuffle(mnist, 20000)
+    end_model.optimize(train, test)
 
 
 if __name__ == '__main__':
