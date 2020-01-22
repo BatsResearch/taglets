@@ -1,6 +1,6 @@
 from JPL_interface import JPL
 from modules.module import TransferModule
-from modules.active_learning import RandomActiveLearning
+from modules.active_learning import RandomActiveLearning, LeastConfidenceActiveLearning
 from taglets.taglet_executer import TagletExecutor
 from task import Task
 from pathlib import Path
@@ -13,7 +13,7 @@ class Controller:
     def __init__(self):
         self.api = JPL()
         self.task = self.get_task()
-        self.active_learning = RandomActiveLearning(self.task)
+        self.active_learning = LeastConfidenceActiveLearning(self.task)
         self.num_checkpoints = 3
         self.batch_size = 32
         self.num_workers = 2
@@ -46,7 +46,7 @@ class Controller:
         session_status = self.api.get_session_status()
         available_budget = session_status['budget_left_until_checkpoint']
         available_budget = available_budget // 10   # For testing
-        examples = self.active_learning.find_candidates(available_budget)
+        examples = self.active_learning.find_candidates(available_budget, use_gpu=self.use_gpu)
         query = {'example_ids': examples}
         labeled_images = self.api.request_label(query)
         self.task.add_labeled_images(labeled_images)

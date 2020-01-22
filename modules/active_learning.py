@@ -45,9 +45,9 @@ class LeastConfidenceActiveLearning(ActiveLearningModule):
             self.image_dict[images_names[i]] = images[i]
 
         self.unlabeled_images_names = images_names
-
         self.model = models.resnet18(pretrained=True)
         self.model.fc = torch.nn.Linear(512, 10, bias=True)
+        self.batch_size = 64
         
     def read_images(self):
         """
@@ -74,19 +74,21 @@ class LeastConfidenceActiveLearning(ActiveLearningModule):
         list_imgs = list_imgs.permute(0, 3, 1, 2)
         return list_imgs, np.asarray(list_imgs_names)
     
-    def fine_tune_on_labeled_images(self, num_epochs=50, lr=1e-3):
+    def fine_tune_on_labeled_images(self, use_gpu, num_epochs=50, lr=1e-3):
         """
         Fine tune the pre-trained model with labeled images in self.task.
         Currently, this function is only called by find_candidates.
+        :param: use_gpu: Whether or not to use the GPU
         :param num_epochs: int, number of epochs to fine tune
         :param lr: float, learning rate
         :return:
         """
         self.model.train()
-        
-        # get batch_size and use_gpu
-        batch_size = self.task.batch_size
-        use_gpu = self.task.use_gpu
+        if use_gpu:
+            self.model.cuda()
+        else:
+            self.model.cpu()
+
         labeled_images_names, labels = zip(*self.task.labeled_images)
         labeled_images_names = np.asarray(labeled_images_names)
         labels = np.asarray(labels)
@@ -97,10 +99,10 @@ class LeastConfidenceActiveLearning(ActiveLearningModule):
         num_len = labeled_images_names.shape[0]
         for ep in range(num_epochs):
             perm = torch.randperm(num_len)
-            for i in range(0, num_len, batch_size):
+            for i in range(0, num_len, self.batch_size):
                 optimizer.zero_grad()
                 
-                ind = perm[i: i + batch_size]
+                ind = perm[i: i + self.batch_size]
                 batch_images_names = labeled_images_names[ind]
                 batch_images = [self.image_dict[image_name] for image_name in batch_images_names]
                 batch_images = torch.stack(batch_images)
@@ -117,26 +119,26 @@ class LeastConfidenceActiveLearning(ActiveLearningModule):
                 loss.backward()
                 optimizer.step()
 
-    def find_candidates(self, available_budget):
+    def find_candidates(self, available_budget, use_gpu=False):
         """
         Find candidates to label based on confidence.
         :param available_budget: The number of candidates to label
+        :param use_gpu: Whether or not to use the GPU
         :return: A list of the filenames of candidates to label
         """
         # fine tune the pre-trained model
-        self.fine_tune_on_labeled_images()
-        
+        self.fine_tune_on_labeled_images(use_gpu)
         self.model.eval()
-        
-        # get batch_size and use_gpu
-        batch_size = self.task.batch_size
-        use_gpu = self.task.use_gpu
+        if use_gpu:
+            self.model.cuda()
+        else:
+            self.model.cpu()
         
         num_len = self.unlabeled_images_names.shape[0]
         list_logits = []
-        for i in range(0, num_len, batch_size):
+        for i in range(0, num_len, self.batch_size):
             batch_images = [self.image_dict[self.unlabeled_images_names[j]]
-                            for j in range(i, min(i+batch_size, num_len))]
+                            for j in range(i, min(i + self.batch_size, num_len))]
             batch_images = torch.stack(batch_images)
             
             if use_gpu:
