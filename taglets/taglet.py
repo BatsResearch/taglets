@@ -50,9 +50,6 @@ class Taglet:
 
         self.log = print
         self._best_val_acc = 0.0
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.model = self.model.to(self.device)
-        self.model.eval()
 
     @staticmethod
     def _init_random(seed):
@@ -68,18 +65,22 @@ class Taglet:
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
 
-    def _train_epoch(self, train_data_loader):
+    def _train_epoch(self, train_data_loader, use_gpu):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data
+        :param cuda: Whether or not to use the GPU
         :return: None
         """
         self.model.train()
         running_loss = 0
         running_acc = 0
         for batch_idx, batch in enumerate(train_data_loader):
-            inputs = batch[0].to(self.device)
-            labels = batch[1].to(self.device)
+            inputs = batch[0]
+            labels = batch[1]
+            if use_gpu:
+                inputs = inputs.cuda()
+                labels = labels.cuda()
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
@@ -100,7 +101,7 @@ class Taglet:
 
         return epoch_loss, epoch_acc
 
-    def _validate_epoch(self, val_data_loader):
+    def _validate_epoch(self, val_data_loader, use_gpu):
         """
         Validate for one epoch.
         :param val_data_loader: A dataloader containing validation data
@@ -110,8 +111,11 @@ class Taglet:
         running_loss = 0
         running_acc = 0
         for batch_idx, batch in enumerate(val_data_loader):
-            inputs = batch[0].to(self.device)
-            labels = batch[1].to(self.device)
+            inputs = batch[0]
+            labels = batch[1]
+            if use_gpu:
+                inputs = inputs.cuda()
+                labels = labels.cuda()
             with torch.set_grad_enabled(False):
                 outputs = self.model(inputs)
                 loss = self.criterion(outputs, labels)
@@ -127,25 +131,31 @@ class Taglet:
 
         return epoch_loss, epoch_acc
 
-    def train(self, train_data_loader, val_data_loader, test_data_loader):
+    def train(self, train_data_loader, val_data_loader, test_data_loader, use_gpu):
         """
         Train the Taglet.
         :param train_data_loader: A dataloader containing training data
         :param val_data_loader: A dataloader containing validation data
         :param test_data_loader: A dataloader containing test dat
+        :param use_gpu: Whether or not to use the GPU
         :return:
         """
+        if use_gpu:
+            self.model = self.model.cuda()
+        else:
+            self.model = self.model.cpu()
+
         best_model_to_save = None
         for epoch in range(self.num_epochs):
             self.log('epoch: {}'.format(epoch))
 
             # Train on training data
-            train_loss, train_acc = self._train_epoch(train_data_loader)
+            train_loss, train_acc = self._train_epoch(train_data_loader, use_gpu)
             self.log('train loss: {:.4f}'.format(train_loss))
             self.log('train acc: {:.4f}%'.format(train_acc*100))
 
             # Evaluation on validation data
-            val_loss, val_acc = self._validate_epoch(val_data_loader)
+            val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu)
             self.log('validation loss: {:.4f}'.format(val_loss))
             self.log('validation acc: {:.4f}%'.format(val_acc*100))
 
@@ -169,19 +179,29 @@ class Taglet:
             # Reloads best model weights
             self.model.load_state_dict(best_model_to_save)
 
-        test_loss, test_acc = self._validate_epoch(test_data_loader)
+        test_loss, test_acc = self._validate_epoch(test_data_loader, use_gpu)
         self.log('test loss: {:.4f}'.format(test_loss))
         self.log('test acc: {:.4f}%'.format(test_acc * 100))
 
-    def execute(self, unlabeled_data_loader):
+    def execute(self, unlabeled_data_loader, use_gpu):
         """
         Execute the Taglet on unlabeled images.
+        :param unlabeled_data_loader: A dataloader containing unlabeled data
+        :param use_gpu: Whether or not the use the GPU
         :return: A list of predicted labels
         """
         self.model.eval()
+        if use_gpu:
+            self.model = self.model.cuda()
+        else:
+            self.model = self.model.cpu()
+
         predicted_labels = []
         for inputs in unlabeled_data_loader:
-            inputs = inputs[0].to(self.device)
+            if use_gpu:
+                inputs = inputs[0].cuda()
+            else:
+                inputs = inputs[0].cpu()
             with torch.set_grad_enabled(False):
                 outputs = self.model(inputs)
                 _, preds = torch.max(outputs, 1)

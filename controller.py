@@ -16,6 +16,7 @@ class Controller:
         self.num_checkpoints = 3
         self.batch_size = 32
         self.num_workers = 2
+        self.use_gpu = False
 
     def run_checkpoints(self):
         for i in range(self.num_checkpoints):
@@ -57,11 +58,11 @@ class Controller:
         unlabeled_data_loader = self.task.load_unlabeled_data(self.batch_size, self.num_workers)
         mnist_module = TransferModule(task=self.task)
         print("Training...")
-        mnist_module.train_taglets(train_data_loader, val_data_loader, test_data_loader)
+        mnist_module.train_taglets(train_data_loader, val_data_loader, test_data_loader, self.use_gpu)
         taglets = mnist_module.get_taglets()
         taglet_executor = TagletExecutor(taglets)
         print("Executing...")
-        label_matrix = taglet_executor.execute(unlabeled_data_loader)
+        label_matrix = taglet_executor.execute(unlabeled_data_loader, self.use_gpu)
 
         # LabelModel implementation
         print("Getting labels...")
