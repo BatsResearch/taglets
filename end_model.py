@@ -42,7 +42,7 @@ class MNISTNet(EndModel):
         x = self.linear(x)
         return x
 
-    def optimize(self, train_dataloader, test_dataloader, use_gpu=True, cfg=None, save_path='./MNISTNet.ptm'):
+    def optimize(self, train_dataloader, test_dataloader, use_gpu=True, save_path='./MNISTNet.ptm'):
 
         def soft_cross_entropy(input, target):
             logs = torch.nn.LogSoftmax(dim=1)
@@ -52,7 +52,6 @@ class MNISTNet(EndModel):
         # optimizer = torch.optim.Adam(self.parameters(), lr=0.01)
         optimizer = torch.optim.Adadelta(self.parameters(), lr=1.0)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.7)
-
         if use_gpu:
             self.cuda()
 
@@ -64,8 +63,9 @@ class MNISTNet(EndModel):
             for img, label in train_dataloader:
                 optimizer.zero_grad()
 
-                img = torch.FloatTensor(img).cuda()
-                label = torch.FloatTensor(label).cuda()
+                if use_gpu:
+                    img = img.cuda()
+                    label = label.cuda()
 
                 predictions = self(img)
                 loss = soft_cross_entropy(predictions, label)
@@ -81,17 +81,18 @@ class MNISTNet(EndModel):
             eacc = []
             for img, label in test_dataloader:
 
-                img = torch.FloatTensor(img).cuda()
-                label = torch.FloatTensor(label).cuda()
+                if use_gpu:
+                    img = img.cuda()
+                    label = label.cuda()
 
                 predictions = self(img)
                 accuracy = torch.sum(torch.max(predictions, 1)[1] == torch.max(label, 1)[1]).item() / float(len(label))
                 eacc.append(accuracy)
 
             print("Epoch: {:d} =| Train Loss: {:f}  Acc: {:f} || Test Acc: {:f}".format(i+1,
-                                                                                   np.mean(tlosses),
-                                                                                   np.mean(tacc),
-                                                                                   np.mean(eacc)))
+                                                                                        np.mean(tlosses),
+                                                                                        np.mean(tacc),
+                                                                                        np.mean(eacc)))
             scheduler.step()
         torch.save(self.state_dict(), save_path)
 
