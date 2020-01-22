@@ -45,8 +45,8 @@ class MNISTNet(EndModel):
 
         x = torch.flatten(self.conv(x), 1)
         x = self.linear(x)
-        output = F.log_softmax(x, dim=1)
-        return output
+        output = F.softmax(x, dim=1)
+        return x
 
     def optimize(self, train_dataloader, test_dataloader, use_gpu=True, cfg=None, save_path='./MNISTNet.ptm'):
 
@@ -54,9 +54,12 @@ class MNISTNet(EndModel):
             logs = torch.nn.LogSoftmax(dim=1)
             return torch.mean(torch.sum(-target * logs(input), 1))
 
-        epoch = 30
+        epoch = 20
 
-        optimizer = torch.optim.Adam(self.parameters())
+        # optimizer = torch.optim.Adam(self.parameters(), lr=0.01)
+        optimizer = torch.optim.Adadelta(self.parameters(), lr=1.0)
+
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.7)
 
         if use_gpu:
             self.cuda()
@@ -65,6 +68,7 @@ class MNISTNet(EndModel):
             # Train
             self.train()
             tlosses = []
+            tacc = []
             for img, label in train_dataloader:
                 optimizer.zero_grad()
 
@@ -74,29 +78,34 @@ class MNISTNet(EndModel):
                 preds = self(img)
                 loss = soft_cross_entropy(preds, label)
                 loss.backward()
-
                 optimizer.step()
+
+                accuracy = torch.sum(torch.max(preds, 1)[1] == torch.max(label, 1)[1]).item() / float(len(label))
+                tacc.append(accuracy)
                 tlosses.append(loss.item())
 
             # Eval
             self.eval()
-            elosses = []
+            eacc = []
             for img, label in test_dataloader:
 
                 img = torch.FloatTensor(img).cuda()
                 label = torch.FloatTensor(label).cuda()
 
                 preds = self(img)
-                loss = soft_cross_entropy(preds, label)
-                elosses.append(loss.item())
+                accuracy = torch.sum(torch.max(preds, 1)[1] == torch.max(label, 1)[1]).item() / float(len(label))
+                eacc.append(accuracy)
 
-            print("Epoch: {:d} =| Train Loss: {:f}   ||    Test Loss: {:f}".format(i+1,
+            print("Epoch: {:d} =| Train Loss: {:f}  Acc: {:f} || Test Acc: {:f}".format(i+1,
                                                                                    np.mean(tlosses),
-                                                                                   np.mean(elosses)))
+                                                                                   np.mean(tacc),
+                                                                                   np.mean(eacc)))
+            scheduler.step()
 
         torch.save(self.state_dict(), save_path)
 
     def test(self, eval_dataloader, use_gpu=True, save_path='./MNISTNet.ptm'):
+        self.load_state_dict(torch.load(save_path))
         pass
 
 
@@ -108,7 +117,7 @@ def main():
     mnist = torchvision.datasets.MNIST('~/Dataset/', train=True, download=True,
                                        transform=torchvision.transforms.ToTensor())
 
-    def shuffle(mnist, n, ratio=0.8):
+    def shuffle(mnist, n, ratio=0.9):
         def tosoft_onehot(l):
             soh = [0.15] * 10
             soh[l] = 0.85
@@ -126,7 +135,7 @@ def main():
 
 
 
-        train_dataset = torch.utils.data.DataLoader(data[:train_thresh], batch_size=128, shuffle=True)
+        train_dataset = torch.utils.data.DataLoader(data[:train_thresh], batch_size=256, shuffle=True)
         test_dataset = torch.utils.data.DataLoader(data[train_thresh:], batch_size=128, shuffle=True)
 
         return train_dataset, test_dataset
