@@ -13,6 +13,7 @@ class Controller:
     def __init__(self):
         self.api = JPL()
         self.task = self.get_task()
+        self.active_learning = RandomActiveLearning(self.task)
         self.num_checkpoints = 3
         self.batch_size = 32
         self.num_workers = 2
@@ -44,8 +45,8 @@ class Controller:
     def request_labels(self):
         session_status = self.api.get_session_status()
         available_budget = session_status['budget_left_until_checkpoint']
-        active_learning = RandomActiveLearning(self.task)
-        examples = active_learning.find_candidates(available_budget)
+        available_budget = available_budget // 10   # For testing
+        examples = self.active_learning.find_candidates(available_budget)
         query = {'example_ids': examples}
         labeled_images = self.api.request_label(query)
         self.task.add_labeled_images(labeled_images)

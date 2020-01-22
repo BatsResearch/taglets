@@ -206,6 +206,7 @@ class Taglet:
                 outputs = self.model(inputs)
                 _, preds = torch.max(outputs, 1)
                 predicted_labels.extend(preds)
+            break   # For testing
         return predicted_labels
 
 
