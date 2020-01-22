@@ -46,7 +46,7 @@ class Task:
             data_std = [0.5]
 
         transform = transforms.Compose([
-            transforms.Resize((224, 224)),
+            # transforms.Resize((224, 224)),
             transforms.ToTensor(),
             transforms.Normalize(mean=data_mean, std=data_std)
         ])
