@@ -39,9 +39,16 @@ class LeastConfidenceActiveLearning(ActiveLearningModule):
         :param task: The current task
         """
         super().__init__(task)
-        self.labeled = set()  # List of candidates already labeled
-        self.unlabeled_images, self.unlabeled_images_names = self.read_images()
+        images, images_names = self.read_images()
+        self.image_dict = {}
+        for i in range(len(images_names)):
+            self.image_dict[images_names[i]] = images[i]
 
+        self.unlabeled_images_names = images_names
+
+        self.model = models.resnet18(pretrained=True)
+        self.model.fc = torch.nn.Linear(512, 10, bias=True)
+        
     def read_images(self):
         """
         read and normalize images
@@ -66,34 +73,79 @@ class LeastConfidenceActiveLearning(ActiveLearningModule):
         list_imgs = torch.stack(list_imgs)
         list_imgs = list_imgs.permute(0, 3, 1, 2)
         return list_imgs, np.asarray(list_imgs_names)
+    
+    def fine_tune_on_labeled_images(self, num_epochs=50, lr=1e-3):
+        """
+        Fine tune the pre-trained model with labeled images in self.task.
+        Currently, this function is only called by find_candidates.
+        :param num_epochs: int, number of epochs to fine tune
+        :param lr: float, learning rate
+        :return:
+        """
+        self.model.train()
+        
+        # get batch_size and use_gpu
+        batch_size = self.task.batch_size
+        use_gpu = self.task.use_gpu
+        labeled_images_names, labels = zip(*self.task.labeled_images)
+        labeled_images_names = np.asarray(labeled_images_names)
+        labels = np.asarray(labels)
 
-    def find_candidates(self, available_budget, batch_size=64, use_gpu=True):
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+        classification_criterion = torch.nn.CrossEntropyLoss()
+    
+        num_len = labeled_images_names.shape[0]
+        for ep in range(num_epochs):
+            perm = torch.randperm(num_len)
+            for i in range(0, num_len, batch_size):
+                optimizer.zero_grad()
+                
+                ind = perm[i: i + batch_size]
+                batch_images_names = labeled_images_names[ind]
+                batch_images = [self.image_dict[image_name] for image_name in batch_images_names]
+                batch_images = torch.stack(batch_images)
+                batch_labels = labels[ind]
+            
+                if use_gpu:
+                    batch_images = batch_images.cuda()
+                    batch_labels = batch_labels.cuda()
+            
+                # upsample here
+                logits = self.model(torch.nn.functional.interpolate(batch_images, (224, 224)))
+                loss = classification_criterion(logits, batch_labels)
+    
+                loss.backward()
+                optimizer.step()
+
+    def find_candidates(self, available_budget):
         """
         Find candidates to label based on confidence.
         :param available_budget: The number of candidates to label
-        :param batch_size: int, batch size
-        :param use_gpu: boolean, whether to use gpu or not
         :return: A list of the filenames of candidates to label
         """
-        # get pre-trained model
-        resnet = models.resnet18(pretrained=True)
-        resnet.fc = torch.nn.Linear(512, 10, bias=True)
-        resnet.eval()
+        # fine tune the pre-trained model
+        self.fine_tune_on_labeled_images()
+        
+        self.model.eval()
+        
+        # get batch_size and use_gpu
+        batch_size = self.task.batch_size
+        use_gpu = self.task.use_gpu
         
         num_len = self.unlabeled_images_names.shape[0]
-        ct = 0
         list_logits = []
-        while ct < num_len:
-            batch_images = self.unlabeled_images[ct:min(ct + batch_size, num_len)].clone()
-    
+        for i in range(0, num_len, batch_size):
+            batch_images = [self.image_dict[self.unlabeled_images_names[j]]
+                            for j in range(i, min(i+batch_size, num_len))]
+            batch_images = torch.stack(batch_images)
+            
             if use_gpu:
                 batch_images = batch_images.cuda()
     
             # upsample here
-            logits = resnet(torch.nn.functional.interpolate(batch_images, (224, 224)))
+            logits = self.model(torch.nn.functional.interpolate(batch_images, (224, 224)))
             list_logits.append(logits.cpu().detach().numpy())
-    
-            ct += batch_size
+
         all_logits = np.concatenate(list_logits)
         confidence = np.max(all_logits, axis=1)
         
@@ -102,8 +154,7 @@ class LeastConfidenceActiveLearning(ActiveLearningModule):
         
         to_request = self.unlabeled_images_names[least_confidence_indices]
         
-        # update self.unlabeled_images and self.unlabeled_images_names
-        self.unlabeled_images = self.unlabeled_images[rest_indices]
+        # update self.unlabeled_images_names so that we don't request the same images
         self.unlabeled_images_names = self.unlabeled_images_names[rest_indices]
         
         return to_request
