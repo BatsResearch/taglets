@@ -41,7 +41,7 @@ def read_images(dir):
 			img = Image.open(os.path.join(dir, filename))
 			rgbimg = img.convert('RGB')
 			rgbimg = np.asarray(rgbimg) / 255.0
-			normalized_rgbimg = rgbimg - imagenet_mean / imagenet_std
+			normalized_rgbimg = (rgbimg - imagenet_mean) / imagenet_std
 			list_imgs.append(torch.from_numpy(normalized_rgbimg.astype(np.float32)))
 	list_imgs = torch.stack(list_imgs)
 	list_imgs = list_imgs.permute(0, 3, 1, 2)
