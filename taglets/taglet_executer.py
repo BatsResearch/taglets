@@ -23,5 +23,7 @@ class TagletExecutor:
         num_taglets = len(self.taglets)
         label_matrix = np.zeros((num_images, num_taglets))
         for i in range(num_taglets):
-            label_matrix[:, i] = self.taglets[i].execute(unlabeled_images, use_gpu)
+            predictions = self.taglets[i].execute(unlabeled_images, use_gpu)
+            print(len(predictions))
+            label_matrix[:, i] = predictions
         return label_matrix

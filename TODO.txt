@@ -10,7 +10,9 @@ Top:
 - active learning module (least confience)
 
 Elaheh:
-- add prototyep framework
+- prototyep framework with only seed labels or more
+- I assume that we have both val and test data for few shot learning
+- model zoo and external datasets
 - use trained model during base phase for adaptation phase
 - add pre-train + finetune taglet for TransferTaglet
 - use scads to dataset
