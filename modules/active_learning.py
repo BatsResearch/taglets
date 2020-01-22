@@ -1,5 +1,10 @@
 from pathlib import Path
 from random import sample
+import os
+import numpy as np
+import torch
+from torchvision import models
+from PIL import Image
 
 
 class ActiveLearningModule:
@@ -34,15 +39,75 @@ class LeastConfidenceActiveLearning(ActiveLearningModule):
         :param task: The current task
         """
         super().__init__(task)
+        self.labeled = set()  # List of candidates already labeled
+        self.unlabeled_images, self.unlabeled_images_names = self.read_images()
 
-    def find_candidates(self, available_budget):
+    def read_images(self):
+        """
+        read and normalize images
+        :return: 4-d tensor and ndarray of str, the images and their names
+        """
+        image_dir = self.task.unlabeled_image_path
+        
+        imagenet_mean = np.asarray([0.485, 0.456, 0.406])
+        imagenet_std = np.asarray([0.229, 0.224, 0.225])
+    
+        list_imgs = []
+        list_imgs_names = []
+        for filename in os.listdir(image_dir):
+            if filename.endswith('.png'):
+                list_imgs_names.append(filename)
+            
+                img = Image.open(os.path.join(image_dir, filename))
+                rgbimg = img.convert('RGB')
+                rgbimg = np.asarray(rgbimg) / 255.0
+                normalized_rgbimg = (rgbimg - imagenet_mean) / imagenet_std
+                list_imgs.append(torch.from_numpy(normalized_rgbimg.astype(np.float32)))
+        list_imgs = torch.stack(list_imgs)
+        list_imgs = list_imgs.permute(0, 3, 1, 2)
+        return list_imgs, np.asarray(list_imgs_names)
+
+    def find_candidates(self, available_budget, batch_size=64, use_gpu=True):
         """
         Find candidates to label based on confidence.
         :param available_budget: The number of candidates to label
+        :param batch_size: int, batch size
+        :param use_gpu: boolean, whether to use gpu or not
         :return: A list of the filenames of candidates to label
         """
-        raise NotImplementedError
-
+        # get pre-trained model
+        resnet = models.resnet18(pretrained=True)
+        resnet.fc = torch.nn.Linear(512, 10, bias=True)
+        resnet.eval()
+        
+        num_len = self.unlabeled_images_names.shape[0]
+        ct = 0
+        list_logits = []
+        while ct < num_len:
+            batch_images = self.unlabeled_images[ct:min(ct + batch_size, num_len)].clone()
+    
+            if use_gpu:
+                batch_images = batch_images.cuda()
+    
+            # upsample here
+            logits = resnet(torch.nn.functional.interpolate(batch_images, (224, 224)))
+            list_logits.append(logits.cpu().detach().numpy())
+    
+            ct += batch_size
+        all_logits = np.concatenate(list_logits)
+        confidence = np.max(all_logits, axis=1)
+        
+        least_confidence_indices = np.argsort(confidence)[:available_budget]
+        rest_indices = np.argsort(confidence)[available_budget:]
+        
+        to_request = self.unlabeled_images_names[least_confidence_indices]
+        
+        # update self.unlabeled_images and self.unlabeled_images_names
+        self.unlabeled_images = self.unlabeled_images[rest_indices]
+        self.unlabeled_images_names = self.unlabeled_images_names[rest_indices]
+        
+        return to_request
+        
 
 class RandomActiveLearning(ActiveLearningModule):
     """
