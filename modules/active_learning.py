@@ -44,7 +44,14 @@ class LeastConfidenceActiveLearning(ActiveLearningModule):
         for i in range(len(images_names)):
             self.image_dict[images_names[i]] = images[i]
 
-        self.unlabeled_images_names = images_names
+        labeled_images_names, _ = zip(*self.task.labeled_images)
+        labeled_images_names = np.asarray(labeled_images_names)
+        self.unlabeled_images_names = np.delete(images_names, np.argwhere(np.isin(images_names, labeled_images_names)))
+        
+        # ---!! TEST ONLY !!!---
+        self.unlabeled_images_names = self.unlabeled_images_names[:200]
+        # ----------------------
+        
         self.model = models.resnet18(pretrained=True)
         self.model.fc = torch.nn.Linear(512, 10, bias=True)
         self.batch_size = 64
@@ -74,8 +81,9 @@ class LeastConfidenceActiveLearning(ActiveLearningModule):
         list_imgs = list_imgs.permute(0, 3, 1, 2)
         return list_imgs, np.asarray(list_imgs_names)
     
-    def fine_tune_on_labeled_images(self, use_gpu, num_epochs=50, lr=1e-3):
+    def fine_tune_on_labeled_images(self, use_gpu, num_epochs=1, lr=1e-3):
         """
+        !!!!!!!!! num_epochs = 1 is only for testing !!!!!!!!!
         Fine tune the pre-trained model with labeled images in self.task.
         Currently, this function is only called by find_candidates.
         :param: use_gpu: Whether or not to use the GPU
@@ -91,7 +99,7 @@ class LeastConfidenceActiveLearning(ActiveLearningModule):
 
         labeled_images_names, labels = zip(*self.task.labeled_images)
         labeled_images_names = np.asarray(labeled_images_names)
-        labels = np.asarray(labels)
+        labels = torch.from_numpy(np.asarray(labels).astype(np.int64))
 
         optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
         classification_criterion = torch.nn.CrossEntropyLoss()
