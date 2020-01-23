@@ -167,7 +167,7 @@ class LeastConfidenceActiveLearning(ActiveLearningModule):
         # update self.unlabeled_images_names so that we don't request the same images
         self.unlabeled_images_names = self.unlabeled_images_names[rest_indices]
         
-        return to_request
+        return list(to_request)
         
 
 class RandomActiveLearning(ActiveLearningModule):
