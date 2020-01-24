@@ -1,28 +1,25 @@
-Jeff:
-- GPU in controller or taglet? we should make use_gpu consistent for train and execute
 - pep8 warnings
 - cleaning code
-
-Peilin:
-- the end model should be trained based on both predictions based on labelmatrix and  labeled images
-
-Top:
-- active learning module (least confience)
-
-Elaheh:
-- prototyep framework with only seed labels or more
-- I assume that we have both val and test data for few shot learning
-- model zoo and external datasets
-- use trained model during base phase for adaptation phase
-- add pre-train + finetune taglet for TransferTaglet
-- use scads to dataset
-- complete a complete JPL process (3 base phases + 3 adapt phases)
-- top 5 accuracy, mean accuracy
-- CIFAR100 data?!
-
-Unaasigned:
 - complete readme file
 - unit test
 - add docstring
+- run the whole process in a server with GPU
+- active learning for grayscale not rgb, use dataloader in active learning
+- test the accuracy of dataloader, splits, etc
+- in adapt phase, load pretrined model
+- add pre-train + finetune taglet for TransferTaglet
+- top 5 accuracy, mean accuracy
+- complete a complete JPL process (3 base phases + 3 adapt phases)
+- CIFAR100 data?!
+
+
+
+
+Notes to discuss:
+- train end model on both labeled and unlabled data
+- end model validation and test
+- util python file
+- I assume that we have both val and test data for few shot learning
+- model zoo and external datasets
 
 

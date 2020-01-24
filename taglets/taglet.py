@@ -10,6 +10,9 @@ from models import custom_models
 import torch.nn as nn
 from pathlib import Path
 import torch.nn.init as init
+import pandas as pd
+from PIL import Image
+
 
 
 class Taglet:
@@ -161,6 +164,10 @@ class Taglet:
             self.log('train acc: {:.4f}%'.format(train_acc*100))
 
             # Evaluation on validation data
+            if val_data_loader == None:
+                val_loss = 0
+                val_acc = 0
+                continue
             val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu)
             self.log('validation loss: {:.4f}'.format(val_loss))
             self.log('validation acc: {:.4f}%'.format(val_acc*100))
@@ -185,9 +192,10 @@ class Taglet:
             # Reloads best model weights
             self.model.load_state_dict(best_model_to_save)
 
-        test_loss, test_acc = self._validate_epoch(test_data_loader, use_gpu)
-        self.log('test loss: {:.4f}'.format(test_loss))
-        self.log('test acc: {:.4f}%'.format(test_acc * 100))
+        if test_data_loader != None:
+            test_loss, test_acc = self._validate_epoch(test_data_loader, use_gpu)
+            self.log('test loss: {:.4f}'.format(test_loss))
+            self.log('test acc: {:.4f}%'.format(test_acc * 100))
 
     def execute(self, unlabeled_data_loader, use_gpu):
         """
@@ -203,17 +211,17 @@ class Taglet:
             self.model = self.model.cpu()
 
         predicted_labels = []
-        for inputs in unlabeled_data_loader:
-            inputs = inputs[0]
+        for inputs, index in unlabeled_data_loader:
             if use_gpu:
                 inputs = inputs.cuda()
+                index = index.cuda()
             with torch.set_grad_enabled(False):
-                for data in inputs:
+                for data,ix in zip(inputs, index):
                     data = torch.unsqueeze(data, dim=0)
                     outputs = self.model(data)
                     _, preds = torch.max(outputs, 1)
                     predicted_labels.append(preds.item())
-            break   # For testing
+            # break   # For testing
         return predicted_labels
 
 
@@ -400,58 +408,107 @@ class PrototypeTaglet(Taglet):
             self.model = self.model.cpu()
 
         predicted_labels = []
-        for inputs in unlabeled_data_loader:
-            inputs = inputs[0]
+        for inputs, index in unlabeled_data_loader:
             if use_gpu:
                 inputs = inputs.cuda()
+                index = index.cuda()
             with torch.set_grad_enabled(False):
-                for data in inputs:
+                for data, ix in zip(inputs,index):
                     data = torch.unsqueeze(data, dim=0)
                     proto = self.model(data)
                     prediction = self.onn(proto)
                     predicted_labels.append(prediction.item())
-            break   # For testing
+            # break   # For testing
         return predicted_labels
 
 
-class TransferTaglet(Taglet):
+class EndModel(Taglet):
+
     def __init__(self, task):
         super().__init__(task)
-        self.model = models.resnet18(pretrained=self.pretrained)
-        self.lr = 0.001
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        self.num_epochs = 50
-        self.use_gpu = True
-        self.batch_size = 32
+        self.name = 'end model'
+        self.criterion = self.soft_cross_entropy
 
-    def pretrain(self, images, labels):
-        raise NotImplementedError
+    def soft_cross_entropy(self, prediction, target):
+        prediction = prediction.double()
+        target = target.double()
+        logs = torch.nn.LogSoftmax(dim=1)
+        return torch.mean(torch.sum(-target * logs(prediction), 1))
 
-    def finetune(self, images, labels):
-        num_images = images.shape[0]
+    def _train_epoch(self, train_data_loader, use_gpu):
+        """
+        Train for one epoch.
+        :param train_data_loader: A dataloader containing training data
+        :param use_gpu: Whether or not to use the GPU
+        :return: None
+        """
+        self.model.train()
+        running_loss = 0
+        running_acc = 0
+        for batch_idx, batch in enumerate(train_data_loader):
+            inputs = batch[0]
+            labels = batch[1]
+            if use_gpu:
+                inputs = inputs.cuda()
+                labels = labels.cuda()
 
-        # Top: not sure if this is the most efficient way of doing it
-        self.model = self.model.train()
-        if self.use_gpu:
-            self.model = self.model.cuda()
-        else:
-            self.model = self.model.cpu()
-
-        for epoch in range(self.num_epochs):
-            perm = torch.randperm(num_images)
-            for i in range(0, num_images, self.batch_size):
-                self.optimizer.zero_grad()
-
-                ind = perm[i: i + self.batch_size]
-                batch_images = images[ind]
-                batch_labels = labels[ind]
-
-                if self.use_gpu:
-                    batch_images = batch_images.cuda()
-                    batch_labels = batch_labels.cuda()
-
-                logits = self.model(batch_images)
-                loss = self.criterion(logits, batch_labels)
-
+            self.optimizer.zero_grad()
+            with torch.set_grad_enabled(True):
+                outputs = self.model(inputs)
+                loss = self.criterion(outputs, labels)
                 loss.backward()
                 self.optimizer.step()
+
+            running_loss += loss.item()
+
+            running_acc = torch.sum(torch.max(outputs, 1)[1] == torch.max(labels, 1)[1]).item() / float(len(labels))
+
+            if batch_idx >= 1:
+                break
+
+        epoch_loss = running_loss / len(train_data_loader.dataset)
+        epoch_acc = running_acc / len(train_data_loader.dataset)
+
+        return epoch_loss, epoch_acc
+
+
+    def predict(self, evaluation_image_path, number_of_channels, transform, use_gpu):
+        """
+        predict on test data.
+        :param evaluation_image_path: path to the evaluation data
+        :param use_gpu: Whether or not to use the GPU
+        :return: predictions
+        """
+
+        predictons = []
+        test_imgs = []
+        self.model.eval()
+        for image in os.listdir(evaluation_image_path):
+            test_imgs.append(image)
+            img = os.path.join(evaluation_image_path, image)
+            img = Image.open(img)
+            if number_of_channels == 3:
+                img = img.convert('RGB')
+
+            if transform is not None:
+                img = transform(img)
+
+            if use_gpu:
+                img = img.cuda()
+
+            with torch.set_grad_enabled(False):
+                img = torch.unsqueeze(img, dim=0)
+                outputs = self.model(img)
+                _, preds = torch.max(outputs, 1)
+                predictons.append(preds.item())
+
+        print(test_imgs)
+        print(predictons)
+
+        assert len(predictons) == len(test_imgs)
+        df = pd.DataFrame({'id': test_imgs, 'label': predictons})
+
+
+
+        return df.to_dict()
+

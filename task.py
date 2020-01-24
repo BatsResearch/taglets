@@ -4,6 +4,9 @@ import torch
 import torchvision.transforms as transforms
 from custom_dataset import CustomDataSet
 from torch.utils import data
+from operator import itemgetter
+from pathlib import Path
+
 
 
 class Task:
@@ -24,6 +27,7 @@ class Task:
         self.labeled_images = []    # A list of tuples with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
         self.number_of_channels = None
         self.train_data_loader = None
+
 
     def add_labeled_images(self, new_labeled_images):
         """
@@ -84,8 +88,6 @@ class Task:
         val_set = data.Subset(train_val_test_data, valid_idx)
         test_set = data.Subset(train_val_test_data, test_idx)
 
-        # test_data = datasets.ImageFolder(self.task.test_image_path, transform= transform)
-
         train_data_loader = torch.utils.data.DataLoader(train_set,
                                                         batch_size=batch_size,
                                                         shuffle=False,
@@ -103,7 +105,7 @@ class Task:
         print('number of validation data: %d' % len(val_data_loader.dataset))
         print('number of test data: %d' % len(test_data_loader.dataset))
 
-        return train_data_loader, val_data_loader, test_data_loader
+        return train_data_loader, val_data_loader, test_data_loader, image_names, image_labels
 
     def load_unlabeled_data(self, batch_size, num_workers):
         """
@@ -130,4 +132,4 @@ class Task:
                                                             batch_size=batch_size,
                                                             shuffle=False,
                                                             num_workers=num_workers)
-        return unlabeled_data_loader
+        return unlabeled_data_loader, unlabeled_images_names

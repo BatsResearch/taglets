@@ -176,6 +176,7 @@ class ClassConditionalLM(nn.Module):
         scheduler = None
 
         for epoch in range(epochs):
+        # for epoch in range(2):
             print('Epoch {}/{}'.format(epoch + 1, epochs))
             if scheduler is not None:
                 scheduler.step()
@@ -194,7 +195,7 @@ class ClassConditionalLM(nn.Module):
                 optimizer.step()
                 running_loss += loss
             epoch_loss = running_loss / len(batches)
-            print('Train Loss: %.6f', epoch_loss)
+            # print('Train Loss: %.6f', epoch_loss)
 
         self.trained = True
 
