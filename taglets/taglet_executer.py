@@ -26,3 +26,20 @@ class TagletExecutor:
             label_matrix[:, i] = self.taglets[i].execute(unlabeled_images, use_gpu)
 
         return label_matrix
+
+    def find_candidates(self, available_budget, unlabeled_images):
+        num_taglets = len(self.taglets)
+        for i in range(num_taglets):
+            if self.taglets[i].name == 'finetune':
+                least_confidence_indices = self.taglets[i].find_candidates(available_budget)
+                # to_request = unlabeled_images[least_confidence_indices]
+                to_request = list(map(unlabeled_images.__getitem__, least_confidence_indices))
+                print(to_request)
+                return to_request
+
+
+        return
+
+
+
+

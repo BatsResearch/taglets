@@ -18,19 +18,29 @@ class Controller:
     def __init__(self):
         self.api = JPL()
         self.task = self.get_task()
-        self.active_learning = RandomActiveLearning(self.task)
-        # self.active_learning = LeastConfidenceActiveLearning(self.task)
-        self.num_checkpoints = 1
+        self.active_learning_random = RandomActiveLearning(self.task)
+        self.num_base_checkpoints = 2
+        self.num_adapt_checkpoints = 3
         self.batch_size = 32
         self.num_workers = 2
         self.use_gpu = False
         self.endmodel = EndModel(self.task)
 
     def run_checkpoints(self):
-        for i in range(self.num_checkpoints):
-            self.request_labels()
-            predictions = self.get_predictions()
-            self.submit_predictions(predictions)
+        for i in range(self.num_base_checkpoints):
+            print('---base check point: {}'.format(i))
+            available_budget = self.get_available_budget()
+
+            if i == 0:
+                unlabeled_images_names = self.task.get_unlabeled_images_names()
+                print('number of unlabeled data: {}'.format(len(unlabeled_images_names)))
+                self.request_labels(self.active_learning_random, available_budget, unlabeled_images_names)
+            else:
+                print('number of unlabeled data: {}'.format(len(unlabeled_images_names)))
+                self.request_labels(taglet_executor, available_budget, unlabeled_images_names)
+
+            predictions, taglet_executor, unlabeled_images_names  = self.get_predictions()
+            # self.submit_predictions(predictions)
 
     def get_task(self):
         task_names = self.api.get_available_tasks()
@@ -49,11 +59,15 @@ class Controller:
         task.labeled_images = self.api.get_seed_labels()
         return task
 
-    def request_labels(self):
+    def get_available_budget(self):
         session_status = self.api.get_session_status()
         available_budget = session_status['budget_left_until_checkpoint']
         available_budget = available_budget // 10   # For testing
-        examples = self.active_learning.find_candidates(available_budget, use_gpu=self.use_gpu)
+        return available_budget
+
+    def request_labels(self, find_candid_module, available_budget, unlabeled_images_names):
+
+        examples = find_candid_module.find_candidates(available_budget, unlabeled_images_names)
         query = {'example_ids': examples}
         labeled_images = self.api.request_label(query)
         self.task.add_labeled_images(labeled_images)
@@ -66,9 +80,13 @@ class Controller:
         return soh
 
     def get_predictions(self):
-        train_data_loader, val_data_loader, test_data_loader, image_names, image_labels= self.task.load_labeled_data(self.batch_size,
-                                                                                           self.num_workers)
-        unlabeled_data_loader , unlabeled_images_names= self.task.load_unlabeled_data(self.batch_size, self.num_workers)
+
+        train_data_loader, val_data_loader, test_data_loader, image_names, image_labels = self.task.load_labeled_data(
+            self.batch_size,
+            self.num_workers)
+        unlabeled_data_loader, unlabeled_images_names = self.task.load_unlabeled_data(self.batch_size,
+                                                                                      self.num_workers)
+
         mnist_module = TransferModule(task=self.task)
 
         print("Training taglets on labeled data...")
@@ -119,7 +137,7 @@ class Controller:
         # predictions = df.to_dict()
         # return predictions
 
-        return predictions
+        return predictions, taglet_executor, unlabeled_images_names
 
     def submit_predictions(self, predictions):
         self.api.submit_prediction(predictions)

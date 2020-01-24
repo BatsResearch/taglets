@@ -64,8 +64,9 @@ class Task:
         :return: Training, validation, and testing data loaders
         """
         transform = self._transform_image()
-        image_names = [img_name for img_name, label in self.labeled_images]
-        image_labels = [label for img_name, label in self.labeled_images]
+
+        image_names,image_labels = self.get_labeled_images_list()
+
         train_val_test_data = CustomDataSet(self.unlabeled_image_path,
                                             image_names,
                                             image_labels,
@@ -115,13 +116,8 @@ class Task:
         :return: A data loader containing unlabeled data
         """
         transform = self._transform_image()
-        labeled_image_names = {img_name for img_name, label in self.labeled_images}
-        unlabeled_images_names = []
 
-        for img in os.listdir(self.unlabeled_image_path):
-            if img not in labeled_image_names:
-                unlabeled_images_names.append(img)
-
+        unlabeled_images_names = self.get_unlabeled_images_names()
         unlabeled_data = CustomDataSet(self.unlabeled_image_path,
                                        unlabeled_images_names,
                                        None,
@@ -133,3 +129,21 @@ class Task:
                                                             shuffle=False,
                                                             num_workers=num_workers)
         return unlabeled_data_loader, unlabeled_images_names
+
+    def get_labeled_images_list(self):
+        """get list of image names and labels"""
+        image_names = [img_name for img_name, label in self.labeled_images]
+        image_labels = [label for img_name, label in self.labeled_images]
+
+        return image_names, image_labels
+
+    def get_unlabeled_images_names(self):
+        """return list of name of unlabeled images"""
+        labeled_image_names = {img_name for img_name, label in self.labeled_images}
+        unlabeled_images_names = []
+
+        for img in os.listdir(self.unlabeled_image_path):
+            if img not in labeled_image_names:
+                unlabeled_images_names.append(img)
+
+        return unlabeled_images_names

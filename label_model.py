@@ -175,9 +175,9 @@ class ClassConditionalLM(nn.Module):
 
         scheduler = None
 
-        for epoch in range(epochs):
-        # for epoch in range(2):
-            print('Epoch {}/{}'.format(epoch + 1, epochs))
+        # for epoch in range(epochs):
+        for epoch in range(2):
+            # print('Epoch {}/{}'.format(epoch + 1, epochs))
             if scheduler is not None:
                 scheduler.step()
 

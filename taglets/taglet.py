@@ -203,7 +203,26 @@ class Taglet:
         :param unlabeled_data_loader: A dataloader containing unlabeled data
         :param use_gpu: Whether or not the use the GPU
         :return: A list of predicted labels
+
         """
+        raise NotImplementedError
+
+
+
+class FineTuneTaglet(Taglet):
+    def __init__(self, task):
+        super().__init__(task)
+        self.name = 'finetune'
+        self.confident_indices = []
+
+    def execute(self, unlabeled_data_loader, use_gpu):
+        """
+        Execute the Taglet on unlabeled images.
+        :param unlabeled_data_loader: A dataloader containing unlabeled data
+        :param use_gpu: Whether or not the use the GPU
+        :return: A list of predicted labels
+        """
+        prediction_list = []
         self.model.eval()
         if use_gpu:
             self.model = self.model.cuda()
@@ -216,19 +235,24 @@ class Taglet:
                 inputs = inputs.cuda()
                 index = index.cuda()
             with torch.set_grad_enabled(False):
-                for data,ix in zip(inputs, index):
+                for data, ix in zip(inputs, index):
                     data = torch.unsqueeze(data, dim=0)
                     outputs = self.model(data)
                     _, preds = torch.max(outputs, 1)
                     predicted_labels.append(preds.item())
-            # break   # For testing
+
+                    self.confident_indices.append(torch.max(torch.nn.functional.softmax(outputs)).item())
+
+
         return predicted_labels
 
+    def find_candidates(self, available_budget):
+        """return indices of least confident unlabeled data points up to the available budget"""
 
-class FineTuneTaglet(Taglet):
-    def __init__(self, task):
-        super().__init__(task)
-        self.name = 'finetune'
+        least_confidence_indices = np.argsort(self.confident_indices)[:available_budget]
+
+        return least_confidence_indices
+
 
 
 class PrototypeTaglet(Taglet):
@@ -502,8 +526,8 @@ class EndModel(Taglet):
                 _, preds = torch.max(outputs, 1)
                 predictons.append(preds.item())
 
-        print(test_imgs)
-        print(predictons)
+        # print(test_imgs)
+        # print(predictons)
 
         assert len(predictons) == len(test_imgs)
         df = pd.DataFrame({'id': test_imgs, 'label': predictons})

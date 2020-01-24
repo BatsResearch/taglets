@@ -7,6 +7,7 @@
 - active learning for grayscale not rgb, use dataloader in active learning
 - test the accuracy of dataloader, splits, etc
 - in adapt phase, load pretrined model
+- test least confidence active learning
 - add pre-train + finetune taglet for TransferTaglet
 - top 5 accuracy, mean accuracy
 - complete a complete JPL process (3 base phases + 3 adapt phases)
