@@ -3,10 +3,10 @@
 - complete a complete JPL process (3 base phases + 3 adapt phases)
 - test on GPU google cloud
 - logging
+- log timing: taglet training, endmodel, prediction
 - test least confidence active learning
 - CIFAR100 data
-- (Elaheh)train end model on both labeled and unlabled data
-- (Elaheh)end model validation and test
+- (Elaheh)end model validation using soft entropy?
 - (Elaheh)pretrain + fine tune (use scads)
 - (Elaheh) in adapt phase, load pretrined model
 
@@ -25,3 +25,5 @@
 -> label model: final score is better than majority vote
 
 -> taglet executer: at the end of each checkpoint, the number of unlabeld data for the taglet executer is decreasing.
+
+-> end model: check the splits and combination of labeled and soft labels.

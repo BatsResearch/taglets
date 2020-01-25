@@ -36,7 +36,8 @@ class Controller:
                 candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
             self.request_labels(candidates)
             predictions = self.get_predictions()
-            self.submit_predictions(predictions)
+            print(predictions)
+            # self.submit_predictions(predictions)
 
     def get_task(self):
         task_names = self.api.get_available_tasks()
@@ -68,31 +69,41 @@ class Controller:
         print("New labeled images:", len(labeled_images))
         print("Total labeled images:", len(self.task.labeled_images))
 
-    def combine_soft_labels(self, unlabeled_labels, unlabeled_names, labeled_labels, labeled_names):
+    def combine_soft_labels(self, unlabeled_labels, unlabeled_names, train_image_names, train_image_labels):
         def to_soft_one_hot(l):
             soh = [0.15] * len(self.task.classes)
             soh[l] = 0.85
             return soh
 
         soft_labels_labeled_images = []
-        for image_label in labeled_labels:
+        for image_label in train_image_labels:
             soft_labels_labeled_images.append(to_soft_one_hot(int(image_label)))
 
         all_soft_labels = np.concatenate((unlabeled_labels, np.array(soft_labels_labeled_images)), axis=0)
-        all_names = unlabeled_names + labeled_names
+        all_names = unlabeled_names + train_image_names
 
-        end_model_data = SoftLabelDataSet(self.task.unlabeled_image_path,
+        end_model_train_data = SoftLabelDataSet(self.task.unlabeled_image_path,
                                           all_names,
                                           all_soft_labels,
                                           self.task.transform_image(),
                                           self.task.number_of_channels)
-        return torch.utils.data.DataLoader(end_model_data,
+
+        train_data = torch.utils.data.DataLoader(end_model_train_data,
                                            batch_size=self.batch_size,
                                            shuffle=True,
                                            num_workers=self.num_workers)
 
+        print('^^^^')
+        print(len(train_data.dataset))
+
+        return train_data
+
+
+
+
     def get_predictions(self):
-        train_data_loader, val_data_loader, test_data_loader, image_names, image_labels = self.task.load_labeled_data(
+        train_data_loader, val_data_loader,  train_image_names, train_image_labels=\
+            self.task.load_labeled_data(
             self.batch_size,
             self.num_workers)
         unlabeled_data_loader, unlabeled_image_names = self.task.load_unlabeled_data(self.batch_size,
@@ -101,7 +112,7 @@ class Controller:
         mnist_module = TransferModule(task=self.task)
 
         print("Training taglets on labeled data...")
-        mnist_module.train_taglets(train_data_loader, val_data_loader, test_data_loader, self.use_gpu)
+        mnist_module.train_taglets(train_data_loader, val_data_loader, self.use_gpu)
         taglets = mnist_module.get_taglets()
         self.taglet_executor.set_taglets(taglets)
 
@@ -113,11 +124,10 @@ class Controller:
         soft_labels_unlabeled_images = get_label_distribution(label_matrix, len(self.task.classes))
 
         print("End Model...")
-        end_model_data_loader = self.combine_soft_labels(soft_labels_unlabeled_images,
+        end_model_train_data_loader = self.combine_soft_labels(soft_labels_unlabeled_images,
                                                          unlabeled_image_names,
-                                                         image_labels,
-                                                         image_names)
-        self.end_model.train(end_model_data_loader, None, None, self.use_gpu)
+                                                         train_image_names, train_image_labels)
+        self.end_model.train(end_model_train_data_loader, val_data_loader, self.use_gpu)
         return self.end_model.predict(self.task.evaluation_image_path,
                                       self.task.number_of_channels,
                                       self.task.transform_image(),

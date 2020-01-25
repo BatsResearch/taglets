@@ -66,27 +66,23 @@ class Task:
 
         image_names,image_labels = self.get_labeled_images_list()
 
-        train_val_test_data = CustomDataSet(self.unlabeled_image_path,
+        train_val_data = CustomDataSet(self.unlabeled_image_path,
                                             image_names,
                                             image_labels,
                                             transform,
                                             self.number_of_channels)
 
-        # 70% for training, 15% for validation, and 15% for test
-        train_percent = 0.7
-        num_data = len(train_val_test_data)
+        # 80% for training, 20% for validation
+        train_percent = 0.8
+        num_data = len(train_val_data)
         indices = list(range(num_data))
         train_split = int(np.floor(train_percent * num_data))
         np.random.shuffle(indices)
         train_idx = indices[:train_split]
-        val_test_data = indices[train_split:]
-        val_split = int(np.floor(len(val_test_data) / 2))
-        valid_idx = val_test_data[:val_split]
-        test_idx = val_test_data[val_split:]
+        valid_idx = indices[train_split:]
 
-        train_set = data.Subset(train_val_test_data, train_idx)
-        val_set = data.Subset(train_val_test_data, valid_idx)
-        test_set = data.Subset(train_val_test_data, test_idx)
+        train_set = data.Subset(train_val_data, train_idx)
+        val_set = data.Subset(train_val_data, valid_idx)
 
         train_data_loader = torch.utils.data.DataLoader(train_set,
                                                         batch_size=batch_size,
@@ -96,17 +92,19 @@ class Task:
                                                       batch_size=batch_size,
                                                       shuffle=False,
                                                       num_workers=num_workers)
-        test_data_loader = torch.utils.data.DataLoader(test_set,
-                                                       batch_size=batch_size,
-                                                       shuffle=False,
-                                                       num_workers=num_workers)
 
         print('number of training data: %d' % len(train_data_loader.dataset))
         print('number of validation data: %d' % len(val_data_loader.dataset))
-        print('number of test data: %d' % len(test_data_loader.dataset))
 
-        return train_data_loader, val_data_loader, test_data_loader, image_names, image_labels
+        train_image_names = list(map(image_names.__getitem__, train_idx))
+        train_image_labels = list(map(image_labels.__getitem__, train_idx))
 
+        val_image_names = list(map(image_names.__getitem__, valid_idx))
+        val_image_labels = list(map(image_labels.__getitem__, valid_idx))
+
+
+
+        return train_data_loader, val_data_loader, train_image_names, train_image_labels
     def load_unlabeled_data(self, batch_size, num_workers):
         """
         Get a data loader from unlabeled data.

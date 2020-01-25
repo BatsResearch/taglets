@@ -131,12 +131,11 @@ class Trainable:
 
         return epoch_loss, epoch_acc
 
-    def train(self, train_data_loader, val_data_loader, test_data_loader, use_gpu):
+    def train(self, train_data_loader, val_data_loader, use_gpu):
         """
         Train the Trainable.
         :param train_data_loader: A dataloader containing training data
         :param val_data_loader: A dataloader containing validation data
-        :param test_data_loader: A dataloader containing test dat
         :param use_gpu: Whether or not to use the GPU
         :return:
         """
@@ -184,11 +183,6 @@ class Trainable:
         if self.select_on_val and best_model_to_save:
             # Reloads best model weights
             self.model.load_state_dict(best_model_to_save)
-
-        if test_data_loader:
-            test_loss, test_acc = self._validate_epoch(test_data_loader, use_gpu)
-            self.log('test loss: {:.4f}'.format(test_loss))
-            self.log('test acc: {:.4f}%'.format(test_acc * 100))
 
 
 class Taglet(Trainable):
@@ -277,7 +271,7 @@ class PrototypeTaglet(Taglet):
                 lab = key
         return lab
 
-    def train(self, train_data_loader, val_data_loader, test_data_loader, use_gpu):
+    def train(self, train_data_loader, val_data_loader, use_gpu):
         """
         For 1-shot, use pretrained model
         """
@@ -321,10 +315,6 @@ class PrototypeTaglet(Taglet):
         if self.select_on_val and best_model_to_save:
             # Reloads best model weights
             self.model.load_state_dict(best_model_to_save)
-
-        test_loss, test_acc = self._validate_epoch(test_data_loader, use_gpu)
-        self.log('test loss: {:.4f}'.format(test_loss))
-        self.log('test acc: {:.4f}%'.format(test_acc * 100))
 
         self.model.eval()
 
