@@ -12,7 +12,7 @@ class EndModel(Trainable):
         self.name = 'end model'
 
     @staticmethod
-    def soft_cross_entropy(self, prediction, target):
+    def soft_cross_entropy(prediction, target):
         prediction = prediction.double()
         target = target.double()
         logs = torch.nn.LogSoftmax(dim=1)

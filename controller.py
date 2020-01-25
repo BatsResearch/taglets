@@ -76,16 +76,16 @@ class Controller:
 
         soft_labels_labeled_images = []
         for image_label in labeled_labels:
-            soft_labels_labeled_images.append(self.to_soft_one_hot(int(image_label)))
+            soft_labels_labeled_images.append(to_soft_one_hot(int(image_label)))
 
-        all_soft_labels = np.concatenate(unlabeled_labels, np.array(soft_labels_labeled_images), axis=0)
+        all_soft_labels = np.concatenate((unlabeled_labels, np.array(soft_labels_labeled_images)), axis=0)
         all_names = unlabeled_names + labeled_names
 
         end_model_data = SoftLabelDataSet(self.task.unlabeled_image_path,
-                                              all_names,
-                                              all_soft_labels,
-                                              self.task.transform_image(),
-                                              self.task.number_of_channels)
+                                          all_names,
+                                          all_soft_labels,
+                                          self.task.transform_image(),
+                                          self.task.number_of_channels)
         return torch.utils.data.DataLoader(end_model_data,
                                            batch_size=self.batch_size,
                                            shuffle=True,

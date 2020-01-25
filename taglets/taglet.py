@@ -10,11 +10,11 @@ from models import custom_models
 
 class Trainable:
     """
-    A class that produces votes for unlabeled images.
+    A class with a trainable model.
     """
     def __init__(self, task):
         """
-        Create a new Taglet.
+        Create a new Trainable.
         :param task: The current task
         """
         self.name = 'base'
@@ -133,7 +133,7 @@ class Trainable:
 
     def train(self, train_data_loader, val_data_loader, test_data_loader, use_gpu):
         """
-        Train the Taglet.
+        Train the Trainable.
         :param train_data_loader: A dataloader containing training data
         :param val_data_loader: A dataloader containing validation data
         :param test_data_loader: A dataloader containing test dat
@@ -192,14 +192,15 @@ class Trainable:
 
 
 class Taglet(Trainable):
-
+    """
+    A class that produces votes for unlabeled images.
+    """
     def execute(self, unlabeled_data_loader, use_gpu):
         """
         Execute the Taglet on unlabeled images.
         :param unlabeled_data_loader: A dataloader containing unlabeled data
         :param use_gpu: Whether or not the use the GPU
         :return: A list of predicted labels
-
         """
         raise NotImplementedError
 
