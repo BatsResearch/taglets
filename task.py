@@ -8,7 +8,6 @@ from operator import itemgetter
 from pathlib import Path
 
 
-
 class Task:
     """
     A class defining a task.

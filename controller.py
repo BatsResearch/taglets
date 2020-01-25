@@ -3,13 +3,10 @@ from modules.module import TransferModule
 from modules.active_learning import RandomActiveLearning, LeastConfidenceActiveLearning
 from taglets.taglet_executer import TagletExecutor
 from task import Task
-from pathlib import Path
-import random
-import pandas as pd
 from label_model import get_label_distribution
 from custom_dataset import CustomDataSet, SoftLabelDataSet
 import torch
-from taglets.taglet import EndModel
+from taglets.end_model import EndModel
 import numpy as np
 
 

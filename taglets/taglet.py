@@ -1,20 +1,14 @@
-import numpy as np
 import torch
-import torchvision.models as models
+import numpy as np
 import random
 import copy
 import torchvision.models as models
 import os
 import torch
 from models import custom_models
-import torch.nn as nn
-from pathlib import Path
-import torch.nn.init as init
-import pandas as pd
-from PIL import Image
 
 
-class Taglet:
+class Trainable:
     """
     A class that produces votes for unlabeled images.
     """
@@ -163,7 +157,7 @@ class Taglet:
             self.log('train acc: {:.4f}%'.format(train_acc*100))
 
             # Evaluation on validation data
-            if val_data_loader == None:
+            if not val_data_loader:
                 val_loss = 0
                 val_acc = 0
                 continue
@@ -191,10 +185,13 @@ class Taglet:
             # Reloads best model weights
             self.model.load_state_dict(best_model_to_save)
 
-        if test_data_loader != None:
+        if test_data_loader:
             test_loss, test_acc = self._validate_epoch(test_data_loader, use_gpu)
             self.log('test loss: {:.4f}'.format(test_loss))
             self.log('test acc: {:.4f}%'.format(test_acc * 100))
+
+
+class Taglet(Trainable):
 
     def execute(self, unlabeled_data_loader, use_gpu):
         """
@@ -428,93 +425,4 @@ class PrototypeTaglet(Taglet):
                     proto = self.model(data)
                     prediction = self.onn(proto)
                     predicted_labels.append(prediction.item())
-            # break   # For testing
         return predicted_labels
-
-
-class EndModel(Taglet):
-
-    def __init__(self, task):
-        super().__init__(task)
-        self.name = 'end model'
-        self.criterion = self.soft_cross_entropy
-
-    def soft_cross_entropy(self, prediction, target):
-        prediction = prediction.double()
-        target = target.double()
-        logs = torch.nn.LogSoftmax(dim=1)
-        return torch.mean(torch.sum(-target * logs(prediction), 1))
-
-    def _train_epoch(self, train_data_loader, use_gpu):
-        """
-        Train for one epoch.
-        :param train_data_loader: A dataloader containing training data
-        :param use_gpu: Whether or not to use the GPU
-        :return: None
-        """
-        self.model.train()
-        running_loss = 0
-        running_acc = 0
-        for batch_idx, batch in enumerate(train_data_loader):
-            inputs = batch[0]
-            labels = batch[1]
-            if use_gpu:
-                inputs = inputs.cuda()
-                labels = labels.cuda()
-
-            self.optimizer.zero_grad()
-            with torch.set_grad_enabled(True):
-                outputs = self.model(inputs)
-                loss = self.criterion(outputs, labels)
-                loss.backward()
-                self.optimizer.step()
-
-            running_loss += loss.item()
-
-            running_acc = torch.sum(torch.max(outputs, 1)[1] == torch.max(labels, 1)[1]).item() / float(len(labels))
-
-            if batch_idx >= 1:
-                break
-
-        epoch_loss = running_loss / len(train_data_loader.dataset)
-        epoch_acc = running_acc / len(train_data_loader.dataset)
-
-        return epoch_loss, epoch_acc
-
-    def predict(self, evaluation_image_path, number_of_channels, transform, use_gpu):
-        """
-        predict on test data.
-        :param evaluation_image_path: path to the evaluation data
-        :param use_gpu: Whether or not to use the GPU
-        :return: predictions
-        """
-
-        predictons = []
-        test_imgs = []
-        self.model.eval()
-        for image in os.listdir(evaluation_image_path):
-            test_imgs.append(image)
-            img = os.path.join(evaluation_image_path, image)
-            img = Image.open(img)
-            if number_of_channels == 3:
-                img = img.convert('RGB')
-
-            if transform is not None:
-                img = transform(img)
-
-            if use_gpu:
-                img = img.cuda()
-
-            with torch.set_grad_enabled(False):
-                img = torch.unsqueeze(img, dim=0)
-                outputs = self.model(img)
-                _, preds = torch.max(outputs, 1)
-                predictons.append(preds.item())
-
-        # print(test_imgs)
-        # print(predictons)
-
-        assert len(predictons) == len(test_imgs)
-        df = pd.DataFrame({'id': test_imgs, 'label': predictons})
-
-        return df.to_dict()

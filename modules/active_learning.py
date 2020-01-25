@@ -1,10 +1,4 @@
-from pathlib import Path
 from random import sample
-import os
-import numpy as np
-import torch
-from torchvision import models
-from PIL import Image
 
 
 class ActiveLearningModule:
