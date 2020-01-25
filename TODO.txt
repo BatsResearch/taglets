@@ -1,26 +1,27 @@
-- pep8 warnings
-- cleaning code
+- pep8 warnings, cleaning code, add docstring
 - complete readme file
-- unit test
-- add docstring
-- run the whole process in a server with GPU
-- active learning for grayscale not rgb, use dataloader in active learning
-- test the accuracy of dataloader, splits, etc
-- in adapt phase, load pretrined model
-- test least confidence active learning
-- add pre-train + finetune taglet for TransferTaglet
-- top 5 accuracy, mean accuracy
 - complete a complete JPL process (3 base phases + 3 adapt phases)
-- CIFAR100 data?!
+- test on GPU google cloud
+- logging
+- test least confidence active learning
+- CIFAR100 data
+- (Elaheh)train end model on both labeled and unlabled data
+- (Elaheh)end model validation and test
+- (Elaheh)pretrain + fine tune (use scads)
+- (Elaheh) in adapt phase, load pretrined model
 
 
+--tests:
+-> active learning: check it’s actually returning the least confident data points (check the confidence score)
+-> controller: check at the end of each checkpoint, the number of labeled data points is increasing and the number of unlabeled data points is decreasing
+-> controller: check at the end of each checkpoint, the sum of number of labeled and unlabeled datapoint == total number of train data
+-> controller: check if we are learning on all labeled data after receiving new labeled data (Oll + New). At the end of each checkpoint, we are learning on more data
+-> learning prcoess: check the loss of all taglets as well as end model, if the loss is decreasing; also check the gradients
+-> learning prcoess: save the loss vs epoch during training
+-> learning process: observe the final accuracy on validation data; check how good it is
 
+-> task: check the amount of labeled and unlabeled data of task object is updated at the end of each checkpoint
 
-Notes to discuss:
-- train end model on both labeled and unlabled data
-- end model validation and test
-- util python file
-- I assume that we have both val and test data for few shot learning
-- model zoo and external datasets
+-> label model: final score is better than majority vote
 
-
+-> taglet executer: at the end of each checkpoint, the number of unlabeld data for the taglet executer is decreasing.
