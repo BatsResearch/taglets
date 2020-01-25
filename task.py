@@ -37,7 +37,7 @@ class Task:
         """
         self.labeled_images.extend(new_labeled_images)
 
-    def _transform_image(self):
+    def transform_image(self):
         """
         Get the transform to be used on an image.
         :return: A transform
@@ -63,7 +63,7 @@ class Task:
         :param num_workers: The number of workers
         :return: Training, validation, and testing data loaders
         """
-        transform = self._transform_image()
+        transform = self.transform_image()
 
         image_names,image_labels = self.get_labeled_images_list()
 
@@ -115,9 +115,9 @@ class Task:
         :param num_workers: The number of workers
         :return: A data loader containing unlabeled data
         """
-        transform = self._transform_image()
+        transform = self.transform_image()
 
-        unlabeled_images_names = self.get_unlabeled_images_names()
+        unlabeled_images_names = self.get_unlabeled_image_names()
         unlabeled_data = CustomDataSet(self.unlabeled_image_path,
                                        unlabeled_images_names,
                                        None,
@@ -134,16 +134,13 @@ class Task:
         """get list of image names and labels"""
         image_names = [img_name for img_name, label in self.labeled_images]
         image_labels = [label for img_name, label in self.labeled_images]
-
         return image_names, image_labels
 
-    def get_unlabeled_images_names(self):
+    def get_unlabeled_image_names(self):
         """return list of name of unlabeled images"""
         labeled_image_names = {img_name for img_name, label in self.labeled_images}
         unlabeled_images_names = []
-
         for img in os.listdir(self.unlabeled_image_path):
             if img not in labeled_image_names:
                 unlabeled_images_names.append(img)
-
         return unlabeled_images_names

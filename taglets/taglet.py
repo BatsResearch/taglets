@@ -14,7 +14,6 @@ import pandas as pd
 from PIL import Image
 
 
-
 class Taglet:
     """
     A class that produces votes for unlabeled images.
@@ -208,12 +207,10 @@ class Taglet:
         raise NotImplementedError
 
 
-
 class FineTuneTaglet(Taglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'finetune'
-        self.confident_indices = []
 
     def execute(self, unlabeled_data_loader, use_gpu):
         """
@@ -222,7 +219,6 @@ class FineTuneTaglet(Taglet):
         :param use_gpu: Whether or not the use the GPU
         :return: A list of predicted labels
         """
-        prediction_list = []
         self.model.eval()
         if use_gpu:
             self.model = self.model.cuda()
@@ -230,6 +226,7 @@ class FineTuneTaglet(Taglet):
             self.model = self.model.cpu()
 
         predicted_labels = []
+        candidate_probabilities = []
         for inputs, index in unlabeled_data_loader:
             if use_gpu:
                 inputs = inputs.cuda()
@@ -240,19 +237,8 @@ class FineTuneTaglet(Taglet):
                     outputs = self.model(data)
                     _, preds = torch.max(outputs, 1)
                     predicted_labels.append(preds.item())
-
-                    self.confident_indices.append(torch.max(torch.nn.functional.softmax(outputs)).item())
-
-
-        return predicted_labels
-
-    def find_candidates(self, available_budget):
-        """return indices of least confident unlabeled data points up to the available budget"""
-
-        least_confidence_indices = np.argsort(self.confident_indices)[:available_budget]
-
-        return least_confidence_indices
-
+                    candidate_probabilities.append(torch.max(torch.nn.functional.softmax(outputs)).item())
+        return predicted_labels, np.argsort(candidate_probabilities)
 
 
 class PrototypeTaglet(Taglet):
@@ -495,7 +481,6 @@ class EndModel(Taglet):
 
         return epoch_loss, epoch_acc
 
-
     def predict(self, evaluation_image_path, number_of_channels, transform, use_gpu):
         """
         predict on test data.
@@ -532,7 +517,4 @@ class EndModel(Taglet):
         assert len(predictons) == len(test_imgs)
         df = pd.DataFrame({'id': test_imgs, 'label': predictons})
 
-
-
         return df.to_dict()
-

@@ -13,34 +13,33 @@ from taglets.taglet import EndModel
 import numpy as np
 
 
-
 class Controller:
     def __init__(self):
         self.api = JPL()
         self.task = self.get_task()
-        self.active_learning_random = RandomActiveLearning(self.task)
-        self.num_base_checkpoints = 2
+        self.random_active_learning = RandomActiveLearning()
+        self.confidence_active_learning = LeastConfidenceActiveLearning()
+        self.taglet_executor = TagletExecutor()
+        self.end_model = EndModel(self.task)
+        self.num_base_checkpoints = 3
         self.num_adapt_checkpoints = 3
         self.batch_size = 32
         self.num_workers = 2
         self.use_gpu = False
-        self.endmodel = EndModel(self.task)
 
     def run_checkpoints(self):
         for i in range(self.num_base_checkpoints):
             print('---base check point: {}'.format(i))
             available_budget = self.get_available_budget()
-
+            unlabeled_image_names = self.task.get_unlabeled_image_names()
+            print('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
             if i == 0:
-                unlabeled_images_names = self.task.get_unlabeled_images_names()
-                print('number of unlabeled data: {}'.format(len(unlabeled_images_names)))
-                self.request_labels(self.active_learning_random, available_budget, unlabeled_images_names)
+                candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
             else:
-                print('number of unlabeled data: {}'.format(len(unlabeled_images_names)))
-                self.request_labels(taglet_executor, available_budget, unlabeled_images_names)
-
-            predictions, taglet_executor, unlabeled_images_names  = self.get_predictions()
-            # self.submit_predictions(predictions)
+                candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
+            self.request_labels(candidates)
+            predictions = self.get_predictions()
+            self.submit_predictions(predictions)
 
     def get_task(self):
         task_names = self.api.get_available_tasks()
@@ -65,41 +64,39 @@ class Controller:
         available_budget = available_budget // 10   # For testing
         return available_budget
 
-    def request_labels(self, find_candid_module, available_budget, unlabeled_images_names):
-
-        examples = find_candid_module.find_candidates(available_budget, unlabeled_images_names)
+    def request_labels(self, examples):
         query = {'example_ids': examples}
         labeled_images = self.api.request_label(query)
         self.task.add_labeled_images(labeled_images)
         print("New labeled images:", len(labeled_images))
         print("Total labeled images:", len(self.task.labeled_images))
 
-    def to_soft_one_hot(self,l):
+    def to_soft_one_hot(self, l):
         soh = [0.15] * len(self.task.classes)
         soh[l] = 0.85
         return soh
 
     def get_predictions(self):
-
         train_data_loader, val_data_loader, test_data_loader, image_names, image_labels = self.task.load_labeled_data(
             self.batch_size,
             self.num_workers)
-        unlabeled_data_loader, unlabeled_images_names = self.task.load_unlabeled_data(self.batch_size,
-                                                                                      self.num_workers)
+        unlabeled_data_loader, unlabeled_image_names = self.task.load_unlabeled_data(self.batch_size,
+                                                                                     self.num_workers)
 
         mnist_module = TransferModule(task=self.task)
 
         print("Training taglets on labeled data...")
         mnist_module.train_taglets(train_data_loader, val_data_loader, test_data_loader, self.use_gpu)
         taglets = mnist_module.get_taglets()
-        taglet_executor = TagletExecutor(taglets)
+        self.taglet_executor.set_taglets(taglets)
 
         print("Executing taglets on unlabled data...")
-        label_matrix = taglet_executor.execute(unlabeled_data_loader, self.use_gpu)
+        label_matrix, candidates = self.taglet_executor.execute(unlabeled_data_loader, self.use_gpu)
+        self.confidence_active_learning.set_candidates(candidates)
 
         # LabelModel
         print("Label Model...")
-        soft_lafbels_unlabeled_images = get_label_distribution(label_matrix, len(self.task.classes))
+        soft_labels_unlabeled_images = get_label_distribution(label_matrix, len(self.task.classes))
 
         # End Model
         soft_labels_labeled_images = []
@@ -107,41 +104,30 @@ class Controller:
             soft_labels_labeled_images.append(self.to_soft_one_hot(int(image_labels[i])))
 
         soft_labels_labeled_images = np.array(soft_labels_labeled_images)
-        all_soft_labels = np.concatenate((soft_lafbels_unlabeled_images,soft_labels_labeled_images), axis=0)
+        all_soft_labels = np.concatenate((soft_labels_unlabeled_images, soft_labels_labeled_images), axis=0)
 
-        all_images = unlabeled_images_names + image_names
+        all_images = unlabeled_image_names + image_names
 
-        endmodel_data = SoftLabelDataSet(self.task.unlabeled_image_path,
-                                            all_images,
-                                            all_soft_labels,
-                                            self.task._transform_image(),
-                                            self.task.number_of_channels)
+        end_model_data = SoftLabelDataSet(self.task.unlabeled_image_path,
+                                          all_images,
+                                          all_soft_labels,
+                                          self.task.transform_image(),
+                                          self.task.number_of_channels)
 
-
-        endmodel_data_loader = torch.utils.data.DataLoader(endmodel_data,
-                                                            batch_size= self.batch_size,
+        end_model_data_loader = torch.utils.data.DataLoader(end_model_data,
+                                                            batch_size=self.batch_size,
                                                             shuffle=True,
                                                             num_workers=self.num_workers)
 
+        self.end_model.train(end_model_data_loader, None, None, self.use_gpu)
 
-        self.endmodel.train(endmodel_data_loader, None, None, self.use_gpu)
-
-        predictions =  self.endmodel.predict(self.task.evaluation_image_path,self.task.number_of_channels, self.task._transform_image(),self.use_gpu)
-
-
-
-        # Temporary implementation
-        # test_images = [f.name for f in Path(self.task.evaluation_image_path).iterdir() if f.is_file()]
-        # rand_labels = [str(random.randint(0, 10)) for _ in range(len(test_images))]
-        # df = pd.DataFrame({'id': test_images, 'label': rand_labels})
-        # predictions = df.to_dict()
-        # return predictions
-
-        return predictions, taglet_executor, unlabeled_images_names
+        return self.end_model.predict(self.task.evaluation_image_path,
+                                      self.task.number_of_channels,
+                                      self.task.transform_image(),
+                                      self.use_gpu)
 
     def submit_predictions(self, predictions):
         self.api.submit_prediction(predictions)
-
         session_status = self.api.get_session_status()
         print("Checkpoint scores", session_status['checkpoint_scores'])
         print("Phase:", session_status['pair_stage'])
