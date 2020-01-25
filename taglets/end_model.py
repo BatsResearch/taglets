@@ -11,6 +11,7 @@ class EndModel(Trainable):
         super().__init__(task)
         self.name = 'end model'
 
+    @staticmethod
     def soft_cross_entropy(self, prediction, target):
         prediction = prediction.double()
         target = target.double()
@@ -37,7 +38,7 @@ class EndModel(Trainable):
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
                 outputs = self.model(inputs)
-                loss = self.soft_cross_entropy(outputs, labels)
+                loss = EndModel.soft_cross_entropy(outputs, labels)
                 loss.backward()
                 self.optimizer.step()
 

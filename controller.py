@@ -68,10 +68,28 @@ class Controller:
         print("New labeled images:", len(labeled_images))
         print("Total labeled images:", len(self.task.labeled_images))
 
-    def to_soft_one_hot(self, l):
-        soh = [0.15] * len(self.task.classes)
-        soh[l] = 0.85
-        return soh
+    def combine_soft_labels(self, unlabeled_labels, unlabeled_names, labeled_labels, labeled_names):
+        def to_soft_one_hot(l):
+            soh = [0.15] * len(self.task.classes)
+            soh[l] = 0.85
+            return soh
+
+        soft_labels_labeled_images = []
+        for image_label in labeled_labels:
+            soft_labels_labeled_images.append(self.to_soft_one_hot(int(image_label)))
+
+        all_soft_labels = np.concatenate(unlabeled_labels, np.array(soft_labels_labeled_images), axis=0)
+        all_names = unlabeled_names + labeled_names
+
+        end_model_data = SoftLabelDataSet(self.task.unlabeled_image_path,
+                                              all_names,
+                                              all_soft_labels,
+                                              self.task.transform_image(),
+                                              self.task.number_of_channels)
+        return torch.utils.data.DataLoader(end_model_data,
+                                           batch_size=self.batch_size,
+                                           shuffle=True,
+                                           num_workers=self.num_workers)
 
     def get_predictions(self):
         train_data_loader, val_data_loader, test_data_loader, image_names, image_labels = self.task.load_labeled_data(
@@ -91,33 +109,15 @@ class Controller:
         label_matrix, candidates = self.taglet_executor.execute(unlabeled_data_loader, self.use_gpu)
         self.confidence_active_learning.set_candidates(candidates)
 
-        # LabelModel
         print("Label Model...")
         soft_labels_unlabeled_images = get_label_distribution(label_matrix, len(self.task.classes))
 
-        # End Model
-        soft_labels_labeled_images = []
-        for i in range(len(image_labels)):
-            soft_labels_labeled_images.append(self.to_soft_one_hot(int(image_labels[i])))
-
-        soft_labels_labeled_images = np.array(soft_labels_labeled_images)
-        all_soft_labels = np.concatenate((soft_labels_unlabeled_images, soft_labels_labeled_images), axis=0)
-
-        all_images = unlabeled_image_names + image_names
-
-        end_model_data = SoftLabelDataSet(self.task.unlabeled_image_path,
-                                          all_images,
-                                          all_soft_labels,
-                                          self.task.transform_image(),
-                                          self.task.number_of_channels)
-
-        end_model_data_loader = torch.utils.data.DataLoader(end_model_data,
-                                                            batch_size=self.batch_size,
-                                                            shuffle=True,
-                                                            num_workers=self.num_workers)
-
+        print("End Model...")
+        end_model_data_loader = self.combine_soft_labels(soft_labels_unlabeled_images,
+                                                         unlabeled_image_names,
+                                                         image_labels,
+                                                         image_names)
         self.end_model.train(end_model_data_loader, None, None, self.use_gpu)
-
         return self.end_model.predict(self.task.evaluation_image_path,
                                       self.task.number_of_channels,
                                       self.task.transform_image(),
