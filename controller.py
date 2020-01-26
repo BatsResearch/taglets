@@ -36,8 +36,7 @@ class Controller:
                 candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
             self.request_labels(candidates)
             predictions = self.get_predictions()
-            print(predictions)
-            # self.submit_predictions(predictions)
+            self.submit_predictions(predictions)
 
     def get_task(self):
         task_names = self.api.get_available_tasks()
@@ -93,12 +92,7 @@ class Controller:
                                            shuffle=True,
                                            num_workers=self.num_workers)
 
-        print('^^^^')
-        print(len(train_data.dataset))
-
         return train_data
-
-
 
 
     def get_predictions(self):

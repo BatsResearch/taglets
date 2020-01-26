@@ -92,8 +92,8 @@ class Trainable:
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels.data)
 
-            if batch_idx >= 1:
-                break
+            # if batch_idx >= 1:
+            #     break
 
         epoch_loss = running_loss / len(train_data_loader.dataset)
         epoch_acc = running_acc / len(train_data_loader.dataset)
@@ -123,8 +123,8 @@ class Trainable:
 
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels.data)
-            if batch_idx >= 2:
-                break
+            # if batch_idx >= 2:
+            #     break
 
         epoch_loss = running_loss / len(val_data_loader.dataset)
         epoch_acc = running_acc / len(val_data_loader.dataset)
@@ -362,8 +362,8 @@ class PrototypeTaglet(Taglet):
 
             running_loss += loss.item()
 
-            if batch_idx >= 1:
-                break
+            # if batch_idx >= 1:
+            #     break
 
         epoch_loss = running_loss / len(train_data_loader.dataset)
         return epoch_loss
@@ -391,8 +391,8 @@ class PrototypeTaglet(Taglet):
 
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels.data)
-            if batch_idx >= 2:
-                break
+            # if batch_idx >= 2:
+            #     break
 
         epoch_loss = running_loss / len(val_data_loader.dataset)
         epoch_acc = running_acc / len(val_data_loader.dataset)
@@ -417,3 +417,14 @@ class PrototypeTaglet(Taglet):
                     prediction = self.onn(proto)
                     predicted_labels.append(prediction.item())
         return predicted_labels
+
+
+class TransferTaglet(Taglet):
+    def __init__(self, task):
+        super().__init__(task)
+        self.name = 'Transfer'
+
+    def pretrain(self):
+        """pretrain on related concepts to the task"""
+
+        target_concepts = self.task.classes
