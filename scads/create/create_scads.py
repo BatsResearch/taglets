@@ -1,4 +1,4 @@
-from scads.build.scads_classes import *
+from scads.create.scads_classes import *
 import os
 
 

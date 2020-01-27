@@ -1,4 +1,4 @@
-from scads.build.scads_classes import Edge, LabelMap
+from scads.create.scads_classes import Edge, LabelMap
 from scads.interface.scads_edge import ScadsEdge
 
 
