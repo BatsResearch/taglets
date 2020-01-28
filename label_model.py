@@ -244,9 +244,10 @@ class ClassConditionalLM(nn.Module):
         :return: labels: (num_inst, num_classes): Soft label distribution over classes
         """
 
-        batches = self.batchize(votes, 4096, shuffle_rows=False)
 
         votes = sparse.csr_matrix(votes, dtype=np.int)
+
+        batches = self.batchize(votes, 4096, shuffle_rows=False)
 
         labels = np.ndarray((votes.shape[0], self.num_classes))
 
