@@ -18,9 +18,10 @@ class MnistResNet(ResNet):
         """
         The forward pass of the model.
         :param x: The input data
-        :return: The softmax output
+        :return: The logits output
         """
-        return torch.softmax(super(MnistResNet, self).forward(x), dim=-1)
+        return super(MnistResNet, self).forward(x)
+
 
 
 class Linear(nn.Module):
@@ -42,7 +43,6 @@ class ConvEncoder(nn.Module):
             self.conv_block(hid_dim, hid_dim),
             self.conv_block(hid_dim, z_dim),
         )
-        self.out_channels = 1600
 
     def forward(self, x):
         x = self.encoder(x)
