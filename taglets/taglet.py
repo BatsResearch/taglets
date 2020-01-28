@@ -90,13 +90,14 @@ class Trainable:
                 self.optimizer.step()
 
             running_loss += loss.item()
-            running_acc += torch.sum(preds == labels.data)
+            running_acc += torch.sum(preds == labels)
 
-            # if batch_idx >= 1:
-            #     break
+            if batch_idx >= 1:
+                break
 
         epoch_loss = running_loss / len(train_data_loader.dataset)
-        epoch_acc = running_acc / len(train_data_loader.dataset)
+        epoch_acc = running_acc.item() / len(train_data_loader.dataset)
+
 
         return epoch_loss, epoch_acc
 
@@ -122,12 +123,13 @@ class Trainable:
                 _, preds = torch.max(outputs, 1)
 
             running_loss += loss.item()
-            running_acc += torch.sum(preds == labels.data)
-            # if batch_idx >= 2:
-            #     break
+            running_acc += torch.sum(preds == labels)
+
+            if batch_idx >= 2:
+                break
 
         epoch_loss = running_loss / len(val_data_loader.dataset)
-        epoch_acc = running_acc / len(val_data_loader.dataset)
+        epoch_acc = running_acc.item() / len(val_data_loader.dataset)
 
         return epoch_loss, epoch_acc
 
@@ -328,6 +330,7 @@ class PrototypeTaglet(Taglet):
 
             for img, lbl in zip(image, label):
                 proto = self.model(torch.unsqueeze(img, dim=0))
+                lbl = int(lbl.item())
                 try:
                     # 1-shot only no thoughts
                     self.prototypes[lbl].append(proto)
@@ -362,8 +365,8 @@ class PrototypeTaglet(Taglet):
 
             running_loss += loss.item()
 
-            # if batch_idx >= 1:
-            #     break
+            if batch_idx >= 1:
+                break
 
         epoch_loss = running_loss / len(train_data_loader.dataset)
         return epoch_loss
@@ -375,6 +378,7 @@ class PrototypeTaglet(Taglet):
         :return: None
         """
         self.model.eval()
+        self.classifier.eval()
         running_loss = 0
         running_acc = 0
         for batch_idx, batch in enumerate(val_data_loader):
@@ -390,12 +394,12 @@ class PrototypeTaglet(Taglet):
                 _, preds = torch.max(outputs, 1)
 
             running_loss += loss.item()
-            running_acc += torch.sum(preds == labels.data)
-            # if batch_idx >= 2:
-            #     break
+            running_acc += torch.sum(preds == labels)
+            if batch_idx >= 2:
+                break
 
         epoch_loss = running_loss / len(val_data_loader.dataset)
-        epoch_acc = running_acc / len(val_data_loader.dataset)
+        epoch_acc = running_acc.item() / len(val_data_loader.dataset)
         return epoch_loss, epoch_acc
 
     def execute(self, unlabeled_data_loader, use_gpu):
@@ -415,7 +419,7 @@ class PrototypeTaglet(Taglet):
                     data = torch.unsqueeze(data, dim=0)
                     proto = self.model(data)
                     prediction = self.onn(proto)
-                    predicted_labels.append(prediction.item())
+                    predicted_labels.append(prediction)
         return predicted_labels
 
 

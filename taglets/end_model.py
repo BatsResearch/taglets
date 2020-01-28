@@ -43,7 +43,8 @@ class EndModel(Trainable):
                 self.optimizer.step()
 
             running_loss += loss.item()
-            running_acc = torch.sum(torch.max(outputs, 1)[1] == torch.max(labels, 1)[1]).item() / float(len(labels))
+            running_acc += torch.sum(torch.max(outputs, 1)[1] == torch.max(labels, 1)[1]).item() #/ float(len(labels))
+
 
             if batch_idx >= 1:
                 break
