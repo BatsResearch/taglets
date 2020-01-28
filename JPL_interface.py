@@ -98,6 +98,8 @@ class JPL:
                        'label': ['9', '6', '9', '2', '10']}
         :return: The session status after submitting prediction
         """
+
+        print(predictions)
         headers = {'user_secret': self.secret, 'session_token': self.session_token}
         r = requests.post(self.url + "/submit_predictions", json={'predictions': predictions}, headers=headers)
         return r.json()

@@ -10,6 +10,9 @@ class EndModel(Trainable):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'end model'
+        self.save_dir = os.path.join('trained_models', str(task.task_id), self.name)
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
 
     @staticmethod
     def soft_cross_entropy(prediction, target):
@@ -86,5 +89,6 @@ class EndModel(Trainable):
 
         assert len(predictons) == len(test_imgs)
         df = pd.DataFrame({'id': test_imgs, 'label': predictons})
+        print(df.to_dict())
 
         return df.to_dict()

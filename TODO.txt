@@ -1,14 +1,15 @@
 - pep8 warnings, cleaning code, add docstring
+- add logo
 - complete readme file
 - complete a complete JPL process (3 base phases + 3 adapt phases)
 - test on GPU google cloud
 - logging
-- log timing: taglet training, endmodel, prediction
-- test least confidence active learning
+- installtion package
+- pass checkpoints to save the best model for each checkpoint?!
 - CIFAR100 data
 - (Elaheh)end model validation using soft entropy?
 - (Elaheh)pretrain + fine tune (use scads)
-- (Elaheh) in adapt phase, load pretrined model
+- (Elaheh) in adapt phase, load pretrined model from which checkpoint? last?
 
 
 --tests:
@@ -17,7 +18,6 @@
 -> controller: check at the end of each checkpoint, the sum of number of labeled and unlabeled datapoint == total number of train data
 -> controller: check if we are learning on all labeled data after receiving new labeled data (Oll + New). At the end of each checkpoint, we are learning on more data
 -> learning prcoess: check the loss of all taglets as well as end model, if the loss is decreasing; also check the gradients
--> learning prcoess: save the loss vs epoch during training
 -> learning process: observe the final accuracy on validation data; check how good it is
 
 -> task: check the amount of labeled and unlabeled data of task object is updated at the end of each checkpoint

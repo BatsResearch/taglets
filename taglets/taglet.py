@@ -6,6 +6,8 @@ import torchvision.models as models
 import os
 import torch
 from models import custom_models
+import matplotlib.pyplot as plt
+
 
 
 class Trainable:
@@ -43,9 +45,6 @@ class Trainable:
         self._params_to_update = params_to_update
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.1)
-        self.save_dir = os.path.join('trained_models', str(task.task_id), self.name)
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
 
         self.log = print
         self._best_val_acc = 0.0
@@ -141,7 +140,7 @@ class Trainable:
         :param use_gpu: Whether or not to use the GPU
         :return:
         """
-        self.log('-------'+self.name)
+        self.log('...........'+self.name+'...........')
 
         if use_gpu:
             self.model = self.model.cuda()
@@ -149,11 +148,18 @@ class Trainable:
             self.model = self.model.cpu()
 
         best_model_to_save = None
+        train_loss_list = []
+        train_acc_list = []
+        val_loss_list = []
+        val_acc_list = []
+
         for epoch in range(self.num_epochs):
             self.log('epoch: {}'.format(epoch))
 
             # Train on training data
             train_loss, train_acc = self._train_epoch(train_data_loader, use_gpu)
+            train_loss_list.append(train_loss)
+            train_acc_list.append(train_acc)
             self.log('train loss: {:.4f}'.format(train_loss))
             self.log('train acc: {:.4f}%'.format(train_acc*100))
 
@@ -163,6 +169,8 @@ class Trainable:
                 val_acc = 0
                 continue
             val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu)
+            val_loss_list.append(val_loss)
+            val_acc_list.append(val_acc)
             self.log('validation loss: {:.4f}'.format(val_loss))
             self.log('validation acc: {:.4f}%'.format(val_acc*100))
 
@@ -174,7 +182,7 @@ class Trainable:
                          "(validation of {:.4f}%, over {:.4f}%)".format(val_acc, self._best_val_acc))
                 self._best_val_acc = val_acc
                 best_model_to_save = copy.deepcopy(self.model.state_dict())
-                torch.save(best_model_to_save, self.save_dir + 'model.pth.tar')
+                torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
         self.log("Epoch {} result: ".format(epoch + 1))
         self.log("Average training loss: {:.4f}".format(train_loss))
@@ -182,9 +190,33 @@ class Trainable:
         self.log("Average validation loss: {:.4f}".format(val_loss))
         self.log("Average validation accuracy: {:.4f}%".format(val_acc * 100))
 
+
+        val_dic = {'train':train_loss_list, 'validation':val_loss_list}
+        self.save_plot('loss',val_dic,self.save_dir)
+        val_dic = {'train':train_acc_list, 'validation':val_acc_list}
+        self.save_plot('accuracy',val_dic,self.save_dir)
+
         if self.select_on_val and best_model_to_save:
             # Reloads best model weights
             self.model.load_state_dict(best_model_to_save)
+
+    def save_plot(self, plt_mode, val_dic, save_dir):
+        plt.figure()
+        colors = ['r', 'b', 'g']
+
+        counter = 0
+        for k, v in val_dic.items():
+            val = [np.round(float(i), decimals=3) for i in v]
+            plt.plot(val, color=colors[counter], label=k + ' ' + plt_mode)
+            counter += 1
+
+        if plt_mode == 'loss':
+            plt.legend(loc='upper right')
+        elif plt_mode == 'accuracy':
+            plt.legend(loc='lower right')
+        title = '_vs.'.join(list(val_dic.keys()))
+        plt.title(title + ' ' + plt_mode)
+        plt.savefig(save_dir + '/' + plt_mode + '_' + title + '.jpg')
 
 
 class Taglet(Trainable):
@@ -205,6 +237,9 @@ class FineTuneTaglet(Taglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'finetune'
+        self.save_dir = os.path.join('trained_models', str(task.task_id), self.name)
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
 
     def execute(self, unlabeled_data_loader, use_gpu):
         """
@@ -242,6 +277,9 @@ class PrototypeTaglet(Taglet):
         self.few_shot_support = few_shot_support
         self.model = custom_models.ConvEncoder()
         self.classifier = custom_models.Linear()
+        self.save_dir = os.path.join('trained_models', str(task.task_id), self.name)
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
 
         # Parameters needed to be updated based on freezing layer
         params_to_update = []
@@ -277,7 +315,7 @@ class PrototypeTaglet(Taglet):
         """
         For 1-shot, use pretrained model
         """
-        self.log('-------'+self.name)
+        self.log('...........'+self.name+'...........')
 
         if use_gpu:
             self.model = self.model.cuda()
@@ -307,7 +345,7 @@ class PrototypeTaglet(Taglet):
                          "(validation of {:.4f}%, over {:.4f}%)".format(val_acc, self._best_val_acc))
                 self._best_val_acc = val_acc
                 best_model_to_save = copy.deepcopy(self.model.state_dict())
-                torch.save(best_model_to_save, self.save_dir + 'model.pth.tar')
+                torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
         self.log("Epoch {} result: ".format(epoch + 1))
         self.log("Average training loss: {:.4f}".format(train_loss))
@@ -427,6 +465,9 @@ class TransferTaglet(Taglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'Transfer'
+        self.save_dir = os.path.join('trained_models', str(task.task_id), self.name)
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
 
     def pretrain(self):
         """pretrain on related concepts to the task"""

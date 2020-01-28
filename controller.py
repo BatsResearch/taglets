@@ -8,6 +8,7 @@ from custom_dataset import CustomDataSet, SoftLabelDataSet
 import torch
 from taglets.end_model import EndModel
 import numpy as np
+import datetime
 
 
 class Controller:
@@ -26,7 +27,10 @@ class Controller:
 
     def run_checkpoints(self):
         for i in range(self.num_base_checkpoints):
-            print('---base check point: {}'.format(i))
+            print('------------------------------------------------------------')
+            print('--------------------base check point: {}'.format(i)+'---------------------')
+            print('------------------------------------------------------------')
+
             available_budget = self.get_available_budget()
             unlabeled_image_names = self.task.get_unlabeled_image_names()
             print('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
@@ -94,7 +98,6 @@ class Controller:
 
         return train_data
 
-
     def get_predictions(self):
         train_data_loader, val_data_loader,  train_image_names, train_image_labels=\
             self.task.load_labeled_data(
@@ -105,27 +108,49 @@ class Controller:
 
         mnist_module = TransferModule(task=self.task)
 
-        print("Training taglets on labeled data...")
+        print("**********Training taglets on labeled data**********")
+        t1 = datetime.datetime.now()
         mnist_module.train_taglets(train_data_loader, val_data_loader, self.use_gpu)
+        t2 = datetime.datetime.now()
+        print()
+        print(".....Taglet training time: {}".format((t2 - t1).seconds))
+
         taglets = mnist_module.get_taglets()
         self.taglet_executor.set_taglets(taglets)
 
-        print("Executing taglets on unlabled data...")
+        print("**********Executing taglets on unlabled data**********")
+        t1 = datetime.datetime.now()
         label_matrix, candidates = self.taglet_executor.execute(unlabeled_data_loader, self.use_gpu)
         self.confidence_active_learning.set_candidates(candidates)
+        t2 = datetime.datetime.now()
+        print()
+        print(".....Taglet executing time: {}".format((t2 - t1).seconds))
 
-        print("Label Model...")
+
+        print("**********Label Model**********")
+        t1 = datetime.datetime.now()
         soft_labels_unlabeled_images = get_label_distribution(label_matrix, len(self.task.classes))
+        t2 = datetime.datetime.now()
+        print()
+        print(".....Label Model time: {}".format((t2 - t1).seconds))
 
-        print("End Model...")
+
+
+        print("**********End Model**********")
+        t1 = datetime.datetime.now()
         end_model_train_data_loader = self.combine_soft_labels(soft_labels_unlabeled_images,
                                                          unlabeled_image_names,
                                                          train_image_names, train_image_labels)
         self.end_model.train(end_model_train_data_loader, val_data_loader, self.use_gpu)
+        t2 = datetime.datetime.now()
+        print()
+        print(".....End Model time: {}".format((t2 - t1).seconds))
+
         return self.end_model.predict(self.task.evaluation_image_path,
                                       self.task.number_of_channels,
                                       self.task.transform_image(),
                                       self.use_gpu)
+
 
     def submit_predictions(self, predictions):
         self.api.submit_prediction(predictions)
