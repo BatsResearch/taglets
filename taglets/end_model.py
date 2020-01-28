@@ -10,7 +10,7 @@ class EndModel(Trainable):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'end model'
-        self.save_dir = os.path.join('trained_models', str(task.task_id), self.name)
+        self.save_dir = os.path.join('trained_models', task.phase ,str(task.task_id), self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
@@ -49,8 +49,8 @@ class EndModel(Trainable):
             running_acc += torch.sum(torch.max(outputs, 1)[1] == torch.max(labels, 1)[1]).item() #/ float(len(labels))
 
 
-            if batch_idx >= 1:
-                break
+            # if batch_idx >= 1:
+            #     break
 
         epoch_loss = running_loss / len(train_data_loader.dataset)
         epoch_acc = running_acc / len(train_data_loader.dataset)
@@ -68,6 +68,7 @@ class EndModel(Trainable):
         predictons = []
         test_imgs = []
         self.model.eval()
+
         for image in os.listdir(evaluation_image_path):
             test_imgs.append(image)
             img = os.path.join(evaluation_image_path, image)
@@ -89,6 +90,5 @@ class EndModel(Trainable):
 
         assert len(predictons) == len(test_imgs)
         df = pd.DataFrame({'id': test_imgs, 'label': predictons})
-        print(df.to_dict())
 
         return df.to_dict()

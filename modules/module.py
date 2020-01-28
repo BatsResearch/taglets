@@ -13,7 +13,7 @@ class Module:
         self.task = task
         self.taglets = []   # List of taglets must be defined in subclasses
 
-    def train_taglets(self, train_data_loader, val_data_loader, use_gpu):
+    def train_taglets(self, train_data_loader, val_data_loader, use_gpu, phase):
         """
         Train the Module's taglets.
         :param train_data_loader: A data loader for training data

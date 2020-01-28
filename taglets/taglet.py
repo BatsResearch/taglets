@@ -26,15 +26,19 @@ class Trainable:
         self.seed = 0
         self.num_epochs = 1
         self.select_on_val = True   # If true, save model on the best validation performance
-        self.pretrained = True      # If true, we can load from pretrained model
+        self.pretrained = task.pretrained      # If true, we can load from pretrained model
 
         if task.number_of_channels == 1:
             self.model = custom_models.MnistResNet()
-            self.model.pretrained = self.pretrained
         else:
             self.model = models.resnet18(pretrained=self.pretrained)
 
         self.model.fc = torch.nn.Linear(self.model.fc.in_features, len(self.task.classes))
+
+        self.model.pretrained = self.pretrained
+        if task.phase == 'adaptation': # in adaptation model, load from model trained on base phase
+            self.model.load_state_dict(torch.load(self.save_dir + '/model.pth.tar'))
+            self.log('^^^^^^^^^ adaptation: loading from base')
 
         self._init_random(self.seed)
         # Parameters needed to be updated based on freezing layer
@@ -91,8 +95,8 @@ class Trainable:
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels)
 
-            if batch_idx >= 1:
-                break
+            # if batch_idx >= 1:
+            #     break
 
         epoch_loss = running_loss / len(train_data_loader.dataset)
         epoch_acc = running_acc.item() / len(train_data_loader.dataset)
@@ -124,8 +128,8 @@ class Trainable:
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels)
 
-            if batch_idx >= 2:
-                break
+            # if batch_idx >= 2:
+            #     break
 
         epoch_loss = running_loss / len(val_data_loader.dataset)
         epoch_acc = running_acc.item() / len(val_data_loader.dataset)
@@ -141,6 +145,7 @@ class Trainable:
         :return:
         """
         self.log('...........'+self.name+'...........')
+
 
         if use_gpu:
             self.model = self.model.cuda()
@@ -217,6 +222,7 @@ class Trainable:
         title = '_vs.'.join(list(val_dic.keys()))
         plt.title(title + ' ' + plt_mode)
         plt.savefig(save_dir + '/' + plt_mode + '_' + title + '.jpg')
+        plt.close()
 
 
 class Taglet(Trainable):
@@ -237,7 +243,7 @@ class FineTuneTaglet(Taglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'finetune'
-        self.save_dir = os.path.join('trained_models', str(task.task_id), self.name)
+        self.save_dir = os.path.join('trained_models', task.phase, str(task.task_id), self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
@@ -277,7 +283,7 @@ class PrototypeTaglet(Taglet):
         self.few_shot_support = few_shot_support
         self.model = custom_models.ConvEncoder()
         self.classifier = custom_models.Linear()
-        self.save_dir = os.path.join('trained_models', str(task.task_id), self.name)
+        self.save_dir = os.path.join('trained_models', task.phase ,str(task.task_id), self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
@@ -403,8 +409,8 @@ class PrototypeTaglet(Taglet):
 
             running_loss += loss.item()
 
-            if batch_idx >= 1:
-                break
+            # if batch_idx >= 1:
+            #     break
 
         epoch_loss = running_loss / len(train_data_loader.dataset)
         return epoch_loss
@@ -433,8 +439,8 @@ class PrototypeTaglet(Taglet):
 
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels)
-            if batch_idx >= 2:
-                break
+            # if batch_idx >= 2:
+            #     break
 
         epoch_loss = running_loss / len(val_data_loader.dataset)
         epoch_acc = running_acc.item() / len(val_data_loader.dataset)
@@ -460,16 +466,3 @@ class PrototypeTaglet(Taglet):
                     predicted_labels.append(prediction)
         return predicted_labels
 
-
-class TransferTaglet(Taglet):
-    def __init__(self, task):
-        super().__init__(task)
-        self.name = 'Transfer'
-        self.save_dir = os.path.join('trained_models', str(task.task_id), self.name)
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
-
-    def pretrain(self):
-        """pretrain on related concepts to the task"""
-
-        target_concepts = self.task.classes

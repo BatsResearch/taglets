@@ -24,7 +24,7 @@ To start, you will need to run 'controller.py', which is located in the current 
 ## Contributing
 We welcome pull requests. For any changes, please open an issue first to discuss what you would like to change.
 
-##Acknowledgments
+## Acknowledgments
 
 
 ## License

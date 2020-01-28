@@ -26,6 +26,8 @@ class Task:
         self.labeled_images = []    # A list of tuples with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
         self.number_of_channels = None
         self.train_data_loader = None
+        self.phase = None # base or adaptation
+        self.pretrained = None # can load from pretrained models on ImageNet
 
 
     def add_labeled_images(self, new_labeled_images):
@@ -105,6 +107,7 @@ class Task:
 
 
         return train_data_loader, val_data_loader, train_image_names, train_image_labels
+
     def load_unlabeled_data(self, batch_size, num_workers):
         """
         Get a data loader from unlabeled data.

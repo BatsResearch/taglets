@@ -23,10 +23,17 @@ class Controller:
         self.num_adapt_checkpoints = 3
         self.batch_size = 32
         self.num_workers = 2
-        self.use_gpu = False
+        self.use_gpu = True
 
     def run_checkpoints(self):
+        self.run_checkpoints_base()
+        # self.run_checkpoints_adapt()
+
+    def run_checkpoints_base(self):
+        self.task = self.get_task()
         for i in range(self.num_base_checkpoints):
+            session_status = self.api.get_session_status()
+            assert session_status['pair_stage'] == 'base'
             print('------------------------------------------------------------')
             print('--------------------base check point: {}'.format(i)+'---------------------')
             print('------------------------------------------------------------')
@@ -39,7 +46,29 @@ class Controller:
             else:
                 candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
             self.request_labels(candidates)
-            predictions = self.get_predictions()
+            predictions = self.get_predictions(session_status['pair_stage'])
+            self.submit_predictions(predictions)
+
+    def run_checkpoints_adapt(self):
+        self.task = self.get_task()
+
+        print()
+        for i in range(self.num_adapt_checkpoints):
+            session_status = self.api.get_session_status()
+            # assert session_status['pair_stage'] == 'adaptation'
+            print('------------------------------------------------------------')
+            print('--------------------Adapt check point: {}'.format(i)+'---------------------')
+            print('------------------------------------------------------------')
+
+            available_budget = self.get_available_budget()
+            unlabeled_image_names = self.task.get_unlabeled_image_names()
+            print('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
+            if i == 0:
+                candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
+            else:
+                candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
+            self.request_labels(candidates)
+            predictions = self.get_predictions(session_status['pair_stage'])
             # self.submit_predictions(predictions)
 
     def get_task(self):
@@ -56,13 +85,22 @@ class Controller:
 
         task.unlabeled_image_path = "./sql_data/MNIST/train"
         task.evaluation_image_path = "./sql_data/MNIST/test"  # Should be updated later
-        task.labeled_images = self.api.get_seed_labels()
+        task.phase = session_status['pair_stage']
+        if session_status['pair_stage'] == 'adaptation':
+            task.labeled_images = []
+            task.pretrained = task_metadata['adaptation_can_use_pretrained_model']
+        elif session_status['pair_stage'] == 'base':
+            task.labeled_images = self.api.get_seed_labels()
+            task.pretrained = task_metadata['base_can_use_pretrained_model']
+
         return task
 
     def get_available_budget(self):
         session_status = self.api.get_session_status()
         available_budget = session_status['budget_left_until_checkpoint']
-        available_budget = available_budget // 10   # For testing
+        available_budget = available_budget
+
+        # available_budget = available_budget // 10   # For testing
         return available_budget
 
     def request_labels(self, examples):
@@ -98,7 +136,10 @@ class Controller:
 
         return train_data
 
-    def get_predictions(self):
+    def get_predictions(self, phase):
+        """train taglets, label model, and endmodel, and return prediction
+        :param phase: 'base' or 'adapt'
+        """
         train_data_loader, val_data_loader,  train_image_names, train_image_labels=\
             self.task.load_labeled_data(
             self.batch_size,
@@ -110,7 +151,7 @@ class Controller:
 
         print("**********Training taglets on labeled data**********")
         t1 = datetime.datetime.now()
-        mnist_module.train_taglets(train_data_loader, val_data_loader, self.use_gpu)
+        mnist_module.train_taglets(train_data_loader, val_data_loader, self.use_gpu, phase )
         t2 = datetime.datetime.now()
         print()
         print(".....Taglet training time: {}".format((t2 - t1).seconds))
