@@ -19,8 +19,6 @@ class Controller:
         self.confidence_active_learning = LeastConfidenceActiveLearning()
         self.taglet_executor = TagletExecutor()
         self.end_model = EndModel(self.task)
-        self.num_base_checkpoints = 3
-        self.num_adapt_checkpoints = 3
         self.batch_size = 32
         self.num_workers = 2
         self.use_gpu = True
@@ -76,6 +74,9 @@ class Controller:
         task_name = task_names[1]  # Image classification task
         self.api.create_session(task_name)
         task_metadata = self.api.get_task_metadata(task_name)
+
+        self.num_base_checkpoints = len(task_metadata['base_label_budget'])
+        self.num_adapt_checkpoints = len(task_metadata['adaptation_label_budget'])
 
         task = Task(task_metadata)
         session_status = self.api.get_session_status()

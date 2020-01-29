@@ -1,18 +1,16 @@
-- pep8 warnings, cleaning code, add docstring
-- add logo
-- complete readme file
-- complete a complete JPL process (3 base phases + 3 adapt phases)
+- find the bug related to low accuracy(unit tests)
+    * test only finetuning without label model and end model
+    * test only prototype without label model and end model
+    * test submitting random prediction
+
 - test on GPU google cloud
+- complete readme file
 - logging
 - installtion package
-- pass checkpoints to save the best model for each checkpoint????
+- pep8 warnings, cleaning code, add docstring
+- add logo
 - CIFAR100 data
-- (Elaheh)end model validation using soft entropy?
-- (Elaheh)pretrain + fine tune (use scads)
-- (Elaheh)in adapt phase, load pretrined model from which checkpoint? last?
-
-- Endmodel, should it be trained on pre-trained on ImageNet? my concern is in adaptation phase where we are not loading
-from pre-trained model
+- (Elaheh) pretrain + fine tune (use scads)
 
 - "adaptation_can_use_pretrained_model:False" is hard-coded. We need to make it flexible. Maybe we need to add it to task.
 e.g., task has 'phase' property ('adaptation' and 'base'). If phase is 'base', pretrained 'True', else 'False'
@@ -35,19 +33,19 @@ e.g., task has 'phase' property ('adaptation' and 'base'). If phase is 'base', p
 -> end model: check the splits and combination of labeled and soft labels.
 
 -> check pretrained = True/False based on the current phase.
+
 -> check during adaptaiton, we are acutally loading from base model
 
 
-#######(Elaheh) Final changes for evaluation:
+
+
+#######(for Elaheh) Final changes for evaluation:
+- sudo on grid has error
 - user Brown Team Secret Key
 - full run for taglets, end model and label model (remove if bathc_index >=1 )
 -controller: available_budget = available_budget // 10   # For testing
 -controller: self.use_gpu = False
-
-- task: base and adaptation address
+- controller: task: base and adaptation address
+ command in dataset_repo to download the post-processed dataset (https://gitlab.lollllz.com/lwll/dataset_prep)
  task.unlabeled_image_path = "./sql_data/MNIST/train"
  task.evaluation_image_path = "./sql_data/MNIST/test"  # Should be updated later
-
-#######(Elaheh) Questions to JPL:
-- number of check poits for each phase?
-- why two phases? we could just simply have only one phase!
