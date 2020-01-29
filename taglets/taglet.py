@@ -9,7 +9,6 @@ from models import custom_models
 import matplotlib.pyplot as plt
 
 
-
 class Trainable:
     """
     A class with a trainable model.
@@ -24,7 +23,7 @@ class Trainable:
         self.lr = 0.001
         self.criterion = torch.nn.CrossEntropyLoss()
         self.seed = 0
-        self.num_epochs = 1
+        self.num_epochs = 10
         self.select_on_val = True   # If true, save model on the best validation performance
         self.pretrained = task.pretrained      # If true, we can load from pretrained model
 
@@ -67,7 +66,7 @@ class Trainable:
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
 
-    def _train_epoch(self, train_data_loader, use_gpu):
+    def _train_epoch(self, train_data_loader, use_gpu, testing):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data
@@ -78,6 +77,9 @@ class Trainable:
         running_loss = 0
         running_acc = 0
         for batch_idx, batch in enumerate(train_data_loader):
+            if testing:
+                if batch_idx >= 1:
+                    break
             inputs = batch[0]
             labels = batch[1]
             if use_gpu:
@@ -95,16 +97,12 @@ class Trainable:
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels)
 
-            # if batch_idx >= 1:
-            #     break
-
         epoch_loss = running_loss / len(train_data_loader.dataset)
         epoch_acc = running_acc.item() / len(train_data_loader.dataset)
 
-
         return epoch_loss, epoch_acc
 
-    def _validate_epoch(self, val_data_loader, use_gpu):
+    def _validate_epoch(self, val_data_loader, use_gpu, testing):
         """
         Validate for one epoch.
         :param val_data_loader: A dataloader containing validation data
@@ -115,6 +113,9 @@ class Trainable:
         running_loss = 0
         running_acc = 0
         for batch_idx, batch in enumerate(val_data_loader):
+            if testing:
+                if batch_idx >= 2:
+                    break
             inputs = batch[0]
             labels = batch[1]
             if use_gpu:
@@ -128,15 +129,12 @@ class Trainable:
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels)
 
-            # if batch_idx >= 2:
-            #     break
-
         epoch_loss = running_loss / len(val_data_loader.dataset)
         epoch_acc = running_acc.item() / len(val_data_loader.dataset)
 
         return epoch_loss, epoch_acc
 
-    def train(self, train_data_loader, val_data_loader, use_gpu):
+    def train(self, train_data_loader, val_data_loader, use_gpu, testing):
         """
         Train the Trainable.
         :param train_data_loader: A dataloader containing training data
@@ -145,7 +143,6 @@ class Trainable:
         :return:
         """
         self.log('...........'+self.name+'...........')
-
 
         if use_gpu:
             self.model = self.model.cuda()
@@ -158,11 +155,15 @@ class Trainable:
         val_loss_list = []
         val_acc_list = []
 
-        for epoch in range(self.num_epochs):
+        if testing:
+            num_epochs = 1
+        else:
+            num_epochs = self.num_epochs
+        for epoch in range(num_epochs):
             self.log('epoch: {}'.format(epoch))
 
             # Train on training data
-            train_loss, train_acc = self._train_epoch(train_data_loader, use_gpu)
+            train_loss, train_acc = self._train_epoch(train_data_loader, use_gpu, testing)
             train_loss_list.append(train_loss)
             train_acc_list.append(train_acc)
             self.log('train loss: {:.4f}'.format(train_loss))
@@ -173,7 +174,7 @@ class Trainable:
                 val_loss = 0
                 val_acc = 0
                 continue
-            val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu)
+            val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu, testing)
             val_loss_list.append(val_loss)
             val_acc_list.append(val_acc)
             self.log('validation loss: {:.4f}'.format(val_loss))
@@ -221,7 +222,7 @@ class Trainable:
             plt.legend(loc='lower right')
         title = '_vs.'.join(list(val_dic.keys()))
         plt.title(title + ' ' + plt_mode)
-        plt.savefig(save_dir + '/' + plt_mode + '_' + title + '.jpg')
+        plt.savefig(save_dir + '/' + plt_mode + '_' + title + '.pdf')
         plt.close()
 
 
@@ -229,7 +230,7 @@ class Taglet(Trainable):
     """
     A class that produces votes for unlabeled images.
     """
-    def execute(self, unlabeled_data_loader, use_gpu):
+    def execute(self, unlabeled_data_loader, use_gpu, testing):
         """
         Execute the Taglet on unlabeled images.
         :param unlabeled_data_loader: A dataloader containing unlabeled data
@@ -248,7 +249,7 @@ class FineTuneTaglet(Taglet):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
-    def execute(self, unlabeled_data_loader, use_gpu):
+    def execute(self, unlabeled_data_loader, use_gpu, testing):
         """
         Execute the Taglet on unlabeled images.
         :param unlabeled_data_loader: A dataloader containing unlabeled data
@@ -274,6 +275,8 @@ class FineTuneTaglet(Taglet):
                     _, preds = torch.max(outputs, 1)
                     predicted_labels.append(preds.item())
                     candidate_probabilities.append(torch.max(torch.nn.functional.softmax(outputs)).item())
+            if testing:
+                break
         return predicted_labels, np.argsort(candidate_probabilities)
 
 
@@ -319,7 +322,7 @@ class PrototypeTaglet(Taglet):
                 lab = key
         return lab
 
-    def train(self, train_data_loader, val_data_loader, use_gpu):
+    def train(self, train_data_loader, val_data_loader, use_gpu, testing):
         """
         For 1-shot, use pretrained model
         """
@@ -333,15 +336,19 @@ class PrototypeTaglet(Taglet):
             self.classifier = self.classifier.cpu()
 
         best_model_to_save = None
-        for epoch in range(self.num_epochs):
+        if testing:
+            num_epochs = 1
+        else:
+            num_epochs = self.num_epochs
+        for epoch in range(num_epochs):
             self.log('epoch: {}'.format(epoch))
 
             # Train on training data
-            train_loss = self._train_epoch(train_data_loader, use_gpu)
+            train_loss = self._train_epoch(train_data_loader, use_gpu, testing)
             self.log('train loss: {:.4f}'.format(train_loss))
 
             # Evaluation on validation data
-            val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu)
+            val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu, testing)
             self.log('validation loss: {:.4f}'.format(val_loss))
             self.log('validation acc: {:.4f}%'.format(val_acc*100))
 
@@ -384,7 +391,7 @@ class PrototypeTaglet(Taglet):
                     self.prototypes[lbl] = [proto]
                 break
 
-    def _train_epoch(self, train_data_loader, use_gpu):
+    def _train_epoch(self, train_data_loader, use_gpu, testing):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data
@@ -395,6 +402,9 @@ class PrototypeTaglet(Taglet):
         self.classifier.train()
         running_loss = 0
         for batch_idx, batch in enumerate(train_data_loader):
+            if testing:
+                if batch_idx >= 1:
+                    break
             inputs = batch[0]
             labels = batch[1]
             if use_gpu:
@@ -411,13 +421,10 @@ class PrototypeTaglet(Taglet):
 
             running_loss += loss.item()
 
-            # if batch_idx >= 1:
-            #     break
-
         epoch_loss = running_loss / len(train_data_loader.dataset)
         return epoch_loss
 
-    def _validate_epoch(self, val_data_loader, use_gpu):
+    def _validate_epoch(self, val_data_loader, use_gpu, testing):
         """
         Validate for one epoch.
         :param val_data_loader: A dataloader containing validation data
@@ -428,6 +435,10 @@ class PrototypeTaglet(Taglet):
         running_loss = 0
         running_acc = 0
         for batch_idx, batch in enumerate(val_data_loader):
+            if testing:
+                if batch_idx >= 2:
+                    break
+
             inputs = batch[0]
             labels = batch[1]
             if use_gpu:
@@ -441,13 +452,11 @@ class PrototypeTaglet(Taglet):
 
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels)
-            # if batch_idx >= 2:
-            #     break
         epoch_loss = running_loss / len(val_data_loader.dataset)
         epoch_acc = running_acc.item() / len(val_data_loader.dataset)
         return epoch_loss, epoch_acc
 
-    def execute(self, unlabeled_data_loader, use_gpu):
+    def execute(self, unlabeled_data_loader, use_gpu, testing):
         self.model.eval()
         if use_gpu:
             self.model = self.model.cuda()
@@ -465,5 +474,7 @@ class PrototypeTaglet(Taglet):
                     proto = self.model(data)
                     prediction = self.onn(proto)
                     predicted_labels.append(prediction)
+            if testing:
+                break
         return predicted_labels
 
