@@ -26,6 +26,7 @@ class Trainable:
         self.num_epochs = 10
         self.select_on_val = True   # If true, save model on the best validation performance
         self.pretrained = task.pretrained      # If true, we can load from pretrained model
+        self.save_dir = None
 
         if task.number_of_channels == 1:
             self.model = custom_models.MnistResNet()
@@ -35,9 +36,6 @@ class Trainable:
         self.model.fc = torch.nn.Linear(self.model.fc.in_features, len(self.task.classes))
 
         self.model.pretrained = self.pretrained
-        if task.phase == 'adaptation': # in adaptation model, load from model trained on base phase
-            self.model.load_state_dict(torch.load(self.save_dir + '/model.pth.tar'))
-            self.log('^^^^^^^^^ adaptation: loading from base')
 
         self._init_random(self.seed)
         # Parameters needed to be updated based on freezing layer
@@ -188,7 +186,8 @@ class Trainable:
                          "(validation of {:.4f}%, over {:.4f}%)".format(val_acc, self._best_val_acc))
                 self._best_val_acc = val_acc
                 best_model_to_save = copy.deepcopy(self.model.state_dict())
-                torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
+                if self.save_dir:
+                    torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
         self.log("Epoch {} result: ".format(epoch + 1))
         self.log("Average training loss: {:.4f}".format(train_loss))
@@ -198,9 +197,11 @@ class Trainable:
 
 
         val_dic = {'train':train_loss_list, 'validation':val_loss_list}
-        self.save_plot('loss',val_dic,self.save_dir)
+        if self.save_dir:
+            self.save_plot('loss',val_dic,self.save_dir)
         val_dic = {'train':train_acc_list, 'validation':val_acc_list}
-        self.save_plot('accuracy',val_dic,self.save_dir)
+        if self.save_dir:
+            self.save_plot('accuracy',val_dic,self.save_dir)
 
         if self.select_on_val and best_model_to_save:
             # Reloads best model weights
@@ -245,9 +246,13 @@ class FineTuneTaglet(Taglet):
         super().__init__(task)
         self.name = 'finetune'
         self.num_epochs = 5
+        to_load_dir = os.path.join('trained_models', "base", str(task.task_id), self.name)
         self.save_dir = os.path.join('trained_models', task.phase, str(task.task_id), self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
+        if task.phase == 'adaptation': # in adaptation model, load from model trained on base phase
+            self.model.load_state_dict(torch.load(to_load_dir + '/model.pth.tar'))
+            self.log('^^^^^^^^^ adaptation: loading from base')
 
     def execute(self, unlabeled_data_loader, use_gpu, testing):
         """
@@ -288,9 +293,13 @@ class PrototypeTaglet(Taglet):
         self.model = custom_models.ConvEncoder()
         self.classifier = custom_models.Linear()
         self.num_epochs = 3
-        self.save_dir = os.path.join('trained_models', task.phase ,str(task.task_id), self.name)
+        to_load_dir = os.path.join('trained_models', "base", str(task.task_id), self.name)
+        self.save_dir = os.path.join('trained_models', task.phase, str(task.task_id), self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
+        if task.phase == 'adaptation': # in adaptation model, load from model trained on base phase
+            self.model.load_state_dict(torch.load(to_load_dir + '/model.pth.tar'))
+            self.log('^^^^^^^^^ adaptation: loading from base')
 
         # Parameters needed to be updated based on freezing layer
         params_to_update = []
@@ -389,7 +398,8 @@ class PrototypeTaglet(Taglet):
                     self.prototypes[lbl].append(proto)
                 except:
                     self.prototypes[lbl] = [proto]
-                break
+                if testing:
+                    break
 
     def _train_epoch(self, train_data_loader, use_gpu, testing):
         """
