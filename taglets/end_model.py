@@ -85,9 +85,15 @@ class EndModel(Trainable):
                 img = torch.unsqueeze(img, dim=0)
                 outputs = self.model(img)
                 _, preds = torch.max(outputs, 1)
-                predictons.append(preds.item())
+                predictons.append(str(preds.item()))
 
         assert len(predictons) == len(test_imgs)
-        df = pd.DataFrame({'id': test_imgs, 'label': predictons})
+
+        #df_content = [test_imgs, predictons]
+        df = pd.DataFrame(columns=['id', 'class'])
+        df['class'] = predictons
+        df['id'] = test_imgs
+        # For debugging, above lines should be equivalent to the one below
+        #df = pd.DataFrame({'id': test_imgs, 'class': predictons})
 
         return df.to_dict()

@@ -39,4 +39,4 @@ class TransferModule(Module):
     """
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [PrototypeTaglet(task), FineTuneTaglet(task)]
+        self.taglets = [PrototypeTaglet(task), PrototypeTaglet(task), FineTuneTaglet(task)]

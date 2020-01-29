@@ -75,7 +75,6 @@ class Controller:
 
     def get_task(self):
         task_names = self.api.get_available_tasks()
-        print(task_names)
         task_name = task_names[0]  # Image classification task
         self.api.create_session(task_name)
         task_metadata = self.api.get_task_metadata(task_name)
@@ -202,12 +201,9 @@ class Controller:
                                       self.use_gpu)
 
     def submit_predictions(self, predictions):
-        self.api.submit_prediction(predictions)
+        submit_status = self.api.submit_prediction(predictions)
         session_status = self.api.get_session_status()
-        # print(session_status)
-        # print("Checkpoint scores", session_status['checkpoint_scores'])
-        # for i in session_status:
-        #     print(i)
+        print("Checkpoint scores", session_status['checkpoint_scores'])
         print("Phase:", session_status['pair_stage'])
 
 
