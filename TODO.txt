@@ -5,10 +5,10 @@
 - pep8 warnings, cleaning code, add docstring
 - add logo
 - (Elaheh) pretrain + fine tune (use scads)
+- change the name of workflow.py
+- move label_model.y to the same dir as endmodel?
 
 --tests:
-
--> taglet executer: at the end of each checkpoint, the number of unlabeld data for the taglet executer is decreasing.
 
 -> end model: check the splits and combination of labeled and soft labels.
 
