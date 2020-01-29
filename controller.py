@@ -74,7 +74,8 @@ class Controller:
 
     def get_task(self):
         task_names = self.api.get_available_tasks()
-        task_name = task_names[1]  # Image classification task
+        print(task_names)
+        task_name = task_names[0]  # Image classification task
         self.api.create_session(task_name)
         task_metadata = self.api.get_task_metadata(task_name)
 
