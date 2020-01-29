@@ -150,6 +150,7 @@ class Controller:
             self.task.load_labeled_data(
             self.batch_size,
             self.num_workers)
+
         unlabeled_data_loader, unlabeled_image_names = self.task.load_unlabeled_data(self.batch_size,
                                                                                      self.num_workers)
 
