@@ -14,9 +14,11 @@ import datetime
 class Controller:
     def __init__(self, use_gpu=False, testing=False):
         self.api = JPL()
-        self.task = self.get_task()
         self.num_base_checkpoints = None
         self.num_adapt_checkpoints = None
+        self.task_name = None
+        self.create_task()
+        self.task = self.get_task()
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
         self.taglet_executor = TagletExecutor()
@@ -28,10 +30,11 @@ class Controller:
 
     def run_checkpoints(self):
         self.run_checkpoints_base()
-        # self.run_checkpoints_adapt()
+        self.run_checkpoints_adapt()
 
     def run_checkpoints_base(self):
         self.task = self.get_task()
+
         for i in range(self.num_base_checkpoints):
             self.run_one_checkpoint(i)
 
@@ -54,10 +57,11 @@ class Controller:
         self.submit_predictions(predictions)
 
     def run_checkpoints_adapt(self):
-        self.task = self.get_task()
 
         print()
         for i in range(self.num_adapt_checkpoints):
+            self.task = self.get_task()
+
             session_status = self.api.get_session_status()
             # assert session_status['pair_stage'] == 'adaptation'
             print('------------------------------------------------------------')
@@ -73,14 +77,16 @@ class Controller:
                 candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
             self.request_labels(candidates)
             predictions = self.get_predictions(session_status['pair_stage'])
-            # self.submit_predictions(predictions)
+            self.submit_predictions(predictions)
 
-    def get_task(self):
+    def create_task(self):
         task_names = self.api.get_available_tasks()
         task_name = task_names[0]  # Image classification task
         self.api.create_session(task_name)
-        task_metadata = self.api.get_task_metadata(task_name)
+        self.task_name = task_name
 
+    def get_task(self):
+        task_metadata = self.api.get_task_metadata(self.task_name)
         self.num_base_checkpoints = len(task_metadata['base_label_budget'])
         self.num_adapt_checkpoints = len(task_metadata['adaptation_label_budget'])
 
