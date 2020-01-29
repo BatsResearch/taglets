@@ -1,39 +1,16 @@
-- find the bug related to low accuracy(unit tests)
-    * test only finetuning without label model and end model
-    * test only prototype without label model and end model
-    * test submitting random prediction
-
 - test on GPU google cloud
 - complete readme file
 - logging
 - installtion package
 - pep8 warnings, cleaning code, add docstring
 - add logo
-- CIFAR100 data
 - (Elaheh) pretrain + fine tune (use scads)
 
-- "adaptation_can_use_pretrained_model:False" is hard-coded. We need to make it flexible. Maybe we need to add it to task.
-e.g., task has 'phase' property ('adaptation' and 'base'). If phase is 'base', pretrained 'True', else 'False'
-
-
 --tests:
--> active learning: check it’s actually returning the least confident data points (check the confidence score)
--> learning prcoess: check the loss of all taglets as well as end model, if the loss is decreasing; also check the gradients
--> learning process: observe the final accuracy on validation data; check how good it is
-
--> task: check the amount of labeled and unlabeled data of task object is updated at the end of each checkpoint
-
--> label model: final score is better than majority vote
 
 -> taglet executer: at the end of each checkpoint, the number of unlabeld data for the taglet executer is decreasing.
 
 -> end model: check the splits and combination of labeled and soft labels.
-
--> check pretrained = True/False based on the current phase.
-
--> check during adaptaiton, we are acutally loading from base model
-
-
 
 
 #######(for Elaheh) Final changes for evaluation:
