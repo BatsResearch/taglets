@@ -63,7 +63,7 @@ class JPL:
         labels = r.json()['Labels']
         seed_labels = []
         for image in labels:
-            seed_labels.append([image["id"], image["label"]])
+            seed_labels.append([image["id"], image["class"]])
         return seed_labels
 
     def request_label(self, query):
