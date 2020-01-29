@@ -4,7 +4,9 @@ from controller import Controller
 
 class TestController(unittest.TestCase):
     def setUp(self):
-        self.controller = Controller()
+        self.controller = Controller(use_gpu=False, testing=True)
+        self.controller.task.unlabeled_image_path = "../sql_data/MNIST/train"
+        self.controller.task.evaluation_image_path = "../sql_data/MNIST/test"
 
     def test_labeled_increasing(self):
         '''
@@ -28,7 +30,7 @@ class TestController(unittest.TestCase):
             self.assertTrue(new < current, "Number of unlabeled data points is not decreasing.")
             current = new
 
-    def constant_total(self):
+    def test_constant_total(self):
         '''
         Tests that the total number of data points (labeled and unlabeled) is constant at each checkpoint.
         :return:
@@ -38,3 +40,7 @@ class TestController(unittest.TestCase):
             self.controller.run_one_checkpoint(i)
             new = len(self.controller.task.labeled_images) + len(self.controller.task.get_unlabeled_image_names())
             self.assertTrue(new == current, "Number of unlabeled data points is not decreasing.")
+
+
+if __name__ == "__main__":
+    unittest.main()

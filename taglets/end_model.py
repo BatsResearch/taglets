@@ -21,7 +21,7 @@ class EndModel(Trainable):
         logs = torch.nn.LogSoftmax(dim=1)
         return torch.mean(torch.sum(-target * logs(prediction), 1))
 
-    def _train_epoch(self, train_data_loader, use_gpu):
+    def _train_epoch(self, train_data_loader, use_gpu, testing):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data
@@ -32,6 +32,9 @@ class EndModel(Trainable):
         running_loss = 0
         running_acc = 0
         for batch_idx, batch in enumerate(train_data_loader):
+            if testing:
+                if batch_idx >= 1:
+                    break
             inputs = batch[0]
             labels = batch[1]
             if use_gpu:
@@ -47,10 +50,6 @@ class EndModel(Trainable):
 
             running_loss += loss.item()
             running_acc += torch.sum(torch.max(outputs, 1)[1] == torch.max(labels, 1)[1]).item() #/ float(len(labels))
-
-
-            # if batch_idx >= 1:
-            #     break
 
         epoch_loss = running_loss / len(train_data_loader.dataset)
         epoch_acc = running_acc / len(train_data_loader.dataset)

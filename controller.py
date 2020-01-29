@@ -12,16 +12,17 @@ import datetime
 
 
 class Controller:
-    def __init__(self):
+    def __init__(self, use_gpu=True, testing=False):
         self.api = JPL()
-        self.task = self.get_task()
+        self.task, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_task()
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
         self.taglet_executor = TagletExecutor()
         self.end_model = EndModel(self.task)
         self.batch_size = 32
         self.num_workers = 2
-        self.use_gpu = True
+        self.use_gpu = use_gpu
+        self.testing = testing
 
     def run_checkpoints(self):
         self.run_checkpoints_base()
@@ -79,8 +80,8 @@ class Controller:
         self.api.create_session(task_name)
         task_metadata = self.api.get_task_metadata(task_name)
 
-        self.num_base_checkpoints = len(task_metadata['base_label_budget'])
-        self.num_adapt_checkpoints = len(task_metadata['adaptation_label_budget'])
+        num_base_checkpoints = len(task_metadata['base_label_budget'])
+        num_adapt_checkpoints = len(task_metadata['adaptation_label_budget'])
 
         task = Task(task_metadata)
         session_status = self.api.get_session_status()
@@ -98,14 +99,14 @@ class Controller:
             task.labeled_images = self.api.get_seed_labels()
             task.pretrained = task_metadata['base_can_use_pretrained_model']
 
-        return task
+        return task, num_base_checkpoints, num_adapt_checkpoints
 
     def get_available_budget(self):
         session_status = self.api.get_session_status()
         available_budget = session_status['budget_left_until_checkpoint']
-        available_budget = available_budget
 
-        # available_budget = available_budget // 10   # For testing
+        if self.testing:
+            available_budget = available_budget // 10
         return available_budget
 
     def request_labels(self, examples):
@@ -156,7 +157,7 @@ class Controller:
 
         print("**********Training taglets on labeled data**********")
         t1 = datetime.datetime.now()
-        mnist_module.train_taglets(train_data_loader, val_data_loader, self.use_gpu, phase )
+        mnist_module.train_taglets(train_data_loader, val_data_loader, self.use_gpu, phase, self.testing)
         t2 = datetime.datetime.now()
         print()
         print(".....Taglet training time: {}".format((t2 - t1).seconds))
@@ -166,7 +167,7 @@ class Controller:
 
         print("**********Executing taglets on unlabled data**********")
         t1 = datetime.datetime.now()
-        label_matrix, candidates = self.taglet_executor.execute(unlabeled_data_loader, self.use_gpu)
+        label_matrix, candidates = self.taglet_executor.execute(unlabeled_data_loader, self.use_gpu, self.testing)
         self.confidence_active_learning.set_candidates(candidates)
         t2 = datetime.datetime.now()
         print()
@@ -175,7 +176,7 @@ class Controller:
 
         print("**********Label Model**********")
         t1 = datetime.datetime.now()
-        soft_labels_unlabeled_images = get_label_distribution(label_matrix, len(self.task.classes))
+        soft_labels_unlabeled_images = get_label_distribution(label_matrix, len(self.task.classes), self.testing)
         t2 = datetime.datetime.now()
         print()
         print(".....Label Model time: {}".format((t2 - t1).seconds))
@@ -184,10 +185,12 @@ class Controller:
 
         print("**********End Model**********")
         t1 = datetime.datetime.now()
+        if self.testing:
+            unlabeled_image_names = unlabeled_image_names[:len(soft_labels_unlabeled_images)]
         end_model_train_data_loader = self.combine_soft_labels(soft_labels_unlabeled_images,
                                                          unlabeled_image_names,
                                                          train_image_names, train_image_labels)
-        self.end_model.train(end_model_train_data_loader, val_data_loader, self.use_gpu)
+        self.end_model.train(end_model_train_data_loader, val_data_loader, self.use_gpu, self.testing)
         t2 = datetime.datetime.now()
         print()
         print(".....End Model time: {}".format((t2 - t1).seconds))
@@ -197,11 +200,13 @@ class Controller:
                                       self.task.transform_image(),
                                       self.use_gpu)
 
-
     def submit_predictions(self, predictions):
         self.api.submit_prediction(predictions)
         session_status = self.api.get_session_status()
-        print("Checkpoint scores", session_status['checkpoint_scores'])
+        # print(session_status)
+        # print("Checkpoint scores", session_status['checkpoint_scores'])
+        # for i in session_status:
+        #     print(i)
         print("Phase:", session_status['pair_stage'])
 
 

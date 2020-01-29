@@ -14,8 +14,11 @@ class ClassConditionalLM(nn.Module):
                  init_acc=0.9,
                  balance_prior=0.025,
                  init_prop=0.5,
-                 opt_cb=True):
+                 opt_cb=True,
+                 testing=False):
         super().__init__()
+
+        self.testing = testing
 
         self.num_classes = num_classes
         self.num_lfs = num_lfs
@@ -158,7 +161,10 @@ class ClassConditionalLM(nn.Module):
         momentum = cfg['momentum']
         step_size_mult = cfg['step_multiplier']
         step_schedule = cfg['step_schedule']
-        epochs = cfg['epoch']
+        if self.testing:
+            epochs = 1
+        else:
+            epochs = cfg['epoch']
 
         self.init_random(cfg['seed'])
 
@@ -175,8 +181,7 @@ class ClassConditionalLM(nn.Module):
 
         scheduler = None
 
-        # for epoch in range(epochs):
-        for epoch in range(2):
+        for epoch in range(epochs):
             # print('Epoch {}/{}'.format(epoch + 1, epochs))
             if scheduler is not None:
                 scheduler.step()
@@ -316,7 +321,7 @@ class ClassConditionalLM(nn.Module):
         torch.cuda.manual_seed(seed)
 
 
-def get_label_distribution(label_matrix, num_classes):
+def get_label_distribution(label_matrix, num_classes, testing):
     cfg = {'lr': 0.01,
            'epoch': 10,
            'seed': 0,
@@ -327,7 +332,7 @@ def get_label_distribution(label_matrix, num_classes):
 
     # votes = np.random.randint(0, 3, size=(1000, 5))
 
-    model = ClassConditionalLM(num_classes=num_classes, num_lfs=label_matrix.shape[1])
+    model = ClassConditionalLM(num_classes=num_classes, num_lfs=label_matrix.shape[1], testing=testing)
 
     model.optimize(label_matrix, cfg)
 
