@@ -30,22 +30,25 @@ class Controller:
     def run_checkpoints_base(self):
         self.task = self.get_task()
         for i in range(self.num_base_checkpoints):
-            session_status = self.api.get_session_status()
-            assert session_status['pair_stage'] == 'base'
-            print('------------------------------------------------------------')
-            print('--------------------base check point: {}'.format(i)+'---------------------')
-            print('------------------------------------------------------------')
+            self.run_one_checkpoint(i)
 
-            available_budget = self.get_available_budget()
-            unlabeled_image_names = self.task.get_unlabeled_image_names()
-            print('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
-            if i == 0:
-                candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
-            else:
-                candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
-            self.request_labels(candidates)
-            predictions = self.get_predictions(session_status['pair_stage'])
-            self.submit_predictions(predictions)
+    def run_one_checkpoint(self, checkpoint_num):
+        session_status = self.api.get_session_status()
+        assert session_status['pair_stage'] == 'base'
+        print('------------------------------------------------------------')
+        print('--------------------base check point: {}'.format(checkpoint_num)+'---------------------')
+        print('------------------------------------------------------------')
+
+        available_budget = self.get_available_budget()
+        unlabeled_image_names = self.task.get_unlabeled_image_names()
+        print('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
+        if checkpoint_num == 0:
+            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
+        else:
+            candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
+        self.request_labels(candidates)
+        predictions = self.get_predictions(session_status['pair_stage'])
+        self.submit_predictions(predictions)
 
     def run_checkpoints_adapt(self):
         self.task = self.get_task()
