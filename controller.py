@@ -12,9 +12,11 @@ import datetime
 
 
 class Controller:
-    def __init__(self, use_gpu=True, testing=False):
+    def __init__(self, use_gpu=False, testing=False):
         self.api = JPL()
-        self.task, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_task()
+        self.task = self.get_task()
+        self.num_base_checkpoints = None
+        self.num_adapt_checkpoints = None
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
         self.taglet_executor = TagletExecutor()
@@ -79,8 +81,8 @@ class Controller:
         self.api.create_session(task_name)
         task_metadata = self.api.get_task_metadata(task_name)
 
-        num_base_checkpoints = len(task_metadata['base_label_budget'])
-        num_adapt_checkpoints = len(task_metadata['adaptation_label_budget'])
+        self.num_base_checkpoints = len(task_metadata['base_label_budget'])
+        self.num_adapt_checkpoints = len(task_metadata['adaptation_label_budget'])
 
         task = Task(task_metadata)
         session_status = self.api.get_session_status()
@@ -98,7 +100,7 @@ class Controller:
             task.labeled_images = self.api.get_seed_labels()
             task.pretrained = task_metadata['base_can_use_pretrained_model']
 
-        return task, num_base_checkpoints, num_adapt_checkpoints
+        return task
 
     def get_available_budget(self):
         session_status = self.api.get_session_status()
@@ -208,7 +210,7 @@ class Controller:
 
 
 def main():
-    controller = Controller()
+    controller = Controller(testing=True)
     controller.run_checkpoints()
 
 
