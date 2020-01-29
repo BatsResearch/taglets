@@ -12,11 +12,12 @@ class Task:
     """
     A class defining a task.
     """
-    def __init__(self, metadata):
+    def __init__(self, task_name, metadata):
         """
         Create a new Task.
         :param metadata: The metadata of the Task.
         """
+        self.name = task_name
         self.description = ''
         self.problem_type = metadata['problem_type']
         self.task_id = metadata['task_id']

@@ -14,11 +14,7 @@ import datetime
 class Controller:
     def __init__(self, use_gpu=False, testing=False):
         self.api = JPL()
-        self.num_base_checkpoints = None
-        self.num_adapt_checkpoints = None
-        self.task_name = None
-        self.create_task()
-        self.task = self.get_task()
+        self.task, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_task()
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
         self.taglet_executor = TagletExecutor()
@@ -33,8 +29,7 @@ class Controller:
         self.run_checkpoints_adapt()
 
     def run_checkpoints_base(self):
-        self.task = self.get_task()
-
+        self.update_task()
         for i in range(self.num_base_checkpoints):
             self.run_one_checkpoint(i)
 
@@ -57,11 +52,9 @@ class Controller:
         self.submit_predictions(predictions)
 
     def run_checkpoints_adapt(self):
-
+        self.update_task()
         print()
         for i in range(self.num_adapt_checkpoints):
-            self.task = self.get_task()
-
             session_status = self.api.get_session_status()
             # assert session_status['pair_stage'] == 'adaptation'
             print('------------------------------------------------------------')
@@ -79,18 +72,16 @@ class Controller:
             predictions = self.get_predictions(session_status['pair_stage'])
             self.submit_predictions(predictions)
 
-    def create_task(self):
+    def get_task(self):
         task_names = self.api.get_available_tasks()
         task_name = task_names[0]  # Image classification task
         self.api.create_session(task_name)
-        self.task_name = task_name
+        task_metadata = self.api.get_task_metadata(task_name)
 
-    def get_task(self):
-        task_metadata = self.api.get_task_metadata(self.task_name)
-        self.num_base_checkpoints = len(task_metadata['base_label_budget'])
-        self.num_adapt_checkpoints = len(task_metadata['adaptation_label_budget'])
+        num_base_checkpoints = len(task_metadata['base_label_budget'])
+        num_adapt_checkpoints = len(task_metadata['adaptation_label_budget'])
 
-        task = Task(task_metadata)
+        task = Task(task_name, task_metadata)
         session_status = self.api.get_session_status()
         current_dataset = session_status['current_dataset']
         task.classes = current_dataset['classes']
@@ -105,8 +96,24 @@ class Controller:
         elif session_status['pair_stage'] == 'base':
             task.labeled_images = self.api.get_seed_labels()
             task.pretrained = task_metadata['base_can_use_pretrained_model']
+        return task, num_base_checkpoints, num_adapt_checkpoints
 
-        return task
+    def update_task(self):
+        task_metadata = self.api.get_task_metadata(self.task.name)
+        session_status = self.api.get_session_status()
+        current_dataset = session_status['current_dataset']
+        self.task.classes = current_dataset['classes']
+        self.task.number_of_channels = current_dataset['number_of_channels']
+
+        self.task.unlabeled_image_path = "./sql_data/MNIST/train"
+        self.task.evaluation_image_path = "./sql_data/MNIST/test"  # Should be updated later
+        self.task.phase = session_status['pair_stage']
+        if session_status['pair_stage'] == 'adaptation':
+            self.task.labeled_images = []
+            self.task.pretrained = task_metadata['adaptation_can_use_pretrained_model']
+        elif session_status['pair_stage'] == 'base':
+            self.task.labeled_images = self.api.get_seed_labels()
+            self.task.pretrained = task_metadata['base_can_use_pretrained_model']
 
     def get_available_budget(self):
         session_status = self.api.get_session_status()
@@ -216,7 +223,7 @@ class Controller:
 
 
 def main():
-    controller = Controller(testing=True)
+    controller = Controller(use_gpu=False, testing=True)
     controller.run_checkpoints()
 
 
