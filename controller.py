@@ -160,8 +160,7 @@ class Controller:
         """train taglets, label model, and endmodel, and return prediction
         :param phase: 'base' or 'adapt'
         """
-        train_data_loader, val_data_loader,  train_image_names, train_image_labels=\
-            self.task.load_labeled_data(
+        train_data_loader, val_data_loader,  train_image_names, train_image_labels = self.task.load_labeled_data(
             self.batch_size,
             self.num_workers)
 
