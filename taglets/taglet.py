@@ -243,6 +243,7 @@ class FineTuneTaglet(Taglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'finetune'
+        self.num_epochs = 5
         self.save_dir = os.path.join('trained_models', task.phase, str(task.task_id), self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
@@ -283,6 +284,7 @@ class PrototypeTaglet(Taglet):
         self.few_shot_support = few_shot_support
         self.model = custom_models.ConvEncoder()
         self.classifier = custom_models.Linear()
+        self.num_epochs = 3
         self.save_dir = os.path.join('trained_models', task.phase ,str(task.task_id), self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
@@ -441,7 +443,6 @@ class PrototypeTaglet(Taglet):
             running_acc += torch.sum(preds == labels)
             # if batch_idx >= 2:
             #     break
-
         epoch_loss = running_loss / len(val_data_loader.dataset)
         epoch_acc = running_acc.item() / len(val_data_loader.dataset)
         return epoch_loss, epoch_acc

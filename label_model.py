@@ -167,13 +167,17 @@ class ClassConditionalLM(nn.Module):
             lr=lr,
             momentum=momentum,
             weight_decay=0)
-        # if step_schedule is not None and step_size_mult is not None:
-        #     scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        #         optimizer, step_schedule, gamma=step_size_mult)
-        # else:
-        #     scheduler = None
 
-        scheduler = None
+        if step_schedule is not None and step_size_mult is not None:
+            LR_milestones = list(
+                filter(
+                    lambda a: a > 0,
+                    [i if (i % step_schedule == 0) else -1 for i in range(epochs)]
+                ))
+            scheduler = torch.optim.lr_scheduler.MultiStepLR(
+                optimizer, LR_milestones, gamma=0.1)
+        else:
+            scheduler = None
 
         # for epoch in range(epochs):
         for epoch in range(2):
@@ -194,7 +198,7 @@ class ClassConditionalLM(nn.Module):
                 loss.backward()
                 optimizer.step()
                 running_loss += loss
-            epoch_loss = running_loss / len(batches)
+            #epoch_loss = running_loss / len(batches)
             # print('Train Loss: %.6f', epoch_loss)
 
         self.trained = True
@@ -318,7 +322,7 @@ class ClassConditionalLM(nn.Module):
 
 def get_label_distribution(label_matrix, num_classes):
     cfg = {'lr': 0.01,
-           'epoch': 10,
+           'epoch': 8,
            'seed': 0,
            'batch_size': 64,
            'momentum': 0.9,

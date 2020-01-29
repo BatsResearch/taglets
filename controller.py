@@ -72,6 +72,7 @@ class Controller:
     def get_task(self):
         task_names = self.api.get_available_tasks()
         task_name = task_names[1]  # Image classification task
+        task_name = task_names[0]  # FIXME: MODIFIED
         self.api.create_session(task_name)
         task_metadata = self.api.get_task_metadata(task_name)
 
@@ -195,8 +196,10 @@ class Controller:
 
 
     def submit_predictions(self, predictions):
-        self.api.submit_prediction(predictions)
+        submit_status = self.api.submit_prediction(predictions)
+        #print(submit_status)
         session_status = self.api.get_session_status()
+        #print(session_status)
         print("Checkpoint scores", session_status['checkpoint_scores'])
         print("Phase:", session_status['pair_stage'])
 

@@ -63,7 +63,7 @@ class JPL:
         labels = r.json()['Labels']
         seed_labels = []
         for image in labels:
-            seed_labels.append([image["id"], image["label"]])
+            seed_labels.append([image["id"], image["class"]])
         return seed_labels
 
     def request_label(self, query):
@@ -99,7 +99,6 @@ class JPL:
         :return: The session status after submitting prediction
         """
 
-        print(predictions)
         headers = {'user_secret': self.secret, 'session_token': self.session_token}
         r = requests.post(self.url + "/submit_predictions", json={'predictions': predictions}, headers=headers)
         return r.json()
