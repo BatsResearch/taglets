@@ -6,7 +6,7 @@ def create_scads():
     Create the SCADS and add datasets to the database.
     :return: None
     """
-    add_conceptnet()
+    # add_conceptnet()
     add_datasets()
 
 
@@ -29,7 +29,7 @@ def scads_example():
 
 def main():
     create_scads()
-    scads_example()
+    # scads_example()
 
 
 if __name__ == "__main__":

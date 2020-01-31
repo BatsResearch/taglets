@@ -38,6 +38,9 @@ class ScadsNode:
         """
         edges = []
         node_key = self.node.key
-        for edge in self.session.query(Edge).filter(Edge.start_node_key == node_key):
+        node_name = self.node.name
+        name = node_name.split('/')[-1][1:-2]
+        print(name)
+        for edge in self.session.query(Edge).filter(Edge.start_node_key.like('%'+name+'%')):
             edges.append(ScadsEdge(self, ScadsNode(edge.end_node, self.session), edge.relation.name))
         return edges

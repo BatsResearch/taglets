@@ -1,3 +1,9 @@
+Steve:
+- sudo on grid has error
+- test on GPU google cloud
+
+
+
 - test on GPU google cloud
 - complete readme file
 - logging
@@ -7,6 +13,7 @@
 - (Elaheh) pretrain + fine tune (use scads)
 - change the name of workflow.py
 - move label_model.y to the same dir as endmodel?
+- shell setting
 
 --tests:
 

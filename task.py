@@ -6,6 +6,12 @@ from custom_dataset import CustomDataSet
 from torch.utils import data
 from operator import itemgetter
 from pathlib import Path
+from scads import Scads
+from scads.create.scads_classes import Node, LabelMap, Dataset, Image, Edge
+from scads.interface.scads_node import ScadsNode
+from sqlalchemy import func
+from sqlalchemy import and_, or_
+
 
 
 class Task:
@@ -29,6 +35,7 @@ class Task:
         self.train_data_loader = None
         self.phase = None # base or adaptation
         self.pretrained = None # can load from pretrained models on ImageNet
+        self.dataset_name = None
 
 
     def add_labeled_images(self, new_labeled_images):
@@ -102,8 +109,8 @@ class Task:
         train_image_names = list(map(image_names.__getitem__, train_idx))
         train_image_labels = list(map(image_labels.__getitem__, train_idx))
 
-        val_image_names = list(map(image_names.__getitem__, valid_idx))
-        val_image_labels = list(map(image_labels.__getitem__, valid_idx))
+        # val_image_names = list(map(image_names.__getitem__, valid_idx))
+        # val_image_labels = list(map(image_labels.__getitem__, valid_idx))
 
 
 
@@ -145,3 +152,86 @@ class Task:
             if img not in labeled_image_names:
                 unlabeled_images_names.append(img)
         return unlabeled_images_names
+
+    def get_related_concepts(self):
+        """find related concepts to the target concepts"""
+        Scads.open()  # Start the session
+        target_neighbours_dict = {}
+        for concept in self.classes:
+            print('---------------------')
+            print(concept)
+            dataset_key = Scads.session.query(Dataset.key).filter(func.lower(Dataset.name) == func.lower(self.dataset_name)).first()
+            print(self.dataset_name)
+            dataset_key = dataset_key[0]
+            sql_label_map = Scads.session.query(LabelMap).filter(and_(LabelMap.label == concept, LabelMap.dataset_key == dataset_key)).first()
+            node_key = sql_label_map.node_key
+
+            sql_node = Scads.session.query(Node).filter(Node.key == node_key).first()
+            scads_node = ScadsNode(sql_node, Scads.session)
+            # sql_image = Scads.session.query(Image).filter(Image.node_key == node_key)
+            # print(sql_image.count())
+            print(scads_node.node.name)
+            name = scads_node.node.name.split('/')[-1][1:-2]
+            print(name)
+
+            incoming_edges = Scads.session.query(Edge).filter(Edge.end_node_key.like('%' + name + '%'))
+            print('***edges**')
+            for edge in incoming_edges:
+                start_node_wnid = edge.start_node_key
+                print(start_node_wnid)
+                neighbours = Scads.session.query(Node).filter(Node.name.like('%'+str(start_node_wnid)+'%')).first()
+                if neighbours != None:
+                    node_key = neighbours.key
+                    print('node key:'+str(node_key))
+                    locations = []
+                    sql_image_locations = Scads.session.query(Image.location).filter(Image.node_key == node_key)
+                    for loc in sql_image_locations:
+                        locations.append(loc)
+                        print(loc)
+
+                    target_neighbours_dict[start_node_wnid] = locations
+                    print(target_neighbours_dict)
+
+            # outgoing_edges = Scads.session.query(Edge).filter(Edge.start_node_key.like('%' + name + '%'))
+            # print('***edges**')
+            # for edge in outgoing_edges:
+            #     end_node_wnid = edge.end_node_key
+            #     print(end_node_wnid)
+            #     neighbours = Scads.session.query(Node).filter(Node.name.like('%'+str(end_node_wnid)+'%')).first()
+            #     if neighbours != None:
+            #         node_key = neighbours.key
+            #         print('node key:'+str(node_key))
+            #         locations = []
+            #         sql_image_locations = Scads.session.query(Image.location).filter(Image.node_key == node_key)
+            #         for loc in sql_image_locations:
+            #             locations.append(loc)
+            #             print(loc)
+            #
+            #         target_neighbours_dict[end_node_wnid] = locations
+            #         print(target_neighbours_dict)
+
+
+
+
+
+                #
+                # end_node_name = end_node.name
+                # print('end_node_name: '+end_node_name)
+                # print('end_node.key: '+str(end_node.key))
+                # # name = end_node_name.split('/')[-1][1:-2]
+                # # print(name)
+                # # node = ScadsNode(sql_node, Scads.session)
+                # locations = []
+                # sql_image_locations = Scads.session.query(Image.location).filter(Image.node_key == end_node.key)
+                # for loc in sql_image_locations:
+                #     locations.append(loc)
+                #     print(loc)
+                #
+                # target_neighbours_dict[end_node_name] = locations
+                # print(target_neighbours_dict)
+
+        # print(target_neighbours_dict)
+        # return ScadsNode(sql_node, Scads.session)
+
+
+        Scads.close()  # Close the session

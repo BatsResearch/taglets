@@ -19,6 +19,7 @@ class Controller:
         self.confidence_active_learning = LeastConfidenceActiveLearning()
         self.taglet_executor = TagletExecutor()
         self.end_model = EndModel(self.task)
+        # self.task.get_related_concepts()
         self.batch_size = 32
         self.num_workers = 2
         self.use_gpu = use_gpu
@@ -86,9 +87,13 @@ class Controller:
         current_dataset = session_status['current_dataset']
         task.classes = current_dataset['classes']
         task.number_of_channels = current_dataset['number_of_channels']
+        task.dataset_name = current_dataset['name']
 
-        task.unlabeled_image_path = "./sql_data/MNIST/train"
-        task.evaluation_image_path = "./sql_data/MNIST/test"  # Should be updated later
+        task.unlabeled_image_path = "/data/bats/datasets/lwll/lwll_datasets/mnist/mnist_sample/train"
+        task.evaluation_image_path = "/data/bats/datasets/lwll/lwll_datasets/mnist/mnist_sample/test"  # Should be updated later
+
+        # task.unlabeled_image_path = "./sql_data/MNIST/train"
+        # task.evaluation_image_path = "./sql_data/MNIST/test"  # Should be updated later
         task.phase = session_status['pair_stage']
         if session_status['pair_stage'] == 'adaptation':
             task.labeled_images = []
@@ -104,9 +109,13 @@ class Controller:
         current_dataset = session_status['current_dataset']
         self.task.classes = current_dataset['classes']
         self.task.number_of_channels = current_dataset['number_of_channels']
+        self.task.dataset_name = current_dataset['name']
 
-        self.task.unlabeled_image_path = "./sql_data/MNIST/train"
-        self.task.evaluation_image_path = "./sql_data/MNIST/test"  # Should be updated later
+        self.task.unlabeled_image_path = "/data/bats/datasets/lwll/lwll_datasets/mnist/mnist_sample/train"
+        self.task.evaluation_image_path = "/data/bats/datasets/lwll/lwll_datasets/mnist/mnist_sample/test"  # Should be updated later
+
+        # self.task.unlabeled_image_path = "./sql_data/MNIST/train"
+        # self.task.evaluation_image_path = "./sql_data/MNIST/test"  # Should be updated later
         self.task.phase = session_status['pair_stage']
         if session_status['pair_stage'] == 'adaptation':
             self.task.labeled_images = []
@@ -222,7 +231,8 @@ class Controller:
 
 
 def main():
-    controller = Controller(use_gpu=False, testing=True)
+    controller = Controller(use_gpu=True, testing=False)
+    # controller = Controller(use_gpu=False, testing=True)
     controller.run_checkpoints()
 
 
