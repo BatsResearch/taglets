@@ -148,26 +148,15 @@ class Controller:
             self.batch_size,
             self.num_workers)
 
-        train_data_loader_transfer, val_data_loader_transfer, train_image_names_transfer, train_image_labels_transfer \
-            = self.task.get_scads_data(self.batch_size, self.num_workers)
-
         unlabeled_data_loader, unlabeled_image_names = self.task.load_unlabeled_data(self.batch_size,
                                                                                      self.num_workers)
 
         fine_tune_module = FineTuneModule(task=self.task)
-        transfer_module = TransferModule(task=self.task)
-        modules = [fine_tune_module, transfer_module]
+        modules = [fine_tune_module]
 
         print("**********Training taglets on labeled data**********")
         t1 = datetime.datetime.now()
         fine_tune_module.train_taglets(train_data_loader, val_data_loader, self.use_gpu, self.testing)
-        t2 = datetime.datetime.now()
-        print()
-        print(".....Taglet training time: {}".format((t2 - t1).seconds))
-
-        print("**********Training transfer taglet on labeled data**********")
-        t1 = datetime.datetime.now()
-        transfer_module.train_taglets(train_data_loader_transfer, val_data_loader_transfer, self.use_gpu, self.testing)
         t2 = datetime.datetime.now()
         print()
         print(".....Taglet training time: {}".format((t2 - t1).seconds))
