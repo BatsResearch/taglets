@@ -1,5 +1,5 @@
 from JPL_interface import JPL
-from modules.module import TransferModule
+from modules.module import FineTuneModule, TransferModule
 from modules.active_learning import RandomActiveLearning, LeastConfidenceActiveLearning
 from taglets.taglet_executer import TagletExecutor
 from task import Task
@@ -31,13 +31,18 @@ class Controller:
     def run_checkpoints_base(self):
         self.update_task()
         for i in range(self.num_base_checkpoints):
-            self.run_one_checkpoint(i)
+            self.run_one_checkpoint("Base", i)
 
-    def run_one_checkpoint(self, checkpoint_num):
+    def run_checkpoints_adapt(self):
+        self.update_task()
+        for i in range(self.num_base_checkpoints):
+            self.run_one_checkpoint("Adapt", i)
+
+    def run_one_checkpoint(self, phase, checkpoint_num):
         session_status = self.api.get_session_status()
         assert session_status['pair_stage'] == 'base'
         print('------------------------------------------------------------')
-        print('--------------------base check point: {}'.format(checkpoint_num)+'---------------------')
+        print('--------------------{} Checkpoint: {}'.format(phase, checkpoint_num)+'---------------------')
         print('------------------------------------------------------------')
 
         available_budget = self.get_available_budget()
@@ -50,27 +55,6 @@ class Controller:
         self.request_labels(candidates)
         predictions = self.get_predictions(session_status['pair_stage'])
         self.submit_predictions(predictions)
-
-    def run_checkpoints_adapt(self):
-        self.update_task()
-        print()
-        for i in range(self.num_adapt_checkpoints):
-            session_status = self.api.get_session_status()
-            # assert session_status['pair_stage'] == 'adaptation'
-            print('------------------------------------------------------------')
-            print('--------------------Adapt check point: {}'.format(i)+'---------------------')
-            print('------------------------------------------------------------')
-
-            available_budget = self.get_available_budget()
-            unlabeled_image_names = self.task.get_unlabeled_image_names()
-            print('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
-            if i == 0:
-                candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
-            else:
-                candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
-            self.request_labels(candidates)
-            predictions = self.get_predictions(session_status['pair_stage'])
-            self.submit_predictions(predictions)
 
     def get_task(self):
         task_names = self.api.get_available_tasks()
@@ -164,19 +148,33 @@ class Controller:
             self.batch_size,
             self.num_workers)
 
+        train_data_loader_transfer, val_data_loader_transfer, train_image_names_transfer, train_image_labels_transfer \
+            = self.task.get_scads_data(self.batch_size, self.num_workers)
+
         unlabeled_data_loader, unlabeled_image_names = self.task.load_unlabeled_data(self.batch_size,
                                                                                      self.num_workers)
 
-        mnist_module = TransferModule(task=self.task)
+        fine_tune_module = FineTuneModule(task=self.task)
+        transfer_module = TransferModule(task=self.task)
+        modules = [fine_tune_module, transfer_module]
 
         print("**********Training taglets on labeled data**********")
         t1 = datetime.datetime.now()
-        mnist_module.train_taglets(train_data_loader, val_data_loader, self.use_gpu, phase, self.testing)
+        fine_tune_module.train_taglets(train_data_loader, val_data_loader, self.use_gpu, self.testing)
         t2 = datetime.datetime.now()
         print()
         print(".....Taglet training time: {}".format((t2 - t1).seconds))
 
-        taglets = mnist_module.get_taglets()
+        print("**********Training transfer taglet on labeled data**********")
+        t1 = datetime.datetime.now()
+        transfer_module.train_taglets(train_data_loader_transfer, val_data_loader_transfer, self.use_gpu, self.testing)
+        t2 = datetime.datetime.now()
+        print()
+        print(".....Taglet training time: {}".format((t2 - t1).seconds))
+
+        taglets = []
+        for module in modules:
+            taglets.extend(module.get_taglets())
         self.taglet_executor.set_taglets(taglets)
 
         print("**********Executing taglets on unlabled data**********")

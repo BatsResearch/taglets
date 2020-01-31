@@ -95,6 +95,9 @@ class Trainable:
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels)
 
+        if not len(train_data_loader.dataset):
+            return 0, 0
+
         epoch_loss = running_loss / len(train_data_loader.dataset)
         epoch_acc = running_acc.item() / len(train_data_loader.dataset)
 
@@ -488,3 +491,44 @@ class PrototypeTaglet(Taglet):
                 break
         return predicted_labels
 
+
+class TransferTaglet(Taglet):
+    def __init__(self, task):
+        super().__init__(task)
+        self.name = 'transfer'
+        self.num_epochs = 5
+        to_load_dir = os.path.join('trained_models', "base", str(task.task_id), self.name)
+        self.save_dir = os.path.join('trained_models', task.phase, str(task.task_id), self.name)
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+        if task.phase == 'adaptation':  # in adaptation model, load from model trained on base phase
+            self.model.load_state_dict(torch.load(to_load_dir + '/model.pth.tar'))
+            self.log('^^^^^^^^^ adaptation: loading from base')
+
+    def execute(self, unlabeled_data_loader, use_gpu, testing):
+        """
+        Execute the Taglet on unlabeled images.
+        :param unlabeled_data_loader: A dataloader containing unlabeled data
+        :param use_gpu: Whether or not the use the GPU
+        :return: A list of predicted labels
+        """
+        self.model.eval()
+        if use_gpu:
+            self.model = self.model.cuda()
+        else:
+            self.model = self.model.cpu()
+
+        predicted_labels = []
+        for inputs, index in unlabeled_data_loader:
+            if use_gpu:
+                inputs = inputs.cuda()
+                index = index.cuda()
+            with torch.set_grad_enabled(False):
+                for data, ix in zip(inputs, index):
+                    data = torch.unsqueeze(data, dim=0)
+                    outputs = self.model(data)
+                    _, preds = torch.max(outputs, 1)
+                    predicted_labels.append(preds.item())
+            if testing:
+                break
+        return predicted_labels

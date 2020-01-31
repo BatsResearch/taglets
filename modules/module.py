@@ -13,7 +13,7 @@ class Module:
         self.task = task
         self.taglets = []   # List of taglets must be defined in subclasses
 
-    def train_taglets(self, train_data_loader, val_data_loader, use_gpu, phase, testing):
+    def train_taglets(self, train_data_loader, val_data_loader, use_gpu, testing):
         """
         Train the Module's taglets.
         :param train_data_loader: A data loader for training data
@@ -33,10 +33,16 @@ class Module:
         return self.taglets
 
 
-class TransferModule(Module):
+class FineTuneModule(Module):
     """
     A module used for transfer learning. Used when there is enough labeled data for fine tuning.
     """
     def __init__(self, task):
         super().__init__(task)
         self.taglets = [PrototypeTaglet(task), PrototypeTaglet(task), FineTuneTaglet(task)]
+
+
+class TransferModule(Module):
+    def __init__(self, task):
+        super().__init__(task)
+        self.taglets = [TransferTaglet(task)]

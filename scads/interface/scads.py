@@ -15,6 +15,7 @@ class Scads:
     A class providing connection to Structured Collections of Annotated Data Sets (SCADS).
     """
     session = None
+    label_to_concept = {}   # TODO: Complete this
 
     @staticmethod
     def open():
