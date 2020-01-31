@@ -1,12 +1,12 @@
 from JPL_interface import JPL
-from modules.module import FineTuneModule, TransferModule
-from modules.active_learning import RandomActiveLearning, LeastConfidenceActiveLearning
-from taglets.taglet_executer import TagletExecutor
+from modules import FineTuneModule
+from modules import RandomActiveLearning, LeastConfidenceActiveLearning
+from pipeline import TagletExecutor
 from task import Task
 from label_model import get_label_distribution
-from custom_dataset import CustomDataSet, SoftLabelDataSet
+from custom_dataset import SoftLabelDataSet
 import torch
-from taglets.end_model import EndModel
+from pipeline import EndModel
 import numpy as np
 import datetime
 

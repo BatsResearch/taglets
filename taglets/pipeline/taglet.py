@@ -1,11 +1,10 @@
-import torch
 import numpy as np
 import random
 import copy
 import torchvision.models as models
 import os
 import torch
-from models import custom_models
+from models import MnistResNet, Linear, ConvEncoder
 import matplotlib.pyplot as plt
 
 
@@ -29,7 +28,7 @@ class Trainable:
         self.save_dir = None
 
         if task.number_of_channels == 1:
-            self.model = custom_models.MnistResNet()
+            self.model = MnistResNet()
         else:
             self.model = models.resnet18(pretrained=self.pretrained)
 
@@ -293,8 +292,8 @@ class PrototypeTaglet(Taglet):
         super().__init__(task)
         self.name = 'prototype'
         self.few_shot_support = few_shot_support
-        self.model = custom_models.ConvEncoder()
-        self.classifier = custom_models.Linear()
+        self.model = ConvEncoder()
+        self.classifier = Linear()
         self.num_epochs = 3
         to_load_dir = os.path.join('trained_models', "base", str(task.task_id), self.name)
         self.save_dir = os.path.join('trained_models', task.phase, str(task.task_id), self.name)

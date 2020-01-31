@@ -3,7 +3,7 @@ import os
 import torch
 import pandas as pd
 from PIL import Image
-from taglets.taglet import Trainable
+from pipeline import Trainable
 
 
 class EndModel(Trainable):

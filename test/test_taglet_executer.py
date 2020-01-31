@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
-from modules.module import TransferModule
-from controller import Controller
+from taglets.modules.module import TransferModule
+from taglets.controller import Controller
 from taglets.taglet_executer import TagletExecutor
 
 

@@ -1,5 +1,5 @@
-from scads.create.scads_classes import Edge, LabelMap
-from scads.interface.scads_edge import ScadsEdge
+from ..create.scads_classes import Edge, LabelMap
+from .scads_edge import ScadsEdge
 
 
 class ScadsNode:

@@ -5,8 +5,6 @@ import torchvision.transforms as transforms
 from custom_dataset import CustomDataSet
 from torch.utils import data
 from scads import Scads
-from operator import itemgetter
-from pathlib import Path
 
 
 class Task:

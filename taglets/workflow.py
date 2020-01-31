@@ -1,4 +1,4 @@
-from scads import Scads, add_conceptnet, add_datasets
+from .scads import add_datasets, add_conceptnet, Scads
 
 
 def create_scads():

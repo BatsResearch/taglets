@@ -130,9 +130,10 @@ dmypy.json
 .idea
 
 # Data
-/sql_data
+/taglets/sql_data
 .DS_Store
 
 # Saved models
 /trained_models
+/taglets/trained_models
 /test/trained_models/*

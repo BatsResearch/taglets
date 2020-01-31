@@ -1,5 +1,5 @@
 import unittest
-from controller import Controller
+from taglets.controller import Controller
 
 
 class TestController(unittest.TestCase):

@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from modules.active_learning import LeastConfidenceActiveLearning, RandomActiveLearning
+from taglets.modules.active_learning import LeastConfidenceActiveLearning, RandomActiveLearning
 
 
 class TestRandomActiveLearning(unittest.TestCase):

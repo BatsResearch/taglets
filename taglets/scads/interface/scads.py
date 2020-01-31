@@ -2,8 +2,8 @@ import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from scads.create.scads_classes import Node
-from scads.interface.scads_node import ScadsNode
+from ..create import Node
+from .scads_node import ScadsNode
 
 Base = declarative_base()
 engine = sa.create_engine('sqlite:///sql_data/scads_db.db')

@@ -1,4 +1,4 @@
-from taglets.taglet import *
+from pipeline import PrototypeTaglet, FineTuneTaglet, TransferTaglet
 
 
 class Module:
