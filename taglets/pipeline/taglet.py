@@ -386,22 +386,23 @@ class PrototypeTaglet(Taglet):
 
         self.prototypes = {}
         for data in train_data_loader:
-            image, label = data[0], data[1]
-            # Memorize
-            if use_gpu:
-                image = image.cuda()
-                label = label.cuda()
+            with torch.set_grad_enabled(False):
+                image, label = data[0], data[1]
+                # Memorize
+                if use_gpu:
+                    image = image.cuda()
+                    label = label.cuda()
 
-            for img, lbl in zip(image, label):
-                proto = self.model(torch.unsqueeze(img, dim=0))
-                lbl = int(lbl.item())
-                try:
-                    # 1-shot only no thoughts
-                    self.prototypes[lbl].append(proto)
-                except:
-                    self.prototypes[lbl] = [proto]
-                if testing:
-                    break
+                for img, lbl in zip(image, label):
+                    proto = self.model(torch.unsqueeze(img, dim=0))
+                    lbl = int(lbl.item())
+                    try:
+                        # 1-shot only no thoughts
+                        self.prototypes[lbl].append(proto)
+                    except:
+                        self.prototypes[lbl] = [proto]
+                    if testing:
+                        break
 
     def _train_epoch(self, train_data_loader, use_gpu, testing):
         """
