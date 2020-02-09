@@ -1,6 +1,7 @@
 - installtion package
 - test on GPU google cloud
 - fine tune scads
+- memory error when loading huge data using data loader
 
 
 - logging
