@@ -1,25 +1,10 @@
-- test on GPU google cloud
-- complete readme file
-- logging
 - installtion package
-- pep8 warnings, cleaning code, add docstring
+- test on GPU google cloud
+- fine tune scads
+
+
+- logging
 - add logo
-- (Elaheh) pretrain + fine tune (use scads)
 - change the name of workflow.py
 - move label_model.y to the same dir as endmodel?
 
---tests:
-
--> end model: check the splits and combination of labeled and soft labels.
-
-
-#######(for Elaheh) Final changes for evaluation:
-- sudo on grid has error
-- user Brown Team Secret Key
-- full run for taglets, end model and label model (remove if bathc_index >=1 )
--controller: available_budget = available_budget // 10   # For testing
--controller: self.use_gpu = False
-- controller: task: base and adaptation address
- command in dataset_repo to download the post-processed dataset (https://gitlab.lollllz.com/lwll/dataset_prep)
- task.unlabeled_image_path = "./sql_data/MNIST/train"
- task.evaluation_image_path = "./sql_data/MNIST/test"  # Should be updated later
