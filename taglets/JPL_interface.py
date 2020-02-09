@@ -9,7 +9,7 @@ class JPL:
         """
         Create a new JPL object.
         """
-        self.secret = '97edc318-11de-4e48-85cb-ef515bb24093'
+        self.secret = 'a5aed2a8-db80-4b22-bf72-11f2d0765572'
         self.url = 'http://myserviceloadbalancer-679310346.us-east-1.elb.amazonaws.com'
         self.session_token = ''
         self.data_type = 'sample'   # Sample or full

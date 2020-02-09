@@ -12,8 +12,9 @@ import datetime
 
 
 class Controller:
-    def __init__(self, use_gpu=False, testing=False):
+    def __init__(self, use_gpu=False, testing=False, data_type='sample'):
         self.api = JPL()
+        self.api.data_type = data_type
         self.task, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_task()
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
@@ -71,8 +72,8 @@ class Controller:
         task.classes = current_dataset['classes']
         task.number_of_channels = current_dataset['number_of_channels']
 
-        task.unlabeled_image_path = "./sql_data/MNIST/train"
-        task.evaluation_image_path = "./sql_data/MNIST/test"  # Should be updated later
+        task.unlabeled_image_path = "./sql_data/MNIST/"+self.api.data_type+"/train"
+        task.evaluation_image_path = "./sql_data/MNIST/"+self.api.data_type+"test"  # Should be updated later
         task.phase = session_status['pair_stage']
         if session_status['pair_stage'] == 'adaptation':
             task.labeled_images = []
@@ -89,8 +90,8 @@ class Controller:
         self.task.classes = current_dataset['classes']
         self.task.number_of_channels = current_dataset['number_of_channels']
 
-        self.task.unlabeled_image_path = "./sql_data/MNIST/train"
-        self.task.evaluation_image_path = "./sql_data/MNIST/test"  # Should be updated later
+        self.task.unlabeled_image_path = "./sql_data/MNIST/"+self.api.data_type+"/train"
+        self.task.evaluation_image_path = "./sql_data/MNIST/"+self.api.data_type+"/test"  # Should be updated later
         self.task.phase = session_status['pair_stage']
         if session_status['pair_stage'] == 'adaptation':
             self.task.labeled_images = []
@@ -209,7 +210,7 @@ class Controller:
 
 
 def main():
-    controller = Controller(use_gpu=False, testing=True)
+    controller = Controller(use_gpu=False, testing=True, data_type='sample') #data_type= 'sample' or 'full'
     controller.run_checkpoints()
 
 
