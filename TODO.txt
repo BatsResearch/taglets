@@ -2,6 +2,7 @@
 - test on GPU google cloud
 - fine tune scads
 - memory error when loading huge data using data loader
+- label model from repository instead of downloading file
 
 
 - logging
