@@ -41,7 +41,6 @@ class Controller:
 
     def run_one_checkpoint(self, phase, checkpoint_num):
         session_status = self.api.get_session_status()
-        assert session_status['pair_stage'] == 'base'
         print('------------------------------------------------------------')
         print('--------------------{} Checkpoint: {}'.format(phase, checkpoint_num)+'---------------------')
         print('------------------------------------------------------------')
