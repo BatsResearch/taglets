@@ -26,12 +26,12 @@ class Scads:
         Scads.session.close()
 
     @staticmethod
-    def get_node(concept):
+    def get_node_by_conceptnet_id(conceptnet_id):
         """
         Get a ScadsNode given a concept.
         :return: The ScadsNode
         """
         if Scads.session is None:
             raise RuntimeError("Session is not opened.")
-        sql_node = Scads.session.query(Node).filter(Node.name == concept).first()
+        sql_node = Scads.session.query(Node).filter(Node.conceptnet_id == conceptnet_id).first()
         return ScadsNode(sql_node, Scads.session)

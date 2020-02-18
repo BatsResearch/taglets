@@ -1,5 +1,6 @@
-from ..create.scads_classes import Edge, LabelMap
+from ..create.scads_classes import LabelMap
 from .scads_edge import ScadsEdge
+from scads.create.scads_classes import Node
 
 
 class ScadsNode:
@@ -36,8 +37,17 @@ class ScadsNode:
         Get the neighbors of this concept with the type of relationship.
         :return: List of ScadsEdges
         """
+        # edges = []
+        # node_key = self.node.key
+        # for edge in self.session.query(Edge).filter(Edge.start_node_key == node_key):
+        #     edges.append(ScadsEdge(self, ScadsNode(edge.end_node, self.session), edge.relation.name))
+        # return edges
         edges = []
-        node_key = self.node.key
-        for edge in self.session.query(Edge).filter(Edge.start_node_key == node_key):
-            edges.append(ScadsEdge(self, ScadsNode(edge.end_node, self.session), edge.relation.name))
+        for edge in self.node.outgoing_edges:
+            sql_node = self.session.query(Node).filter(Node.id == edge.end_node).first()
+            end_node = ScadsNode(sql_node, self.session)
+            edges.append(ScadsEdge(self,
+                                   end_node,
+                                   edge.relation.type,
+                                   edge.relation.is_directed))
         return edges
