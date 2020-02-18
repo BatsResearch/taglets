@@ -1,4 +1,7 @@
 import requests
+from modules import LeastConfidenceActiveLearning
+from task import Task
+from controller import Controller
 
 
 class JPL:
@@ -102,24 +105,36 @@ class JPL:
         headers = {'user_secret': self.secret, 'session_token': self.session_token}
         r = requests.post(self.url + "/submit_predictions", json={'predictions': predictions}, headers=headers)
         return r.json()
+            
 
+class JPLRunner:
+    def __init__(self, use_gpu=False, testing=False, data_type='sample'):
+        self.api = JPL()
+        self.api.data_type = data_type
+        self.task, self.num_base_checkpoints, self.num_adapt_checkpoints = self.api.get_task()
+        self.confidence_active_learning = LeastConfidenceActiveLearning()
+        self.controller = Controller()
+        
+        self.use_gpu = use_gpu
+        self.testing = testing
+        
     def get_task(self):
         task_names = self.api.get_available_tasks()
         task_name = task_names[0]  # Image classification task
         self.api.create_session(task_name)
         task_metadata = self.api.get_task_metadata(task_name)
-
+    
         num_base_checkpoints = len(task_metadata['base_label_budget'])
         num_adapt_checkpoints = len(task_metadata['adaptation_label_budget'])
-
+    
         task = Task(task_name, task_metadata)
         session_status = self.api.get_session_status()
         current_dataset = session_status['current_dataset']
         task.classes = current_dataset['classes']
         task.number_of_channels = current_dataset['number_of_channels']
-
-        task.unlabeled_image_path = "./sql_data/MNIST/"+self.api.data_type+"/train"
-        task.evaluation_image_path = "./sql_data/MNIST/"+self.api.data_type+"test"  # Should be updated later
+    
+        task.unlabeled_image_path = "./sql_data/MNIST/" + self.api.data_type + "/train"
+        task.evaluation_image_path = "./sql_data/MNIST/" + self.api.data_type + "test"  # Should be updated later
         task.phase = session_status['pair_stage']
         if session_status['pair_stage'] == 'adaptation':
             task.labeled_images = []
@@ -135,9 +150,9 @@ class JPL:
         current_dataset = session_status['current_dataset']
         self.task.classes = current_dataset['classes']
         self.task.number_of_channels = current_dataset['number_of_channels']
-
-        self.task.unlabeled_image_path = "./sql_data/MNIST/"+self.api.data_type+"/train"
-        self.task.evaluation_image_path = "./sql_data/MNIST/"+self.api.data_type+"/test"  # Should be updated later
+    
+        self.task.unlabeled_image_path = "./sql_data/MNIST/" + self.api.data_type + "/train"
+        self.task.evaluation_image_path = "./sql_data/MNIST/" + self.api.data_type + "/test"  # Should be updated later
         self.task.phase = session_status['pair_stage']
         if session_status['pair_stage'] == 'adaptation':
             self.task.labeled_images = []
@@ -146,19 +161,20 @@ class JPL:
             self.task.labeled_images = self.api.get_seed_labels()
             self.task.pretrained = task_metadata['base_can_use_pretrained_model']
 
-
-
+    def run_checkpoints(self):
+        self.run_checkpoints_base()
+        self.run_checkpoints_adapt()
 
     def run_checkpoints_base(self):
         self.update_task()
         for i in range(self.num_base_checkpoints):
             self.run_one_checkpoint("Base", i)
-
+    
     def run_checkpoints_adapt(self):
         self.update_task()
         for i in range(self.num_base_checkpoints):
             self.run_one_checkpoint("Adapt", i)
-
+    
     def run_one_checkpoint(self, phase, checkpoint_num):
         session_status = self.api.get_session_status()
         print('------------------------------------------------------------')
@@ -173,7 +189,7 @@ class JPL:
         else:
             candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
         self.request_labels(candidates)
-        predictions = self.get_predictions(session_status['pair_stage'])
+        predictions = self.controller.get_predictions(self.task) # get EndModel?
         self.submit_predictions(predictions)
 
     def get_available_budget(self):
@@ -200,11 +216,8 @@ class JPL:
 
 def main():
     # TODO: Make CLI
-    api = JPL()
-    api.data_type = data_type #data_type= 'sample' or 'full'
-    self.task, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_task()
-    self.random_active_learning = RandomActiveLearning()
-    self.confidence_active_learning = LeastConfidenceActiveLearning()
+    runner = JPLRunner('sample')
+    runner.run_checkpoints()
 
 
 if __name__ == "__main__":
