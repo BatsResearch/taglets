@@ -1,118 +1,21 @@
-from JPL_interface import JPL
-from modules import FineTuneModule
-from modules import RandomActiveLearning, LeastConfidenceActiveLearning
-from pipeline import TagletExecutor
-from task import Task
-from label_model import get_label_distribution
-from custom_dataset import SoftLabelDataSet
+from .modules import FineTuneModule
+from .pipeline import TagletExecutor
+from .custom_dataset import SoftLabelDataSet
 import torch
-from pipeline import EndModel
+from .pipeline import EndModel
 import numpy as np
 import datetime
 
 
 class Controller:
-    def __init__(self, use_gpu=False, testing=False, data_type='sample'):
-        self.api = JPL()
-        self.api.data_type = data_type
-        self.task, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_task()
-        self.random_active_learning = RandomActiveLearning()
-        self.confidence_active_learning = LeastConfidenceActiveLearning()
+    def __init__(self, task, use_gpu=False, testing=False):
         self.taglet_executor = TagletExecutor()
-        self.end_model = EndModel(self.task)
+        self.end_model = EndModel(task)
+        self.task = task
         self.batch_size = 32
         self.num_workers = 2
         self.use_gpu = use_gpu
         self.testing = testing
-
-    def run_checkpoints(self):
-        self.run_checkpoints_base()
-        self.run_checkpoints_adapt()
-
-    def run_checkpoints_base(self):
-        self.update_task()
-        for i in range(self.num_base_checkpoints):
-            self.run_one_checkpoint("Base", i)
-
-    def run_checkpoints_adapt(self):
-        self.update_task()
-        for i in range(self.num_base_checkpoints):
-            self.run_one_checkpoint("Adapt", i)
-
-    def run_one_checkpoint(self, phase, checkpoint_num):
-        session_status = self.api.get_session_status()
-        print('------------------------------------------------------------')
-        print('--------------------{} Checkpoint: {}'.format(phase, checkpoint_num)+'---------------------')
-        print('------------------------------------------------------------')
-
-        available_budget = self.get_available_budget()
-        unlabeled_image_names = self.task.get_unlabeled_image_names()
-        print('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
-        if checkpoint_num == 0:
-            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
-        else:
-            candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
-        self.request_labels(candidates)
-        predictions = self.get_predictions(session_status['pair_stage'])
-        self.submit_predictions(predictions)
-
-    def get_task(self):
-        task_names = self.api.get_available_tasks()
-        task_name = task_names[0]  # Image classification task
-        self.api.create_session(task_name)
-        task_metadata = self.api.get_task_metadata(task_name)
-
-        num_base_checkpoints = len(task_metadata['base_label_budget'])
-        num_adapt_checkpoints = len(task_metadata['adaptation_label_budget'])
-
-        task = Task(task_name, task_metadata)
-        session_status = self.api.get_session_status()
-        current_dataset = session_status['current_dataset']
-        task.classes = current_dataset['classes']
-        task.number_of_channels = current_dataset['number_of_channels']
-
-        task.unlabeled_image_path = "./sql_data/MNIST/"+self.api.data_type+"/train"
-        task.evaluation_image_path = "./sql_data/MNIST/"+self.api.data_type+"test"  # Should be updated later
-        task.phase = session_status['pair_stage']
-        if session_status['pair_stage'] == 'adaptation':
-            task.labeled_images = []
-            task.pretrained = task_metadata['adaptation_can_use_pretrained_model']
-        elif session_status['pair_stage'] == 'base':
-            task.labeled_images = self.api.get_seed_labels()
-            task.pretrained = task_metadata['base_can_use_pretrained_model']
-        return task, num_base_checkpoints, num_adapt_checkpoints
-
-    def update_task(self):
-        task_metadata = self.api.get_task_metadata(self.task.name)
-        session_status = self.api.get_session_status()
-        current_dataset = session_status['current_dataset']
-        self.task.classes = current_dataset['classes']
-        self.task.number_of_channels = current_dataset['number_of_channels']
-
-        self.task.unlabeled_image_path = "./sql_data/MNIST/"+self.api.data_type+"/train"
-        self.task.evaluation_image_path = "./sql_data/MNIST/"+self.api.data_type+"/test"  # Should be updated later
-        self.task.phase = session_status['pair_stage']
-        if session_status['pair_stage'] == 'adaptation':
-            self.task.labeled_images = []
-            self.task.pretrained = task_metadata['adaptation_can_use_pretrained_model']
-        elif session_status['pair_stage'] == 'base':
-            self.task.labeled_images = self.api.get_seed_labels()
-            self.task.pretrained = task_metadata['base_can_use_pretrained_model']
-
-    def get_available_budget(self):
-        session_status = self.api.get_session_status()
-        available_budget = session_status['budget_left_until_checkpoint']
-
-        if self.testing:
-            available_budget = available_budget // 10
-        return available_budget
-
-    def request_labels(self, examples):
-        query = {'example_ids': examples}
-        labeled_images = self.api.request_label(query)
-        self.task.add_labeled_images(labeled_images)
-        print("New labeled images:", len(labeled_images))
-        print("Total labeled images:", len(self.task.labeled_images))
 
     def combine_soft_labels(self, unlabeled_labels, unlabeled_names, train_image_names, train_image_labels):
         def to_soft_one_hot(l):
@@ -200,18 +103,3 @@ class Controller:
                                       self.task.number_of_channels,
                                       self.task.transform_image(),
                                       self.use_gpu)
-
-    def submit_predictions(self, predictions):
-        submit_status = self.api.submit_prediction(predictions)
-        session_status = self.api.get_session_status()
-        print("Checkpoint scores", session_status['checkpoint_scores'])
-        print("Phase:", session_status['pair_stage'])
-
-
-def main():
-    controller = Controller(use_gpu=False, testing=True, data_type='sample') #data_type= 'sample' or 'full'
-    controller.run_checkpoints()
-
-
-if __name__ == "__main__":
-    main()
