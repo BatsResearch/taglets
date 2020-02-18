@@ -1,6 +1,6 @@
 import logging
 import requests
-from modules import LeastConfidenceActiveLearning
+from modules import RandomActiveLearning, LeastConfidenceActiveLearning
 from task import Task
 from controller import Controller
 
@@ -115,6 +115,7 @@ class JPLRunner:
         self.api = JPL()
         self.api.data_type = data_type
         self.task, self.num_base_checkpoints, self.num_adapt_checkpoints = self.api.get_task()
+        self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
         self.controller = Controller()
         
@@ -192,7 +193,7 @@ class JPLRunner:
         else:
             candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
         self.request_labels(candidates)
-        predictions = self.controller.get_predictions(self.task) # get EndModel?
+        predictions = self.controller.get_predictions(self.task) # will get EndModel instead of predictions
         self.submit_predictions(predictions)
 
     def get_available_budget(self):
