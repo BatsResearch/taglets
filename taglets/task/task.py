@@ -103,8 +103,6 @@ class Task:
         val_image_names = list(map(image_names.__getitem__, valid_idx))
         val_image_labels = list(map(image_labels.__getitem__, valid_idx))
 
-
-
         return train_data_loader, val_data_loader, train_image_names, train_image_labels
 
     def load_unlabeled_data(self, batch_size, num_workers):
@@ -128,6 +126,28 @@ class Task:
                                                             shuffle=False,
                                                             num_workers=num_workers)
         return unlabeled_data_loader, unlabeled_images_names
+    
+    def load_test_data(self, batch_size, num_workers):
+        """
+        Get a data loader from testing data
+        :param batch_size: The batch size
+        :param num_workers: The number of workers
+        :return: A data loader containing unlabeled data
+        """
+        transform = self.transform_image()
+
+        test_images_names = self.get_unlabeled_image_names()
+        test_data = CustomDataSet(self.evaluation_image_path,
+                                  test_images_names,
+                                  None,
+                                  transform,
+                                  self.number_of_channels)
+
+        test_data_loader = torch.utils.data.DataLoader(test_data,
+                                                       batch_size=batch_size,
+                                                       shuffle=False,
+                                                       num_workers=num_workers)
+        return test_data_loader, test_images_names
 
     def get_labeled_images_list(self):
         """get list of image names and labels"""
@@ -143,6 +163,13 @@ class Task:
             if img not in labeled_image_names:
                 unlabeled_images_names.append(img)
         return unlabeled_images_names
+    
+    def get_test_image_names(self):
+        """return list of name of test images"""
+        test_images_names = []
+        for img in os.listdir(self.evaluation_image_path):
+            test_images_names.append(img)
+        return test_images_names
 
     def get_scads_data(self, batch_size, num_workers):
         image_paths = []

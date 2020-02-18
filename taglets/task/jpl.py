@@ -114,13 +114,16 @@ class JPLRunner:
     def __init__(self, use_gpu=False, testing=False, data_type='sample'):
         self.api = JPL()
         self.api.data_type = data_type
-        self.task, self.num_base_checkpoints, self.num_adapt_checkpoints = self.api.get_task()
+        self.task, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_task()
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
-        self.controller = Controller()
+        self.controller = Controller(use_gpu=use_gpu, testing=testing)
         
         self.use_gpu = use_gpu
         self.testing = testing
+
+        self.batch_size = 32
+        self.num_workers = 2
         
     def get_task(self):
         task_names = self.api.get_available_tasks()
@@ -193,8 +196,18 @@ class JPLRunner:
         else:
             candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
         self.request_labels(candidates)
-        predictions = self.controller.get_predictions(self.task) # will get EndModel instead of predictions
+        
+        end_model = self.controller.train_end_model(self.task)
+        
+        test_data_loader = self.task.load_test_data(self.batch_size, self.num_workers)
+        predictions, _ = end_model.predict(test_data_loader, self.use_gpu)
+        
         self.submit_predictions(predictions)
+
+        unlabeled_data_loader, _ = self.task.load_unlabeled_data(self.batch_size, self.num_workers)
+        _, confidences_df = end_model.predict(unlabeled_data_loader, self.use_gpu)
+        candidates = np.argsort(confidences_df['confidence'])
+        self.confidence_active_learning.set_candidates(candidates)
 
     def get_available_budget(self):
         session_status = self.api.get_session_status()

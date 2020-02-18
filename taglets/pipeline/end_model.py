@@ -56,44 +56,34 @@ class EndModel(Trainable):
 
         return epoch_loss, epoch_acc
 
-    def predict(self, evaluation_image_path, number_of_channels, transform, use_gpu):
+    def predict(self, data_loader, use_gpu):
         """
         predict on test data.
-        :param evaluation_image_path: path to the evaluation data
+        :param data_loader: A dataloader containing images
         :param use_gpu: Whether or not to use the GPU
         :return: predictions
         """
 
-        predictons = []
+        predicted_labels = []
+        confidences = []
         test_imgs = []
         self.model.eval()
 
-        for image in os.listdir(evaluation_image_path):
-            test_imgs.append(image)
-            img = os.path.join(evaluation_image_path, image)
-            img = Image.open(img)
-            if number_of_channels == 3:
-                img = img.convert('RGB')
-
-            if transform is not None:
-                img = transform(img)
-
+        for inputs, _ in data_loader:
             if use_gpu:
-                img = img.cuda()
+                inputs = inputs.cuda()
 
             with torch.set_grad_enabled(False):
-                img = torch.unsqueeze(img, dim=0)
-                outputs = self.model(img)
-                _, preds = torch.max(outputs, 1)
-                predictons.append(str(preds.item()))
+                for data in inputs:
+                    data = torch.unsqueeze(data, dim=0)
+                    outputs = self.model(data)
+                    _, preds = torch.max(outputs, 1)
+                    predicted_labels.append(str(preds.item()))
+                    confidences.append(torch.max(torch.nn.functional.softmax(outputs)).item())
 
-        assert len(predictons) == len(test_imgs)
+        assert len(predicted_labels) == len(test_imgs)
 
-        #df_content = [test_imgs, predictons]
-        df = pd.DataFrame(columns=['id', 'class'])
-        df['class'] = predictons
-        df['id'] = test_imgs
-        # For debugging, above lines should be equivalent to the one below
-        #df = pd.DataFrame({'id': test_imgs, 'class': predictons})
-
-        return df.to_dict()
+        pred_df = pd.DataFrame({'id': test_imgs, 'class': predicted_labels})
+        prbs_df = pd.DataFrame({'id': test_imgs, 'confidence': confidences})
+        
+        return pred_df.to_dict(), prbs_df.to_dict()
