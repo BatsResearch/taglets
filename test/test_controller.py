@@ -1,45 +1,38 @@
-import unittest
+#from .util import check_test_data
 from taglets.controller import Controller
+from taglets.task import Task
+import unittest
+
+import io
+import os
+import requests
+import zipfile
+
+
+def check_test_data():
+    if not os.path.isdir("mnist_sample"):
+        r = requests.get("http://cs.brown.edu/people/sbach/mnist_sample.zip")
+        z = zipfile.ZipFile(io.BytesIO(r.content))
+        z.extractall()
 
 
 class TestController(unittest.TestCase):
-    def setUp(self):
-        self.controller = Controller(use_gpu=False, testing=True)
-        self.controller.task.unlabeled_image_path = "../sql_data/MNIST/train"
-        self.controller.task.evaluation_image_path = "../sql_data/MNIST/test"
+    @classmethod
+    def setUpClass(cls):
+        check_test_data()
 
-    def test_labeled_increasing(self):
-        '''
-        Tests that the number of labeled data points is increasing at each checkpoint.
-        '''
-        current = len(self.controller.task.labeled_images)
-        for i in range(self.controller.num_base_checkpoints):
-            self.controller.run_one_checkpoint(i)
-            new = len(self.controller.task.labeled_images)
-            self.assertTrue(new > current, "Number of labeled data points is not increasing.")
-            current = new
+    def test_mnist(self):
+        # Creates task
+        task = Task("mnist")
+        task.classes = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+        task.unlabeled_image_path = "mnist_sample/train"
+        task.evaluation_image_path = "mnist_sample/test"
+        task.number_of_channels = 1
 
-    def test_unlabeled_decreasing(self):
-        '''
-        Tests that the number of unlabeled data points is decreasing at each checkpoint.
-        '''
-        current = len(self.controller.task.get_unlabeled_image_names())
-        for i in range(self.controller.num_base_checkpoints):
-            self.controller.run_one_checkpoint(i)
-            new = len(self.controller.task.get_unlabeled_image_names())
-            self.assertTrue(new < current, "Number of unlabeled data points is not decreasing.")
-            current = new
 
-    def test_constant_total(self):
-        '''
-        Tests that the total number of data points (labeled and unlabeled) is constant at each checkpoint.
-        :return:
-        '''
-        current = len(self.controller.task.labeled_images) + len(self.controller.task.get_unlabeled_image_names())
-        for i in range(self.controller.num_base_checkpoints):
-            self.controller.run_one_checkpoint(i)
-            new = len(self.controller.task.labeled_images) + len(self.controller.task.get_unlabeled_image_names())
-            self.assertTrue(new == current, "Number of unlabeled data points is not decreasing.")
+        # Executes task
+        controller = Controller(use_gpu=False)
+        end_model = controller.train_end_model(task)
 
 
 if __name__ == "__main__":

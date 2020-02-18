@@ -11,14 +11,13 @@ log = logging.getLogger(__name__)
 
 
 class Controller:
-    def __init__(self, use_gpu=False, testing=False):
+    def __init__(self, use_gpu=False):
         self.task = None
         self.end_model = None
         self.taglet_executor = None
         self.batch_size = 32
         self.num_workers = 2
         self.use_gpu = use_gpu
-        self.testing = testing
 
     def train_end_model(self, task):
         """

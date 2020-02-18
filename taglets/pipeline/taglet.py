@@ -4,7 +4,7 @@ import copy
 import torchvision.models as models
 import os
 import torch
-from models import MnistResNet, Linear, ConvEncoder
+from ..models import MnistResNet, Linear, ConvEncoder
 import matplotlib.pyplot as plt
 
 

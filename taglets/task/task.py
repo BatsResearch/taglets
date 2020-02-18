@@ -2,31 +2,29 @@ import numpy as np
 import os
 import torch
 import torchvision.transforms as transforms
-from custom_dataset import CustomDataSet
+from ..custom_dataset import CustomDataSet
 from torch.utils import data
-from scads import Scads
+# TODO: fix import
+# from ..scads import Scads
 
 
 class Task:
     """
     A class defining a task.
     """
-    def __init__(self, task_name, metadata):
+    def __init__(self, task_name):
         """
-        Create a new Task.
-        :param metadata: The metadata of the Task.
+        Create a new Task
+        :param task_name: a human-readable name for this task
         """
         self.name = task_name
         self.description = ''
-        self.problem_type = metadata['problem_type']
-        self.task_id = metadata['task_id']
         self.classes = []
         self.evaluation_image_path = "path to test images"
         self.unlabeled_image_path = "path to unlabeled images"
         self.labeled_images = []    # A list of tuples with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
         self.number_of_channels = None
         self.train_data_loader = None
-        self.phase = None # base or adaptation
         self.pretrained = None # can load from pretrained models on ImageNet
 
     def add_labeled_images(self, new_labeled_images):
@@ -48,6 +46,8 @@ class Task:
         elif self.number_of_channels == 1:
             data_mean = [0.5]
             data_std = [0.5]
+        else:
+            raise ValueError("Unexpected number of channels: %s" % self.number_of_channels)
 
         transform = transforms.Compose([
             # transforms.Resize((224, 224)),
