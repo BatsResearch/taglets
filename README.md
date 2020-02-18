@@ -1,6 +1,8 @@
 # taglets
 automatically construct and integrate weak supervision sources
 
+[![Build Status](https://travis-ci.com/BatsResearch/taglets.svg?token=sinAgJjnTsxQ2oN3R9vi&branch=master)](https://travis-ci.com/BatsResearch/taglets)
+
 ## Description
 In this package, we automatically construct labeling functions for the given ```image classification problem``` in which there is not enough labeled data. Based on the amount of labeled data, we call appropriate labeling functions, train them, then combine them. We leverage many few shot and transfer learning methodologies in order to create a reliable framework for learning with less labeled data.
 
