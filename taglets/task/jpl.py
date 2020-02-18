@@ -1,8 +1,8 @@
 import logging
 import requests
-from modules import RandomActiveLearning, LeastConfidenceActiveLearning
-from task import Task
-from controller import Controller
+from ..modules import RandomActiveLearning, LeastConfidenceActiveLearning
+from ..task import Task
+from ..controller import Controller
 
 log = logging.getLogger(__name__)
 

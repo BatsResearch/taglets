@@ -1,3 +1,6 @@
+# Taglets specific stuff
+mnist_sample
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -1,4 +1,4 @@
-from pipeline import PrototypeTaglet, FineTuneTaglet, TransferTaglet
+from ..pipeline import PrototypeTaglet, FineTuneTaglet, TransferTaglet
 
 
 class Module:
@@ -39,7 +39,7 @@ class FineTuneModule(Module):
     """
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [PrototypeTaglet(task), PrototypeTaglet(task), FineTuneTaglet(task)]
+        self.taglets = [FineTuneTaglet(task)]
 
 
 class TransferModule(Module):
