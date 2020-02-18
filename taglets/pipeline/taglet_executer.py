@@ -24,11 +24,7 @@ class TagletExecutor:
         :return: A label matrix of size (num_images, num_taglets)
         """
         label_matrix = []
-        probabilities = []
         for taglet in self.taglets:
-            if taglet.name == "finetune":
-                labels, probabilities = taglet.execute(unlabeled_images, use_gpu, testing)
-            else:
-                labels = taglet.execute(unlabeled_images, use_gpu, testing)
+            labels = taglet.execute(unlabeled_images, use_gpu, testing)
             label_matrix.append(labels)
-        return np.transpose(label_matrix), probabilities
+        return np.transpose(label_matrix)

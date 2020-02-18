@@ -1,21 +1,87 @@
-from .modules import FineTuneModule
-from .pipeline import TagletExecutor
 from .custom_dataset import SoftLabelDataSet
-import torch
-from .pipeline import EndModel
-import numpy as np
+from .modules import FineTuneModule
+from .pipeline import EndModel, TagletExecutor
 import datetime
+import labelmodels
+import logging
+import numpy as np
+import torch
+
+log = logging.getLogger(__name__)
 
 
 class Controller:
-    def __init__(self, task, use_gpu=False, testing=False):
-        self.taglet_executor = TagletExecutor()
-        self.end_model = EndModel(task)
-        self.task = task
+    def __init__(self, use_gpu=False, testing=False):
+        self.task = None
+        self.end_model = None
+        self.taglet_executor = None
         self.batch_size = 32
         self.num_workers = 2
         self.use_gpu = use_gpu
         self.testing = testing
+
+    def train_end_model(self, task):
+        """
+        Executes a training pipeline end-to-end, turning a Task into an EndModel
+        :param task: description of the task for the EndModel
+        :return: A trained EndModel
+        """
+        self.task = task
+
+        # Creates data loaders
+        train_data_loader, val_data_loader,  train_image_names, train_image_labels = self.task.load_labeled_data(
+            self.batch_size,
+            self.num_workers)
+
+        unlabeled_data_loader, unlabeled_image_names = self.task.load_unlabeled_data(self.batch_size,
+                                                                                     self.num_workers)
+
+        # Initializes taglet-creating modules
+        modules = self._get_taglets_modules()
+        for module in modules:
+            log.info("Training %s module", module.__name__)
+            module.train_taglets(train_data_loader, val_data_loader, self.use_gpu, self.testing)
+            log.info("Finished training %s module", module.__name__)
+
+        # Collects all taglets
+        taglets = []
+        for module in modules:
+            taglets.extend(module.get_taglets())
+        self.taglet_executor = TagletExecutor()
+        self.taglet_executor.set_taglets(taglets)
+
+        # Executes taglets
+        log.info("Executing taglets")
+        vote_matrix = self.taglet_executor.execute(unlabeled_data_loader, self.use_gpu, self.testing)
+        log.info("Finished executing taglets")
+
+        # Learns label model
+        log.info("Training label model")
+        labelmodel = labelmodels.NaiveBayes(
+            num_classes=len(task.classes), num_lfs=len(taglets))
+        labelmodel.estimate_label_model(vote_matrix)
+        log.info("Finished training label model")
+
+        # Computes label distribution
+        log.info("Getting label distribution")
+        weak_labels = labelmodel.get_label_distribution(vote_matrix)
+        log.info("Finished getting label distribution")
+
+
+        # Trains end model
+        log.info("Training end model")
+        self.end_model = EndModel(self.task)
+
+        end_model_train_data_loader = self.combine_soft_labels(soft_labels_unlabeled_images,
+                                                               unlabeled_image_names,
+                                                               train_image_names, train_image_labels)
+        self.end_model.train(end_model_train_data_loader, val_data_loader, self.use_gpu, self.testing)
+        log.info("Finished training end model")
+
+        return self.end_model
+
+    def _get_taglets_modules(self):
+        return [FineTuneModule(task=self.task)]
 
     def combine_soft_labels(self, unlabeled_labels, unlabeled_names, train_image_names, train_image_labels):
         def to_soft_one_hot(l):
@@ -42,64 +108,3 @@ class Controller:
                                            num_workers=self.num_workers)
 
         return train_data
-
-    def get_predictions(self, phase):
-        """train taglets, label model, and endmodel, and return prediction
-        :param phase: 'base' or 'adapt'
-        """
-        train_data_loader, val_data_loader,  train_image_names, train_image_labels = self.task.load_labeled_data(
-            self.batch_size,
-            self.num_workers)
-
-        unlabeled_data_loader, unlabeled_image_names = self.task.load_unlabeled_data(self.batch_size,
-                                                                                     self.num_workers)
-
-        fine_tune_module = FineTuneModule(task=self.task)
-        modules = [fine_tune_module]
-
-        print("**********Training taglets on labeled data**********")
-        t1 = datetime.datetime.now()
-        fine_tune_module.train_taglets(train_data_loader, val_data_loader, self.use_gpu, self.testing)
-        t2 = datetime.datetime.now()
-        print()
-        print(".....Taglet training time: {}".format((t2 - t1).seconds))
-
-        taglets = []
-        for module in modules:
-            taglets.extend(module.get_taglets())
-        self.taglet_executor.set_taglets(taglets)
-
-        print("**********Executing taglets on unlabled data**********")
-        t1 = datetime.datetime.now()
-        label_matrix, candidates = self.taglet_executor.execute(unlabeled_data_loader, self.use_gpu, self.testing)
-        self.confidence_active_learning.set_candidates(candidates)
-        t2 = datetime.datetime.now()
-        print()
-        print(".....Taglet executing time: {}".format((t2 - t1).seconds))
-
-
-        print("**********Label Model**********")
-        t1 = datetime.datetime.now()
-        soft_labels_unlabeled_images = get_label_distribution(label_matrix, len(self.task.classes), self.testing)
-        t2 = datetime.datetime.now()
-        print()
-        print(".....Label Model time: {}".format((t2 - t1).seconds))
-
-
-
-        print("**********End Model**********")
-        t1 = datetime.datetime.now()
-        if self.testing:
-            unlabeled_image_names = unlabeled_image_names[:len(soft_labels_unlabeled_images)]
-        end_model_train_data_loader = self.combine_soft_labels(soft_labels_unlabeled_images,
-                                                         unlabeled_image_names,
-                                                         train_image_names, train_image_labels)
-        self.end_model.train(end_model_train_data_loader, val_data_loader, self.use_gpu, self.testing)
-        t2 = datetime.datetime.now()
-        print()
-        print(".....End Model time: {}".format((t2 - t1).seconds))
-
-        return self.end_model.predict(self.task.evaluation_image_path,
-                                      self.task.number_of_channels,
-                                      self.task.transform_image(),
-                                      self.use_gpu)
