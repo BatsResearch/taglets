@@ -1,7 +1,10 @@
+import logging
 import requests
 from modules import LeastConfidenceActiveLearning
 from task import Task
 from controller import Controller
+
+log = logging.getLogger(__name__)
 
 
 class JPL:
@@ -177,13 +180,13 @@ class JPLRunner:
     
     def run_one_checkpoint(self, phase, checkpoint_num):
         session_status = self.api.get_session_status()
-        print('------------------------------------------------------------')
-        print('--------------------{} Checkpoint: {}'.format(phase, checkpoint_num)+'---------------------')
-        print('------------------------------------------------------------')
+        log.info('------------------------------------------------------------')
+        log.info('--------------------{} Checkpoint: {}'.format(phase, checkpoint_num)+'---------------------')
+        log.info('------------------------------------------------------------')
 
         available_budget = self.get_available_budget()
         unlabeled_image_names = self.task.get_unlabeled_image_names()
-        print('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
+        log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
         if checkpoint_num == 0:
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
         else:
@@ -204,14 +207,14 @@ class JPLRunner:
         query = {'example_ids': examples}
         labeled_images = self.api.request_label(query)
         self.task.add_labeled_images(labeled_images)
-        print("New labeled images:", len(labeled_images))
-        print("Total labeled images:", len(self.task.labeled_images))
+        log.info("New labeled images:", len(labeled_images))
+        log.info("Total labeled images:", len(self.task.labeled_images))
 
     def submit_predictions(self, predictions):
         submit_status = self.api.submit_prediction(predictions)
         session_status = self.api.get_session_status()
-        print("Checkpoint scores", session_status['checkpoint_scores'])
-        print("Phase:", session_status['pair_stage'])
+        log.info("Checkpoint scores", session_status['checkpoint_scores'])
+        log.info("Phase:", session_status['pair_stage'])
 
 
 def main():

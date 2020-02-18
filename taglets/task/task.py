@@ -29,7 +29,6 @@ class Task:
         self.phase = None # base or adaptation
         self.pretrained = None # can load from pretrained models on ImageNet
 
-
     def add_labeled_images(self, new_labeled_images):
         """
         Add new labeled images to the Task.
