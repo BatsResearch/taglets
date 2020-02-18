@@ -270,7 +270,6 @@ class FineTuneTaglet(Taglet):
             self.model = self.model.cpu()
 
         predicted_labels = []
-        candidate_probabilities = []
         for inputs, index in unlabeled_data_loader:
             if use_gpu:
                 inputs = inputs.cuda()
@@ -281,10 +280,9 @@ class FineTuneTaglet(Taglet):
                     outputs = self.model(data)
                     _, preds = torch.max(outputs, 1)
                     predicted_labels.append(preds.item())
-                    candidate_probabilities.append(torch.max(torch.nn.functional.softmax(outputs)).item())
             if testing:
                 break
-        return predicted_labels, np.argsort(candidate_probabilities)
+        return predicted_labels
 
 
 class PrototypeTaglet(Taglet):
