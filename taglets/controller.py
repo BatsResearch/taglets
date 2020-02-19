@@ -38,9 +38,9 @@ class Controller:
         # Initializes taglet-creating modules
         modules = self._get_taglets_modules()
         for module in modules:
-            log.info("Training %s module", module.__name__)
+            log.info("Training %s module", module.__class__.__name__)
             module.train_taglets(train_data_loader, val_data_loader, self.use_gpu, self.testing)
-            log.info("Finished training %s module", module.__name__)
+            log.info("Finished training %s module", module.__class__.__name__)
 
         # Collects all taglets
         taglets = []
