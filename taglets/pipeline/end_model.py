@@ -9,7 +9,7 @@ class EndModel(Trainable):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'end model'
-        self.save_dir = os.path.join('trained_models', task.phase ,str(task.task_id), self.name)
+        self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
@@ -31,9 +31,6 @@ class EndModel(Trainable):
         running_loss = 0
         running_acc = 0
         for batch_idx, batch in enumerate(train_data_loader):
-            if testing:
-                if batch_idx >= 1:
-                    break
             inputs = batch[0]
             labels = batch[1]
             if use_gpu:
