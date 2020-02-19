@@ -63,7 +63,7 @@ class Trainable:
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
 
-    def _train_epoch(self, train_data_loader, use_gpu, testing):
+    def _train_epoch(self, train_data_loader, use_gpu):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data
@@ -74,9 +74,6 @@ class Trainable:
         running_loss = 0
         running_acc = 0
         for batch_idx, batch in enumerate(train_data_loader):
-            if testing:
-                if batch_idx >= 1:
-                    break
             inputs = batch[0]
             labels = batch[1]
             if use_gpu:
@@ -134,7 +131,7 @@ class Trainable:
 
         return epoch_loss, epoch_acc
 
-    def train(self, train_data_loader, val_data_loader, use_gpu, testing):
+    def train(self, train_data_loader, val_data_loader, use_gpu):
         """
         Train the Trainable.
         :param train_data_loader: A dataloader containing training data
@@ -155,15 +152,11 @@ class Trainable:
         val_loss_list = []
         val_acc_list = []
 
-        if testing:
-            num_epochs = 1
-        else:
-            num_epochs = self.num_epochs
-        for epoch in range(num_epochs):
+        for epoch in range(self.num_epochs):
             self.log('epoch: {}'.format(epoch))
 
             # Train on training data
-            train_loss, train_acc = self._train_epoch(train_data_loader, use_gpu, testing)
+            train_loss, train_acc = self._train_epoch(train_data_loader, use_gpu)
             train_loss_list.append(train_loss)
             train_acc_list.append(train_acc)
             self.log('train loss: {:.4f}'.format(train_loss))
@@ -174,7 +167,7 @@ class Trainable:
                 val_loss = 0
                 val_acc = 0
                 continue
-            val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu, testing)
+            val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu)
             val_loss_list.append(val_loss)
             val_acc_list.append(val_acc)
             self.log('validation loss: {:.4f}'.format(val_loss))
@@ -233,7 +226,7 @@ class Taglet(Trainable):
     """
     A class that produces votes for unlabeled images.
     """
-    def execute(self, unlabeled_data_loader, use_gpu, testing):
+    def execute(self, unlabeled_data_loader, use_gpu):
         """
         Execute the Taglet on unlabeled images.
         :param unlabeled_data_loader: A dataloader containing unlabeled data
@@ -252,7 +245,7 @@ class FineTuneTaglet(Taglet):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
-    def execute(self, unlabeled_data_loader, use_gpu, testing):
+    def execute(self, unlabeled_data_loader, use_gpu):
         """
         Execute the Taglet on unlabeled images.
         :param unlabeled_data_loader: A dataloader containing unlabeled data
@@ -276,8 +269,6 @@ class FineTuneTaglet(Taglet):
                     outputs = self.model(data)
                     _, preds = torch.max(outputs, 1)
                     predicted_labels.append(preds.item())
-            if testing:
-                break
         return predicted_labels
 
 
@@ -323,7 +314,7 @@ class PrototypeTaglet(Taglet):
                 lab = key
         return lab
 
-    def train(self, train_data_loader, val_data_loader, use_gpu, testing):
+    def train(self, train_data_loader, val_data_loader, use_gpu):
         """
         For 1-shot, use pretrained model
         """
@@ -337,19 +328,15 @@ class PrototypeTaglet(Taglet):
             self.classifier = self.classifier.cpu()
 
         best_model_to_save = None
-        if testing:
-            num_epochs = 1
-        else:
-            num_epochs = self.num_epochs
-        for epoch in range(num_epochs):
+        for epoch in range(self.num_epochs):
             self.log('epoch: {}'.format(epoch))
 
             # Train on training data
-            train_loss = self._train_epoch(train_data_loader, use_gpu, testing)
+            train_loss = self._train_epoch(train_data_loader, use_gpu)
             self.log('train loss: {:.4f}'.format(train_loss))
 
             # Evaluation on validation data
-            val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu, testing)
+            val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu)
             self.log('validation loss: {:.4f}'.format(val_loss))
             self.log('validation acc: {:.4f}%'.format(val_acc*100))
 
@@ -391,8 +378,6 @@ class PrototypeTaglet(Taglet):
                         self.prototypes[lbl].append(proto)
                     except:
                         self.prototypes[lbl] = [proto]
-                    if testing:
-                        break
 
     def _train_epoch(self, train_data_loader, use_gpu, testing):
         """
@@ -459,7 +444,7 @@ class PrototypeTaglet(Taglet):
         epoch_acc = running_acc.item() / len(val_data_loader.dataset)
         return epoch_loss, epoch_acc
 
-    def execute(self, unlabeled_data_loader, use_gpu, testing):
+    def execute(self, unlabeled_data_loader, use_gpu):
         self.model.eval()
         if use_gpu:
             self.model = self.model.cuda()
@@ -477,8 +462,6 @@ class PrototypeTaglet(Taglet):
                     proto = self.model(data)
                     prediction = self.onn(proto)
                     predicted_labels.append(prediction)
-            if testing:
-                break
         return predicted_labels
 
 
@@ -491,7 +474,7 @@ class TransferTaglet(Taglet):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
-    def execute(self, unlabeled_data_loader, use_gpu, testing):
+    def execute(self, unlabeled_data_loader, use_gpu):
         """
         Execute the Taglet on unlabeled images.
         :param unlabeled_data_loader: A dataloader containing unlabeled data
@@ -515,6 +498,4 @@ class TransferTaglet(Taglet):
                     outputs = self.model(data)
                     _, preds = torch.max(outputs, 1)
                     predicted_labels.append(preds.item())
-            if testing:
-                break
         return predicted_labels

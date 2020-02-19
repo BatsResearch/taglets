@@ -39,7 +39,7 @@ class Controller:
         modules = self._get_taglets_modules()
         for module in modules:
             log.info("Training %s module", module.__class__.__name__)
-            module.train_taglets(train_data_loader, val_data_loader, self.use_gpu, self.testing)
+            module.train_taglets(train_data_loader, val_data_loader, self.use_gpu)
             log.info("Finished training %s module", module.__class__.__name__)
 
         # Collects all taglets
@@ -51,7 +51,7 @@ class Controller:
 
         # Executes taglets
         log.info("Executing taglets")
-        vote_matrix = self.taglet_executor.execute(unlabeled_data_loader, self.use_gpu, self.testing)
+        vote_matrix = self.taglet_executor.execute(unlabeled_data_loader, self.use_gpu)
         log.info("Finished executing taglets")
 
         # Learns label model
@@ -74,7 +74,7 @@ class Controller:
         end_model_train_data_loader = self.combine_soft_labels(soft_labels_unlabeled_images,
                                                                unlabeled_image_names,
                                                                train_image_names, train_image_labels)
-        self.end_model.train(end_model_train_data_loader, val_data_loader, self.use_gpu, self.testing)
+        self.end_model.train(end_model_train_data_loader, val_data_loader, self.use_gpu)
         log.info("Finished training end model")
 
         return self.end_model
