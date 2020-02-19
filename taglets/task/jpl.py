@@ -1,6 +1,6 @@
 import logging
 import requests
-from ..modules import RandomActiveLearning, LeastConfidenceActiveLearning
+from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
 from ..task import Task
 from ..controller import Controller
 

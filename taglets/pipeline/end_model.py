@@ -1,9 +1,8 @@
-import torch
+from .taglet import Trainable
+
 import os
 import torch
 import pandas as pd
-from PIL import Image
-from ..pipeline import Trainable
 
 
 class EndModel(Trainable):
@@ -21,7 +20,7 @@ class EndModel(Trainable):
         logs = torch.nn.LogSoftmax(dim=1)
         return torch.mean(torch.sum(-target * logs(prediction), 1))
 
-    def _train_epoch(self, train_data_loader, use_gpu, testing):
+    def _train_epoch(self, train_data_loader, use_gpu):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data
