@@ -248,13 +248,9 @@ class FineTuneTaglet(Taglet):
         super().__init__(task)
         self.name = 'finetune'
         self.num_epochs = 5
-        to_load_dir = os.path.join('trained_models', "base", str(task.task_id), self.name)
-        self.save_dir = os.path.join('trained_models', task.phase, str(task.task_id), self.name)
+        self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
-        if task.phase == 'adaptation': # in adaptation model, load from model trained on base phase
-            self.model.load_state_dict(torch.load(to_load_dir + '/model.pth.tar'))
-            self.log('^^^^^^^^^ adaptation: loading from base')
 
     def execute(self, unlabeled_data_loader, use_gpu, testing):
         """
@@ -293,13 +289,9 @@ class PrototypeTaglet(Taglet):
         self.model = ConvEncoder()
         self.classifier = Linear()
         self.num_epochs = 3
-        to_load_dir = os.path.join('trained_models', "base", str(task.task_id), self.name)
-        self.save_dir = os.path.join('trained_models', task.phase, str(task.task_id), self.name)
+        self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
-        if task.phase == 'adaptation': # in adaptation model, load from model trained on base phase
-            self.model.load_state_dict(torch.load(to_load_dir + '/model.pth.tar'))
-            self.log('^^^^^^^^^ adaptation: loading from base')
 
         # Parameters needed to be updated based on freezing layer
         params_to_update = []
@@ -495,13 +487,9 @@ class TransferTaglet(Taglet):
         super().__init__(task)
         self.name = 'transfer'
         self.num_epochs = 5
-        to_load_dir = os.path.join('trained_models', "base", str(task.task_id), self.name)
-        self.save_dir = os.path.join('trained_models', task.phase, str(task.task_id), self.name)
+        self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
-        if task.phase == 'adaptation':  # in adaptation model, load from model trained on base phase
-            self.model.load_state_dict(torch.load(to_load_dir + '/model.pth.tar'))
-            self.log('^^^^^^^^^ adaptation: loading from base')
 
     def execute(self, unlabeled_data_loader, use_gpu, testing):
         """
