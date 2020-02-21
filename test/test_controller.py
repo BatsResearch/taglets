@@ -21,7 +21,7 @@ class HiddenLabelDataset(Dataset):
         return img
 
     def __len__(self):
-        return len(self.da)
+        return len(self.dataset)
 
 
 class TestController(unittest.TestCase):
