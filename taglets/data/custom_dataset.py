@@ -11,6 +11,7 @@ class CustomDataSet(Dataset):
     def __init__(self, root, images, labels, transform, num_channels):
         """
         Create a new CustomDataSet.
+        
         :param root: The root directory of the images
         :param images: A list of filenames
         :param labels: A list of labels

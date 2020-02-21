@@ -1,10 +1,15 @@
+from ..models import MnistResNet
+
+import copy
+import logging
+import matplotlib.pyplot as plt
 import numpy as np
 import random
-import copy
 import torchvision.models as models
 import torch
-from ..models import MnistResNet
-import matplotlib.pyplot as plt
+
+
+log = logging.getLogger(__name__)
 
 
 class Trainable:
@@ -45,7 +50,6 @@ class Trainable:
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.1)
 
-        self.log = print
         self._best_val_acc = 0.0
 
     @staticmethod
@@ -138,7 +142,7 @@ class Trainable:
         :param use_gpu: Whether or not to use the GPU
         :return:
         """
-        self.log('...........'+self.name+'...........')
+        log.info('Beginning training')
 
         if use_gpu:
             self.model = self.model.cuda()
@@ -152,14 +156,14 @@ class Trainable:
         val_acc_list = []
 
         for epoch in range(self.num_epochs):
-            self.log('epoch: {}'.format(epoch))
+            log.info('Epoch: %s', epoch)
 
             # Train on training data
             train_loss, train_acc = self._train_epoch(train_data_loader, use_gpu)
             train_loss_list.append(train_loss)
             train_acc_list.append(train_acc)
-            self.log('train loss: {:.4f}'.format(train_loss))
-            self.log('train acc: {:.4f}%'.format(train_acc*100))
+            log.info('train loss: {:.4f}'.format(train_loss))
+            log.info('train acc: {:.4f}%'.format(train_acc*100))
 
             # Evaluation on validation data
             if not val_data_loader:
@@ -169,25 +173,25 @@ class Trainable:
             val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu)
             val_loss_list.append(val_loss)
             val_acc_list.append(val_acc)
-            self.log('validation loss: {:.4f}'.format(val_loss))
-            self.log('validation acc: {:.4f}%'.format(val_acc*100))
+            log.info('validation loss: {:.4f}'.format(val_loss))
+            log.info('validation acc: {:.4f}%'.format(val_acc*100))
 
             if self.lr_scheduler:
                 self.lr_scheduler.step()
 
             if val_acc > self._best_val_acc:
-                self.log("Deep copying new best model." +
+                log.info("Deep copying new best model." +
                          "(validation of {:.4f}%, over {:.4f}%)".format(val_acc, self._best_val_acc))
                 self._best_val_acc = val_acc
                 best_model_to_save = copy.deepcopy(self.model.state_dict())
                 if self.save_dir:
                     torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
-        self.log("Epoch {} result: ".format(epoch + 1))
-        self.log("Average training loss: {:.4f}".format(train_loss))
-        self.log("Average training accuracy: {:.4f}%".format(train_acc * 100))
-        self.log("Average validation loss: {:.4f}".format(val_loss))
-        self.log("Average validation accuracy: {:.4f}%".format(val_acc * 100))
+        log.info("Epoch {} result: ".format(epoch + 1))
+        log.info("Average training loss: {:.4f}".format(train_loss))
+        log.info("Average training accuracy: {:.4f}%".format(train_acc * 100))
+        log.info("Average validation loss: {:.4f}".format(val_loss))
+        log.info("Average validation accuracy: {:.4f}%".format(val_acc * 100))
 
 
         val_dic = {'train':train_loss_list, 'validation':val_loss_list}

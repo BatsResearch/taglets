@@ -2,22 +2,22 @@ import numpy as np
 import os
 import torch
 import torchvision.transforms as transforms
-from ..custom_dataset import CustomDataSet
+from taglets.data.custom_dataset import CustomDataSet
 from torch.utils import data
-# TODO: fix import
-# from ..scads import Scads
 
 
 class Task:
     """
-    A class defining a task.
+    A class defining an image classification task
     """
-    def __init__(self, task_name):
+    def __init__(self, name, classes, labeled_train_data, unlabeled_train_data,
+                 validation_data):
         """
         Create a new Task
-        :param task_name: a human-readable name for this task
+
+        :param name: a human-readable name for this task
         """
-        self.name = task_name
+        self.name = name
         self.description = ''
         self.classes = []
         self.evaluation_image_path = "path to test images"
@@ -170,57 +170,3 @@ class Task:
         for img in os.listdir(self.evaluation_image_path):
             test_images_names.append(img)
         return test_images_names
-
-    def get_scads_data(self, batch_size, num_workers):
-        image_paths = []
-        image_labels = []
-        Scads.open()
-        for label in self.classes:
-            if label in Scads.label_to_concept:
-                concept = Scads.label_to_concept[label]
-                node = Scads.get_node(concept)
-                paths = node.get_images()
-                for neighbor in node.get_neighbors():
-                    neighbor_paths = neighbor.get_images()
-                    paths.extend(neighbor_paths)
-                image_paths.extend(paths)
-                image_labels.extend([label for _ in paths])
-        Scads.close()
-
-        transform = self.transform_image()
-
-        # TODO: Need a new dataset to handle these paths
-        train_val_data = CustomDataSet(self.unlabeled_image_path,
-                                       image_paths,
-                                       image_labels,
-                                       transform,
-                                       self.number_of_channels)
-
-        # 80% for training, 20% for validation
-        train_percent = 0.8
-        num_data = len(train_val_data)
-        indices = list(range(num_data))
-        train_split = int(np.floor(train_percent * num_data))
-        np.random.shuffle(indices)
-        train_idx = indices[:train_split]
-        valid_idx = indices[train_split:]
-
-        train_set = data.Subset(train_val_data, train_idx)
-        val_set = data.Subset(train_val_data, valid_idx)
-
-        train_data_loader = torch.utils.data.DataLoader(train_set,
-                                                        batch_size=batch_size,
-                                                        shuffle=False,
-                                                        num_workers=num_workers)
-        val_data_loader = torch.utils.data.DataLoader(val_set,
-                                                      batch_size=batch_size,
-                                                      shuffle=False,
-                                                      num_workers=num_workers)
-
-        print('number of training data: %d' % len(train_data_loader.dataset))
-        print('number of validation data: %d' % len(val_data_loader.dataset))
-
-        train_image_names = list(map(image_paths.__getitem__, train_idx))
-        train_image_labels = list(map(image_labels.__getitem__, train_idx))
-
-        return train_data_loader, val_data_loader, train_image_names, train_image_labels
