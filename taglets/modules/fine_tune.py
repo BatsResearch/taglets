@@ -26,6 +26,7 @@ class FineTuneTaglet(Taglet):
     def execute(self, unlabeled_data_loader, use_gpu):
         """
         Execute the Taglet on unlabeled images.
+
         :param unlabeled_data_loader: A dataloader containing unlabeled data
         :param use_gpu: Whether or not the use the GPU
         :return: A list of predicted labels
@@ -37,12 +38,11 @@ class FineTuneTaglet(Taglet):
             self.model = self.model.cpu()
 
         predicted_labels = []
-        for inputs, index in unlabeled_data_loader:
+        for inputs in unlabeled_data_loader:
             if use_gpu:
                 inputs = inputs.cuda()
-                index = index.cuda()
             with torch.set_grad_enabled(False):
-                for data, ix in zip(inputs, index):
+                for data in inputs:
                     data = torch.unsqueeze(data, dim=0)
                     outputs = self.model(data)
                     _, preds = torch.max(outputs, 1)

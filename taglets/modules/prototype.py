@@ -152,7 +152,7 @@ class PrototypeTaglet(Taglet):
         epoch_loss = running_loss / len(train_data_loader.dataset)
         return epoch_loss
 
-    def _validate_epoch(self, val_data_loader, use_gpu, testing):
+    def _validate_epoch(self, val_data_loader, use_gpu):
         """
         Validate for one epoch.
         :param val_data_loader: A dataloader containing validation data

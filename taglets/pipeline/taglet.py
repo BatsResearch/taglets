@@ -170,8 +170,9 @@ class Trainable:
                 self.lr_scheduler.step()
 
             if val_acc > self._best_val_acc:
-                log.info("Deep copying new best model." +
-                         "(validation of {:.4f}%, over {:.4f}%)".format(val_acc, self._best_val_acc))
+                log.debug("Deep copying new best model." +
+                          "(validation of {:.4f}%, over {:.4f}%)".format(
+                              val_acc * 100, self._best_val_acc * 100))
                 self._best_val_acc = val_acc
                 best_model_to_save = copy.deepcopy(self.model.state_dict())
                 if self.save_dir:
