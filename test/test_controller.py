@@ -64,7 +64,7 @@ class TestController(unittest.TestCase):
         }
 
         mnist = MNIST('.', train=True, transform=transforms.ToTensor(), download=True)
-        size = int(len(mnist) / 20)
+        size = int(len(mnist) / 50)
         labeled = Subset(mnist, [i for i in range(size)])
         unlabeled = HiddenLabelDataset(Subset(mnist, [i for i in range(size, 2 * size)]))
         val = Subset(mnist, [i for i in range(2 * size, 3 * size)])

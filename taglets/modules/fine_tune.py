@@ -7,7 +7,7 @@ import torch
 
 class FineTuneModule(Module):
     """
-    A module that fine-tunes a model pre-trained on ImageNet 1k.
+    A module that fine-tunes the task's initial model.
     """
     def __init__(self, task):
         super().__init__(task)

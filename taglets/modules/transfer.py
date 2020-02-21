@@ -8,7 +8,7 @@ import torch
 class TransferModule(Module):
     """
     A module that pre-trains on datasets selected from the SCADS and then
-    transfers to available related data
+    transfers to available labeled data
     """
     def __init__(self, task):
         super().__init__(task)
