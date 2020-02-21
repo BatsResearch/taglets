@@ -145,10 +145,10 @@ class JPLRunner:
         task.phase = session_status['pair_stage']
         if session_status['pair_stage'] == 'adaptation':
             task.labeled_images = []
-            task.pretrained = task_metadata['adaptation_can_use_pretrained_model']
+            task.initial = task_metadata['adaptation_can_use_pretrained_model']
         elif session_status['pair_stage'] == 'base':
             task.labeled_images = self.api.get_seed_labels()
-            task.pretrained = task_metadata['base_can_use_pretrained_model']
+            task.initial = task_metadata['base_can_use_pretrained_model']
         return task, num_base_checkpoints, num_adapt_checkpoints
 
     def update_task(self):
@@ -163,10 +163,10 @@ class JPLRunner:
         self.task.phase = session_status['pair_stage']
         if session_status['pair_stage'] == 'adaptation':
             self.task.labeled_images = []
-            self.task.pretrained = task_metadata['adaptation_can_use_pretrained_model']
+            self.task.initial = task_metadata['adaptation_can_use_pretrained_model']
         elif session_status['pair_stage'] == 'base':
             self.task.labeled_images = self.api.get_seed_labels()
-            self.task.pretrained = task_metadata['base_can_use_pretrained_model']
+            self.task.initial = task_metadata['base_can_use_pretrained_model']
 
     def run_checkpoints(self):
         self.run_checkpoints_base()

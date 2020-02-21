@@ -56,7 +56,7 @@ class PrototypeTaglet(Taglet):
 
     def train(self, train_data_loader, val_data_loader, use_gpu):
         """
-        For 1-shot, use pretrained model
+        For 1-shot, use initial model
         """
         self.log('...........'+self.name+'...........')
 

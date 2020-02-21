@@ -1,5 +1,3 @@
-from ..models import MnistResNet
-
 import copy
 import logging
 import matplotlib.pyplot as plt
@@ -19,6 +17,7 @@ class Trainable:
     def __init__(self, task):
         """
         Create a new Trainable.
+
         :param task: The current task
         """
         self.name = 'base'
@@ -28,17 +27,11 @@ class Trainable:
         self.seed = 0
         self.num_epochs = 10
         self.select_on_val = True   # If true, save model on the best validation performance
-        self.pretrained = task.pretrained      # If true, we can load from pretrained model
         self.save_dir = None
 
-        if task.number_of_channels == 1:
-            self.model = MnistResNet()
-        else:
-            self.model = models.resnet18(pretrained=self.pretrained)
+        self.model = task.get_initial_model() or models.resnet18(pretrained=False)
 
         self.model.fc = torch.nn.Linear(self.model.fc.in_features, len(self.task.classes))
-
-        self.model.pretrained = self.pretrained
 
         self._init_random(self.seed)
         # Parameters needed to be updated based on freezing layer
@@ -102,7 +95,7 @@ class Trainable:
 
         return epoch_loss, epoch_acc
 
-    def _validate_epoch(self, val_data_loader, use_gpu, testing):
+    def _validate_epoch(self, val_data_loader, use_gpu):
         """
         Validate for one epoch.
         :param val_data_loader: A dataloader containing validation data
@@ -113,9 +106,6 @@ class Trainable:
         running_loss = 0
         running_acc = 0
         for batch_idx, batch in enumerate(val_data_loader):
-            if testing:
-                if batch_idx >= 2:
-                    break
             inputs = batch[0]
             labels = batch[1]
             if use_gpu:

@@ -1,4 +1,4 @@
-import numpy as np
+import copy
 import os
 import torch
 import torchvision.transforms as transforms
@@ -16,138 +16,55 @@ class Task:
         Create a new Task
 
         :param name: a human-readable name for this task
+        :param classes: map from DataLoader class labels to SCADS node IDs
+        :param labeled_train_data: DataLoader for labeled training data
+        :param unlabeled_train_data: DataLoader for unlabeled training data
+        :param validation_data: DataLoader for labeled validation data
         """
         self.name = name
         self.description = ''
-        self.classes = []
-        self.evaluation_image_path = "path to test images"
-        self.unlabeled_image_path = "path to unlabeled images"
-        self.labeled_images = []    # A list of tuples with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
-        self.number_of_channels = None
-        self.train_data_loader = None
-        self.pretrained = None # can load from pretrained models on ImageNet
+        self.classes = classes
+        self.labeled_train_data = labeled_train_data
+        self.unlabeled_train_data = unlabeled_train_data
+        self.validation_data = validation_data
 
-    def add_labeled_images(self, new_labeled_images):
-        """
-        Add new labeled images to the Task.
-        :param new_labeled_images: A list of lists containing the name of an image and their labels
-        :return: None
-        """
-        self.labeled_images.extend(new_labeled_images)
+        self.initial = None
 
-    def transform_image(self):
+    def get_classes(self):
         """
-        Get the transform to be used on an image.
-        :return: A transform
+        :return: a copy of the map from DataLoader class labels to SCADS node IDs
         """
-        if self.number_of_channels == 3:
-            data_mean = [0.485, 0.456, 0.406]
-            data_std = [0.229, 0.224, 0.225]
-        elif self.number_of_channels == 1:
-            data_mean = [0.5]
-            data_std = [0.5]
+        return dict(self.classes)
+
+    def get_labeled_train_data(self):
+        return self.labeled_train_data
+
+    def get_unlabeled_train_data(self):
+        return self.unlabeled_train_data
+
+    def get_validation_data(self):
+        return self.validation_data
+
+    def set_initial_model(self, initial):
+        """
+        Sets an initial model on the task that will be used as the architecture
+        and initial weights of models created for the task, including taglets and
+        the end model
+
+        :param initial: the initial model
+        """
+        self.initial = initial
+
+    def get_initial_model(self):
+        """
+        Returns a deep copy of the task's initial model
+
+        :return: copy of the initial model, or None if no model is set
+        """
+        if self.initial is None:
+            return None
         else:
-            raise ValueError("Unexpected number of channels: %s" % self.number_of_channels)
-
-        transform = transforms.Compose([
-            # transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=data_mean, std=data_std)
-        ])
-        return transform
-
-    def load_labeled_data(self, batch_size, num_workers):
-        """
-        Get training, validation, and testing data loaders from labeled data.
-        :param batch_size: The batch size
-        :param num_workers: The number of workers
-        :return: Training, validation, and testing data loaders
-        """
-        transform = self.transform_image()
-
-        image_names, image_labels = self.get_labeled_images_list()
-
-        train_val_data = CustomDataSet(self.unlabeled_image_path,
-                                            image_names,
-                                            image_labels,
-                                            transform,
-                                            self.number_of_channels)
-
-        # 80% for training, 20% for validation
-        train_percent = 0.8
-        num_data = len(train_val_data)
-        indices = list(range(num_data))
-        train_split = int(np.floor(train_percent * num_data))
-        np.random.shuffle(indices)
-        train_idx = indices[:train_split]
-        valid_idx = indices[train_split:]
-
-        train_set = data.Subset(train_val_data, train_idx)
-        val_set = data.Subset(train_val_data, valid_idx)
-
-        train_data_loader = torch.utils.data.DataLoader(train_set,
-                                                        batch_size=batch_size,
-                                                        shuffle=False,
-                                                        num_workers=num_workers)
-        val_data_loader = torch.utils.data.DataLoader(val_set,
-                                                      batch_size=batch_size,
-                                                      shuffle=False,
-                                                      num_workers=num_workers)
-
-        print('number of training data: %d' % len(train_data_loader.dataset))
-        print('number of validation data: %d' % len(val_data_loader.dataset))
-
-        train_image_names = list(map(image_names.__getitem__, train_idx))
-        train_image_labels = list(map(image_labels.__getitem__, train_idx))
-
-        val_image_names = list(map(image_names.__getitem__, valid_idx))
-        val_image_labels = list(map(image_labels.__getitem__, valid_idx))
-
-        return train_data_loader, val_data_loader, train_image_names, train_image_labels
-
-    def load_unlabeled_data(self, batch_size, num_workers):
-        """
-        Get a data loader from unlabeled data.
-        :param batch_size: The batch size
-        :param num_workers: The number of workers
-        :return: A data loader containing unlabeled data
-        """
-        transform = self.transform_image()
-
-        unlabeled_images_names = self.get_unlabeled_image_names()
-        unlabeled_data = CustomDataSet(self.unlabeled_image_path,
-                                       unlabeled_images_names,
-                                       None,
-                                       transform,
-                                       self.number_of_channels)
-
-        unlabeled_data_loader = torch.utils.data.DataLoader(unlabeled_data,
-                                                            batch_size=batch_size,
-                                                            shuffle=False,
-                                                            num_workers=num_workers)
-        return unlabeled_data_loader, unlabeled_images_names
-    
-    def load_test_data(self, batch_size, num_workers):
-        """
-        Get a data loader from testing data
-        :param batch_size: The batch size
-        :param num_workers: The number of workers
-        :return: A data loader containing unlabeled data
-        """
-        transform = self.transform_image()
-
-        test_images_names = self.get_unlabeled_image_names()
-        test_data = CustomDataSet(self.evaluation_image_path,
-                                  test_images_names,
-                                  None,
-                                  transform,
-                                  self.number_of_channels)
-
-        test_data_loader = torch.utils.data.DataLoader(test_data,
-                                                       batch_size=batch_size,
-                                                       shuffle=False,
-                                                       num_workers=num_workers)
-        return test_data_loader, test_images_names
+            return copy.deepcopy(self.initial)
 
     def get_labeled_images_list(self):
         """get list of image names and labels"""
