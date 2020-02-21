@@ -88,6 +88,7 @@ class Dataset(Base):
     __tablename__ = 'datasets'
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)
+    path = Column(String)
     
     images = relationship("Image", back_populates="dataset")
     
@@ -116,7 +117,6 @@ class Image(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     dataset_id = Column(Integer, ForeignKey('datasets.id'))
     node_id = Column(Integer, ForeignKey('nodes.id'))
-    is_training = Column(Boolean)   # True, False, Null
     path = Column(String)
     
     dataset = relationship("Dataset", back_populates="images")
@@ -127,31 +127,3 @@ class Image(Base):
                                                                                      self.node_id,
                                                                                      self.is_training,
                                                                                      self.path)
-
-
-class LabelMap(Base):
-    """
-    A mapping between dataset class names and nodes.
-
-    Each class name in dataset has a corresponding node in nodes table. This class represents the association between
-    a class name in each dataset with its corresponding node.
-
-    For example:
-        map_apple = LabelMap(label='apple', node_key='apple_node_key', dataset_key = 'cifar100_key')
-    Associates the label name 'apple' in CIFAR100 with the corresponding 'apple' in nodes dataset
-
-    key: The unique, autoincremented key of the label map
-    label: The name of class label
-    node_key: The key of corresponding node in 'nodes' table
-    dataset_key: The key of corresponding dataset
-    """
-    __tablename__ = 'label_maps'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    label = Column(String)
-    node = Column(Integer, ForeignKey('nodes.id'))
-    dataset = Column(Integer, ForeignKey('datasets.id'))
-    
-    def __repr__(self):
-        return "<Image(label = '%s', node_key='%s', dataset_key='%s')>" % (self.label,
-                                                                           self.node,
-                                                                           self.dataset)
