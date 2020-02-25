@@ -4,8 +4,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, Integer, String, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 
+PATH_TO_DATABASE = '../../test_data/test_scads_db.db'
 Base = declarative_base()
-engine = sa.create_engine('sqlite:///../../sql_data/scads_db.db')
+engine = sa.create_engine('sqlite:///' + PATH_TO_DATABASE)
 Session = sessionmaker(bind=engine)
 
 
@@ -123,7 +124,6 @@ class Image(Base):
     node = relationship("Node", back_populates="images")
 
     def __repr__(self):
-        return "<Image(dataset='%s', node='%s', is_training = '%s', path='%s'')>" % (self.dataset_id,
-                                                                                     self.node_id,
-                                                                                     self.is_training,
-                                                                                     self.path)
+        return "<Image(dataset='%s', node='%s', path='%s'')>" % (self.dataset_id,
+                                                                 self.node_id,
+                                                                 self.path)

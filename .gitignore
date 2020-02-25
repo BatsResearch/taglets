@@ -132,6 +132,7 @@ dmypy.json
 # Data
 /taglets/sql_data
 .DS_Store
+/taglets/test_data
 
 # Saved models
 /trained_models

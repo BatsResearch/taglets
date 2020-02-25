@@ -1,7 +1,7 @@
 import pandas as pd
 import os
-from sqlalchemy import and_
-from scads.create.scads_classes import Node, LabelMap, Image
+from scads.create.scads_classes import Dataset, Node, Image, Session
+from sqlalchemy.sql import text
 
 
 def get_images(dataset, session):
@@ -53,7 +53,7 @@ def get_cifar100_images(dataset, session):
         for label in os.listdir(mode_dir):
             if label.startswith('.'):
                 continue
-            node = session.query(Node).filter(name=get_conceptnet_id(dataset.name, label)).first()
+            node = session.query(Node).filter_by(conceptnet_id=get_conceptnet_id(dataset.name, label)).first()
             if not node:
                 continue    # Map is missing a missing conceptnet id
             label_dir = os.path.join(mode_dir, label)
@@ -98,14 +98,14 @@ def get_mnist_image(dataset, session):
 
     all_images = []
     for mode in modes:
-        df_label = pd.read_feather(dataset.name + '/labels_' + mode + '.feather')
-        mode_dir = os.path.join(dataset.name, mode)
+        df_label = pd.read_feather(dataset.path + '/labels_' + mode + '.feather')
+        mode_dir = os.path.join(dataset.path, mode)
         for image in os.listdir(mode_dir):
             if image.startswith('.'):
                 continue
 
             label = df_label.loc[df_label['id'] == image].label.values[0]
-            node = session.query(Node).filter(get_conceptnet_id(dataset.name, label)).first()
+            node = session.query(Node).filter_by(conceptnet_id=get_conceptnet_id(dataset.name, label)).first()
             if not node:
                 continue  # Map is missing a missing conceptnet id
             img = Image(dataset_id=dataset.id,
@@ -151,7 +151,6 @@ def add_dataset(dataset_name, path):
         print("Path does not exist.")
 
     # Get session
-    Base.metadata.create_all(engine)
     session = Session()
 
     # Add Dataset to database
@@ -181,5 +180,13 @@ def add_datasets():
     Add MNIST and CIFAR100 to the database.
     :return: None
     """
-    add_dataset('MNIST', 'sql_data/MNIST')
-    add_dataset('CIFAR100', 'sql_data/CIFAR')
+    add_dataset('MNIST', '../../test_data/MNIST')
+    add_dataset('CIFAR100', '../../test_data/CIFAR100')
+
+
+def main():
+    add_datasets()
+
+
+if __name__ == "__main__":
+    main()

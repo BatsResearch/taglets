@@ -1,4 +1,3 @@
-from ..create.scads_classes import LabelMap
 from .scads_edge import ScadsEdge
 from scads.create.scads_classes import Node
 
@@ -17,9 +16,9 @@ class ScadsNode:
         :return: List of our datasets containing the node
         """
         datasets = []
-        node_key = self.node.key
-        for label_map in self.session.query(LabelMap).filter(LabelMap.node_key == node_key):
-            datasets.append(label_map.dataset.name)
+        # node_key = self.node.key
+        # for label_map in self.session.query(LabelMap).filter(LabelMap.node_key == node_key):
+        #     datasets.append(label_map.dataset.name)
         return datasets
 
     def get_images(self):

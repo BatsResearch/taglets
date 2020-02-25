@@ -2,14 +2,14 @@ import os
 from scads.create.scads_classes import Node, Edge, Relation, Base, engine, Session
 
 
-def get_relations():
+def get_relations(directory):
     """
     Get all Relations in conceptnet.
     :return: A list of Relations
     """
     cwd = os.getcwd()
     all_relations = []
-    with open(os.path.join(cwd, '../../sql_data', 'relations.csv'), encoding="utf8") as relation_file:
+    with open(os.path.join(cwd, directory, 'relations.csv'), encoding="utf8") as relation_file:
         for line in relation_file:
             if line.strip():
                 relation_id, relation_type, directed = line.strip().split()
@@ -19,14 +19,14 @@ def get_relations():
     return all_relations
 
 
-def get_nodes():
+def get_nodes(directory):
     """
     Get all Nodes in conceptnet.
     :return: A list of Nodes
     """
     cwd = os.getcwd()
     all_nodes = []
-    with open(os.path.join(cwd, '../../sql_data', 'nodes.csv'), encoding="utf8") as node_file:
+    with open(os.path.join(cwd, directory, 'nodes.csv'), encoding="utf8") as node_file:
         for line in node_file:
             if line.strip():
                 node_key, conceptnet_id = line.strip().split()
@@ -36,14 +36,14 @@ def get_nodes():
     return all_nodes
 
 
-def get_edges():
+def get_edges(directory):
     """
     Get all edges in conceptnet.
     :return: A list of Edges
     """
     cwd = os.getcwd()
     all_edges = []
-    with open(os.path.join(cwd, '../../sql_data', 'edges.csv'), encoding="utf8") as edge_file:
+    with open(os.path.join(cwd, directory, 'edges.csv'), encoding="utf8") as edge_file:
         for line in edge_file:
             if line.strip():
                 try:
@@ -58,16 +58,16 @@ def get_edges():
     return all_edges
 
 
-def add_conceptnet():
+def add_conceptnet(directory):
     """
     Add Nodes, Edges, and Relations from conceptnet into the database.
     :return: None
     """
 
     # Read nodes, edges, and relations from files
-    all_relations = get_relations()
-    all_nodes = get_nodes()
-    all_edges = get_edges()
+    all_relations = get_relations(directory)
+    all_nodes = get_nodes(directory)
+    all_edges = get_edges(directory)
 
     # Generate database schema
     Base.metadata.create_all(engine)
@@ -94,7 +94,7 @@ def add_conceptnet():
 
 
 def main():
-    add_conceptnet()
+    add_conceptnet('../../test_data')
 
 
 if __name__ == "__main__":
