@@ -5,8 +5,9 @@ from sqlalchemy.orm import sessionmaker
 from ..create import Node
 from .scads_node import ScadsNode
 
+PATH_TO_DATABASE = './test_data/test_scads_db.db'
 Base = declarative_base()
-engine = sa.create_engine('sqlite:///sql_data/scads_db.db')
+engine = sa.create_engine('sqlite:///' + PATH_TO_DATABASE)
 Session = sessionmaker(bind=engine)
 
 
@@ -34,4 +35,6 @@ class Scads:
         if Scads.session is None:
             raise RuntimeError("Session is not opened.")
         sql_node = Scads.session.query(Node).filter(Node.conceptnet_id == conceptnet_id).first()
+        if not sql_node:
+            raise Exception("Node not found.")
         return ScadsNode(sql_node, Scads.session)

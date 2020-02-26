@@ -15,11 +15,11 @@ class ScadsNode:
         Get list of datasets.
         :return: List of our datasets containing the node
         """
-        datasets = []
-        # node_key = self.node.key
-        # for label_map in self.session.query(LabelMap).filter(LabelMap.node_key == node_key):
-        #     datasets.append(label_map.dataset.name)
-        return datasets
+        datasets = set()
+        images = self.node.images
+        for image in images:
+            datasets.add(image.dataset.name)
+        return list(datasets)
 
     def get_images(self):
         """
@@ -28,7 +28,7 @@ class ScadsNode:
         """
         locations = []
         for image in self.node.images:
-            locations.append(image.location)
+            locations.append(image.path)
         return locations
 
     def get_neighbors(self):
@@ -36,11 +36,6 @@ class ScadsNode:
         Get the neighbors of this concept with the type of relationship.
         :return: List of ScadsEdges
         """
-        # edges = []
-        # node_key = self.node.key
-        # for edge in self.session.query(Edge).filter(Edge.start_node_key == node_key):
-        #     edges.append(ScadsEdge(self, ScadsNode(edge.end_node, self.session), edge.relation.name))
-        # return edges
         edges = []
         for edge in self.node.outgoing_edges:
             sql_node = self.session.query(Node).filter(Node.id == edge.end_node).first()

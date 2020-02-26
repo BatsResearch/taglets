@@ -7,3 +7,12 @@ class ScadsEdge:
         self.end_node = end_node            # The ending ScadsNode in the edge
         self.relationship = relationship    # The type of relationship
         self.is_directed = is_directed      # Whether or not the relationship is directed
+
+    def get_end_node(self):
+        return self.end_node
+
+    def get_relationship(self):
+        return self.relationship
+
+    def is_directed(self):
+        return self.is_directed

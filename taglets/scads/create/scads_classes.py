@@ -49,7 +49,7 @@ class Node(Base):
     conceptnet_id = Column(String)
 
     images = relationship("Image", back_populates="node")
-    outgoing_edges = relationship("Edge", primaryjoin=id == Edge.end_node)
+    outgoing_edges = relationship("Edge", primaryjoin=id == Edge.start_node)
 
     def __repr__(self):
         return "<Node(key='%s', name='%s'')>" % (self.id, self.conceptnet_id)

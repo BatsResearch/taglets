@@ -1,7 +1,6 @@
 import pandas as pd
 import os
 from scads.create.scads_classes import Dataset, Node, Image, Session
-from sqlalchemy.sql import text
 
 
 def get_images(dataset, session):

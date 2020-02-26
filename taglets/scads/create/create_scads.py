@@ -89,6 +89,7 @@ def add_conceptnet(directory):
             included_edges.append(edge)
 
     session.add_all(included_edges)
+
     session.commit()
     session.close()
 
