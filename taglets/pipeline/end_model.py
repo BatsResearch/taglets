@@ -65,7 +65,9 @@ class EndModel(Trainable):
         test_imgs = []
         self.model.eval()
 
-        for inputs, _ in data_loader:
+        for batch in data_loader:
+            inputs = batch[0]
+            names = batch[1]
             if use_gpu:
                 inputs = inputs.cuda()
 
@@ -76,6 +78,8 @@ class EndModel(Trainable):
                     _, preds = torch.max(outputs, 1)
                     predicted_labels.append(str(preds.item()))
                     confidences.append(torch.max(torch.nn.functional.softmax(outputs)).item())
+                    
+            test_imgs = test_imgs + names
 
         assert len(predicted_labels) == len(test_imgs)
 

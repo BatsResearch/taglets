@@ -31,9 +31,12 @@ class Controller:
         """
 
         # Creates data loaders
-        labeled = self._get_data_loader(self.task.get_labeled_train_data(), shuffle=True)
-        unlabeled = self._get_data_loader(self.task.get_unlabeled_train_data(), shuffle=True)
-        val = self._get_data_loader(self.task.get_validation_data(), shuffle=False)
+        labeled_dataset = self.task.get_labeled_train_data()
+        unlabeled_dataset = self.task.get_unlabeled_train_data()
+        val_dataset = self.task.get_validation_data()
+        labeled = self._get_data_loader(labeled_dataset, shuffle=True)
+        unlabeled = self._get_data_loader(unlabeled_dataset, shuffle=True)
+        val = self._get_data_loader(val_dataset, shuffle=False)
 
         # Initializes taglet-creating modules
         modules = self._get_taglets_modules()
@@ -66,10 +69,16 @@ class Controller:
         log.info("Training end model")
         self.end_model = EndModel(self.task)
 
-        end_model_train_data_loader = self.combine_soft_labels(soft_labels_unlabeled_images,
+        train_image_names = labeled_dataset.get_filenames()
+        train_image_labels = labeled_dataset.get_labels()
+        unlabeled_image_names = []
+        for batch in unlabeled:
+            for names in batch[2]:
+                unlabeled_image_names.append(names)
+        end_model_train_data_loader = self.combine_soft_labels(weak_labels,
                                                                unlabeled_image_names,
                                                                train_image_names, train_image_labels)
-        self.end_model.train(end_model_train_data_loader, val_data_loader, self.use_gpu)
+        self.end_model.train(end_model_train_data_loader, val, self.use_gpu)
         log.info("Finished training end model")
 
         return self.end_model
@@ -110,14 +119,14 @@ class Controller:
         all_names = unlabeled_names + train_image_names
 
         end_model_train_data = SoftLabelDataSet(self.task.unlabeled_image_path,
-                                          all_names,
-                                          all_soft_labels,
-                                          self.task.transform_image(),
-                                          self.task.number_of_channels)
+                                                all_names,
+                                                all_soft_labels,
+                                                self.task.transform_image(),
+                                                self.task.number_of_channels)
 
         train_data = torch.utils.data.DataLoader(end_model_train_data,
-                                           batch_size=self.batch_size,
-                                           shuffle=True,
-                                           num_workers=self.num_workers)
+                                                 batch_size=self.batch_size,
+                                                 shuffle=True,
+                                                 num_workers=self.num_workers)
 
         return train_data
