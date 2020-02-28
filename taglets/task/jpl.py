@@ -117,20 +117,24 @@ class JPL:
         return r.json()
     
     
-class JPLDataStorage:
-    def __init__(self):
+class JPLStorage:
+    def __init__(self, task_name, metadata):
         """
         Create a new Task.
         :param metadata: The metadata of the Task.
         """
+        self.name = task_name
+        self.description = ''
+        self.problem_type = metadata['problem_type']
+        self.task_id = metadata['task_id']
         self.classes = []
         self.evaluation_image_path = "path to test images"
         self.unlabeled_image_path = "path to unlabeled images"
-        self.labeled_images = []  # A list of tuples with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
+        self.labeled_images = []    # A list of tuples with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
         self.number_of_channels = None
         self.train_data_loader = None
-        self.phase = None  # base or adaptation
-        self.pretrained = None  # can load from pretrained models on ImageNet
+        self.phase = None # base or adaptation
+        self.pretrained = None # can load from pretrained models on ImageNet
     
     def add_labeled_images(self, new_labeled_images):
         """
@@ -159,63 +163,6 @@ class JPLDataStorage:
         ])
         return transform
     
-    def get_labeled_dataset(self, batch_size, num_workers):
-        """
-        Get training, validation, and testing data loaders from labeled data.
-        :param batch_size: The batch size
-        :param num_workers: The number of workers
-        :return: Training, validation, and testing data loaders
-        """
-        transform = self.transform_image()
-        
-        image_names, image_labels = self.get_labeled_images_list()
-        
-        train_val_data = CustomDataSet(self.unlabeled_image_path,
-                                       image_names,
-                                       image_labels,
-                                       transform,
-                                       self.number_of_channels)
-        
-        # 80% for training, 20% for validation
-        train_percent = 0.8
-        num_data = len(train_val_data)
-        indices = list(range(num_data))
-        train_split = int(np.floor(train_percent * num_data))
-        np.random.shuffle(indices)
-        train_idx = indices[:train_split]
-        valid_idx = indices[train_split:]
-        
-        train_set = data.Subset(train_val_data, train_idx)
-        val_set = data.Subset(train_val_data, valid_idx)
-        
-        train_dataset = torch.utils.data.DataLoader(train_set,
-                                                    batch_size=batch_size,
-                                                    shuffle=False,
-                                                    num_workers=num_workers)
-        val_dataset = torch.utils.data.DataLoader(val_set,
-                                                  batch_size=batch_size,
-                                                  shuffle=False,
-                                                  num_workers=num_workers)
-        
-        return train_dataset, val_dataset
-    
-    def get_unlabeled_dataset(self, batch_size, num_workers):
-        """
-        Get a data loader from unlabeled data.
-        :param batch_size: The batch size
-        :param num_workers: The number of workers
-        :return: A data loader containing unlabeled data
-        """
-        transform = self.transform_image()
-        
-        unlabeled_images_names = self.get_unlabeled_image_names()
-        unlabeled_dataset = CustomDataSet(self.unlabeled_image_path,
-                                          unlabeled_images_names,
-                                          None,
-                                          transform,
-                                          self.number_of_channels)
-        return unlabeled_dataset
-    
     def get_labeled_images_list(self):
         """get list of image names and labels"""
         image_names = [img_name for img_name, label in self.labeled_images]
@@ -230,6 +177,69 @@ class JPLDataStorage:
             if img not in labeled_image_names:
                 unlabeled_images_names.append(img)
         return unlabeled_images_names
+
+    def get_labeled_dataset(self):
+        """
+        Get training, validation, and testing data loaders from labeled data.
+        :return: Training, validation, and testing data loaders
+        """
+        transform = self.transform_image()
+    
+        image_names, image_labels = self.get_labeled_images_list()
+    
+        train_val_data = CustomDataSet(self.unlabeled_image_path,
+                                       image_names,
+                                       image_labels,
+                                       transform,
+                                       self.number_of_channels)
+    
+        # 80% for training, 20% for validation
+        train_percent = 0.8
+        num_data = len(train_val_data)
+        indices = list(range(num_data))
+        train_split = int(np.floor(train_percent * num_data))
+        np.random.shuffle(indices)
+        train_idx = indices[:train_split]
+        valid_idx = indices[train_split:]
+    
+        train_dataset = data.Subset(train_val_data, train_idx)
+        val_dataset = data.Subset(train_val_data, valid_idx)
+    
+        return train_dataset, val_dataset
+
+    def get_unlabeled_dataset(self):
+        """
+        Get a data loader from unlabeled data.
+        :return: A data loader containing unlabeled data
+        """
+        transform = self.transform_image()
+    
+        unlabeled_images_names = self.get_unlabeled_image_names()
+        unlabeled_dataset = CustomDataSet(self.unlabeled_image_path,
+                                          unlabeled_images_names,
+                                          None,
+                                          transform,
+                                          self.number_of_channels)
+        return unlabeled_dataset
+    
+    def get_evaluation_dataset(self):
+        """
+        Get a data loader from evaluation/test data.
+        :param batch_size: The batch size
+        :param num_workers: The number of workers
+        :return: A data loader containing unlabeled data
+        """
+        transform = self.transform_image()
+
+        evaluation_images_names = []
+        for img in os.listdir(self.evaluation_image_path):
+            evaluation_images_names.append(img)
+        evaluation_dataset = CustomDataSet(self.evaluation_image_path,
+                                           evaluation_images_names,
+                                           None,
+                                           transform,
+                                           self.number_of_channels)
+        return evaluation_dataset
     
     def get_scads_data(self, batch_size, num_workers):
         image_paths = []
@@ -287,23 +297,39 @@ class JPLDataStorage:
 
 
 class JPLRunner:
-    def __init__(self, use_gpu=False, testing=False, data_type='sample'):
+    def __init__(self, batch_size=32, num_workers=2, use_gpu=False, testing=False, data_type='sample'):
         self.api = JPL()
         self.api.data_type = data_type
-        self.task, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_task()
+        self.jpl_storage, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_jpl_information()
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
-        self.controller = Controller(use_gpu=use_gpu, testing=testing)
         
         self.use_gpu = use_gpu
         self.testing = testing
 
-        self.batch_size = 32
-        self.num_workers = 2
+        self.batch_size = batch_size
+        self.num_workers = num_workers
         
-        self.storage = JPLDataStorage()
+    def get_class(self):
+        """
+        TODO: This needs to not be mnist-specific
+        :return: map from DataLoader class labels to SCADS node IDs
+        """
+        classes = {
+            0: '/c/en/zero/n/wn/quantity',
+            1: '/c/en/one/n/wn/quantity',
+            2: '/c/en/two/n/wn/quantity',
+            3: '/c/en/three/n/wn/quantity',
+            4: '/c/en/four/n/wn/quantity',
+            5: '/c/en/five/n/wn/quantity',
+            6: '/c/en/six/n/wn/quantity',
+            7: '/c/en/seven/n/wn/quantity',
+            8: '/c/en/eight/n/wn/quantity',
+            9: '/c/en/nine/n/wn/quantity',
+        }
+        return classes
         
-    def get_task(self):
+    def get_jpl_information(self):
         jpl_task_names = self.api.get_available_tasks()
         jpl_task_name = jpl_task_names[0]  # Image classification task
         self.api.create_session(jpl_task_name)
@@ -312,51 +338,53 @@ class JPLRunner:
         num_base_checkpoints = len(jpl_task_metadata['base_label_budget'])
         num_adapt_checkpoints = len(jpl_task_metadata['adaptation_label_budget'])
 
-        task = Task(task_name, task_metadata)
+        jpl_storage = JPLStorage(jpl_task_name, jpl_task_metadata)
         session_status = self.api.get_session_status()
         current_dataset = session_status['current_dataset']
-        task.classes = current_dataset['classes']
-        task.number_of_channels = current_dataset['number_of_channels']
+        jpl_storage.classes = current_dataset['classes']
+        jpl_storage.number_of_channels = current_dataset['number_of_channels']
     
-        task.unlabeled_image_path = "./sql_data/MNIST/" + self.api.data_type + "/train"
-        task.evaluation_image_path = "./sql_data/MNIST/" + self.api.data_type + "test"  # Should be updated later
-        task.phase = session_status['pair_stage']
+        jpl_storage.unlabeled_image_path = "./sql_data/MNIST/" + self.api.data_type + "/train"
+        jpl_storage.evaluation_image_path = "./sql_data/MNIST/" + self.api.data_type + "test"  # Should be updated later
+        jpl_storage.phase = session_status['pair_stage']
         if session_status['pair_stage'] == 'adaptation':
-            task.labeled_images = []
-            task.initial = task_metadata['adaptation_can_use_pretrained_model']
+            jpl_storage.labeled_images = []
+            jpl_storage.initial = jpl_task_metadata['adaptation_can_use_pretrained_model']
         elif session_status['pair_stage'] == 'base':
-            task.labeled_images = self.api.get_seed_labels()
-            task.initial = task_metadata['base_can_use_pretrained_model']
-        return task, num_base_checkpoints, num_adapt_checkpoints
+            jpl_storage.labeled_images = self.api.get_seed_labels()
+            jpl_storage.initial = jpl_task_metadata['base_can_use_pretrained_model']
+        return jpl_storage, num_base_checkpoints, num_adapt_checkpoints
 
-    def update_task(self):
-        task_metadata = self.api.get_task_metadata(self.task.name)
+    def update_jpl_information(self):
+        task_metadata = self.api.get_task_metadata(self.jpl_storage.name)
         session_status = self.api.get_session_status()
         current_dataset = session_status['current_dataset']
-        self.task.classes = current_dataset['classes']
-        self.task.number_of_channels = current_dataset['number_of_channels']
-    
-        self.task.unlabeled_image_path = "./sql_data/MNIST/" + self.api.data_type + "/train"
-        self.task.evaluation_image_path = "./sql_data/MNIST/" + self.api.data_type + "/test"  # Should be updated later
-        self.task.phase = session_status['pair_stage']
+        self.jpl_storage.classes = current_dataset['classes']
+        self.jpl_storage.number_of_channels = current_dataset['number_of_channels']
+
+        # Should be updated later
+        self.jpl_storage.unlabeled_image_path = "./sql_data/MNIST/" + self.api.data_type + "/train"
+        self.jpl_storage.evaluation_image_path = "./sql_data/MNIST/" + self.api.data_type + "/test"
+        
+        self.jpl_storage.phase = session_status['pair_stage']
         if session_status['pair_stage'] == 'adaptation':
-            self.task.labeled_images = []
-            self.task.initial = task_metadata['adaptation_can_use_pretrained_model']
+            self.jpl_storage.labeled_images = []
+            self.jpl_storage.initial = task_metadata['adaptation_can_use_pretrained_model']
         elif session_status['pair_stage'] == 'base':
-            self.task.labeled_images = self.api.get_seed_labels()
-            self.task.initial = task_metadata['base_can_use_pretrained_model']
+            self.jpl_storage.labeled_images = self.api.get_seed_labels()
+            self.jpl_storage.initial = task_metadata['base_can_use_pretrained_model']
 
     def run_checkpoints(self):
         self.run_checkpoints_base()
         self.run_checkpoints_adapt()
 
     def run_checkpoints_base(self):
-        self.update_task()
+        self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
             self.run_one_checkpoint("Base", i)
     
     def run_checkpoints_adapt(self):
-        self.update_task()
+        self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
             self.run_one_checkpoint("Adapt", i)
     
@@ -367,7 +395,7 @@ class JPLRunner:
         log.info('------------------------------------------------------------')
 
         available_budget = self.get_available_budget()
-        unlabeled_image_names = self.task.get_unlabeled_image_names()
+        unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names()
         log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
         if checkpoint_num == 0:
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
@@ -375,14 +403,26 @@ class JPLRunner:
             candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
         self.request_labels(candidates)
         
-        end_model = self.controller.train_end_model(self.task)
+        labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset()
+        unlabeled_dataset = self.jpl_storage.get_unlabeled_dataset()
+        classes = self.get_class()
+        task = Task(self.jpl_storage.name, classes, labeled_dataset, unlabeled_dataset, val_dataset)
+        controller = Controller(task, self.batch_size, self.num_workers, self.use_gpu)
+        end_model = controller.train_end_model()
         
-        test_data_loader = self.task.load_test_data(self.batch_size, self.num_workers)
-        predictions, _ = end_model.predict(test_data_loader, self.use_gpu)
+        evaluation_dataset = self.jpl_storage.get_evaluation_dataset()
+        evaluation_data_loader = torch.utils.data.DataLoader(evaluation_dataset,
+                                                             batch_size=self.batch_size,
+                                                             shuffle=False,
+                                                             num_workers=self.num_workers)
+        predictions, _ = end_model.predict(evaluation_data_loader, self.use_gpu)
         
         self.submit_predictions(predictions)
 
-        unlabeled_data_loader, _ = self.task.load_unlabeled_data(self.batch_size, self.num_workers)
+        unlabeled_data_loader = torch.utils.data.DataLoader(unlabeled_dataset,
+                                                            batch_size=self.batch_size,
+                                                            shuffle=False,
+                                                            num_workers=self.num_workers)
         _, confidences_df = end_model.predict(unlabeled_data_loader, self.use_gpu)
         candidates = np.argsort(confidences_df['confidence'])
         self.confidence_active_learning.set_candidates(candidates)
@@ -398,9 +438,9 @@ class JPLRunner:
     def request_labels(self, examples):
         query = {'example_ids': examples}
         labeled_images = self.api.request_label(query)
-        self.task.add_labeled_images(labeled_images)
+        self.jpl_storage.add_labeled_images(labeled_images)
         log.info("New labeled images:", len(labeled_images))
-        log.info("Total labeled images:", len(self.task.labeled_images))
+        log.info("Total labeled images:", len(self.jpl_storage.labeled_images))
 
     def submit_predictions(self, predictions):
         submit_status = self.api.submit_prediction(predictions)
@@ -411,7 +451,7 @@ class JPLRunner:
 
 def main():
     # TODO: Make CLI
-    runner = JPLRunner('sample')
+    runner = JPLRunner()
     runner.run_checkpoints()
 
 
