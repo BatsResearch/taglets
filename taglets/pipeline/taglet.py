@@ -5,6 +5,7 @@ import numpy as np
 import random
 import torchvision.models as models
 import torch
+from ..models import MnistResNet
 
 
 log = logging.getLogger(__name__)
@@ -29,7 +30,10 @@ class Trainable:
         self.select_on_val = True   # If true, save model on the best validation performance
         self.save_dir = None
 
-        self.model = task.get_initial_model() or models.resnet18(pretrained=False)
+        if task.number_of_channels == 1:
+            self.model = MnistResNet()
+        else:
+            self.model = task.get_initial_model() or models.resnet18(pretrained=False)
 
         self.model.fc = torch.nn.Linear(self.model.fc.in_features, len(self.task.classes))
 

@@ -406,7 +406,12 @@ class JPLRunner:
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset()
         unlabeled_dataset = self.jpl_storage.get_unlabeled_dataset()
         classes = self.get_class()
-        task = Task(self.jpl_storage.name, classes, labeled_dataset, unlabeled_dataset, val_dataset)
+        task = Task(self.jpl_storage.name,
+                    classes,
+                    self.jpl_storage.number_of_channels,
+                    labeled_dataset,
+                    unlabeled_dataset,
+                    val_dataset)
         controller = Controller(task, self.batch_size, self.num_workers, self.use_gpu)
         end_model = controller.train_end_model()
         
