@@ -1,5 +1,5 @@
 import os
-from scads.create.scads_classes import Node, Edge, Relation, Base, engine, Session
+from .scads_classes import Node, Edge, Relation, Base, engine, Session
 
 
 def get_relations():
