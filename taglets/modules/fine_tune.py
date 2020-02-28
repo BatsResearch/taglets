@@ -38,7 +38,8 @@ class FineTuneTaglet(Taglet):
             self.model = self.model.cpu()
 
         predicted_labels = []
-        for inputs in unlabeled_data_loader:
+        for batch in unlabeled_data_loader:
+            inputs = batch[0]
             if use_gpu:
                 inputs = inputs.cuda()
             with torch.set_grad_enabled(False):
