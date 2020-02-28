@@ -65,25 +65,3 @@ class Task:
             return None
         else:
             return copy.deepcopy(self.initial)
-
-    def get_labeled_images_list(self):
-        """get list of image names and labels"""
-        image_names = [img_name for img_name, label in self.labeled_images]
-        image_labels = [label for img_name, label in self.labeled_images]
-        return image_names, image_labels
-
-    def get_unlabeled_image_names(self):
-        """return list of name of unlabeled images"""
-        labeled_image_names = {img_name for img_name, label in self.labeled_images}
-        unlabeled_images_names = []
-        for img in os.listdir(self.unlabeled_image_path):
-            if img not in labeled_image_names:
-                unlabeled_images_names.append(img)
-        return unlabeled_images_names
-    
-    def get_test_image_names(self):
-        """return list of name of test images"""
-        test_images_names = []
-        for img in os.listdir(self.evaluation_image_path):
-            test_images_names.append(img)
-        return test_images_names
