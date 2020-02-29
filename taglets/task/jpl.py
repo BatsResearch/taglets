@@ -10,6 +10,7 @@ from ..data import CustomDataSet
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
 from ..task import Task
 from ..controller import Controller
+from ..models import MnistResNet
 
 log = logging.getLogger(__name__)
 
@@ -408,10 +409,10 @@ class JPLRunner:
         classes = self.get_class()
         task = Task(self.jpl_storage.name,
                     classes,
-                    self.jpl_storage.number_of_channels,
                     labeled_dataset,
                     unlabeled_dataset,
                     val_dataset)
+        task.set_initial_model(MnistResNet())
         controller = Controller(task, self.batch_size, self.num_workers, self.use_gpu)
         end_model = controller.train_end_model()
         
