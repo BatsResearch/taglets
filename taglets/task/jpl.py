@@ -1,4 +1,5 @@
 import logging
+import sys
 import requests
 import os
 import numpy as np
@@ -456,7 +457,13 @@ class JPLRunner:
 
 
 def main():
-    # TODO: Make CLI
+    logger = logging.getLogger()
+    logger.level = logging.INFO
+    stream_handler = logging.StreamHandler(sys.stdout)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+    
     runner = JPLRunner()
     runner.run_checkpoints()
 
