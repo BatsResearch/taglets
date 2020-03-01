@@ -31,9 +31,9 @@ class Controller:
         """
 
         # Creates data loaders
-        labeled = self._get_data_loader(labeled_dataset, shuffle=True)
-        unlabeled = self._get_data_loader(unlabeled_dataset, shuffle=True)
-        val = self._get_data_loader(val_dataset, shuffle=False)
+        labeled = self._get_data_loader(self.task.get_labeled_train_data(), shuffle=True)
+        unlabeled = self._get_data_loader(self.task.get_unlabeled_train_data(), shuffle=True)
+        val = self._get_data_loader(self.task.get_validation_data(), shuffle=False)
 
         # Initializes taglet-creating modules
         modules = self._get_taglets_modules()
@@ -69,7 +69,7 @@ class Controller:
         unlabeled_images = []
         for batch in unlabeled:
             for images in batch[0]:
-                unlabeled_image_names = unlabeled_image_names + images
+                unlabeled_images = unlabeled_images + images
         train_images = []
         train_images_labels = []
         for batch in labeled:
