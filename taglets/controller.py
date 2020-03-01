@@ -31,9 +31,6 @@ class Controller:
         """
 
         # Creates data loaders
-        labeled_dataset = self.task.get_labeled_train_data()
-        unlabeled_dataset = self.task.get_unlabeled_train_data()
-        val_dataset = self.task.get_validation_data()
         labeled = self._get_data_loader(labeled_dataset, shuffle=True)
         unlabeled = self._get_data_loader(unlabeled_dataset, shuffle=True)
         val = self._get_data_loader(val_dataset, shuffle=False)
@@ -69,15 +66,20 @@ class Controller:
         log.info("Training end model")
         self.end_model = EndModel(self.task)
 
-        train_image_names = labeled_dataset.get_filenames()
-        train_image_labels = labeled_dataset.get_labels()
-        unlabeled_image_names = []
+        unlabeled_images = []
         for batch in unlabeled:
-            for names in batch[2]:
-                unlabeled_image_names.append(names)
-        end_model_train_data_loader = self.combine_soft_labels(weak_labels,
-                                                               unlabeled_image_names,
-                                                               train_image_names, train_image_labels)
+            for images in batch[0]:
+                unlabeled_image_names = unlabeled_image_names + images
+        train_images = []
+        train_images_labels = []
+        for batch in labeled:
+            for images, labels in zip(batch[0], batch[1]):
+                train_images = train_images + images
+                train_images_labels = train_images_labels + labels
+        end_model_train_data_loader = self.combine_soft_labels(unlabeled_images,
+                                                               weak_labels,
+                                                               train_images,
+                                                               train_images_labels)
         self.end_model.train(end_model_train_data_loader, val, self.use_gpu)
         log.info("Finished training end model")
 
@@ -105,24 +107,20 @@ class Controller:
         log.info("Finished training label model")
         return labelmodel
 
-    def combine_soft_labels(self, unlabeled_labels, unlabeled_names, train_image_names, train_image_labels):
+    def combine_soft_labels(self, unlabeled_images, unlabeled_labels, train_images, train_images_labels):
         def to_soft_one_hot(l):
             soh = [0.15] * len(self.task.classes)
             soh[l] = 0.85
             return soh
 
         soft_labels_labeled_images = []
-        for image_label in train_image_labels:
-            soft_labels_labeled_images.append(to_soft_one_hot(int(image_label)))
+        for image_label in train_images_labels:
+            soft_labels_labeled_images.append(torch.tensor(to_soft_one_hot(int(image_label))))
 
-        all_soft_labels = np.concatenate((unlabeled_labels, np.array(soft_labels_labeled_images)), axis=0)
-        all_names = unlabeled_names + train_image_names
+        all_soft_labels = unlabeled_labels + soft_labels_labeled_images
+        all_images = unlabeled_images + train_images
 
-        end_model_train_data = SoftLabelDataSet(self.task.unlabeled_image_path,
-                                                all_names,
-                                                all_soft_labels,
-                                                self.task.transform_image(),
-                                                self.task.number_of_channels)
+        end_model_train_data = SoftLabelDataSet(all_images, all_soft_labels)
 
         train_data = torch.utils.data.DataLoader(end_model_train_data,
                                                  batch_size=self.batch_size,
