@@ -174,11 +174,17 @@ class JPLStorage:
     def get_unlabeled_image_names(self):
         """return list of name of unlabeled images"""
         labeled_image_names = {img_name for img_name, label in self.labeled_images}
-        unlabeled_images_names = []
+        unlabeled_image_names = []
         for img in os.listdir(self.unlabeled_image_path):
             if img not in labeled_image_names:
-                unlabeled_images_names.append(img)
-        return unlabeled_images_names
+                unlabeled_image_names.append(img)
+        return unlabeled_image_names
+    
+    def get_evaluation_image_names(self):
+        evaluation_image_names = []
+        for img in os.listdir(self.evaluation_image_path):
+            evaluation_image_names.append(img)
+        return evaluation_image_names
 
     def get_labeled_dataset(self):
         """
@@ -423,6 +429,7 @@ class JPLRunner:
                                                              shuffle=False,
                                                              num_workers=self.num_workers)
         predictions, _ = end_model.predict(evaluation_data_loader, self.use_gpu)
+        predictions = {'id': self.jpl_storage.get_evaluation_image_names(), 'class': predictions}
         
         self.submit_predictions(predictions)
 

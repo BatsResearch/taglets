@@ -68,13 +68,15 @@ class Controller:
 
         unlabeled_images = []
         for images in unlabeled:
-            unlabeled_images = unlabeled_images + images
+            for image in images:
+                unlabeled_images.append(image)
         train_images = []
         train_images_labels = []
         for batch in labeled:
             images, labels = batch
-            train_images = train_images + images
-            train_images_labels = train_images_labels + labels
+            for image, label in zip(images, labels):
+                train_images.append(image)
+                train_images_labels.append(label)
         end_model_train_data_loader = self.combine_soft_labels(unlabeled_images,
                                                                weak_labels,
                                                                train_images,

@@ -62,12 +62,9 @@ class EndModel(Trainable):
 
         predicted_labels = []
         confidences = []
-        test_imgs = []
         self.model.eval()
 
-        for batch in data_loader:
-            inputs = batch[0]
-            names = batch[1]
+        for inputs in data_loader:
             if use_gpu:
                 inputs = inputs.cuda()
 
@@ -78,12 +75,5 @@ class EndModel(Trainable):
                     _, preds = torch.max(outputs, 1)
                     predicted_labels.append(str(preds.item()))
                     confidences.append(torch.max(torch.nn.functional.softmax(outputs)).item())
-                    
-            test_imgs = test_imgs + names
-
-        assert len(predicted_labels) == len(test_imgs)
-
-        pred_df = pd.DataFrame({'id': test_imgs, 'class': predicted_labels})
-        prbs_df = pd.DataFrame({'id': test_imgs, 'confidence': confidences})
         
-        return pred_df.to_dict(), prbs_df.to_dict()
+        return predicted_labels, confidences
