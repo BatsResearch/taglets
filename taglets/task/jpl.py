@@ -446,14 +446,14 @@ class JPLRunner:
         query = {'example_ids': examples}
         labeled_images = self.api.request_label(query)
         self.jpl_storage.add_labeled_images(labeled_images)
-        log.info("New labeled images:", len(labeled_images))
-        log.info("Total labeled images:", len(self.jpl_storage.labeled_images))
+        log.info("New labeled images: %s", len(labeled_images))
+        log.info("Total labeled images: %s", len(self.jpl_storage.labeled_images))
 
     def submit_predictions(self, predictions):
         submit_status = self.api.submit_prediction(predictions)
         session_status = self.api.get_session_status()
-        log.info("Checkpoint scores", session_status['checkpoint_scores'])
-        log.info("Phase:", session_status['pair_stage'])
+        log.info("Checkpoint scores: %s", session_status['checkpoint_scores'])
+        log.info("Phase: %s", session_status['pair_stage'])
 
 
 def main():
