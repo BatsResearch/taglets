@@ -429,16 +429,16 @@ class JPLRunner:
                                                              shuffle=False,
                                                              num_workers=self.num_workers)
         predictions, _ = end_model.predict(evaluation_data_loader, self.use_gpu)
-        predictions = {'id': self.jpl_storage.get_evaluation_image_names(), 'class': predictions}
+        predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(), 'class': predictions}
         
-        self.submit_predictions(predictions)
+        self.submit_predictions(predictions_dict)
 
         unlabeled_data_loader = torch.utils.data.DataLoader(unlabeled_dataset,
                                                             batch_size=self.batch_size,
                                                             shuffle=False,
                                                             num_workers=self.num_workers)
-        _, confidences_df = end_model.predict(unlabeled_data_loader, self.use_gpu)
-        candidates = np.argsort(confidences_df['confidence'])
+        _, confidences = end_model.predict(unlabeled_data_loader, self.use_gpu)
+        candidates = np.argsort(confidences)
         self.confidence_active_learning.set_candidates(candidates)
 
     def get_available_budget(self):
