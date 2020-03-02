@@ -471,7 +471,7 @@ def main():
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
     
-    runner = JPLRunner(use_gpu=True)
+    runner = JPLRunner(use_gpu=True, testing=True)
     runner.run_checkpoints()
 
 
