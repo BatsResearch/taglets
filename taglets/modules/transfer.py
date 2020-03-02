@@ -39,14 +39,11 @@ class TransferTaglet(Taglet):
             self.model = self.model.cpu()
 
         predicted_labels = []
-        for batch in unlabeled_data_loader:
-            inputs = batch[0]
+        for inputs in unlabeled_data_loader:
             if use_gpu:
                 inputs = inputs.cuda()
             with torch.set_grad_enabled(False):
-                for data in inputs:
-                    data = torch.unsqueeze(data, dim=0)
-                    outputs = self.model(data)
-                    _, preds = torch.max(outputs, 1)
-                    predicted_labels.append(preds.item())
+                outputs = self.model(inputs)
+                _, preds = torch.max(outputs, 1)
+                predicted_labels = predicted_labels + preds.detach().cpu().tolist()
         return predicted_labels

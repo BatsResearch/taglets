@@ -192,12 +192,11 @@ class PrototypeTaglet(Taglet):
             self.model = self.model.cpu()
 
         predicted_labels = []
-        for inputs, index in unlabeled_data_loader:
+        for inputs in unlabeled_data_loader:
             if use_gpu:
                 inputs = inputs.cuda()
-                index = index.cuda()
             with torch.set_grad_enabled(False):
-                for data, ix in zip(inputs,index):
+                for data in inputs:
                     data = torch.unsqueeze(data, dim=0)
                     proto = self.model(data)
                     prediction = self.onn(proto)

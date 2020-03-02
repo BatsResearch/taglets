@@ -35,9 +35,9 @@ class CustomDataSet(Dataset):
 
         if self.labels:
             label = torch.tensor(int(self.labels[index]))
-            return img, label, index
+            return img, label
         else:
-            return img, index
+            return img
 
     def __len__(self):
         return len(self.filenames)
@@ -60,7 +60,7 @@ class SoftLabelDataSet(Dataset):
         img = self.images[index]
         label = self.labels[index]
 
-        return img, label, index
+        return img, label
 
     def __len__(self):
         return len(self.images)
