@@ -72,7 +72,7 @@ class Controller:
             for image in images:
                 unlabeled_images.append(image)
         for label in weak_labels:
-            unlabeled_images_labels.append(torch.tensor(label))
+            unlabeled_images_labels.append(torch.FloatTensor(label))
             
         train_images = []
         train_images_labels = []
@@ -121,7 +121,7 @@ class Controller:
 
         soft_labels_labeled_images = []
         for image_label in train_images_labels:
-            soft_labels_labeled_images.append(torch.tensor(to_soft_one_hot(int(image_label))))
+            soft_labels_labeled_images.append(torch.FloatTensor(to_soft_one_hot(int(image_label))))
 
         all_soft_labels = unlabeled_labels + soft_labels_labeled_images
         all_images = unlabeled_images + train_images
