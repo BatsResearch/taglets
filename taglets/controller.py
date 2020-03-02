@@ -103,7 +103,7 @@ class Controller:
     def _train_label_model(self, vote_matrix):
         log.info("Training label model")
         labelmodel = labelmodels.NaiveBayes(
-            num_classes=vote_matrix.shape[0], num_lfs=vote_matrix.shape[1])
+            num_classes=len(self.task.classes), num_lfs=vote_matrix.shape[1])
         labelmodel.estimate_label_model(vote_matrix)
         log.info("Finished training label model")
         return labelmodel
