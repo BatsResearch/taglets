@@ -67,9 +67,13 @@ class Controller:
         self.end_model = EndModel(self.task)
 
         unlabeled_images = []
+        unlabeled_images_labels = []
         for images in unlabeled:
             for image in images:
                 unlabeled_images.append(image)
+        for label in weak_labels:
+            unlabeled_images_labels.append(torch.tensor(label))
+            
         train_images = []
         train_images_labels = []
         for batch in labeled:
@@ -77,8 +81,9 @@ class Controller:
             for image, label in zip(images, labels):
                 train_images.append(image)
                 train_images_labels.append(label)
+                
         end_model_train_data_loader = self.combine_soft_labels(unlabeled_images,
-                                                               weak_labels,
+                                                               unlabeled_images_labels,
                                                                train_images,
                                                                train_images_labels)
         self.end_model.train(end_model_train_data_loader, val, self.use_gpu)
