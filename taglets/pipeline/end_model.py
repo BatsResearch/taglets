@@ -1,16 +1,15 @@
-import torch
+from .taglet import Trainable
+
 import os
 import torch
 import pandas as pd
-from PIL import Image
-from pipeline import Trainable
 
 
 class EndModel(Trainable):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'end model'
-        self.save_dir = os.path.join('trained_models', task.phase ,str(task.task_id), self.name)
+        self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
@@ -21,7 +20,7 @@ class EndModel(Trainable):
         logs = torch.nn.LogSoftmax(dim=1)
         return torch.mean(torch.sum(-target * logs(prediction), 1))
 
-    def _train_epoch(self, train_data_loader, use_gpu, testing):
+    def _train_epoch(self, train_data_loader, use_gpu):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data
@@ -32,9 +31,6 @@ class EndModel(Trainable):
         running_loss = 0
         running_acc = 0
         for batch_idx, batch in enumerate(train_data_loader):
-            if testing:
-                if batch_idx >= 1:
-                    break
             inputs = batch[0]
             labels = batch[1]
             if use_gpu:
@@ -56,44 +52,28 @@ class EndModel(Trainable):
 
         return epoch_loss, epoch_acc
 
-    def predict(self, evaluation_image_path, number_of_channels, transform, use_gpu):
+    def predict(self, data_loader, use_gpu):
         """
         predict on test data.
-        :param evaluation_image_path: path to the evaluation data
+        :param data_loader: A dataloader containing images
         :param use_gpu: Whether or not to use the GPU
         :return: predictions
         """
 
-        predictons = []
-        test_imgs = []
+        predicted_labels = []
+        confidences = []
         self.model.eval()
 
-        for image in os.listdir(evaluation_image_path):
-            test_imgs.append(image)
-            img = os.path.join(evaluation_image_path, image)
-            img = Image.open(img)
-            if number_of_channels == 3:
-                img = img.convert('RGB')
-
-            if transform is not None:
-                img = transform(img)
-
+        for inputs in data_loader:
             if use_gpu:
-                img = img.cuda()
+                inputs = inputs.cuda()
 
             with torch.set_grad_enabled(False):
-                img = torch.unsqueeze(img, dim=0)
-                outputs = self.model(img)
-                _, preds = torch.max(outputs, 1)
-                predictons.append(str(preds.item()))
-
-        assert len(predictons) == len(test_imgs)
-
-        #df_content = [test_imgs, predictons]
-        df = pd.DataFrame(columns=['id', 'class'])
-        df['class'] = predictons
-        df['id'] = test_imgs
-        # For debugging, above lines should be equivalent to the one below
-        #df = pd.DataFrame({'id': test_imgs, 'class': predictons})
-
-        return df.to_dict()
+                for data in inputs:
+                    data = torch.unsqueeze(data, dim=0)
+                    outputs = self.model(data)
+                    _, preds = torch.max(outputs, 1)
+                    predicted_labels.append(str(preds.item()))
+                    confidences.append(torch.max(torch.nn.functional.softmax(outputs)).item())
+        
+        return predicted_labels, confidences

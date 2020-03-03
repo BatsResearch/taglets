@@ -1,3 +1,23 @@
+########################
+# Taglets specific stuff
+########################
+
+# Data
+MNIST
+taglets/sql_data
+
+# Saved models
+trained_models
+taglets/trained_models
+test/trained_models
+
+########################
+# Other stuff
+########################
+
+# OS X
+.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -1,2 +1,3 @@
-from .active_learning import ActiveLearningModule, LeastConfidenceActiveLearning, RandomActiveLearning
-from .module import FineTuneModule, TransferModule
+from .fine_tune import FineTuneModule
+from .prototype import PrototypeModule
+from .transfer import TransferModule

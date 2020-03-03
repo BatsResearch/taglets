@@ -1,217 +1,136 @@
-from JPL_interface import JPL
-from modules import FineTuneModule
-from modules import RandomActiveLearning, LeastConfidenceActiveLearning
-from pipeline import TagletExecutor
-from task import Task
-from label_model import get_label_distribution
-from custom_dataset import SoftLabelDataSet
-import torch
-from pipeline import EndModel
+from taglets.data.custom_dataset import SoftLabelDataSet
+from .modules import FineTuneModule
+from .pipeline import EndModel, TagletExecutor
+
+import labelmodels
+import logging
 import numpy as np
-import datetime
+import torch
+from torch.utils.data import DataLoader
+
+log = logging.getLogger(__name__)
 
 
 class Controller:
-    def __init__(self, use_gpu=False, testing=False, data_type='sample'):
-        self.api = JPL()
-        self.api.data_type = data_type
-        self.task, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_task()
-        self.random_active_learning = RandomActiveLearning()
-        self.confidence_active_learning = LeastConfidenceActiveLearning()
-        self.taglet_executor = TagletExecutor()
-        self.end_model = EndModel(self.task)
-        self.batch_size = 32
-        self.num_workers = 2
+    """
+    Manages training and execution of taglets, as well as training EndModels
+    """
+    def __init__(self, task, batch_size=32, num_workers=2, use_gpu=False):
+        self.task = task
+        self.end_model = None
+        self.batch_size = batch_size
+        self.num_workers = num_workers
         self.use_gpu = use_gpu
-        self.testing = testing
 
-    def run_checkpoints(self):
-        self.run_checkpoints_base()
-        self.run_checkpoints_adapt()
+    def train_end_model(self):
+        """
+        Executes a training pipeline end-to-end, turning a Task into an EndModel
 
-    def run_checkpoints_base(self):
-        self.update_task()
-        for i in range(self.num_base_checkpoints):
-            self.run_one_checkpoint("Base", i)
+        :param task: description of the task for the EndModel
+        :return: A trained EndModel
+        """
 
-    def run_checkpoints_adapt(self):
-        self.update_task()
-        for i in range(self.num_base_checkpoints):
-            self.run_one_checkpoint("Adapt", i)
+        # Creates data loaders
+        labeled = self._get_data_loader(self.task.get_labeled_train_data(), shuffle=True)
+        unlabeled = self._get_data_loader(self.task.get_unlabeled_train_data(), shuffle=True)
+        val = self._get_data_loader(self.task.get_validation_data(), shuffle=False)
 
-    def run_one_checkpoint(self, phase, checkpoint_num):
-        session_status = self.api.get_session_status()
-        print('------------------------------------------------------------')
-        print('--------------------{} Checkpoint: {}'.format(phase, checkpoint_num)+'---------------------')
-        print('------------------------------------------------------------')
+        # Initializes taglet-creating modules
+        modules = self._get_taglets_modules()
+        for module in modules:
+            log.info("Training %s module", module.__class__.__name__)
+            module.train_taglets(labeled, val, self.use_gpu)
+            log.info("Finished training %s module", module.__class__.__name__)
 
-        available_budget = self.get_available_budget()
-        unlabeled_image_names = self.task.get_unlabeled_image_names()
-        print('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
-        if checkpoint_num == 0:
-            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
-        else:
-            candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
-        self.request_labels(candidates)
-        predictions = self.get_predictions(session_status['pair_stage'])
-        self.submit_predictions(predictions)
+        # Collects all taglets
+        taglets = []
+        for module in modules:
+            taglets.extend(module.get_taglets())
+        taglet_executor = TagletExecutor()
+        taglet_executor.set_taglets(taglets)
 
-    def get_task(self):
-        task_names = self.api.get_available_tasks()
-        task_name = task_names[0]  # Image classification task
-        self.api.create_session(task_name)
-        task_metadata = self.api.get_task_metadata(task_name)
+        # Executes taglets
+        log.info("Executing taglets")
+        vote_matrix = taglet_executor.execute(unlabeled, self.use_gpu)
+        log.info("Finished executing taglets")
 
-        num_base_checkpoints = len(task_metadata['base_label_budget'])
-        num_adapt_checkpoints = len(task_metadata['adaptation_label_budget'])
+        # Learns label model
+        labelmodel = self._train_label_model(vote_matrix)
 
-        task = Task(task_name, task_metadata)
-        session_status = self.api.get_session_status()
-        current_dataset = session_status['current_dataset']
-        task.classes = current_dataset['classes']
-        task.number_of_channels = current_dataset['number_of_channels']
+        # Computes label distribution
+        log.info("Getting label distribution")
+        weak_labels = labelmodel.get_label_distribution(vote_matrix)
+        log.info("Finished getting label distribution")
 
-        task.unlabeled_image_path = "./sql_data/MNIST/"+self.api.data_type+"/train"
-        task.evaluation_image_path = "./sql_data/MNIST/"+self.api.data_type+"test"  # Should be updated later
-        task.phase = session_status['pair_stage']
-        if session_status['pair_stage'] == 'adaptation':
-            task.labeled_images = []
-            task.pretrained = task_metadata['adaptation_can_use_pretrained_model']
-        elif session_status['pair_stage'] == 'base':
-            task.labeled_images = self.api.get_seed_labels()
-            task.pretrained = task_metadata['base_can_use_pretrained_model']
-        return task, num_base_checkpoints, num_adapt_checkpoints
+        # Trains end model
+        log.info("Training end model")
+        self.end_model = EndModel(self.task)
 
-    def update_task(self):
-        task_metadata = self.api.get_task_metadata(self.task.name)
-        session_status = self.api.get_session_status()
-        current_dataset = session_status['current_dataset']
-        self.task.classes = current_dataset['classes']
-        self.task.number_of_channels = current_dataset['number_of_channels']
+        unlabeled_images = []
+        unlabeled_images_labels = []
+        for images in unlabeled:
+            for image in images:
+                unlabeled_images.append(image)
+        for label in weak_labels:
+            unlabeled_images_labels.append(torch.FloatTensor(label))
+            
+        train_images = []
+        train_images_labels = []
+        for batch in labeled:
+            images, labels = batch
+            for image, label in zip(images, labels):
+                train_images.append(image)
+                train_images_labels.append(label)
+                
+        end_model_train_data_loader = self.combine_soft_labels(unlabeled_images,
+                                                               unlabeled_images_labels,
+                                                               train_images,
+                                                               train_images_labels)
+        self.end_model.train(end_model_train_data_loader, val, self.use_gpu)
+        log.info("Finished training end model")
 
-        self.task.unlabeled_image_path = "./sql_data/MNIST/"+self.api.data_type+"/train"
-        self.task.evaluation_image_path = "./sql_data/MNIST/"+self.api.data_type+"/test"  # Should be updated later
-        self.task.phase = session_status['pair_stage']
-        if session_status['pair_stage'] == 'adaptation':
-            self.task.labeled_images = []
-            self.task.pretrained = task_metadata['adaptation_can_use_pretrained_model']
-        elif session_status['pair_stage'] == 'base':
-            self.task.labeled_images = self.api.get_seed_labels()
-            self.task.pretrained = task_metadata['base_can_use_pretrained_model']
+        return self.end_model
 
-    def get_available_budget(self):
-        session_status = self.api.get_session_status()
-        available_budget = session_status['budget_left_until_checkpoint']
+    def _get_taglets_modules(self):
+        return [FineTuneModule(task=self.task)]
 
-        if self.testing:
-            available_budget = available_budget // 10
-        return available_budget
+    def _get_data_loader(self, dataset, shuffle=True):
+        """
+        Creates a DataLoader for the given dataset
 
-    def request_labels(self, examples):
-        query = {'example_ids': examples}
-        labeled_images = self.api.request_label(query)
-        self.task.add_labeled_images(labeled_images)
-        print("New labeled images:", len(labeled_images))
-        print("Total labeled images:", len(self.task.labeled_images))
+        :param dataset: Dataset to wrap
+        :param shuffle: whether to shuffle the data
+        :return: the DataLoader
+        """
+        return DataLoader(dataset, batch_size=self.batch_size,
+                          shuffle=shuffle, num_workers=self.num_workers)
 
-    def combine_soft_labels(self, unlabeled_labels, unlabeled_names, train_image_names, train_image_labels):
+    def _train_label_model(self, vote_matrix):
+        log.info("Training label model")
+        labelmodel = labelmodels.NaiveBayes(
+            num_classes=len(self.task.classes), num_lfs=vote_matrix.shape[1])
+        labelmodel.estimate_label_model(vote_matrix)
+        log.info("Finished training label model")
+        return labelmodel
+
+    def combine_soft_labels(self, unlabeled_images, unlabeled_labels, train_images, train_images_labels):
         def to_soft_one_hot(l):
             soh = [0.15] * len(self.task.classes)
             soh[l] = 0.85
             return soh
 
         soft_labels_labeled_images = []
-        for image_label in train_image_labels:
-            soft_labels_labeled_images.append(to_soft_one_hot(int(image_label)))
+        for image_label in train_images_labels:
+            soft_labels_labeled_images.append(torch.FloatTensor(to_soft_one_hot(int(image_label))))
 
-        all_soft_labels = np.concatenate((unlabeled_labels, np.array(soft_labels_labeled_images)), axis=0)
-        all_names = unlabeled_names + train_image_names
+        all_soft_labels = unlabeled_labels + soft_labels_labeled_images
+        all_images = unlabeled_images + train_images
 
-        end_model_train_data = SoftLabelDataSet(self.task.unlabeled_image_path,
-                                          all_names,
-                                          all_soft_labels,
-                                          self.task.transform_image(),
-                                          self.task.number_of_channels)
+        end_model_train_data = SoftLabelDataSet(all_images, all_soft_labels)
 
         train_data = torch.utils.data.DataLoader(end_model_train_data,
-                                           batch_size=self.batch_size,
-                                           shuffle=True,
-                                           num_workers=self.num_workers)
+                                                 batch_size=self.batch_size,
+                                                 shuffle=True,
+                                                 num_workers=self.num_workers)
 
         return train_data
-
-    def get_predictions(self, phase):
-        """train taglets, label model, and endmodel, and return prediction
-        :param phase: 'base' or 'adapt'
-        """
-        train_data_loader, val_data_loader,  train_image_names, train_image_labels = self.task.load_labeled_data(
-            self.batch_size,
-            self.num_workers)
-
-        unlabeled_data_loader, unlabeled_image_names = self.task.load_unlabeled_data(self.batch_size,
-                                                                                     self.num_workers)
-
-        fine_tune_module = FineTuneModule(task=self.task)
-        modules = [fine_tune_module]
-
-        print("**********Training taglets on labeled data**********")
-        t1 = datetime.datetime.now()
-        fine_tune_module.train_taglets(train_data_loader, val_data_loader, self.use_gpu, self.testing)
-        t2 = datetime.datetime.now()
-        print()
-        print(".....Taglet training time: {}".format((t2 - t1).seconds))
-
-        taglets = []
-        for module in modules:
-            taglets.extend(module.get_taglets())
-        self.taglet_executor.set_taglets(taglets)
-
-        print("**********Executing taglets on unlabled data**********")
-        t1 = datetime.datetime.now()
-        label_matrix, candidates = self.taglet_executor.execute(unlabeled_data_loader, self.use_gpu, self.testing)
-        self.confidence_active_learning.set_candidates(candidates)
-        t2 = datetime.datetime.now()
-        print()
-        print(".....Taglet executing time: {}".format((t2 - t1).seconds))
-
-
-        print("**********Label Model**********")
-        t1 = datetime.datetime.now()
-        soft_labels_unlabeled_images = get_label_distribution(label_matrix, len(self.task.classes), self.testing)
-        t2 = datetime.datetime.now()
-        print()
-        print(".....Label Model time: {}".format((t2 - t1).seconds))
-
-
-
-        print("**********End Model**********")
-        t1 = datetime.datetime.now()
-        if self.testing:
-            unlabeled_image_names = unlabeled_image_names[:len(soft_labels_unlabeled_images)]
-        end_model_train_data_loader = self.combine_soft_labels(soft_labels_unlabeled_images,
-                                                         unlabeled_image_names,
-                                                         train_image_names, train_image_labels)
-        self.end_model.train(end_model_train_data_loader, val_data_loader, self.use_gpu, self.testing)
-        t2 = datetime.datetime.now()
-        print()
-        print(".....End Model time: {}".format((t2 - t1).seconds))
-
-        return self.end_model.predict(self.task.evaluation_image_path,
-                                      self.task.number_of_channels,
-                                      self.task.transform_image(),
-                                      self.use_gpu)
-
-    def submit_predictions(self, predictions):
-        submit_status = self.api.submit_prediction(predictions)
-        session_status = self.api.get_session_status()
-        print("Checkpoint scores", session_status['checkpoint_scores'])
-        print("Phase:", session_status['pair_stage'])
-
-
-def main():
-    controller = Controller(use_gpu=False, testing=True, data_type='sample') #data_type= 'sample' or 'full'
-    controller.run_checkpoints()
-
-
-if __name__ == "__main__":
-    main()

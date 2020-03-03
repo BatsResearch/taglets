@@ -23,7 +23,6 @@ class MnistResNet(ResNet):
         return super(MnistResNet, self).forward(x)
 
 
-
 class Linear(nn.Module):
     def __init__(self, in_feature=64, out_feature=10):
         super().__init__()

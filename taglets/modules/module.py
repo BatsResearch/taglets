@@ -1,9 +1,6 @@
-from pipeline import PrototypeTaglet, FineTuneTaglet, TransferTaglet
-
-
 class Module:
     """
-    Base class for a module. Trains and returns taglets.
+    Base class for a taglet-creating module. Trains and returns taglets.
     """
     def __init__(self, task):
         """
@@ -13,7 +10,7 @@ class Module:
         self.task = task
         self.taglets = []   # List of taglets must be defined in subclasses
 
-    def train_taglets(self, train_data_loader, val_data_loader, use_gpu, testing):
+    def train_taglets(self, train_data_loader, val_data_loader, use_gpu):
         """
         Train the Module's taglets.
         :param train_data_loader: A data loader for training data
@@ -23,7 +20,7 @@ class Module:
         :return: None
         """
         for taglet in self.taglets:
-            taglet.train(train_data_loader, val_data_loader, use_gpu, testing)
+            taglet.train(train_data_loader, val_data_loader, use_gpu)
 
     def get_taglets(self):
         """
@@ -31,18 +28,3 @@ class Module:
         :return: A list of taglets
         """
         return self.taglets
-
-
-class FineTuneModule(Module):
-    """
-    A module used for transfer learning. Used when there is enough labeled data for fine tuning.
-    """
-    def __init__(self, task):
-        super().__init__(task)
-        self.taglets = [PrototypeTaglet(task), PrototypeTaglet(task), FineTuneTaglet(task)]
-
-
-class TransferModule(Module):
-    def __init__(self, task):
-        super().__init__(task)
-        self.taglets = [TransferTaglet(task)]

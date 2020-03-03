@@ -1,0 +1,28 @@
+# Travis CI config for taglets
+
+dist: xenial
+sudo: false
+language: python
+python:
+  - "3.7"
+
+cache:
+  directories:
+    - download
+
+before_install:
+  - travis_retry
+    wget https://repo.continuum.io/miniconda/Miniconda3-4.5.1-Linux-x86_64.sh
+    --output-document=download/miniconda.sh
+  - bash download/miniconda.sh -b -p $HOME/miniconda
+  - source $HOME/miniconda/etc/profile.d/conda.sh
+  - conda config --set always_yes yes --set changeps1 no
+  - conda info --all
+
+install:
+  - pip install -q .
+  - pip install -r requirements.txt
+  - export PYTHONPATH=".:$PYTHONPATH"
+
+script:
+  - python test/test_controller.py
