@@ -1,16 +1,12 @@
-# import sqlalchemy as sa
-# from sqlalchemy.ext.declarative import declarative_base
-# from sqlalchemy.orm import sessionmaker
+import sqlalchemy as sa
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from os import path
 
 from ..create import Node
 from .scads_node import ScadsNode
 
-
-# TODO: Fix this
-PATH_TO_DATABASE = './test_data/test_scads_db.db'
 Base = declarative_base()
-engine = sa.create_engine('sqlite:///' + PATH_TO_DATABASE)
-Session = sessionmaker(bind=engine)
 
 
 class Scads:
@@ -18,11 +14,15 @@ class Scads:
     A class providing connection to Structured Collections of Annotated Data Sets (SCADS).
     """
     session = None
-    label_to_concept = {}   # TODO: Complete this
 
     @staticmethod
-    def open():
-        Scads.session = Session()
+    def open(path_to_database):
+        if path.exists(path_to_database):
+            engine = sa.create_engine('sqlite:///' + path_to_database)
+            Session = sessionmaker(bind=engine)
+            Scads.session = Session()
+        else:
+            raise RuntimeError("Invalid path to database.")
 
     @staticmethod
     def close():
@@ -36,7 +36,10 @@ class Scads:
         """
         if Scads.session is None:
             raise RuntimeError("Session is not opened.")
-        sql_node = Scads.session.query(Node).filter(Node.conceptnet_id == conceptnet_id).first()
+        try:
+            sql_node = Scads.session.query(Node).filter(Node.conceptnet_id == conceptnet_id).first()
+        except:
+            raise RuntimeError("Invalid database.")
         if not sql_node:
             raise Exception("Node not found.")
         return ScadsNode(sql_node, Scads.session)
