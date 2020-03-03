@@ -1,13 +1,8 @@
-import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, Integer, String, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 
-PATH_TO_DATABASE = '../../test_data/test_scads_db.db'
 Base = declarative_base()
-engine = sa.create_engine('sqlite:///' + PATH_TO_DATABASE)
-Session = sessionmaker(bind=engine)
 
 
 class Edge(Base):

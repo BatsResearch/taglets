@@ -1,10 +1,12 @@
-import sqlalchemy as sa
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+# import sqlalchemy as sa
+# from sqlalchemy.ext.declarative import declarative_base
+# from sqlalchemy.orm import sessionmaker
 
 from ..create import Node
 from .scads_node import ScadsNode
 
+
+# TODO: Fix this
 PATH_TO_DATABASE = './test_data/test_scads_db.db'
 Base = declarative_base()
 engine = sa.create_engine('sqlite:///' + PATH_TO_DATABASE)

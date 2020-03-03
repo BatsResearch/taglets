@@ -1,5 +1,7 @@
 import os
-from .scads_classes import Node, Edge, Relation, Base, engine, Session
+import sqlalchemy as sa
+from sqlalchemy.orm import sessionmaker
+from .scads_classes import Node, Edge, Relation, Base
 
 
 def get_relations(directory):
@@ -58,11 +60,13 @@ def get_edges(directory):
     return all_edges
 
 
-def add_conceptnet(directory):
+def add_conceptnet(path_to_database, directory):
     """
     Add Nodes, Edges, and Relations from conceptnet into the database.
     :return: None
     """
+    engine = sa.create_engine('sqlite:///' + path_to_database)
+    Session = sessionmaker(bind=engine)
 
     # Read nodes, edges, and relations from files
     all_relations = get_relations(directory)
@@ -92,11 +96,3 @@ def add_conceptnet(directory):
 
     session.commit()
     session.close()
-
-
-def main():
-    add_conceptnet('../../test_data')
-
-
-if __name__ == "__main__":
-    main()
