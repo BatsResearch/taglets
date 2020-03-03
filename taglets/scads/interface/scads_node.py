@@ -1,5 +1,5 @@
 from .scads_edge import ScadsEdge
-from scads.create.scads_classes import Node
+from ..create import Node
 
 
 class ScadsNode:
