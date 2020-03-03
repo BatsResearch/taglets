@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 from sqlalchemy import and_
-from .scads_classes import Node, LabelMap, Image
+from .scads_classes import Node, Image
 
 
 def get_images(dataset, session):
