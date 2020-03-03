@@ -148,3 +148,13 @@ dmypy.json
 # Pyre type checker
 .pyre/
 .idea
+
+# Data
+/taglets/sql_data
+.DS_Store
+/taglets/test_data
+
+# Saved models
+/trained_models
+/taglets/trained_models
+/test/trained_models/*
