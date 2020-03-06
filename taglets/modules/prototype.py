@@ -61,7 +61,7 @@ class PrototypeTaglet(Taglet):
         """
         For 1-shot, use initial model
         """
-        self.log('...........'+self.name+'...........')
+        log.info('...........'+self.name+'...........')
 
         if use_gpu:
             self.model = self.model.cuda()
@@ -72,31 +72,31 @@ class PrototypeTaglet(Taglet):
 
         best_model_to_save = None
         for epoch in range(self.num_epochs):
-            self.log('epoch: {}'.format(epoch))
+            log.info('epoch: {}'.format(epoch))
 
             # Train on training data
             train_loss = self._train_epoch(train_data_loader, use_gpu)
-            self.log('train loss: {:.4f}'.format(train_loss))
+            log.info('train loss: {:.4f}'.format(train_loss))
 
             # Evaluation on validation data
             val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu)
-            self.log('validation loss: {:.4f}'.format(val_loss))
-            self.log('validation acc: {:.4f}%'.format(val_acc*100))
+            log.info('validation loss: {:.4f}'.format(val_loss))
+            log.info('validation acc: {:.4f}%'.format(val_acc*100))
 
             if self.lr_scheduler:
                 self.lr_scheduler.step()
 
             if val_acc > self._best_val_acc:
-                self.log("Deep copying new best model." +
+                log.info("Deep copying new best model." +
                          "(validation of {:.4f}%, over {:.4f}%)".format(val_acc, self._best_val_acc))
                 self._best_val_acc = val_acc
                 best_model_to_save = copy.deepcopy(self.model.state_dict())
                 torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
-        self.log("Epoch {} result: ".format(epoch + 1))
-        self.log("Average training loss: {:.4f}".format(train_loss))
-        self.log("Average validation loss: {:.4f}".format(val_loss))
-        self.log("Average validation accuracy: {:.4f}%".format(val_acc * 100))
+        log.info("Epoch {} result: ".format(epoch + 1))
+        log.info("Average training loss: {:.4f}".format(train_loss))
+        log.info("Average validation loss: {:.4f}".format(val_loss))
+        log.info("Average validation accuracy: {:.4f}%".format(val_acc * 100))
 
         if self.select_on_val and best_model_to_save:
             # Reloads best model weights
