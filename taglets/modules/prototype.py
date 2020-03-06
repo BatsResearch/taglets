@@ -1,6 +1,6 @@
 from .module import Module
 from ..pipeline import Taglet
-
+import copy
 import os
 import logging
 import torch
@@ -133,9 +133,6 @@ class PrototypeTaglet(Taglet):
         self.classifier.train()
         running_loss = 0
         for batch_idx, batch in enumerate(train_data_loader):
-            if testing:
-                if batch_idx >= 1:
-                    break
             inputs = batch[0]
             labels = batch[1]
             if use_gpu:
@@ -166,9 +163,6 @@ class PrototypeTaglet(Taglet):
         running_loss = 0
         running_acc = 0
         for batch_idx, batch in enumerate(val_data_loader):
-            if testing:
-                if batch_idx >= 2:
-                    break
 
             inputs = batch[0]
             labels = batch[1]
