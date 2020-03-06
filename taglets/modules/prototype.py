@@ -2,8 +2,11 @@ from .module import Module
 from ..pipeline import Taglet
 
 import os
+import logging
 import torch
 import torch.nn as nn
+
+log = logging.getLogger(__name__)
 
 
 class PrototypeModule(Module):
