@@ -5,18 +5,6 @@ from ..create.scads_classes import Node, Image
 from ..create.create_scads import add_conceptnet
 from ..create.add_datasets import add_dataset
 
-parser = argparse.ArgumentParser(description='Scads')
-
-parser.add_argument("--db", type=str, help="Path to database", required=True)
-
-parser.add_argument("--conceptnet", type=str, help="Path to ConceptNet directory")
-
-parser.add_argument("--cifar100", type=str, help="Path to CIFAR100 directory")
-
-parser.add_argument("--mnist", type=str, help="Path to MNIST directory")
-
-args = parser.parse_args()
-
 
 class DatasetInstaller:
     def get_name(self):
@@ -107,6 +95,15 @@ class Installer:
 
 
 if __name__ == "__main__":
+    # Get arguments
+    parser = argparse.ArgumentParser(description='Scads')
+    parser.add_argument("--db", type=str, help="Path to database", required=True)
+    parser.add_argument("--conceptnet", type=str, help="Path to ConceptNet directory")
+    parser.add_argument("--cifar100", type=str, help="Path to CIFAR100 directory")
+    parser.add_argument("--mnist", type=str, help="Path to MNIST directory")
+    args = parser.parse_args()
+
+    # Install SCADS
     installer = Installer(args.db)
     if args.conceptnet:
         installer.install_conceptnet(args.conceptnet)

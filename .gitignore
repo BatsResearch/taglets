@@ -3,7 +3,6 @@
 ########################
 
 # Data
-MNIST
 taglets/sql_data
 
 # Saved models

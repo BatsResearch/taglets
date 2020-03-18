@@ -26,3 +26,4 @@ install:
 
 script:
   - python test/test_controller.py
+  - python test/scads/test_scads.py
