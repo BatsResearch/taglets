@@ -30,7 +30,7 @@ class TestSCADS(unittest.TestCase):
     def test_valid_node1(self):
         node = Scads.get_node_by_conceptnet_id("/c/en/zero/n/wn/quantity")
         self.assertEqual(node.node.id, 0)
-        self.assertEqual(node.node.conceptnet_id, "/c/en/zero/n/wn/quantity")
+        self.assertEqual(node.get_conceptnet_id(), "/c/en/zero/n/wn/quantity")
 
         self.assertEqual(node.get_datasets(), ['MNIST'])
 
@@ -46,7 +46,7 @@ class TestSCADS(unittest.TestCase):
     def test_valid_node2(self):
         node = Scads.get_node_by_conceptnet_id("/c/en/apple")
         self.assertEqual(node.node.id, 10)
-        self.assertEqual(node.node.conceptnet_id, "/c/en/apple")
+        self.assertEqual(node.get_conceptnet_id(), "/c/en/apple")
 
         self.assertEqual(node.get_datasets(), ['CIFAR100'])
 

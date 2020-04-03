@@ -10,6 +10,9 @@ class ScadsNode:
         self.node = node
         self.session = session
 
+    def get_conceptnet_id(self):
+        return self.node.conceptnet_id
+
     def get_datasets(self):
         """
         Get list of datasets.
