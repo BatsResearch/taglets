@@ -184,13 +184,12 @@ class Trainable:
         log.info("Average validation loss: {:.4f}".format(val_loss))
         log.info("Average validation accuracy: {:.4f}%".format(val_acc * 100))
 
-
-        val_dic = {'train':train_loss_list, 'validation':val_loss_list}
+        val_dic = {'train': train_loss_list, 'validation': val_loss_list}
         if self.save_dir:
-            self.save_plot('loss',val_dic,self.save_dir)
-        val_dic = {'train':train_acc_list, 'validation':val_acc_list}
+            self.save_plot('loss', val_dic, self.save_dir)
+        val_dic = {'train': train_acc_list, 'validation': val_acc_list}
         if self.save_dir:
-            self.save_plot('accuracy',val_dic,self.save_dir)
+            self.save_plot('accuracy', val_dic, self.save_dir)
 
         if self.select_on_val and best_model_to_save:
             # Reloads best model weights
@@ -228,6 +227,3 @@ class Taglet(Trainable):
         :return: A list of predicted labels
         """
         raise NotImplementedError
-
-
-

@@ -7,7 +7,7 @@ import torch
 import torchvision.transforms as transforms
 from torch.utils import data
 from ..scads import Scads
-from ..data import CustomDataSet
+from ..data import CustomDataset
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
 from ..task import Task
 from ..controller import Controller
@@ -151,19 +151,14 @@ class JPLStorage:
         Get the transform to be used on an image.
         :return: A transform
         """
-        if self.number_of_channels == 3:
-            data_mean = [0.485, 0.456, 0.406]
-            data_std = [0.229, 0.224, 0.225]
-        elif self.number_of_channels == 1:
-            data_mean = [0.5]
-            data_std = [0.5]
+        data_mean = [0.485, 0.456, 0.406]
+        data_std = [0.229, 0.224, 0.225]
         
-        transform = transforms.Compose([
+        return transforms.Compose([
             # transforms.Resize((224, 224)),
             transforms.ToTensor(),
             transforms.Normalize(mean=data_mean, std=data_std)
         ])
-        return transform
     
     def get_labeled_images_list(self):
         """get list of image names and labels"""
@@ -194,12 +189,12 @@ class JPLStorage:
         transform = self.transform_image()
     
         image_names, image_labels = self.get_labeled_images_list()
+
+        image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
     
-        train_val_data = CustomDataSet(self.unlabeled_image_path,
-                                       image_names,
+        train_val_data = CustomDataset(image_paths,
                                        image_labels,
-                                       transform,
-                                       self.number_of_channels)
+                                       transform)
     
         # 80% for training, 20% for validation
         train_percent = 0.8
@@ -222,13 +217,11 @@ class JPLStorage:
         """
         transform = self.transform_image()
     
-        unlabeled_images_names = self.get_unlabeled_image_names()
-        unlabeled_dataset = CustomDataSet(self.unlabeled_image_path,
-                                          unlabeled_images_names,
-                                          None,
-                                          transform,
-                                          self.number_of_channels)
-        return unlabeled_dataset
+        image_names = self.get_unlabeled_image_names()
+        image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
+        return CustomDataset(image_paths,
+                             None,
+                             transform)
     
     def get_evaluation_dataset(self):
         """
@@ -239,15 +232,13 @@ class JPLStorage:
         """
         transform = self.transform_image()
 
-        evaluation_images_names = []
+        evaluation_image_names = []
         for img in os.listdir(self.evaluation_image_path):
-            evaluation_images_names.append(img)
-        evaluation_dataset = CustomDataSet(self.evaluation_image_path,
-                                           evaluation_images_names,
-                                           None,
-                                           transform,
-                                           self.number_of_channels)
-        return evaluation_dataset
+            evaluation_image_names.append(img)
+        image_paths = [os.path.join(self.evaluation_image_path, image_name) for image_name in evaluation_image_names]
+        return CustomDataset(image_paths,
+                             None,
+                             transform)
     
     def get_scads_data(self, batch_size, num_workers):
         image_paths = []
@@ -268,7 +259,7 @@ class JPLStorage:
         transform = self.transform_image()
         
         # TODO: Need a new dataset to handle these paths
-        train_val_data = CustomDataSet(self.unlabeled_image_path,
+        train_val_data = CustomDataset(self.unlabeled_image_path,
                                        image_paths,
                                        image_labels,
                                        transform,
@@ -418,7 +409,8 @@ class JPLRunner:
                     classes,
                     labeled_dataset,
                     unlabeled_dataset,
-                    val_dataset)
+                    val_dataset,
+                    None)
         task.set_initial_model(MnistResNet())
         controller = Controller(task, self.batch_size, self.num_workers, self.use_gpu)
         end_model = controller.train_end_model()

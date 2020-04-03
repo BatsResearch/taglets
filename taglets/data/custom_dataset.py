@@ -1,34 +1,27 @@
 from torch.utils.data import Dataset
 from PIL import Image
-import os
 import torch
 
 
-class CustomDataSet(Dataset):
+class CustomDataset(Dataset):
     """
     A custom dataset used to create dataloaders.
     """
-    def __init__(self, root, filenames, labels, transform, num_channels):
+    def __init__(self, filepaths, labels, transform):
         """
-        Create a new CustomDataSet.
+        Create a new CustomDataset.
         
         :param root: The root directory of the images
         :param filenames: A list of filenames
         :param labels: A list of labels
         :param transform: A transform to perform on the images
-        :param num_channels: The number of channels
         """
-        self.root = root
-        self.filenames = filenames
+        self.filepaths = filepaths
         self.labels = labels
         self.transform = transform
-        self.num_channels = num_channels
 
     def __getitem__(self, index):
-        img = os.path.join(self.root, self.filenames[index])
-        img = Image.open(img)
-        if self.num_channels == 3:
-            img = img.convert('RGB')
+        img = Image.open(self.filepaths[index]).convert('RGB')
 
         if self.transform is not None:
             img = self.transform(img)
@@ -40,16 +33,16 @@ class CustomDataSet(Dataset):
             return img
 
     def __len__(self):
-        return len(self.filenames)
+        return len(self.filepaths)
 
 
-class SoftLabelDataSet(Dataset):
+class SoftLabelDataset(Dataset):
     """
     A custom dataset used to create dataloaders.
     """
     def __init__(self, images, labels):
         """
-        Create a new CustomDataSet.
+        Create a new SoftLabelDataset.
         :param images: A list of filenames
         :param labels: A list of labels
         """
@@ -64,4 +57,3 @@ class SoftLabelDataSet(Dataset):
 
     def __len__(self):
         return len(self.images)
-

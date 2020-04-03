@@ -11,7 +11,7 @@ class Task:
     A class defining an image classification task
     """
     def __init__(self, name, classes, labeled_train_data, unlabeled_train_data,
-                 validation_data):
+                 validation_data, scads_path):
         """
         Create a new Task
 
@@ -27,6 +27,7 @@ class Task:
         self.labeled_train_data = labeled_train_data
         self.unlabeled_train_data = unlabeled_train_data
         self.validation_data = validation_data
+        self.scads_path = scads_path
 
         self.initial = None
 

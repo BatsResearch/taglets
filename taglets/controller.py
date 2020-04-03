@@ -1,4 +1,4 @@
-from taglets.data.custom_dataset import SoftLabelDataSet
+from taglets.data.custom_dataset import SoftLabelDataset
 from .modules import FineTuneModule, PrototypeModule
 from .pipeline import EndModel, TagletExecutor
 
@@ -126,7 +126,7 @@ class Controller:
         all_soft_labels = unlabeled_labels + soft_labels_labeled_images
         all_images = unlabeled_images + train_images
 
-        end_model_train_data = SoftLabelDataSet(all_images, all_soft_labels)
+        end_model_train_data = SoftLabelDataset(all_images, all_soft_labels)
 
         train_data = torch.utils.data.DataLoader(end_model_train_data,
                                                  batch_size=self.batch_size,
