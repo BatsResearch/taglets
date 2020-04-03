@@ -2,7 +2,7 @@ import copy
 import os
 import torch
 import torchvision.transforms as transforms
-from taglets.data.custom_dataset import CustomDataSet
+from taglets.data.custom_dataset import CustomDataset
 from torch.utils import data
 
 
