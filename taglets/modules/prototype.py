@@ -212,7 +212,7 @@ class Linear(nn.Module):
 
 
 class ConvEncoder(nn.Module):
-    def __init__(self, x_dim=1, hid_dim=64, z_dim=64):
+    def __init__(self, x_dim=3, hid_dim=64, z_dim=64):
         super().__init__()
         self.encoder = nn.Sequential(
             self.conv_block(x_dim, hid_dim),
