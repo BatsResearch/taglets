@@ -92,7 +92,7 @@ class Controller:
         return self.end_model
 
     def _get_taglets_modules(self):
-        return [FineTuneModule(task=self.task),PrototypeModule(task=self.task)]
+        return [FineTuneModule(task=self.task), PrototypeModule(task=self.task)]
 
     def _get_data_loader(self, dataset, shuffle=True):
         """

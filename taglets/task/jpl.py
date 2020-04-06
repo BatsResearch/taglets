@@ -6,7 +6,6 @@ import numpy as np
 import torch
 import torchvision.transforms as transforms
 from torch.utils import data
-from ..scads import Scads
 from ..data import CustomDataset
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
 from ..task import Task
@@ -239,60 +238,6 @@ class JPLStorage:
         return CustomDataset(image_paths,
                              None,
                              transform)
-    
-    def get_scads_data(self, batch_size, num_workers):
-        image_paths = []
-        image_labels = []
-        Scads.open()
-        for label in self.classes:
-            if label in Scads.label_to_concept:
-                concept = Scads.label_to_concept[label]
-                node = Scads.get_node(concept)
-                paths = node.get_images()
-                for neighbor in node.get_neighbors():
-                    neighbor_paths = neighbor.get_images()
-                    paths.extend(neighbor_paths)
-                image_paths.extend(paths)
-                image_labels.extend([label for _ in paths])
-        Scads.close()
-        
-        transform = self.transform_image()
-        
-        # TODO: Need a new dataset to handle these paths
-        train_val_data = CustomDataset(self.unlabeled_image_path,
-                                       image_paths,
-                                       image_labels,
-                                       transform,
-                                       self.number_of_channels)
-        
-        # 80% for training, 20% for validation
-        train_percent = 0.8
-        num_data = len(train_val_data)
-        indices = list(range(num_data))
-        train_split = int(np.floor(train_percent * num_data))
-        np.random.shuffle(indices)
-        train_idx = indices[:train_split]
-        valid_idx = indices[train_split:]
-        
-        train_set = data.Subset(train_val_data, train_idx)
-        val_set = data.Subset(train_val_data, valid_idx)
-        
-        train_data_loader = torch.utils.data.DataLoader(train_set,
-                                                        batch_size=batch_size,
-                                                        shuffle=False,
-                                                        num_workers=num_workers)
-        val_data_loader = torch.utils.data.DataLoader(val_set,
-                                                      batch_size=batch_size,
-                                                      shuffle=False,
-                                                      num_workers=num_workers)
-        
-        print('number of training data: %d' % len(train_data_loader.dataset))
-        print('number of validation data: %d' % len(val_data_loader.dataset))
-        
-        train_image_names = list(map(image_paths.__getitem__, train_idx))
-        train_image_labels = list(map(image_labels.__getitem__, train_idx))
-        
-        return train_data_loader, val_data_loader, train_image_names, train_image_labels
 
 
 class JPLRunner:
