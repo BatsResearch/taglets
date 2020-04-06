@@ -12,7 +12,7 @@ class MnistResNet(ResNet):
         Create a new MnistResNet model.
         """
         super(MnistResNet, self).__init__(BasicBlock, [2, 2, 2, 2], num_classes=10)
-        self.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+        self.conv1 = torch.nn.Conv2d(3, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
 
     def forward(self, x):
         """
@@ -34,7 +34,7 @@ class Linear(nn.Module):
 
 
 class ConvEncoder(nn.Module):
-    def __init__(self, x_dim=1, hid_dim=64, z_dim=64):
+    def __init__(self, x_dim=3, hid_dim=64, z_dim=64):
         super().__init__()
         self.encoder = nn.Sequential(
             self.conv_block(x_dim, hid_dim),
