@@ -3,10 +3,10 @@ import os
 from taglets.scads import Scads
 from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation
 
-DB_PATH = "test/scads/test_data/test_scads.db"
-CONCEPTNET_PATH = "test/scads/test_data"
-CIFAR_PATH = "test/scads/test_data/CIFAR100"
-MNIST_PATH = "test/scads/test_data/MNIST"
+DB_PATH = "test/test_data/test_scads.db"
+CONCEPTNET_PATH = "test/test_data/conceptnet"
+CIFAR_PATH = "test/test_data/CIFAR100"
+MNIST_PATH = "test/test_data/MNIST"
 
 
 class TestSCADS(unittest.TestCase):

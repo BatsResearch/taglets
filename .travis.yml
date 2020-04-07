@@ -25,5 +25,6 @@ install:
   - export PYTHONPATH=".:$PYTHONPATH"
 
 script:
+  - python test/modules/test_transfer.py
   - python test/test_controller.py
   - python test/scads/test_scads.py
