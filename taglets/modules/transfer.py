@@ -93,7 +93,10 @@ class TransferTaglet(Taglet):
                                                       shuffle=False,
                                                       num_workers=num_workers)
 
-        return train_data_loader, val_data_loader, len(set(image_labels))
+        log.info("Image Labels: {}".format(image_labels))
+        log.info("Visited Labels: {}".format(visited))
+
+        return train_data_loader, val_data_loader, len(visited)
 
     def _set_num_classes(self, num_classes):
         self.model.fc = torch.nn.Linear(self.model.fc.in_features, num_classes)
