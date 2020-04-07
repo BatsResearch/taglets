@@ -34,7 +34,7 @@ class CifarInstallation(DatasetInstaller):
                 for image in os.listdir(label_dir):
                     img = Image(dataset_id=dataset.id,
                                 node_id=node.id,
-                                path=os.path.join(dataset.path, label_dir, image))
+                                path=os.path.join(label_dir, image))
                     all_images.append(img)
         return all_images
 
@@ -63,7 +63,7 @@ class MnistInstallation:
                     continue  # Map is missing a missing conceptnet id
                 img = Image(dataset_id=dataset.id,
                             node_id=node.id,
-                            path=os.path.join(dataset.path, mode_dir, image))
+                            path=os.path.join(mode_dir, image))
                 all_images.append(img)
         return all_images
 

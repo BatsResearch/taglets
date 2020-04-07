@@ -1,6 +1,7 @@
 import unittest
 import os
 import logging
+import sys
 from taglets.scads.create.install import Installer, MnistInstallation
 from taglets.controller import Controller
 from taglets.task import Task

@@ -36,7 +36,7 @@ class TestSCADS(unittest.TestCase):
 
         images = node.get_images()
         self.assertEqual(len(images), 3)
-        self.assertTrue('test/scads/test_data/MNIST/test/scads/test_data/MNIST/train/21.png'
+        self.assertTrue('test/test_data/MNIST/train/21.png'
                         in images)
 
         neighbors = node.get_neighbors()
@@ -52,7 +52,7 @@ class TestSCADS(unittest.TestCase):
 
         images = node.get_images()
         self.assertEqual(len(images), 15)
-        self.assertTrue('test/scads/test_data/CIFAR100/test/scads/test_data/CIFAR100/test/apple/0001 copy.png'
+        self.assertTrue('test/test_data/CIFAR100/test/apple/0001 copy.png'
                         in images)
 
         neighbors = node.get_neighbors()
