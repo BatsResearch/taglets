@@ -61,13 +61,11 @@ class TransferTaglet(Taglet):
                 if neighbor.get_conceptnet_id() in visited:
                     continue
                 images = neighbor.get_images()
-                image_paths.extend(images)
-                log.info("Visited Length: {}".format(len(visited)))
-                log.info("Image Labels Before: {}".format(image_labels))
-                image_labels.extend([len(visited) for _ in range(len(images))])
-                log.info("Image Labels After: {}".format(image_labels))
-                visited.add(neighbor.get_conceptnet_id())
-                log.info("Source class found: {}".format(neighbor.get_conceptnet_id()))
+                if images:
+                    image_paths.extend(images)
+                    image_labels.extend([len(visited) for _ in range(len(images))])
+                    visited.add(neighbor.get_conceptnet_id())
+                    log.info("Source class found: {}".format(neighbor.get_conceptnet_id()))
 
         Scads.close()
 
