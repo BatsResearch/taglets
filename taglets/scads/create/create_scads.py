@@ -2,7 +2,6 @@ import os
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 from .scads_classes import Node, Edge, Relation, Base
-from sqlalchemy import event
 
 
 def get_relations(directory):

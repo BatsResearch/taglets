@@ -2,6 +2,7 @@ import unittest
 import os
 import logging
 import sys
+import torch
 from taglets.scads.create.install import Installer, MnistInstallation
 from taglets.controller import Controller
 from taglets.task import Task
@@ -10,7 +11,7 @@ from torchvision import transforms
 from torchvision.datasets import MNIST
 from torchvision.models.resnet import ResNet, BasicBlock
 
-DB_PATH = "test/test_data/test_scads.db"
+DB_PATH = "test/test_data/test_transfer.db"
 CONCEPTNET_PATH = "test/test_data/transfer_conceptnet"
 MNIST_PATH = "test/test_data/MNIST"
 
