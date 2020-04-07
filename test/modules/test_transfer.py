@@ -4,14 +4,41 @@ import logging
 from taglets.scads.create.install import Installer, MnistInstallation
 from taglets.controller import Controller
 from taglets.task import Task
-from test.test_controller import HiddenLabelDataset, MnistResNet
-from torch.utils.data import Subset
+from torch.utils.data import Dataset, Subset
 from torchvision import transforms
 from torchvision.datasets import MNIST
+from torchvision.models.resnet import ResNet, BasicBlock
 
 DB_PATH = "test/test_data/test_scads.db"
 CONCEPTNET_PATH = "test/test_data/transfer_conceptnet"
 MNIST_PATH = "test/test_data/MNIST"
+
+
+class HiddenLabelDataset(Dataset):
+    """
+    Wraps a labeled dataset so that it appears unlabeled
+    """
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def __getitem__(self, idx):
+        img, _ = self.dataset[idx]
+        return img
+
+    def __len__(self):
+        return len(self.dataset)
+
+
+class MnistResNet(ResNet):
+    """
+    A small ResNet for MNIST.
+    """
+    def __init__(self):
+        """
+        Create a new MnistResNet model.
+        """
+        super(MnistResNet, self).__init__(BasicBlock, [2, 2, 2, 2], num_classes=10)
+        self.conv1 = torch.nn.Conv2d(3, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
 
 
 class TestSCADS(unittest.TestCase):
