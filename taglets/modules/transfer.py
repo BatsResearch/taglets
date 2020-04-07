@@ -52,13 +52,19 @@ class TransferTaglet(Taglet):
         Scads.open(self.task.scads_path)
         image_paths = []
         image_labels = []
+        visited = set()
         for label, conceptnet_id in self.task.classes.items():
             target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
             neighbors = [edge.get_end_node() for edge in target_node.get_neighbors()]
             for neighbor in neighbors:
+                if neighbor.get_conceptnet_id() in visited:
+                    continue
                 images = neighbor.get_images()
                 image_paths.extend(images)
-                image_labels.extend([neighbor.get_conceptnet_id() for _ in range(len(images))])
+                image_labels.extend([len(visited) for _ in range(len(images))])
+                visited.add(neighbor.get_conceptnet_id())
+                log.info("Source class found: {}".format(neighbor.get_conceptnet_id()))
+
         Scads.close()
 
         transform = self.transform_image()
