@@ -11,8 +11,22 @@ import logging
 import copy
 import numpy as np
 import torchvision.transforms as transforms
+import torch.nn as nn
 
 log = logging.getLogger(__name__)
+
+
+class MultiTaskModel(nn.Module):
+    def __init__(self, model, num_target, num_source):
+        super().__init__()
+        self.model = model
+        self.model.fc = torch.nn.Linear(self.model.fc.in_features, self.model.fc.in_features)
+        self.fc_target = torch.nn.Linear(self.model.fc.in_features, num_target)
+        self.fc_source = torch.nn.Linear(self.model.fc.in_features, num_source)
+
+    def forward(self, x):
+        x = self.model(x)
+        return self.fc_target(x), self.fc_source(x)
 
 
 class MultiTaskModule(Module):
@@ -83,19 +97,12 @@ class MultiTaskTaglet(Taglet):
         return train_data_loader, len(visited)
 
     def train(self, train_data_loader, val_data_loader, use_gpu):
-        def new_forward(model, x):
-            x = model.forward(x)
-            return self.model.fc_target(x), self.model.fc_source(x)
-
         # Get Scadsdata and set up model
         batch_size, num_workers = train_data_loader.batch_size, train_data_loader.num_workers
         scads_train_data_loader, scads_num_classes = self._get_scads_data(len(train_data_loader) // batch_size,
                                                                           num_workers)
         log.info("Source classes found: {}".format(scads_num_classes))
-        self.model.fc = torch.nn.Linear(self.model.fc.in_features, self.model.fc.in_features)
-        self.model.fc_source = torch.nn.Linear(self.model.fc.in_features, scads_num_classes)
-        self.model.fc_target = torch.nn.Linear(self.model.fc.in_features, len(self.task.classes))
-        self.model.forward = new_forward
+        self.model = MultiTaskModel(self.model, len(self.task.classes), scads_num_classes)
 
         # Train
         log.info('Beginning training')
