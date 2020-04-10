@@ -77,7 +77,7 @@ class MultiTaskTaglet(Taglet):
         batch_size = min(len(train_data) // num_batches, 256)
         train_data_loader = torch.utils.data.DataLoader(train_data,
                                                         batch_size=batch_size,
-                                                        shuffle=False,
+                                                        shuffle=True,
                                                         num_workers=num_workers)
 
         return train_data_loader, len(visited)
