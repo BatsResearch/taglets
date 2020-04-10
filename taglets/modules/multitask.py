@@ -211,6 +211,35 @@ class MultiTaskTaglet(Taglet):
 
         return epoch_loss, epoch_acc
 
+    def _validate_epoch(self, val_data_loader, use_gpu):
+        """
+        Validate for one epoch.
+        :param val_data_loader: A dataloader containing validation data
+        :param use_gpu: Whether or not to use the GPU
+        :return: None
+        """
+        self.model.eval()
+        running_loss = 0
+        running_acc = 0
+        for batch_idx, batch in enumerate(val_data_loader):
+            inputs = batch[0]
+            labels = batch[1]
+            if use_gpu:
+                inputs = inputs.cuda()
+                labels = labels.cuda()
+            with torch.set_grad_enabled(False):
+                outputs = self.model(inputs)[0]
+                loss = self.criterion(outputs, labels)
+                _, preds = torch.max(outputs, 1)
+
+            running_loss += loss.item()
+            running_acc += torch.sum(preds == labels)
+
+        epoch_loss = running_loss / len(val_data_loader.dataset)
+        epoch_acc = running_acc.item() / len(val_data_loader.dataset)
+
+        return epoch_loss, epoch_acc
+
     def execute(self, unlabeled_data_loader, use_gpu):
         """
         Execute the Taglet on unlabeled images.
