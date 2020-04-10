@@ -94,7 +94,7 @@ class MultiTaskTaglet(Taglet):
         log.info("Source classes found: {}".format(scads_num_classes))
         self.model.fc = torch.nn.Linear(self.model.fc.in_features, self.model.fc.in_features)
         self.model.fc_source = torch.nn.Linear(self.model.fc.in_features, scads_num_classes)
-        self.model.fc_target = torch.nn.Linear(self.model.fc.in_features, self.task.classes)
+        self.model.fc_target = torch.nn.Linear(self.model.fc.in_features, len(self.task.classes))
         self.model.forward = new_forward
 
         # Train
