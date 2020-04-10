@@ -61,7 +61,6 @@ class PrototypeTaglet(Taglet):
         """
         For 1-shot, use initial model
         """
-        log.info('...........'+self.name+'...........')
 
         if use_gpu:
             self.model = self.model.cuda()

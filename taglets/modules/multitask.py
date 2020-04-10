@@ -15,20 +15,20 @@ import torchvision.transforms as transforms
 log = logging.getLogger(__name__)
 
 
-class TransferModule(Module):
+class MultiTaskModule(Module):
     """
     A module that pre-trains on datasets selected from the SCADS and then
     transfers to available labeled data
     """
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [TransferTaglet(task)]
+        self.taglets = [MultiTaskTaglet(task)]
 
 
-class TransferTaglet(Taglet):
+class MultiTaskTaglet(Taglet):
     def __init__(self, task):
         super().__init__(task)
-        self.name = 'transfer'
+        self.name = 'multitask'
         self.num_epochs = 5
         self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):
@@ -49,7 +49,7 @@ class TransferTaglet(Taglet):
             transforms.Normalize(mean=data_mean, std=data_std)
         ])
 
-    def _get_scads_data(self, batch_size, num_workers):
+    def _get_scads_data(self, num_batches, num_workers):
         Scads.open(self.task.scads_path)
         image_paths = []
         image_labels = []
@@ -70,62 +70,34 @@ class TransferTaglet(Taglet):
         Scads.close()
 
         transform = self.transform_image()
-        train_val_data = CustomDataset(image_paths,
-                                       image_labels,
-                                       transform)
+        train_data = CustomDataset(image_paths,
+                                   image_labels,
+                                   transform)
 
-        # 80% for training, 20% for validation
-        train_percent = 0.8
-        num_data = len(train_val_data)
-        indices = list(range(num_data))
-        train_split = int(np.floor(train_percent * num_data))
-        np.random.shuffle(indices)
-        train_idx = indices[:train_split]
-        valid_idx = indices[train_split:]
-
-        train_dataset = data.Subset(train_val_data, train_idx)
-        val_dataset = data.Subset(train_val_data, valid_idx)
-
-        train_data_loader = torch.utils.data.DataLoader(train_dataset,
+        batch_size = min(len(train_data) // num_batches, 256)
+        train_data_loader = torch.utils.data.DataLoader(train_data,
                                                         batch_size=batch_size,
                                                         shuffle=False,
                                                         num_workers=num_workers)
-        val_data_loader = torch.utils.data.DataLoader(val_dataset,
-                                                      batch_size=batch_size,
-                                                      shuffle=False,
-                                                      num_workers=num_workers)
 
-        return train_data_loader, val_data_loader, len(visited)
-
-    def _set_num_classes(self, num_classes):
-        self.model.fc = torch.nn.Linear(self.model.fc.in_features, num_classes)
-        params_to_update = []
-        for name, param in self.model.named_parameters():
-            if param.requires_grad:
-                params_to_update.append(param)
-        self._params_to_update = params_to_update
-        self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
+        return train_data_loader, len(visited)
 
     def train(self, train_data_loader, val_data_loader, use_gpu):
+        def new_forward(model, x):
+            x = model.forward(x)
+            return self.model.fc_target(x), self.model.fc_source(x)
+
+        # Get Scadsdata and set up model
         batch_size, num_workers = train_data_loader.batch_size, train_data_loader.num_workers
-        scads_train_data_loader, scads_val_data_loader, scads_num_classes = self._get_scads_data(batch_size,
-                                                                                                 num_workers)
+        scads_train_data_loader, scads_num_classes = self._get_scads_data(len(train_data_loader) // batch_size,
+                                                                          num_workers)
         log.info("Source classes found: {}".format(scads_num_classes))
-        self._set_num_classes(scads_num_classes)
-        self._train(scads_train_data_loader, scads_val_data_loader, use_gpu)
+        self.model.fc = torch.nn.Linear(self.model.fc.in_features, self.model.fc.in_features)
+        self.model.fc_source = torch.nn.Linear(self.model.fc.in_features, scads_num_classes)
+        self.model.fc_target = torch.nn.Linear(self.model.fc.in_features, self.task.classes)
+        self.model.forward = new_forward
 
-        # TODO: Freeze layers
-        self._set_num_classes(len(self.task.classes))
-        self._train(train_data_loader, val_data_loader, use_gpu)
-
-    def _train(self, train_data_loader, val_data_loader, use_gpu):
-        """
-        Train the Trainable.
-        :param train_data_loader: A dataloader containing training data
-        :param val_data_loader: A dataloader containing validation data
-        :param use_gpu: Whether or not to use the GPU
-        :return:
-        """
+        # Train
         log.info('Beginning training')
 
         if use_gpu:
@@ -143,7 +115,9 @@ class TransferTaglet(Taglet):
             log.info('Epoch: %s', epoch)
 
             # Train on training data
-            train_loss, train_acc = self._train_epoch(train_data_loader, use_gpu)
+            train_loss, train_acc = self._multitask_train_epoch(train_data_loader,
+                                                                scads_train_data_loader,
+                                                                use_gpu)
             train_loss_list.append(train_loss)
             train_acc_list.append(train_acc)
             log.info('train loss: {:.4f}'.format(train_loss))
@@ -189,6 +163,47 @@ class TransferTaglet(Taglet):
             # Reloads best model weights
             self.model.load_state_dict(best_model_to_save)
 
+    def _multitask_train_epoch(self, target_data_loader, scads_data_loader, use_gpu):
+        """
+        Train for one epoch.
+        :param train_data_loader: A dataloader containing training data
+        :param use_gpu: Whether or not to use the GPU
+        :return: None
+        """
+        self.model.train()
+        running_loss = 0
+        running_acc = 0
+        for batch_idx, (target_batch, source_batch) in enumerate(zip(target_data_loader, scads_data_loader)):
+            target_inputs, target_labels = target_batch
+            source_inputs, source_labels = source_batch
+            if use_gpu:
+                target_inputs = target_inputs.cuda()
+                target_labels = target_labels.cuda()
+                source_inputs = source_inputs.cuda()
+                source_labels = source_labels.cuda()
+
+            self.optimizer.zero_grad()
+            with torch.set_grad_enabled(True):
+                target_outputs = self.model(target_inputs)[0]
+                source_outputs = self.model(source_inputs)[1]
+                target_loss = self.criterion(target_outputs, target_labels)
+                source_loss = self.criterion(source_outputs, source_labels)
+                total_loss = target_loss + source_loss
+                total_loss.backward()
+                self.optimizer.step()
+                _, target_predictions = torch.max(target_outputs, 1)
+
+            running_loss += target_loss.item()
+            running_acc += torch.sum(target_predictions == target_labels)
+
+        if not len(target_data_loader.dataset):
+            return 0, 0
+
+        epoch_loss = running_loss / len(target_data_loader.dataset)
+        epoch_acc = running_acc.item() / len(target_data_loader.dataset)
+
+        return epoch_loss, epoch_acc
+
     def execute(self, unlabeled_data_loader, use_gpu):
         """
         Execute the Taglet on unlabeled images.
@@ -208,7 +223,7 @@ class TransferTaglet(Taglet):
             if use_gpu:
                 inputs = inputs.cuda()
             with torch.set_grad_enabled(False):
-                outputs = self.model(inputs)
+                outputs = self.model(inputs)[0]
                 _, preds = torch.max(outputs, 1)
                 predicted_labels = predicted_labels + preds.detach().cpu().tolist()
         return predicted_labels
