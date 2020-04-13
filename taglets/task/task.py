@@ -1,9 +1,6 @@
 import copy
-import os
 import torch
-import torchvision.transforms as transforms
-from taglets.data.custom_dataset import CustomDataset
-from torch.utils import data
+import torchvision.models as models
 
 
 class Task:
@@ -30,7 +27,8 @@ class Task:
         self.validation_data = validation_data
         self.scads_path = scads_path
 
-        self.initial = None
+        self.initial = models.resnet18(pretrained=False)
+        self.initial.fc = torch.nn.Identity()
 
     def get_classes(self):
         """

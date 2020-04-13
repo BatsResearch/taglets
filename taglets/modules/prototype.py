@@ -20,8 +20,8 @@ class PrototypeTaglet(Taglet):
         super().__init__(task)
         self.name = 'prototype'
         self.few_shot_support = few_shot_support
-        self.model = ConvEncoder()
-        self.classifier = Linear()
+        output_shape = self._get_model_output_shape(self.task.input_shape, self.model)
+        self.classifier = Linear(output_shape, len(self.task.classes))
         self.num_epochs = 3
         self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):

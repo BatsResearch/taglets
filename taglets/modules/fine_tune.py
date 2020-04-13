@@ -19,6 +19,9 @@ class FineTuneTaglet(Taglet):
         super().__init__(task)
         self.name = 'finetune'
         self.num_epochs = 5
+        output_shape = self._get_model_output_shape(self.task.input_shape, self.model)
+        self.model = torch.nn.Sequential(self.model,
+                                         torch.nn.Linear(output_shape, len(self.task.classes)))
         self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)

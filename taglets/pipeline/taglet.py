@@ -3,7 +3,6 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import random
-import torchvision.models as models
 import torch
 
 
@@ -29,9 +28,7 @@ class Trainable:
         self.select_on_val = True   # If true, save model on the best validation performance
         self.save_dir = None
 
-        self.model = task.get_initial_model() or models.resnet18(pretrained=False)
-
-        self.model.fc = torch.nn.Linear(self.model.fc.in_features, len(self.task.classes))
+        self.model = task.get_initial_model()
 
         self._init_random(self.seed)
         # Parameters needed to be updated based on freezing layer
@@ -213,6 +210,17 @@ class Trainable:
         plt.title(title + ' ' + plt_mode)
         plt.savefig(save_dir + '/' + plt_mode + '_' + title + '.pdf')
         plt.close()
+        
+    def _get_model_output_shape(self, in_size, mod):
+        """
+        Adopt from https://gist.github.com/lebedov/0db63ffcd0947c2ea008c4a50be31032
+        Compute output size of Module `mod` given an input with size `in_size`
+        :param in_size: input shape (height, width)
+        :param mod: PyTorch model
+        :return:
+        """
+        f = mod(torch.rand(2, 3, *in_size))
+        return int(np.prod(f.size()[1:]))
 
 
 class Taglet(Trainable):
