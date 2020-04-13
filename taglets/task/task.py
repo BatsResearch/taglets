@@ -10,7 +10,7 @@ class Task:
     """
     A class defining an image classification task
     """
-    def __init__(self, name, classes, labeled_train_data, unlabeled_train_data,
+    def __init__(self, name, classes, input_shape, labeled_train_data, unlabeled_train_data,
                  validation_data, scads_path):
         """
         Create a new Task
@@ -24,6 +24,7 @@ class Task:
         self.name = name
         self.description = ''
         self.classes = classes
+        self.input_shape = input_shape
         self.labeled_train_data = labeled_train_data
         self.unlabeled_train_data = unlabeled_train_data
         self.validation_data = validation_data

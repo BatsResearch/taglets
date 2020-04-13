@@ -352,6 +352,7 @@ class JPLRunner:
         classes = self.get_class()
         task = Task(self.jpl_storage.name,
                     classes,
+                    (28, 28),
                     labeled_dataset,
                     unlabeled_dataset,
                     val_dataset,
