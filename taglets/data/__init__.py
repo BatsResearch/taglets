@@ -1,1 +1,1 @@
-from .custom_dataset import CustomDataset
+from .custom_dataset import CustomDataset, SoftLabelDataset

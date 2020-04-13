@@ -1,4 +1,4 @@
-from taglets.data.custom_dataset import SoftLabelDataset
+from .data import SoftLabelDataset
 from .modules import FineTuneModule, PrototypeModule, TransferModule, MultiTaskModule
 from .pipeline import EndModel, TagletExecutor
 
