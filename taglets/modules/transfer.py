@@ -43,8 +43,7 @@ class TransferTaglet(Taglet):
         data_std = [0.229, 0.224, 0.225]
 
         return transforms.Compose([
-            # TODO: Use the Size from Task
-            # transforms.Resize((224, 224)),
+            transforms.Resize(self.task.input_shape),
             transforms.ToTensor(),
             transforms.Normalize(mean=data_mean, std=data_std)
         ])

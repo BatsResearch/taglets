@@ -93,7 +93,7 @@ class Controller:
 
     def _get_taglets_modules(self):
         if self.task.scads_path:
-            return [MultiTaskModule(task=self.task), FineTuneModule(task=self.task), PrototypeModule(task=self.task), TransferModule(task=self.task)]
+            return [FineTuneModule(task=self.task), PrototypeModule(task=self.task), TransferModule(task=self.task), MultiTaskModule(task=self.task)]
         return [FineTuneModule(task=self.task), PrototypeModule(task=self.task)]
 
     def _get_data_loader(self, dataset, shuffle=True):
