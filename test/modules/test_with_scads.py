@@ -50,7 +50,6 @@ class TestSCADS(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Set Up Scads
-        print("CWD:", os.getcwd())
         installer = Installer(DB_PATH)
         installer.install_conceptnet(CONCEPTNET_PATH)
         installer.install_dataset(MNIST_PATH, MnistInstallation())
@@ -89,7 +88,7 @@ class TestSCADS(unittest.TestCase):
         val = Subset(mnist, [i for i in range(2 * size, 3 * size)])
         task = Task("mnist-test", classes, (28, 28), labeled, unlabeled, val, DB_PATH)
         task.set_initial_model(MnistResNet())
-        Scads.set_root_path("/home/travis/")
+        Scads.set_root_path("/home/travis/build/BatsResearch/taglets/")
 
         # Executes task
         controller = Controller(task, use_gpu=False)
