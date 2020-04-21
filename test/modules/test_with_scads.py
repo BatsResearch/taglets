@@ -3,6 +3,8 @@ import os
 import logging
 import sys
 import torch
+
+from taglets.scads import Scads
 from taglets.scads.create.install import Installer, MnistInstallation
 from taglets.controller import Controller
 from taglets.task import Task
@@ -47,7 +49,8 @@ class TestSCADS(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # Install Scads
+        # Set Up Scads
+        print("CWD:", os.getcwd())
         installer = Installer(DB_PATH)
         installer.install_conceptnet(CONCEPTNET_PATH)
         installer.install_dataset(MNIST_PATH, MnistInstallation())
@@ -86,6 +89,7 @@ class TestSCADS(unittest.TestCase):
         val = Subset(mnist, [i for i in range(2 * size, 3 * size)])
         task = Task("mnist-test", classes, (28, 28), labeled, unlabeled, val, DB_PATH)
         task.set_initial_model(MnistResNet())
+        Scads.set_root_path("/home/travis/")
 
         # Executes task
         controller = Controller(task, use_gpu=False)

@@ -49,6 +49,7 @@ class TransferTaglet(Taglet):
         ])
 
     def _get_scads_data(self, batch_size, num_workers):
+        root_path = Scads.get_root_path()
         Scads.open(self.task.scads_path)
         image_paths = []
         image_labels = []
@@ -60,6 +61,7 @@ class TransferTaglet(Taglet):
                 if neighbor.get_conceptnet_id() in visited:
                     continue
                 images = neighbor.get_images()
+                images = [os.path.join(root_path, image) for image in images]
                 if images:
                     image_paths.extend(images)
                     image_labels.extend([len(visited) for _ in range(len(images))])

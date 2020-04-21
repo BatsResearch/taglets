@@ -14,6 +14,15 @@ class Scads:
     A class providing connection to Structured Collections of Annotated Data Sets (SCADS).
     """
     session = None
+    root_path = None
+
+    @staticmethod
+    def set_root_path(root_path):
+        Scads.root_path = root_path
+
+    @staticmethod
+    def get_root_path():
+        return Scads.root_path
 
     @staticmethod
     def open(path_to_database):
