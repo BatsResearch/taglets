@@ -54,7 +54,10 @@ class JPL:
         :return: None
         """
         headers = {'user_secret': self.secret}
-        r = requests.get(self.url + "/auth/get_session_token/" + self.data_type + "/" + task_name, headers=headers)
+        # r = requests.get(self.url + "/auth/get_session_token/" + self.data_type + "/" + task_name, headers=headers)
+        r = requests.post(self.url +"/auth/create_session", json={'session_name': 'testing', 'data_type': self.data_type,
+                                                              'task_id': task_name},headers=headers)
+
         session_token = r.json()['session_token']
         self.session_token = session_token
 
@@ -67,6 +70,7 @@ class JPL:
         r = requests.get(self.url + "/session_status", headers=headers)
         return r.json()['Session_Status']
 
+
     def get_seed_labels(self):
         """
         Get seed labels.
@@ -77,8 +81,11 @@ class JPL:
         labels = r.json()['Labels']
         seed_labels = []
         for image in labels:
-            seed_labels.append([image["id"], image["class"]])
+            # Elaheh: changed based on the latest version of API
+            seed_labels.append([image["class"],image["id"]])
+            # seed_labels.append([image["id"], image["class"]])
         return seed_labels
+
 
     def request_label(self, query):
         """
@@ -101,6 +108,7 @@ class JPL:
         headers = {'user_secret': self.secret, 'session_token': self.session_token}
         r = requests.post(self.url + "/query_labels", json=query, headers=headers)
         return r.json()['Labels']
+
 
     def submit_prediction(self, predictions):
         """
@@ -144,7 +152,7 @@ class JPLStorage:
         :return: None
         """
         self.labeled_images.extend(new_labeled_images)
-    
+
     def transform_image(self):
         """
         Get the transform to be used on an image.
@@ -161,8 +169,10 @@ class JPLStorage:
     
     def get_labeled_images_list(self):
         """get list of image names and labels"""
-        image_names = [img_name for img_name, label in self.labeled_images]
-        image_labels = [label for img_name, label in self.labeled_images]
+        #Elaheh: changed the following line
+        image_names = [item[1] for item in self.labeled_images]
+        image_labels = [item[0] for item in self.labeled_images]
+
         return image_names, image_labels
     
     def get_unlabeled_image_names(self):
@@ -190,7 +200,7 @@ class JPLStorage:
         image_names, image_labels = self.get_labeled_images_list()
 
         image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
-    
+
         train_val_data = CustomDataset(image_paths,
                                        image_labels,
                                        transform)
@@ -275,15 +285,17 @@ class JPLRunner:
         
     def get_jpl_information(self):
         jpl_task_names = self.api.get_available_tasks()
-        jpl_task_name = jpl_task_names[0]  # Image classification task
+        # jpl_task_name = jpl_task_names[0]  # Image classification task
+        jpl_task_name = 'problem_test_image_classification' # Elaheh: for now it is hard coded, but needed to change
         self.api.create_session(jpl_task_name)
         jpl_task_metadata = self.api.get_task_metadata(jpl_task_name)
-    
+
         num_base_checkpoints = len(jpl_task_metadata['base_label_budget'])
         num_adapt_checkpoints = len(jpl_task_metadata['adaptation_label_budget'])
 
         jpl_storage = JPLStorage(jpl_task_name, jpl_task_metadata)
         session_status = self.api.get_session_status()
+
         current_dataset = session_status['current_dataset']
         jpl_storage.classes = current_dataset['classes']
         jpl_storage.number_of_channels = current_dataset['number_of_channels']
@@ -297,6 +309,7 @@ class JPLRunner:
         elif session_status['pair_stage'] == 'base':
             jpl_storage.labeled_images = self.api.get_seed_labels()
             jpl_storage.initial = jpl_task_metadata['base_can_use_pretrained_model']
+
         return jpl_storage, num_base_checkpoints, num_adapt_checkpoints
 
     def update_jpl_information(self):
@@ -346,8 +359,13 @@ class JPLRunner:
         else:
             candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
         self.request_labels(candidates)
-        
+
+
+
+
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset()
+
+
         unlabeled_dataset = self.jpl_storage.get_unlabeled_dataset()
         classes = self.get_class()
         task = Task(self.jpl_storage.name,
@@ -390,6 +408,7 @@ class JPLRunner:
     def request_labels(self, examples):
         query = {'example_ids': examples}
         labeled_images = self.api.request_label(query)
+
         self.jpl_storage.add_labeled_images(labeled_images)
         log.info("New labeled images: %s", len(labeled_images))
         log.info("Total labeled images: %s", len(self.jpl_storage.labeled_images))
@@ -397,7 +416,8 @@ class JPLRunner:
     def submit_predictions(self, predictions):
         submit_status = self.api.submit_prediction(predictions)
         session_status = self.api.get_session_status()
-        log.info("Checkpoint scores: %s", session_status['checkpoint_scores'])
+        if 'checkpoint_scores' in session_status:
+            log.info("Checkpoint scores: %s", session_status['checkpoint_scores'])
         log.info("Phase: %s", session_status['pair_stage'])
 
 
@@ -409,7 +429,7 @@ def main():
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
     
-    runner = JPLRunner(use_gpu=True, testing=True)
+    runner = JPLRunner(use_gpu=False, testing=True)
     runner.run_checkpoints()
 
 

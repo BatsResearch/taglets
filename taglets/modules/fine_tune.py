@@ -18,7 +18,7 @@ class FineTuneTaglet(Taglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'finetune'
-        self.num_epochs = 5
+        self.num_epochs = 2
         output_shape = self._get_model_output_shape(self.task.input_shape, self.model)
         self.model = torch.nn.Sequential(self.model,
                                          torch.nn.Linear(output_shape, len(self.task.classes)))

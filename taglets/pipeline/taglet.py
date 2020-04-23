@@ -24,7 +24,7 @@ class Trainable:
         self.lr = 0.001
         self.criterion = torch.nn.CrossEntropyLoss()
         self.seed = 0
-        self.num_epochs = 10
+        self.num_epochs = 2
         self.select_on_val = True   # If true, save model on the best validation performance
         self.save_dir = None
 
@@ -130,7 +130,6 @@ class Trainable:
         :return:
         """
         log.info('Beginning training')
-
         if use_gpu:
             self.model = self.model.cuda()
         else:
