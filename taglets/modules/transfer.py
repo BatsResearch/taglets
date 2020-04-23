@@ -43,13 +43,13 @@ class TransferTaglet(Taglet):
         data_std = [0.229, 0.224, 0.225]
 
         return transforms.Compose([
-            # TODO: Use the Size from Task
-            # transforms.Resize((224, 224)),
+            transforms.Resize(self.task.input_shape),
             transforms.ToTensor(),
             transforms.Normalize(mean=data_mean, std=data_std)
         ])
 
     def _get_scads_data(self, batch_size, num_workers):
+        root_path = Scads.get_root_path()
         Scads.open(self.task.scads_path)
         image_paths = []
         image_labels = []
@@ -61,6 +61,7 @@ class TransferTaglet(Taglet):
                 if neighbor.get_conceptnet_id() in visited:
                     continue
                 images = neighbor.get_images()
+                images = [os.path.join(root_path, image) for image in images]
                 if images:
                     image_paths.extend(images)
                     image_labels.extend([len(visited) for _ in range(len(images))])
