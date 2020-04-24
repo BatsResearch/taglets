@@ -27,7 +27,7 @@ class Task:
         self.validation_data = validation_data
         self.scads_path = scads_path
 
-        self.initial = models.resnet18(pretrained=False)
+        self.initial = models.resnet18(pretrained=True)
         self.initial.fc = torch.nn.Identity()
 
     def get_classes(self):

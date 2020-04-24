@@ -444,7 +444,7 @@ def main():
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
     
-    runner = JPLRunner(base_dataset_dir, adapt_dataset_dir, use_gpu=False, testing=True)
+    runner = JPLRunner(base_dataset_dir, adapt_dataset_dir, use_gpu=True, testing=True)
     runner.run_checkpoints()
 
 
