@@ -19,7 +19,7 @@ class CifarInstallation(DatasetInstaller):
         return "CIFAR100"
 
     def get_images(self, dataset, session, root):
-        size = "sample"
+        size = "full"
         modes = ['train', 'test']
 
         all_images = []
@@ -48,7 +48,7 @@ class MnistInstallation(DatasetInstaller):
         return "MNIST"
 
     def get_images(self, dataset, session, root):
-        size = "sample"
+        size = "full"
         modes = ['train', 'test']
 
         all_images = []
