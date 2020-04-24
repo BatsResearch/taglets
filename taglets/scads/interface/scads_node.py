@@ -46,5 +46,6 @@ class ScadsNode:
             edges.append(ScadsEdge(self,
                                    end_node,
                                    edge.relation.type,
+                                   edge.weight,
                                    edge.relation.is_directed))
         return edges

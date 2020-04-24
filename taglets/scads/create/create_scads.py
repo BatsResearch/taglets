@@ -50,9 +50,10 @@ def get_edges(directory):
         for line in edge_file:
             if line.strip():
                 try:
-                    edge_id, _, relation, start_node, end_node = line.strip().split()[:5]
+                    edge_id, _, relation, start_node, end_node, weight = line.strip().split()[:6]
                     edge = Edge(id=int(edge_id),
                                 relation_type=int(relation),
+                                weight=float(weight),
                                 start_node=int(start_node),
                                 end_node=int(end_node))
                     all_edges.append(edge)

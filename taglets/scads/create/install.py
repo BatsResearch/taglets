@@ -10,7 +10,7 @@ class DatasetInstaller:
     def get_name(self):
         raise NotImplementedError()
 
-    def get_images(self, dataset, session):
+    def get_images(self, dataset, session, root):
         raise NotImplementedError()
 
 
@@ -18,46 +18,47 @@ class CifarInstallation(DatasetInstaller):
     def get_name(self):
         return "CIFAR100"
 
-    def get_images(self, dataset, session):
+    def get_images(self, dataset, session, root):
+        size = "sample"
+        modes = ['train', 'test']
+
         all_images = []
-        for mode in os.listdir(dataset.path):
-            if mode.startswith('.'):
-                continue
-            mode_dir = os.path.join(dataset.path, mode)
-            for label in os.listdir(mode_dir):
-                if label.startswith('.'):
+        for mode in modes:
+            df_label = pd.read_feather(os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            mode_dir = os.path.join(dataset.path, "cifar100_" + size, mode)
+            for image in os.listdir(os.path.join(root, mode_dir)):
+                if image.startswith('.'):
                     continue
+                label = df_label.loc[df_label['id'] == image]['class'].values[0]
                 node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
                 if not node:
                     continue  # Map is missing a missing conceptnet id
-                label_dir = os.path.join(mode_dir, label)
-                for image in os.listdir(label_dir):
-                    img = Image(dataset_id=dataset.id,
-                                node_id=node.id,
-                                path=os.path.join(label_dir, image))
-                    all_images.append(img)
+                img = Image(dataset_id=dataset.id,
+                            node_id=node.id,
+                            path=os.path.join(mode_dir, image))
+                all_images.append(img)
         return all_images
 
     def get_conceptnet_id(self, label):
         return "/c/en/" + label
 
 
-class MnistInstallation:
+class MnistInstallation(DatasetInstaller):
     def get_name(self):
         return "MNIST"
 
-    def get_images(self, dataset, session):
+    def get_images(self, dataset, session, root):
+        size = "sample"
         modes = ['train', 'test']
 
         all_images = []
         for mode in modes:
-            df_label = pd.read_feather(dataset.path + '/labels_' + mode + '.feather')
-            mode_dir = os.path.join(dataset.path, mode)
-            for image in os.listdir(mode_dir):
+            df_label = pd.read_feather(os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            mode_dir = os.path.join(dataset.path, "mnist_" + size, mode)
+            for image in os.listdir(os.path.join(root, mode_dir)):
                 if image.startswith('.'):
                     continue
-
-                label = df_label.loc[df_label['id'] == image].label.values[0]
+                label = df_label.loc[df_label['id'] == image]['class'].values[0]
                 node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
                 if not node:
                     continue  # Map is missing a missing conceptnet id
@@ -90,8 +91,8 @@ class Installer:
     def install_conceptnet(self, path_to_conceptnet):
         add_conceptnet(self.db, path_to_conceptnet)
 
-    def install_dataset(self, path_to_dataset, dataset_installer):
-        add_dataset(self.db, path_to_dataset, dataset_installer)
+    def install_dataset(self, root, path_to_dataset, dataset_installer):
+        add_dataset(self.db, root, path_to_dataset, dataset_installer)
 
 
 if __name__ == "__main__":
@@ -99,8 +100,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Scads')
     parser.add_argument("--db", type=str, help="Path to database", required=True)
     parser.add_argument("--conceptnet", type=str, help="Path to ConceptNet directory")
-    parser.add_argument("--cifar100", type=str, help="Path to CIFAR100 directory")
-    parser.add_argument("--mnist", type=str, help="Path to MNIST directory")
+    parser.add_argument("--root", type=str, help="Root containing dataset directories")
+    parser.add_argument("--cifar100", type=str, help="Path to CIFAR100 directory from the root")
+    parser.add_argument("--mnist", type=str, help="Path to MNIST directory from the root")
     args = parser.parse_args()
 
     # Install SCADS
@@ -108,6 +110,10 @@ if __name__ == "__main__":
     if args.conceptnet:
         installer.install_conceptnet(args.conceptnet)
     if args.cifar100:
-        installer.install_dataset(args.cifar100, CifarInstallation())
+        if not args.root:
+            raise RuntimeError("Must specify root directory.")
+        installer.install_dataset(args.root, args.cifar100, CifarInstallation())
     if args.mnist:
-        installer.install_dataset(args.mnist, MnistInstallation())
+        if not args.root:
+            raise RuntimeError("Must specify root directory.")
+        installer.install_dataset(args.root, args.mnist, MnistInstallation())

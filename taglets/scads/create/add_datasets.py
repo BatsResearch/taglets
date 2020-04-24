@@ -4,13 +4,13 @@ import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 
 
-def add_dataset(path_to_database, path_to_dataset, dataset_installer):
+def add_dataset(path_to_database, root, path_to_dataset, dataset_installer):
     """
     Insert the dataset and its dependencies (LabelMaps, Images) into the database.
     :param dataset_info: A dictionary the dataset name and the number of classes.
     :return: None
     """
-    if not os.path.isdir(path_to_dataset):
+    if not os.path.isdir(os.path.join(root, path_to_dataset)):
         print("Path does not exist.")
 
     # Get session
@@ -31,7 +31,7 @@ def add_dataset(path_to_database, path_to_dataset, dataset_installer):
         return
 
     # Add Images to database
-    all_images = dataset_installer.get_images(dataset, session)
+    all_images = dataset_installer.get_images(dataset, session, root)
     for image in all_images:
         image.dataset = dataset
         if image.node_id:

@@ -13,9 +13,10 @@ from torchvision import transforms
 from torchvision.datasets import MNIST
 from torchvision.models.resnet import ResNet, BasicBlock
 
-DB_PATH = "test/test_data/test_transfer.db"
-CONCEPTNET_PATH = "test/test_data/transfer_conceptnet"
-MNIST_PATH = "test/test_data/MNIST"
+DB_PATH = "test/test_data/test_scads.db"
+CONCEPTNET_PATH = "test/test_data/conceptnet"
+ROOT = "test/test_data"
+MNIST_PATH = "mnist"
 
 
 class HiddenLabelDataset(Dataset):
@@ -52,7 +53,7 @@ class TestSCADS(unittest.TestCase):
         # Set Up Scads
         installer = Installer(DB_PATH)
         installer.install_conceptnet(CONCEPTNET_PATH)
-        installer.install_dataset(MNIST_PATH, MnistInstallation())
+        installer.install_dataset(ROOT, MNIST_PATH, MnistInstallation())
 
         # Set up logging
         logger = logging.getLogger()
@@ -88,7 +89,7 @@ class TestSCADS(unittest.TestCase):
         val = Subset(mnist, [i for i in range(2 * size, 3 * size)])
         task = Task("mnist-test", classes, (28, 28), labeled, unlabeled, val, DB_PATH)
         task.set_initial_model(MnistResNet())
-        Scads.set_root_path("/home/travis/build/BatsResearch/taglets/")
+        Scads.set_root_path(os.path.join("/home/travis/build/BatsResearch/taglets", ROOT))
 
         # Executes task
         controller = Controller(task, use_gpu=False)

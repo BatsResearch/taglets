@@ -1,5 +1,5 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Float
 from sqlalchemy.orm import relationship
 
 Base = declarative_base()
@@ -20,14 +20,15 @@ class Edge(Base):
     __tablename__ = 'edges'
     id = Column(Integer, primary_key=True)
     relation_type = Column(Integer, ForeignKey('relations.id'))
+    weight = Column(Float)
     start_node = Column(Integer, ForeignKey('nodes.id'))
     end_node = Column(Integer, ForeignKey('nodes.id'))
 
     relation = relationship("Relation")
 
     def __repr__(self):
-        return "<Edge(key='%s', relation='%s',start_node='%s', end_node='%s')>" % \
-               (self.id, self.relation_type, self.start_node, self.end_node)
+        return "<Edge(key='%s', relation='%s', weight='%s', start_node='%s', end_node='%s')>" % \
+               (self.id, self.relation_type, self.weight, self.start_node, self.end_node)
 
 
 class Node(Base):
