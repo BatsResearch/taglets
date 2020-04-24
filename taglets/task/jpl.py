@@ -1,3 +1,4 @@
+import argparse
 import logging
 import sys
 import requests
@@ -55,8 +56,9 @@ class JPL:
         """
         headers = {'user_secret': self.secret}
         # r = requests.get(self.url + "/auth/get_session_token/" + self.data_type + "/" + task_name, headers=headers)
-        r = requests.post(self.url +"/auth/create_session", json={'session_name': 'testing', 'data_type': self.data_type,
-                                                              'task_id': task_name},headers=headers)
+        r = requests.post(self.url + "/auth/create_session",
+                          json={'session_name': 'testing', 'data_type': self.data_type, 'task_id': task_name},
+                          headers=headers)
 
         session_token = r.json()['session_token']
         self.session_token = session_token
@@ -70,7 +72,6 @@ class JPL:
         r = requests.get(self.url + "/session_status", headers=headers)
         return r.json()['Session_Status']
 
-
     def get_seed_labels(self):
         """
         Get seed labels.
@@ -82,10 +83,9 @@ class JPL:
         seed_labels = []
         for image in labels:
             # Elaheh: changed based on the latest version of API
-            seed_labels.append([image["class"],image["id"]])
+            seed_labels.append([image["class"], image["id"]])
             # seed_labels.append([image["id"], image["class"]])
         return seed_labels
-
 
     def request_label(self, query):
         """
@@ -108,7 +108,6 @@ class JPL:
         headers = {'user_secret': self.secret, 'session_token': self.session_token}
         r = requests.post(self.url + "/query_labels", json=query, headers=headers)
         return r.json()['Labels']
-
 
     def submit_prediction(self, predictions):
         """
@@ -139,11 +138,11 @@ class JPLStorage:
         self.classes = []
         self.evaluation_image_path = "path to test images"
         self.unlabeled_image_path = "path to unlabeled images"
-        self.labeled_images = []    # A list of tuples with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
+        self.labeled_images = []  # A list of tuples with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
         self.number_of_channels = None
         self.train_data_loader = None
-        self.phase = None # base or adaptation
-        self.pretrained = None # can load from pretrained models on ImageNet
+        self.phase = None  # base or adaptation
+        self.pretrained = None  # can load from pretrained models on ImageNet
     
     def add_labeled_images(self, new_labeled_images):
         """
@@ -152,6 +151,20 @@ class JPLStorage:
         :return: None
         """
         self.labeled_images.extend(new_labeled_images)
+        
+    def set_image_path(self, dataset_dir, data_type):
+        """
+        Set self.evaluation_image_path and self.unlabeled_image_path with the given dataset_dir
+        :param dataset_dir: the directory to the dataset
+        :param data_type: 'sample' or 'full'
+        :return:
+        """
+        self.unlabeled_image_path = os.path.join(dataset_dir,
+                                                 os.path.basename(dataset_dir) + "_" + data_type,
+                                                 "train")
+        self.evaluation_image_path = os.path.join(dataset_dir,
+                                                  os.path.basename(dataset_dir) + "_" + data_type,
+                                                  "test")
 
     def transform_image(self):
         """
@@ -169,7 +182,7 @@ class JPLStorage:
     
     def get_labeled_images_list(self):
         """get list of image names and labels"""
-        #Elaheh: changed the following line
+        # Elaheh: changed the following line
         image_names = [item[1] for item in self.labeled_images]
         image_labels = [item[0] for item in self.labeled_images]
 
@@ -235,8 +248,6 @@ class JPLStorage:
     def get_evaluation_dataset(self):
         """
         Get a data loader from evaluation/test data.
-        :param batch_size: The batch size
-        :param num_workers: The number of workers
         :return: A data loader containing unlabeled data
         """
         transform = self.transform_image()
@@ -251,7 +262,11 @@ class JPLStorage:
 
 
 class JPLRunner:
-    def __init__(self, batch_size=32, num_workers=2, use_gpu=False, testing=False, data_type='sample'):
+    def __init__(self, base_dataset_dir, adapt_dataset_dir, batch_size=32, num_workers=2,
+                 use_gpu=False, testing=False, data_type='sample'):
+        self.base_dataset_dir = base_dataset_dir
+        self.adapt_dataset_dir = adapt_dataset_dir
+        
         self.api = JPL()
         self.api.data_type = data_type
         self.jpl_storage, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_jpl_information()
@@ -284,9 +299,9 @@ class JPLRunner:
         return classes
         
     def get_jpl_information(self):
-        jpl_task_names = self.api.get_available_tasks()
+        # jpl_task_names = self.api.get_available_tasks()
         # jpl_task_name = jpl_task_names[0]  # Image classification task
-        jpl_task_name = 'problem_test_image_classification' # Elaheh: for now it is hard coded, but needed to change
+        jpl_task_name = 'problem_test_image_classification'  # Elaheh: for now it is hard coded, but needed to change
         self.api.create_session(jpl_task_name)
         jpl_task_metadata = self.api.get_task_metadata(jpl_task_name)
 
@@ -294,21 +309,6 @@ class JPLRunner:
         num_adapt_checkpoints = len(jpl_task_metadata['adaptation_label_budget'])
 
         jpl_storage = JPLStorage(jpl_task_name, jpl_task_metadata)
-        session_status = self.api.get_session_status()
-
-        current_dataset = session_status['current_dataset']
-        jpl_storage.classes = current_dataset['classes']
-        jpl_storage.number_of_channels = current_dataset['number_of_channels']
-    
-        jpl_storage.unlabeled_image_path = "./sql_data/MNIST/" + self.api.data_type + "/train"
-        jpl_storage.evaluation_image_path = "./sql_data/MNIST/" + self.api.data_type + "test"  # Should be updated later
-        jpl_storage.phase = session_status['pair_stage']
-        if session_status['pair_stage'] == 'adaptation':
-            jpl_storage.labeled_images = []
-            jpl_storage.initial = jpl_task_metadata['adaptation_can_use_pretrained_model']
-        elif session_status['pair_stage'] == 'base':
-            jpl_storage.labeled_images = self.api.get_seed_labels()
-            jpl_storage.initial = jpl_task_metadata['base_can_use_pretrained_model']
 
         return jpl_storage, num_base_checkpoints, num_adapt_checkpoints
 
@@ -318,16 +318,14 @@ class JPLRunner:
         current_dataset = session_status['current_dataset']
         self.jpl_storage.classes = current_dataset['classes']
         self.jpl_storage.number_of_channels = current_dataset['number_of_channels']
-
-        # Should be updated later
-        self.jpl_storage.unlabeled_image_path = "./sql_data/MNIST/" + self.api.data_type + "/train"
-        self.jpl_storage.evaluation_image_path = "./sql_data/MNIST/" + self.api.data_type + "/test"
         
         self.jpl_storage.phase = session_status['pair_stage']
         if session_status['pair_stage'] == 'adaptation':
+            self.jpl_storage.set_image_path(self.adapt_dataset_dir, self.api.data_type)
             self.jpl_storage.labeled_images = []
             self.jpl_storage.initial = task_metadata['adaptation_can_use_pretrained_model']
         elif session_status['pair_stage'] == 'base':
+            self.jpl_storage.set_image_path(self.base_dataset_dir, self.api.data_type)
             self.jpl_storage.labeled_images = self.api.get_seed_labels()
             self.jpl_storage.initial = task_metadata['base_can_use_pretrained_model']
 
@@ -360,12 +358,7 @@ class JPLRunner:
             candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
         self.request_labels(candidates)
 
-
-
-
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset()
-
-
         unlabeled_dataset = self.jpl_storage.get_unlabeled_dataset()
         classes = self.get_class()
         task = Task(self.jpl_storage.name,
@@ -422,6 +415,28 @@ class JPLRunner:
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Run JPL task")
+    parser.add_argument("--dataset_dir", dest="dataset_dir",
+                        type=str,
+                        default="",
+                        help="The directory to the dataset (in the case base and adapt datasets are the same)")
+    parser.add_argument("--base_dataset_dir", dest="base_dataset_dir",
+                        type=str,
+                        default="/data/bats/datasets/lwll/lwll_datasets/development/mnist",
+                        help="The directory to the base dataset")
+    parser.add_argument("--adapt_dataset_dir", dest="adapt_dataset_dir",
+                        type=str,
+                        default="/data/bats/datasets/lwll/lwll_datasets/development/mnist",
+                        help="The directory to the adapt dataset")
+    args = parser.parse_args()
+    
+    if args.dataset_dir != "":
+        base_dataset_dir = args.dataset_dir
+        adapt_dataset_dir = args.dataset_dir
+    else:
+        base_dataset_dir = args.base_dataset_dir
+        adapt_dataset_dir = args.adapt_dataset_dir
+     
     logger = logging.getLogger()
     logger.level = logging.INFO
     stream_handler = logging.StreamHandler(sys.stdout)
@@ -429,7 +444,7 @@ def main():
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
     
-    runner = JPLRunner(use_gpu=False, testing=True)
+    runner = JPLRunner(base_dataset_dir, adapt_dataset_dir, use_gpu=False, testing=True)
     runner.run_checkpoints()
 
 
