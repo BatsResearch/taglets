@@ -70,7 +70,10 @@ class JPL:
         """
         headers = {'user_secret': self.secret, 'session_token': self.session_token}
         r = requests.get(self.url + "/session_status", headers=headers)
-        return r.json()['Session_Status']
+        if 'Session_Status' in r.json():
+            return r.json()['Session_Status']
+        else:
+            return {}
 
     def get_seed_labels(self):
         """
