@@ -414,7 +414,8 @@ class JPLRunner:
         session_status = self.api.get_session_status()
         if 'checkpoint_scores' in session_status:
             log.info("Checkpoint scores: %s", session_status['checkpoint_scores'])
-        log.info("Phase: %s", session_status['pair_stage'])
+        if 'pair_stage' in session_status:
+            log.info("Phase: %s", session_status['pair_stage'])
 
 
 def main():
