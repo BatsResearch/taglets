@@ -71,6 +71,18 @@ class MultiTaskTaglet(Taglet):
         for label, conceptnet_id in self.task.classes.items():
             target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
             neighbors = [edge.get_end_node() for edge in target_node.get_neighbors()]
+
+            # Add target node
+            if target_node not in visited:
+                images = target_node.get_images()
+                images = [os.path.join(root_path, image) for image in images]
+                if images:
+                    image_paths.extend(images)
+                    image_labels.extend([len(visited) for _ in range(len(images))])
+                    visited.add(target_node.get_conceptnet_id())
+                    log.info("Source class found: {}".format(target_node.get_conceptnet_id()))
+
+            # Add neighbors
             for neighbor in neighbors:
                 if neighbor.get_conceptnet_id() in visited:
                     continue
