@@ -29,18 +29,20 @@ def get_nodes(directory):
     """
     cwd = os.getcwd()
     all_nodes = []
+    all_keys = set()
     with open(os.path.join(cwd, directory, 'nodes.csv'), encoding="utf8") as node_file:
         for line in node_file:
             split = line.strip().split()
             if split and len(split) == 2:
                 node_key, conceptnet_id = split
                 if conceptnet_id.startswith("/c/en/"):
+                    all_keys.add(node_key)
                     node = Node(id=node_key, conceptnet_id=conceptnet_id)
                     all_nodes.append(node)
-    return all_nodes
+    return all_nodes, all_keys
 
 
-def get_edges(directory):
+def get_edges(directory, node_ids):
     """
     Get all edges in conceptnet.
     :return: A list of Edges
@@ -52,12 +54,13 @@ def get_edges(directory):
             if line.strip():
                 try:
                     edge_id, _, relation, start_node, end_node, weight = line.strip().split()[:6]
-                    edge = Edge(id=int(edge_id),
-                                relation_type=int(relation),
-                                weight=float(weight),
-                                start_node=int(start_node),
-                                end_node=int(end_node))
-                    all_edges.append(edge)
+                    if start_node in node_ids and end_node in node_ids:
+                        edge = Edge(id=int(edge_id),
+                                    relation_type=int(relation),
+                                    weight=float(weight),
+                                    start_node=int(start_node),
+                                    end_node=int(end_node))
+                        all_edges.append(edge)
                 except ValueError:
                     pass
     return all_edges
@@ -71,43 +74,35 @@ def add_conceptnet(path_to_database, directory):
     # Set up logging
     logging.getLogger().setLevel(logging.INFO)
 
-    # Get session
+    # Generate database schema
     engine = sa.create_engine('sqlite:///' + path_to_database)
     Session = sessionmaker(bind=engine)
-
-    # Read nodes, edges, and relations from files
-    logging.info("Collecting relations.")
-    all_relations = get_relations(directory)
-    logging.info("Collecting nodes.")
-    all_nodes = get_nodes(directory)
-    logging.info("Collecting edges.")
-    all_edges = get_edges(directory)
-
-    # Generate database schema
     session = Session()
     session.execute('PRAGMA foreign_keys=ON')
     Base.metadata.create_all(engine)
 
+    # Add relations
+    logging.info("Collecting relations.")
+    all_relations = get_relations(directory)
+    logging.info("Adding relations.")
     session.add_all(all_relations)
     session.commit()
-    logging.info("Added relations.")
+    logging.info("Relations added.")
+
+    # Add nodes
+    logging.info("Collecting nodes.")
+    all_nodes, all_node_ids = get_nodes(directory)
+    logging.info("Adding nodes.")
     session.add_all(all_nodes)
     session.commit()
-    logging.info("Added nodes.")
+    logging.info("Nodes added.")
 
-    included_edges = []
-    num_edges = len(all_edges)
-    for i in range(num_edges):
-        edge = all_edges[i]
-        start_node = session.query(Node).filter(Node.id == edge.start_node).first()
-        end_node = session.query(Node).filter(Node.id == edge.end_node).first()
-        if start_node and end_node:
-            included_edges.append(edge)
-        if not i * 100 % num_edges:
-            logging.info("Adding edges: {}%.".format(i * 100 // num_edges))
-
-    session.add_all(included_edges)
+    # Add edges
+    logging.info("Collecting edges.")
+    all_edges = get_edges(directory, all_node_ids)
+    logging.info("Adding edges.")
+    session.add_all(all_edges)
     session.commit()
-    logging.info("Added edges.")
+    logging.info("Edges added.")
 
     session.close()
