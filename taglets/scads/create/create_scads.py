@@ -69,20 +69,18 @@ def add_conceptnet(path_to_database, directory):
     :return: None
     """
     # Set up logging
-    log = logging.getLogger(__name__)
-    logger = logging.getLogger()
-    logger.level = logging.INFO
+    logging.getLogger().setLevel(logging.INFO)
 
     # Get session
     engine = sa.create_engine('sqlite:///' + path_to_database)
     Session = sessionmaker(bind=engine)
 
     # Read nodes, edges, and relations from files
-    log.info("Collecting relations.")
+    logging.info("Collecting relations.")
     all_relations = get_relations(directory)
-    log.info("Collecting nodes.")
+    logging.info("Collecting nodes.")
     all_nodes = get_nodes(directory)
-    log.info("Collecting edges.")
+    logging.info("Collecting edges.")
     all_edges = get_edges(directory)
 
     # Generate database schema
@@ -92,10 +90,10 @@ def add_conceptnet(path_to_database, directory):
 
     session.add_all(all_relations)
     session.commit()
-    log.info("Added relations.")
+    logging.info("Added relations.")
     session.add_all(all_nodes)
     session.commit()
-    log.info("Added nodes.")
+    logging.info("Added nodes.")
 
     included_edges = []
     num_edges = len(all_edges)
@@ -106,10 +104,10 @@ def add_conceptnet(path_to_database, directory):
         if start_node and end_node:
             included_edges.append(edge)
         if not i * 100 % num_edges:
-            log.info("Adding edges: {}%.".format(i * 100 // num_edges))
+            logging.info("Adding edges: {}%.".format(i * 100 // num_edges))
 
     session.add_all(included_edges)
     session.commit()
-    log.info("Added edges.")
+    logging.info("Added edges.")
 
     session.close()
