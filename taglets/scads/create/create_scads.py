@@ -2,6 +2,7 @@ import os
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 from .scads_classes import Node, Edge, Relation, Base
+import logging
 
 
 def get_relations(directory):
@@ -67,12 +68,21 @@ def add_conceptnet(path_to_database, directory):
     Add Nodes, Edges, and Relations from conceptnet into the database.
     :return: None
     """
+    # Set up logging
+    log = logging.getLogger(__name__)
+    logger = logging.getLogger()
+    logger.level = logging.INFO
+
+    # Get session
     engine = sa.create_engine('sqlite:///' + path_to_database)
     Session = sessionmaker(bind=engine)
 
     # Read nodes, edges, and relations from files
+    log.info("Collecting relations.")
     all_relations = get_relations(directory)
+    log.info("Collecting nodes.")
     all_nodes = get_nodes(directory)
+    log.info("Collecting edges.")
     all_edges = get_edges(directory)
 
     # Generate database schema
@@ -82,20 +92,24 @@ def add_conceptnet(path_to_database, directory):
 
     session.add_all(all_relations)
     session.commit()
-    print("Added relations.")
+    log.info("Added relations.")
     session.add_all(all_nodes)
     session.commit()
-    print("Added nodes.")
+    log.info("Added nodes.")
 
     included_edges = []
-    for edge in all_edges:
+    num_edges = len(all_edges)
+    for i in range(num_edges):
+        edge = all_edges[i]
         start_node = session.query(Node).filter(Node.id == edge.start_node).first()
         end_node = session.query(Node).filter(Node.id == edge.end_node).first()
         if start_node and end_node:
             included_edges.append(edge)
+        if not i * 100 % num_edges:
+            log.info("Adding edges: {}%.".format(i * 100 // num_edges))
 
     session.add_all(included_edges)
     session.commit()
-    print("Added edges.")
+    log.info("Added edges.")
 
     session.close()
