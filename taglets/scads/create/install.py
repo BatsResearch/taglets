@@ -4,6 +4,7 @@ import pandas as pd
 from ..create.scads_classes import Node, Image
 from ..create.create_scads import add_conceptnet
 from ..create.add_datasets import add_dataset
+import logging
 
 
 class DatasetInstaller:
@@ -32,7 +33,7 @@ class CifarInstallation(DatasetInstaller):
                 label = df_label.loc[df_label['id'] == image]['class'].values[0]
                 node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
                 if not node:
-                    continue  # Map is missing a missing conceptnet id
+                    continue  # Scads is missing a missing conceptnet id
                 img = Image(dataset_id=dataset.id,
                             node_id=node.id,
                             path=os.path.join(mode_dir, image))
@@ -61,7 +62,7 @@ class MnistInstallation(DatasetInstaller):
                 label = df_label.loc[df_label['id'] == image]['class'].values[0]
                 node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
                 if not node:
-                    continue  # Map is missing a missing conceptnet id
+                    continue  # Scads is missing a missing conceptnet id
                 img = Image(dataset_id=dataset.id,
                             node_id=node.id,
                             path=os.path.join(mode_dir, image))
@@ -104,6 +105,7 @@ if __name__ == "__main__":
     parser.add_argument("--cifar100", type=str, help="Path to CIFAR100 directory from the root")
     parser.add_argument("--mnist", type=str, help="Path to MNIST directory from the root")
     args = parser.parse_args()
+    logging.getLogger().setLevel(logging.INFO)
 
     # Install SCADS
     installer = Installer(args.db)

@@ -71,9 +71,6 @@ def add_conceptnet(path_to_database, directory):
     Add Nodes, Edges, and Relations from conceptnet into the database.
     :return: None
     """
-    # Set up logging
-    logging.getLogger().setLevel(logging.INFO)
-
     # Generate database schema
     engine = sa.create_engine('sqlite:///' + path_to_database)
     Session = sessionmaker(bind=engine)
