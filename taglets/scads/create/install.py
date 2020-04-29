@@ -4,7 +4,6 @@ import pandas as pd
 from ..create.scads_classes import Node, Image
 from ..create.create_scads import add_conceptnet
 from ..create.add_datasets import add_dataset
-import logging
 
 
 class DatasetInstaller:
@@ -105,7 +104,6 @@ if __name__ == "__main__":
     parser.add_argument("--cifar100", type=str, help="Path to CIFAR100 directory from the root")
     parser.add_argument("--mnist", type=str, help="Path to MNIST directory from the root")
     args = parser.parse_args()
-    logging.getLogger().setLevel(logging.INFO)
 
     # Install SCADS
     installer = Installer(args.db)

@@ -11,6 +11,7 @@ def add_dataset(path_to_database, root, path_to_dataset, dataset_installer):
     :param dataset_info: A dictionary the dataset name and the number of classes.
     :return: None
     """
+    logging.getLogger().setLevel(logging.INFO)
     if not os.path.isdir(os.path.join(root, path_to_dataset)):
         logging.error("Path does not exist.")
         return
