@@ -4,6 +4,7 @@ import pandas as pd
 from ..create.scads_classes import Node, Image
 from ..create.create_scads import add_conceptnet
 from ..create.add_datasets import add_dataset
+import requests
 
 
 class DatasetInstaller:
@@ -84,6 +85,49 @@ class MnistInstallation(DatasetInstaller):
         return mnist_classes[label]
 
 
+class ImageNetInstallation(DatasetInstaller):
+    def get_name(self):
+        return "ImageNet"
+
+    def get_images(self, dataset, session, root):
+        size = "full"
+        modes = ['train', 'test']
+        synset_to_labels_endpoint = "http://www.image-net.org/api/text/wordnet.synset.getwords?wnid="
+        synset_to_labels = {}
+
+        all_images = []
+        for mode in modes:
+            df_label = pd.read_feather(os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            mode_dir = os.path.join(dataset.path, "imagenet_1k_" + size, mode)
+            for image in os.listdir(os.path.join(root, mode_dir)):
+                if image.startswith('.'):
+                    continue
+
+                # Get labels
+                synset = df_label.loc[df_label['id'] == image]['class'].values[0]
+                if synset in synset_to_labels:
+                    labels = synset_to_labels[synset]
+                else:
+                    labels = requests.get(synset_to_labels_endpoint + synset)
+                    labels = list(filter(lambda x: x, labels.text.split("\n")))
+                    synset_to_labels[synset] = labels
+
+                # Get nodes
+                for label in labels:
+                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                    if not node:
+                        continue  # Scads is missing a missing conceptnet id
+                    img = Image(dataset_id=dataset.id,
+                                node_id=node.id,
+                                path=os.path.join(mode_dir, image))
+                    all_images.append(img)
+        return all_images
+
+    def get_conceptnet_id(self, label):
+        return "/c/en/" + label.replace(" ", "_")
+
+
+
 class Installer:
     def __init__(self, path_to_database):
         self.db = path_to_database
@@ -103,6 +147,7 @@ if __name__ == "__main__":
     parser.add_argument("--root", type=str, help="Root containing dataset directories")
     parser.add_argument("--cifar100", type=str, help="Path to CIFAR100 directory from the root")
     parser.add_argument("--mnist", type=str, help="Path to MNIST directory from the root")
+    parser.add_argument("--imagenet", type=str, help="Path to ImageNet directory from the root")
     args = parser.parse_args()
 
     # Install SCADS
@@ -117,3 +162,7 @@ if __name__ == "__main__":
         if not args.root:
             raise RuntimeError("Must specify root directory.")
         installer.install_dataset(args.root, args.mnist, MnistInstallation())
+    if args.imagenet:
+        if not args.root:
+            raise RuntimeError("Must specify root directory.")
+        installer.install_dataset(args.root, args.imagenet, ImageNetInstallation())

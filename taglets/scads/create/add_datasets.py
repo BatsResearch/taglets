@@ -28,7 +28,7 @@ def add_dataset(path_to_database, root, path_to_dataset, dataset_installer):
         dataset = Dataset(name=dataset_name, path=path_to_dataset)
         session.add(dataset)
         session.commit()
-        logging.info(dataset_name, 'added to datasets table.')
+        logging.info('{} added to datasets table.'.format(dataset_name))
     else:
         logging.warning('Dataset already exits at', dataset.path)
         return
@@ -37,4 +37,4 @@ def add_dataset(path_to_database, root, path_to_dataset, dataset_installer):
     all_images = dataset_installer.get_images(dataset, session, root)
     session.add_all(all_images)
     session.commit()
-    logging.info("Images in", dataset_name, "added to images dataset.")
+    logging.info("Images in {} added to images dataset.".format(dataset_name))
