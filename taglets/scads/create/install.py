@@ -22,6 +22,7 @@ class CifarInstallation(DatasetInstaller):
     def get_images(self, dataset, session, root):
         size = "full"
         modes = ['train', 'test']
+        label_to_node_id = {}
 
         all_images = []
         for mode in modes:
@@ -31,11 +32,18 @@ class CifarInstallation(DatasetInstaller):
                 if image.startswith('.'):
                     continue
                 label = df_label.loc[df_label['id'] == image]['class'].values[0]
-                node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
-                if not node:
+
+                # Get node_id
+                if label in label_to_node_id:
+                    node_id = label_to_node_id[label]
+                else:
+                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                    node_id = node.id if node else None
+                    label_to_node_id[label] = node_id
+                if not node_id:
                     continue  # Scads is missing a missing conceptnet id
                 img = Image(dataset_id=dataset.id,
-                            node_id=node.id,
+                            node_id=node_id,
                             path=os.path.join(mode_dir, image))
                 all_images.append(img)
         return all_images
@@ -51,6 +59,7 @@ class MnistInstallation(DatasetInstaller):
     def get_images(self, dataset, session, root):
         size = "full"
         modes = ['train', 'test']
+        label_to_node_id = {}
 
         all_images = []
         for mode in modes:
@@ -60,11 +69,18 @@ class MnistInstallation(DatasetInstaller):
                 if image.startswith('.'):
                     continue
                 label = df_label.loc[df_label['id'] == image]['class'].values[0]
-                node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
-                if not node:
+
+                # Get node_id
+                if label in label_to_node_id:
+                    node_id = label_to_node_id[label]
+                else:
+                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                    node_id = node.id if node else None
+                    label_to_node_id[label] = node_id
+                if not node_id:
                     continue  # Scads is missing a missing conceptnet id
                 img = Image(dataset_id=dataset.id,
-                            node_id=node.id,
+                            node_id=node_id,
                             path=os.path.join(mode_dir, image))
                 all_images.append(img)
         return all_images
@@ -94,6 +110,7 @@ class ImageNetInstallation(DatasetInstaller):
         modes = ['train', 'test']
         synset_to_labels_endpoint = "http://www.image-net.org/api/text/wordnet.synset.getwords?wnid="
         synset_to_labels = {}
+        label_to_node_id = {}
 
         all_images = []
         for mode in modes:
@@ -114,11 +131,17 @@ class ImageNetInstallation(DatasetInstaller):
 
                 # Get nodes
                 for label in labels:
-                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
-                    if not node:
+                    # Get node_id
+                    if label in label_to_node_id:
+                        node_id = label_to_node_id[label]
+                    else:
+                        node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                        node_id = node.id if node else None
+                        label_to_node_id[label] = node_id
+                    if not node_id:
                         continue  # Scads is missing a missing conceptnet id
                     img = Image(dataset_id=dataset.id,
-                                node_id=node.id,
+                                node_id=node_id,
                                 path=os.path.join(mode_dir, image))
                     all_images.append(img)
         return all_images
