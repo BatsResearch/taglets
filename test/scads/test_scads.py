@@ -1,13 +1,14 @@
 import unittest
 import os
 from taglets.scads import Scads
-from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation
+from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation, ImageNetInstallation
 
 DB_PATH = "test/test_data/test_scads.db"
 CONCEPTNET_PATH = "test/test_data/conceptnet"
 ROOT = "test/test_data"
 CIFAR_PATH = "cifar100"
 MNIST_PATH = "mnist"
+IMAGENET_PATH = "imagenet_1k"
 
 
 class TestSCADS(unittest.TestCase):
@@ -18,6 +19,7 @@ class TestSCADS(unittest.TestCase):
         installer.install_conceptnet(CONCEPTNET_PATH)
         installer.install_dataset(ROOT, CIFAR_PATH, CifarInstallation())
         installer.install_dataset(ROOT, MNIST_PATH, MnistInstallation())
+        installer.install_dataset(ROOT, IMAGENET_PATH, ImageNetInstallation())
         Scads.open(DB_PATH)
 
     def test_invalid_conceptnet_id(self):
@@ -60,6 +62,15 @@ class TestSCADS(unittest.TestCase):
         neighbors = node.get_neighbors()
         self.assertEqual(len(neighbors), 1)
         self.assertEqual(neighbors[0].get_end_node().node.id, 11)
+
+    def test_valid_node3(self):
+        node = Scads.get_node_by_conceptnet_id("/c/en/toilet_tissue")
+        self.assertEqual(node.get_datasets(), ['ImageNet'])
+        images = node.get_images()
+        self.assertEqual(len(images), 2)
+        self.assertTrue('imagenet_1k/imagenet_1k_full/train/n15075141_53219.JPEG'
+                        in images)
+
 
     def test_undirected_relation(self):
         node = Scads.get_node_by_conceptnet_id("/c/en/zero/n/wn/quantity")
