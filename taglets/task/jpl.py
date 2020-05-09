@@ -24,19 +24,28 @@ class JPL:
         """
         Create a new JPL object.
         """
+
         self.secret = 'a5aed2a8-db80-4b22-bf72-11f2d0765572'
-        self.url = 'http://myserviceloadbalancer-679310346.us-east-1.elb.amazonaws.com'
+        self.url = 'https://api-staging.lollllz.com'
         self.session_token = ''
         self.data_type = 'sample'   # Sample or full
 
-    def get_available_tasks(self):
+    def get_available_tasks(self, problem_type):
         """
         Get all available tasks.
         :return: A list of tasks (problems)
         """
         headers = {'user_secret': self.secret}
         r = requests.get(self.url + "/list_tasks", headers=headers)
-        return r.json()['tasks']
+        task_list = r.json()['tasks']
+
+        subset_tasks = []
+        for _task in task_list:
+            r = requests.get(self.url+"/task_metadata/"+_task, headers=headers)
+            task_metadata = r.json()
+            if task_metadata['task_metadata']['problem_type'] == problem_type:
+                subset_tasks.append(_task)
+        return subset_tasks
 
     def get_task_metadata(self, task_name):
         """
@@ -75,7 +84,7 @@ class JPL:
         else:
             return {}
 
-    def get_seed_labels(self):
+    def get_initial_seed_labels(self):
         """
         Get seed labels.
         :return: A list of lists with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
@@ -89,6 +98,16 @@ class JPL:
             seed_labels.append([image["class"], image["id"]])
             # seed_labels.append([image["id"], image["class"]])
         return seed_labels
+
+    def get_secondary_seed_labels(self):
+        headers = {'user_secret': self.secret, 'session_token': self.session_token}
+        r = requests.get(self.url + "/secondary_seed_labels", headers=headers)
+        labels = r.json()['Labels']
+        secondary_seed_labels = []
+        for image in labels:
+            secondary_seed_labels.append([image["class"], image["id"]])
+        return secondary_seed_labels
+
 
     def request_label(self, query):
         """
@@ -300,24 +319,31 @@ class JPLRunner:
             9: '/c/en/nine/n/wn/quantity',
         }
         return classes
-        
+
+
     def get_jpl_information(self):
-        # jpl_task_names = self.api.get_available_tasks()
-        # jpl_task_name = jpl_task_names[0]  # Image classification task
-        jpl_task_name = 'problem_test_image_classification'  # Elaheh: for now it is hard coded, but needed to change
+        jpl_task_names = self.api.get_available_tasks('image_classification')
+        #### Elaheh: (need change in eval) choose image classification task you would like. Now there are four tasks
+        image_classification_task = jpl_task_names[3]
+        jpl_task_name = image_classification_task
         self.api.create_session(jpl_task_name)
         jpl_task_metadata = self.api.get_task_metadata(jpl_task_name)
 
-        num_base_checkpoints = len(jpl_task_metadata['base_label_budget'])
-        num_adapt_checkpoints = len(jpl_task_metadata['adaptation_label_budget'])
+        if self.api.data_type == 'full':
+            num_base_checkpoints = len(jpl_task_metadata['base_label_budget_full'])
+            num_adapt_checkpoints = len(jpl_task_metadata['adaptation_label_budget_full'])
+        elif self.api.data_type == 'sample':
+            num_base_checkpoints = len(jpl_task_metadata['base_label_budget_sample'])
+            num_adapt_checkpoints = len(jpl_task_metadata['adaptation_label_budget_sample'])
+
 
         jpl_storage = JPLStorage(jpl_task_name, jpl_task_metadata)
 
         return jpl_storage, num_base_checkpoints, num_adapt_checkpoints
 
     def update_jpl_information(self):
-        task_metadata = self.api.get_task_metadata(self.jpl_storage.name)
         session_status = self.api.get_session_status()
+
         current_dataset = session_status['current_dataset']
         self.jpl_storage.classes = current_dataset['classes']
         self.jpl_storage.number_of_channels = current_dataset['number_of_channels']
@@ -325,12 +351,8 @@ class JPLRunner:
         self.jpl_storage.phase = session_status['pair_stage']
         if session_status['pair_stage'] == 'adaptation':
             self.jpl_storage.set_image_path(self.adapt_dataset_dir, self.api.data_type)
-            self.jpl_storage.labeled_images = []
-            self.jpl_storage.initial = task_metadata['adaptation_can_use_pretrained_model']
         elif session_status['pair_stage'] == 'base':
             self.jpl_storage.set_image_path(self.base_dataset_dir, self.api.data_type)
-            self.jpl_storage.labeled_images = self.api.get_seed_labels()
-            self.jpl_storage.initial = task_metadata['base_can_use_pretrained_model']
 
     def run_checkpoints(self):
         self.run_checkpoints_base()
@@ -345,21 +367,29 @@ class JPLRunner:
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
             self.run_one_checkpoint("Adapt", i)
+
     
     def run_one_checkpoint(self, phase, checkpoint_num):
-        session_status = self.api.get_session_status()
         log.info('------------------------------------------------------------')
         log.info('--------------------{} Checkpoint: {}'.format(phase, checkpoint_num)+'---------------------')
         log.info('------------------------------------------------------------')
 
         available_budget = self.get_available_budget()
+        if checkpoint_num == 0:
+            self.jpl_storage.labeled_images = self.api.get_initial_seed_labels()
+        elif checkpoint_num == 1:
+            self.jpl_storage.add_labeled_images(self.api.get_secondary_seed_labels())
+
+
         unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names()
         log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
-        if checkpoint_num == 0:
+        if checkpoint_num == 2: #Elaheh: maybe we could get rid of random active learning?!
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
-        else:
+            self.request_labels(candidates)
+
+        elif checkpoint_num > 2:
             candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
-        self.request_labels(candidates)
+            self.request_labels(candidates)
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset()
         unlabeled_dataset = self.jpl_storage.get_unlabeled_dataset()
@@ -374,7 +404,7 @@ class JPLRunner:
         task.set_initial_model(MnistResNet())
         controller = Controller(task, self.batch_size, self.num_workers, self.use_gpu)
         end_model = controller.train_end_model()
-        
+
         evaluation_dataset = self.jpl_storage.get_evaluation_dataset()
         evaluation_data_loader = torch.utils.data.DataLoader(evaluation_dataset,
                                                              batch_size=self.batch_size,
@@ -382,7 +412,7 @@ class JPLRunner:
                                                              num_workers=self.num_workers)
         predictions, _ = end_model.predict(evaluation_data_loader, self.use_gpu)
         predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(), 'class': predictions}
-        
+
         self.submit_predictions(predictions_dict)
 
         unlabeled_data_loader = torch.utils.data.DataLoader(unlabeled_dataset,
@@ -410,8 +440,11 @@ class JPLRunner:
         log.info("Total labeled images: %s", len(self.jpl_storage.labeled_images))
 
     def submit_predictions(self, predictions):
+        print('**** session status after submit prediction  ****')
         submit_status = self.api.submit_prediction(predictions)
-        session_status = self.api.get_session_status()
+        print(submit_status)
+        # session_status = self.api.get_session_status()
+        session_status = submit_status
         if 'checkpoint_scores' in session_status:
             log.info("Checkpoint scores: %s", session_status['checkpoint_scores'])
         if 'pair_stage' in session_status:
@@ -448,7 +481,7 @@ def main():
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
     
-    runner = JPLRunner(base_dataset_dir, adapt_dataset_dir, use_gpu=True, testing=True)
+    runner = JPLRunner(base_dataset_dir, adapt_dataset_dir, use_gpu=False, testing=False)
     runner.run_checkpoints()
 
 
