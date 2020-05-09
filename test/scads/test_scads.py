@@ -1,7 +1,7 @@
 import unittest
 import os
 from taglets.scads import Scads
-from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation, ImageNetInstallation
+from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation, ImageNetInstallation, COCO2014Installation
 
 DB_PATH = "test/test_data/test_scads.db"
 CONCEPTNET_PATH = "test/test_data/conceptnet"
@@ -9,6 +9,7 @@ ROOT = "test/test_data"
 CIFAR_PATH = "cifar100"
 MNIST_PATH = "mnist"
 IMAGENET_PATH = "imagenet_1k"
+COCO2014_PATH = "coco2014"
 
 
 class TestSCADS(unittest.TestCase):
@@ -20,6 +21,7 @@ class TestSCADS(unittest.TestCase):
         installer.install_dataset(ROOT, CIFAR_PATH, CifarInstallation())
         installer.install_dataset(ROOT, MNIST_PATH, MnistInstallation())
         installer.install_dataset(ROOT, IMAGENET_PATH, ImageNetInstallation())
+        installer.install_dataset(ROOT, COCO2014_PATH, COCO2014Installation())
         Scads.open(DB_PATH)
 
     def test_invalid_conceptnet_id(self):
@@ -71,6 +73,11 @@ class TestSCADS(unittest.TestCase):
         self.assertTrue('imagenet_1k/imagenet_1k_full/train/n15075141_53219.JPEG'
                         in images)
 
+        node2 = Scads.get_node_by_conceptnet_id("/c/en/bottle")
+        self.assertEqual(node.get_datasets(), ['COCO2014'])
+        self.assertEqual(len(images), 1)
+        self.assertTrue('coco2014/coco2014_full/train/COCO_train2014_000000581674.jpg'
+                        in images)
 
     def test_undirected_relation(self):
         node = Scads.get_node_by_conceptnet_id("/c/en/zero/n/wn/quantity")

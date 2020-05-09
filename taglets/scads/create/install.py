@@ -26,7 +26,8 @@ class CifarInstallation(DatasetInstaller):
 
         all_images = []
         for mode in modes:
-            df_label = pd.read_feather(os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            df_label = pd.read_feather(
+                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
             mode_dir = os.path.join(dataset.path, "cifar100_" + size, mode)
             for image in os.listdir(os.path.join(root, mode_dir)):
                 if image.startswith('.'):
@@ -63,7 +64,8 @@ class MnistInstallation(DatasetInstaller):
 
         all_images = []
         for mode in modes:
-            df_label = pd.read_feather(os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            df_label = pd.read_feather(
+                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
             mode_dir = os.path.join(dataset.path, "mnist_" + size, mode)
             for image in os.listdir(os.path.join(root, mode_dir)):
                 if image.startswith('.'):
@@ -114,7 +116,8 @@ class ImageNetInstallation(DatasetInstaller):
 
         all_images = []
         for mode in modes:
-            df_label = pd.read_feather(os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            df_label = pd.read_feather(
+                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
             mode_dir = os.path.join(dataset.path, "imagenet_1k_" + size, mode)
             for image in os.listdir(os.path.join(root, mode_dir)):
                 if image.startswith('.'):
@@ -150,6 +153,58 @@ class ImageNetInstallation(DatasetInstaller):
         return "/c/en/" + label.replace(" ", "_")
 
 
+class COCO2014Installation(DatasetInstaller):
+    def get_name(self):
+        return "COCO2014"
+
+    def get_images(self, dataset, session, root):
+        size = "full"
+        modes = ['train', 'test']
+        class_to_label = {1: 'person', 2: 'bicycle', 3: 'car', 4: 'motorcycle', 5: 'airplane', 6: 'bus', 7: 'train',
+                          8: 'truck', 9: 'boat', 10: 'traffic light', 11: 'fire hydrant', 12: '-', 13: 'stop sign',
+                          14: 'parking meter', 15: 'bench', 16: 'bird', 17: 'cat', 18: 'dog', 19: 'horse', 20: 'sheep',
+                          21: 'cow', 22: 'elephant', 23: 'bear', 24: 'zebra', 25: 'giraffe', 26: '-', 27: 'backpack',
+                          28: 'umbrella', 29: '-', 30: '-', 31: 'handbag', 32: 'tie', 33: 'suitcase', 34: 'frisbee',
+                          35: 'skis', 36: 'snowboard', 37: 'sports ball', 38: 'kite', 39: 'baseball bat',
+                          40: 'baseball glove', 41: 'skateboard', 42: 'surfboard', 43: 'tennis racket', 44: 'bottle',
+                          45: '-', 46: 'wine glass', 47: 'cup', 48: 'fork', 49: 'knife', 50: 'spoon', 51: 'bowl',
+                          52: 'banana', 53: 'apple', 54: 'sandwich', 55: 'orange', 56: 'broccoli', 57: 'carrot',
+                          58: 'hot dog', 59: 'pizza', 60: 'donut', 61: 'cake', 62: 'chair', 63: 'couch',
+                          64: 'potted plant', 65: 'bed', 66: '-', 67: 'dining table', 68: '-', 69: '-', 70: 'toilet',
+                          71: '-', 72: 'tv', 73: 'laptop', 74: 'mouse', 75: 'remote', 76: 'keyboard', 77: 'cell phone',
+                          78: 'microwave', 79: 'oven', 80: 'toaster', 81: 'sink', 82: 'refrigerator', 83: '-',
+                          84: 'book', 85: 'clock', 86: 'vase', 87: 'scissors', 88: 'teddy bear', 89: 'hair drier',
+                          90: 'toothbrush', 91: '-', 92: ''}
+        label_to_node_id = {}
+
+        all_images = []
+        for mode in modes:
+            df_label = pd.read_feather(
+                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            mode_dir = os.path.join(dataset.path, "coco2014_" + size, mode)
+            for image in os.listdir(os.path.join(root, mode_dir)):
+                if image.startswith('.'):
+                    continue
+                label = class_to_label[df_label.loc[df_label['id'] == image]['class'].values[0]]
+
+                # Get node_id
+                if label in label_to_node_id:
+                    node_id = label_to_node_id[label]
+                else:
+                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                    node_id = node.id if node else None
+                    label_to_node_id[label] = node_id
+                if not node_id:
+                    continue  # Scads is missing a missing conceptnet id
+                img = Image(dataset_id=dataset.id,
+                            node_id=node_id,
+                            path=os.path.join(mode_dir, image))
+                all_images.append(img)
+        return all_images
+
+    def get_conceptnet_id(self, label):
+        return "/c/en/" + label.replace(" ", "_")
+
 
 class Installer:
     def __init__(self, path_to_database):
@@ -171,6 +226,7 @@ if __name__ == "__main__":
     parser.add_argument("--cifar100", type=str, help="Path to CIFAR100 directory from the root")
     parser.add_argument("--mnist", type=str, help="Path to MNIST directory from the root")
     parser.add_argument("--imagenet", type=str, help="Path to ImageNet directory from the root")
+    parser.add_argument("--coco2014", type=str, help="Path to COCO2014 directory from the root")
     args = parser.parse_args()
 
     # Install SCADS
@@ -189,3 +245,7 @@ if __name__ == "__main__":
         if not args.root:
             raise RuntimeError("Must specify root directory.")
         installer.install_dataset(args.root, args.imagenet, ImageNetInstallation())
+    if args.coco2014:
+        if not args.root:
+            raise RuntimeError("Must specify root directory.")
+        installer.install_dataset(args.root, args.coco2014, COCO2014Installation())
