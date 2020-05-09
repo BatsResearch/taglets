@@ -74,7 +74,8 @@ class TestSCADS(unittest.TestCase):
                         in images)
 
         node2 = Scads.get_node_by_conceptnet_id("/c/en/bottle")
-        self.assertEqual(node.get_datasets(), ['COCO2014'])
+        self.assertEqual(node2.get_datasets(), ['COCO2014'])
+        images = node2.get_images()
         self.assertEqual(len(images), 1)
         self.assertTrue('coco2014/coco2014_full/train/COCO_train2014_000000581674.jpg'
                         in images)
