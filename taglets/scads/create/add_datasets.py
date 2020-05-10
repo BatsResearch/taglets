@@ -30,7 +30,7 @@ def add_dataset(path_to_database, root, path_to_dataset, dataset_installer):
         session.commit()
         logging.info('{} added to datasets table.'.format(dataset_name))
     else:
-        logging.warning('Dataset already exits at', dataset.path)
+        logging.warning('Dataset already exits at {}'.format(dataset.path))
         return
 
     # Add Images to database
