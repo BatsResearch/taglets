@@ -284,13 +284,14 @@ class JPLStorage:
 
 
 class JPLRunner:
-    def __init__(self, base_dataset_dir, adapt_dataset_dir, batch_size=32, num_workers=2,
+    def __init__(self, base_dataset_dir, adapt_dataset_dir, task_ix, batch_size=32, num_workers=2,
                  use_gpu=False, testing=False, data_type='sample'):
         self.base_dataset_dir = base_dataset_dir
         self.adapt_dataset_dir = adapt_dataset_dir
         
         self.api = JPL()
         self.api.data_type = data_type
+        self.task_ix = task_ix
         self.jpl_storage, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_jpl_information()
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
@@ -324,7 +325,7 @@ class JPLRunner:
     def get_jpl_information(self):
         jpl_task_names = self.api.get_available_tasks('image_classification')
         #### Elaheh: (need change in eval) choose image classification task you would like. Now there are four tasks
-        image_classification_task = jpl_task_names[3]
+        image_classification_task = jpl_task_names[self.task_ix]
         jpl_task_name = image_classification_task
         self.api.create_session(jpl_task_name)
         jpl_task_metadata = self.api.get_task_metadata(jpl_task_name)
@@ -345,6 +346,9 @@ class JPLRunner:
         session_status = self.api.get_session_status()
 
         current_dataset = session_status['current_dataset']
+
+        self.adapt_dataset_dir = os.path.join(self.adapt_dataset_dir , current_dataset['name'])
+        self.base_dataset_dir = os.path.join(self.base_dataset_dir , current_dataset['name'])
         self.jpl_storage.classes = current_dataset['classes']
         self.jpl_storage.number_of_channels = current_dataset['number_of_channels']
         
@@ -465,6 +469,11 @@ def main():
                         type=str,
                         default="/data/bats/datasets/lwll/lwll_datasets/development/mnist",
                         help="The directory to the adapt dataset")
+
+    parser.add_argument("--task_ix", type=int, default=0,
+                        help="Index of image classification task; 0, 1, 2, etc.")
+
+
     args = parser.parse_args()
     
     if args.dataset_dir != "":
@@ -473,7 +482,9 @@ def main():
     else:
         base_dataset_dir = args.base_dataset_dir
         adapt_dataset_dir = args.adapt_dataset_dir
-     
+
+
+    task_ix = args.task_ix
     logger = logging.getLogger()
     logger.level = logging.INFO
     stream_handler = logging.StreamHandler(sys.stdout)
@@ -481,7 +492,7 @@ def main():
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
     
-    runner = JPLRunner(base_dataset_dir, adapt_dataset_dir, use_gpu=False, testing=False)
+    runner = JPLRunner(base_dataset_dir, adapt_dataset_dir, task_ix, use_gpu=False, testing=True)
     runner.run_checkpoints()
 
 
