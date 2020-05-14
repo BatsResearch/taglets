@@ -347,15 +347,15 @@ class JPLRunner:
 
         current_dataset = session_status['current_dataset']
 
-        self.adapt_dataset_dir = os.path.join(self.adapt_dataset_dir , current_dataset['name'])
-        self.base_dataset_dir = os.path.join(self.base_dataset_dir , current_dataset['name'])
         self.jpl_storage.classes = current_dataset['classes']
         self.jpl_storage.number_of_channels = current_dataset['number_of_channels']
         
         self.jpl_storage.phase = session_status['pair_stage']
         if session_status['pair_stage'] == 'adaptation':
+            self.adapt_dataset_dir = os.path.join(self.adapt_dataset_dir, current_dataset['name'])
             self.jpl_storage.set_image_path(self.adapt_dataset_dir, self.api.data_type)
         elif session_status['pair_stage'] == 'base':
+            self.base_dataset_dir = os.path.join(self.base_dataset_dir, current_dataset['name'])
             self.jpl_storage.set_image_path(self.base_dataset_dir, self.api.data_type)
 
     def run_checkpoints(self):
