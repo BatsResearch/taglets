@@ -165,6 +165,8 @@ class JPLStorage:
         self.train_data_loader = None
         self.phase = None  # base or adaptation
         self.pretrained = None  # can load from pretrained models on ImageNet
+
+        self.label_map = {}
     
     def add_labeled_images(self, new_labeled_images):
         """
@@ -208,6 +210,8 @@ class JPLStorage:
         image_names = [item[1] for item in self.labeled_images]
         image_labels = [item[0] for item in self.labeled_images]
 
+        image_labels = sorted(image_labels)
+
         return image_names, image_labels
     
     def get_unlabeled_image_names(self):
@@ -234,12 +238,14 @@ class JPLStorage:
     
         image_names, image_labels = self.get_labeled_images_list()
 
+
         image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
 
+
         train_val_data = CustomDataset(image_paths,
-                                       image_labels,
+                                       image_labels, self.label_map,
                                        transform)
-    
+
         # 80% for training, 20% for validation
         train_percent = 0.8
         num_data = len(train_val_data)
@@ -264,7 +270,7 @@ class JPLStorage:
         image_names = self.get_unlabeled_image_names()
         image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
         return CustomDataset(image_paths,
-                             None,
+                             None,None,
                              transform)
     
     def get_evaluation_dataset(self):
@@ -279,7 +285,7 @@ class JPLStorage:
             evaluation_image_names.append(img)
         image_paths = [os.path.join(self.evaluation_image_path, image_name) for image_name in evaluation_image_names]
         return CustomDataset(image_paths,
-                             None,
+                             None,None,
                              transform)
 
 
@@ -301,7 +307,8 @@ class JPLRunner:
 
         self.batch_size = batch_size
         self.num_workers = num_workers
-        
+
+
     def get_class(self):
         """
         TODO: This needs to not be mnist-specific
@@ -349,6 +356,15 @@ class JPLRunner:
 
         self.jpl_storage.classes = current_dataset['classes']
         self.jpl_storage.number_of_channels = current_dataset['number_of_channels']
+
+
+        label_map = {}
+        soreted_class_names = self.jpl_storage.classes
+        for item in soreted_class_names:
+            label_map[item] = len(label_map)
+
+        self.jpl_storage.label_map = label_map
+
         
         self.jpl_storage.phase = session_status['pair_stage']
         if session_status['pair_stage'] == 'adaptation':
