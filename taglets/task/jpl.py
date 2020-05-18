@@ -5,13 +5,13 @@ import requests
 import os
 import numpy as np
 import torch
+import torchvision.models as models
 import torchvision.transforms as transforms
 from torch.utils import data
 from ..data import CustomDataset
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
 from ..task import Task
 from ..controller import Controller
-from ..models import MnistResNet
 
 log = logging.getLogger(__name__)
 
@@ -199,7 +199,7 @@ class JPLStorage:
         data_std = [0.229, 0.224, 0.225]
         
         return transforms.Compose([
-            # transforms.Resize((224, 224)),
+            transforms.Resize((224, 224)),
             transforms.ToTensor(),
             transforms.Normalize(mean=data_mean, std=data_std)
         ])
@@ -308,26 +308,15 @@ class JPLRunner:
         self.batch_size = batch_size
         self.num_workers = num_workers
 
-
-    def get_class(self):
+    def get_class_map(self):
         """
-        TODO: This needs to not be mnist-specific
+        TODO: This is just a placeholder so that the code can run when not using SCADs. Waiting for Trisha's work
         :return: map from DataLoader class labels to SCADS node IDs
         """
-        classes = {
-            0: '/c/en/zero/n/wn/quantity',
-            1: '/c/en/one/n/wn/quantity',
-            2: '/c/en/two/n/wn/quantity',
-            3: '/c/en/three/n/wn/quantity',
-            4: '/c/en/four/n/wn/quantity',
-            5: '/c/en/five/n/wn/quantity',
-            6: '/c/en/six/n/wn/quantity',
-            7: '/c/en/seven/n/wn/quantity',
-            8: '/c/en/eight/n/wn/quantity',
-            9: '/c/en/nine/n/wn/quantity',
-        }
+        classes = {}
+        for i in range(len(self.jpl_storage.classes)):
+            classes[i] = ""
         return classes
-
 
     def get_jpl_information(self):
         jpl_task_names = self.api.get_available_tasks('image_classification')
@@ -357,15 +346,13 @@ class JPLRunner:
         self.jpl_storage.classes = current_dataset['classes']
         self.jpl_storage.number_of_channels = current_dataset['number_of_channels']
 
-
         label_map = {}
-        soreted_class_names = self.jpl_storage.classes
-        for item in soreted_class_names:
+        sorted_class_names = self.jpl_storage.classes
+        for item in sorted_class_names:
             label_map[item] = len(label_map)
 
         self.jpl_storage.label_map = label_map
 
-        
         self.jpl_storage.phase = session_status['pair_stage']
         if session_status['pair_stage'] == 'adaptation':
             self.adapt_dataset_dir = os.path.join(self.adapt_dataset_dir, current_dataset['name'])
@@ -413,15 +400,15 @@ class JPLRunner:
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset()
         unlabeled_dataset = self.jpl_storage.get_unlabeled_dataset()
-        classes = self.get_class()
+        classes = self.get_class_map()
         task = Task(self.jpl_storage.name,
                     classes,
-                    (28, 28),
+                    (224, 224),
                     labeled_dataset,
                     unlabeled_dataset,
                     val_dataset,
                     None)
-        task.set_initial_model(MnistResNet())
+        task.set_initial_model(models.resnet18(pretrained=True))
         controller = Controller(task, self.batch_size, self.num_workers, self.use_gpu)
         end_model = controller.train_end_model()
 
@@ -476,29 +463,15 @@ def main():
     parser.add_argument("--dataset_dir", dest="dataset_dir",
                         type=str,
                         default="",
-                        help="The directory to the dataset (in the case base and adapt datasets are the same)")
-    parser.add_argument("--base_dataset_dir", dest="base_dataset_dir",
-                        type=str,
-                        default="/data/bats/datasets/lwll/lwll_datasets/development/mnist",
-                        help="The directory to the base dataset")
-    parser.add_argument("--adapt_dataset_dir", dest="adapt_dataset_dir",
-                        type=str,
-                        default="/data/bats/datasets/lwll/lwll_datasets/development/mnist",
-                        help="The directory to the adapt dataset")
+                        help="The directory to all development datasets")
 
     parser.add_argument("--task_ix", type=int, default=0,
                         help="Index of image classification task; 0, 1, 2, etc.")
 
-
     args = parser.parse_args()
-    
-    if args.dataset_dir != "":
-        base_dataset_dir = args.dataset_dir
-        adapt_dataset_dir = args.dataset_dir
-    else:
-        base_dataset_dir = args.base_dataset_dir
-        adapt_dataset_dir = args.adapt_dataset_dir
 
+    base_dataset_dir = args.dataset_dir
+    adapt_dataset_dir = args.dataset_dir
 
     task_ix = args.task_ix
     logger = logging.getLogger()
@@ -508,7 +481,7 @@ def main():
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
     
-    runner = JPLRunner(base_dataset_dir, adapt_dataset_dir, task_ix, use_gpu=False, testing=True)
+    runner = JPLRunner(base_dataset_dir, adapt_dataset_dir, task_ix, use_gpu=True, testing=True)
     runner.run_checkpoints()
 
 
