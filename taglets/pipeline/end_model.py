@@ -76,7 +76,7 @@ class EndModel(Trainable):
                     data = torch.unsqueeze(data, dim=0)
                     outputs = self.model(data)
                     _, preds = torch.max(outputs, 1)
-                    predicted_labels.append(str(preds.item()))
+                    predicted_labels.append(preds.item())
                     confidences.append(torch.max(torch.nn.functional.softmax(outputs)).item())
         
         return predicted_labels, confidences

@@ -418,7 +418,13 @@ class JPLRunner:
                                                              shuffle=False,
                                                              num_workers=self.num_workers)
         predictions, _ = end_model.predict(evaluation_data_loader, self.use_gpu)
-        predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(), 'class': predictions}
+        prediction_names = []
+        for p in predictions:
+            prediction_names.append([k for k,v in self.jpl_storage.label_map.items() if v == p][0])
+
+
+        predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(), 'class': prediction_names}
+	#predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(), 'class': predictions}
 
         self.submit_predictions(predictions_dict)
 
