@@ -84,8 +84,8 @@ class TransferTaglet(Taglet):
 
         transform = self.transform_image()
         train_val_data = CustomDataset(image_paths,
-                                       image_labels,
-                                       transform)
+                                       labels=image_labels,
+                                       transform=transform)
 
         # 80% for training, 20% for validation
         train_percent = 0.8

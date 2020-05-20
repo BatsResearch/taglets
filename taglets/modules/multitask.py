@@ -98,8 +98,8 @@ class MultiTaskTaglet(Taglet):
 
         transform = self.transform_image()
         train_data = CustomDataset(image_paths,
-                                   image_labels,
-                                   transform)
+                                   labels=image_labels,
+                                   transform=transform)
 
         batch_size = min(len(train_data) // num_batches, 256)
         train_data_loader = torch.utils.data.DataLoader(train_data,
