@@ -289,10 +289,9 @@ class JPLStorage:
 
 
 class JPLRunner:
-    def __init__(self, base_dataset_dir, adapt_dataset_dir, task_ix, batch_size=32, num_workers=2,
+    def __init__(self, dataset_dir, task_ix, batch_size=32, num_workers=2,
                  use_gpu=False, testing=False, data_type='sample'):
-        self.base_dataset_dir = base_dataset_dir
-        self.adapt_dataset_dir = adapt_dataset_dir
+        self.dataset_dir = dataset_dir
         
         self.api = JPL()
         self.api.data_type = data_type
@@ -353,12 +352,8 @@ class JPLRunner:
         self.jpl_storage.label_map = label_map
 
         self.jpl_storage.phase = session_status['pair_stage']
-        if session_status['pair_stage'] == 'adaptation':
-            self.adapt_dataset_dir = os.path.join(self.adapt_dataset_dir, current_dataset['name'])
-            self.jpl_storage.set_image_path(self.adapt_dataset_dir, self.api.data_type)
-        elif session_status['pair_stage'] == 'base':
-            self.base_dataset_dir = os.path.join(self.base_dataset_dir, current_dataset['name'])
-            self.jpl_storage.set_image_path(self.base_dataset_dir, self.api.data_type)
+        self.dataset_dir = os.path.join(self.dataset_dir, current_dataset['name'])
+        self.jpl_storage.set_image_path(self.dataset_dir, self.api.data_type)
 
     def run_checkpoints(self):
         self.run_checkpoints_base()
@@ -476,8 +471,7 @@ def main():
 
     args = parser.parse_args()
 
-    base_dataset_dir = args.dataset_dir
-    adapt_dataset_dir = args.dataset_dir
+    dataset_dir = args.dataset_dir
 
     task_ix = args.task_ix
     logger = logging.getLogger()
@@ -487,7 +481,7 @@ def main():
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
     
-    runner = JPLRunner(base_dataset_dir, adapt_dataset_dir, task_ix, use_gpu=True, testing=True)
+    runner = JPLRunner(dataset_dir, task_ix, use_gpu=True, testing=False)
     runner.run_checkpoints()
 
 
