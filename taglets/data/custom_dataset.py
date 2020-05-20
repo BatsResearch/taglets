@@ -7,7 +7,7 @@ class CustomDataset(Dataset):
     """
     A custom dataset used to create dataloaders.
     """
-    def __init__(self, filepaths, labels, label_map, transform):
+    def __init__(self, filepaths, labels=None, label_map=None, transform=None):
         """
         Create a new CustomDataset.
         
@@ -18,8 +18,8 @@ class CustomDataset(Dataset):
         """
         self.filepaths = filepaths
         self.labels = labels
-        self.transform = transform
         self.label_map = label_map
+        self.transform = transform
 
     def __getitem__(self, index):
         img = Image.open(self.filepaths[index]).convert('RGB')
@@ -28,9 +28,10 @@ class CustomDataset(Dataset):
             img = self.transform(img)
 
         if self.labels:
-            # label = torch.tensor(int(self.labels[index]))
-            label = self.label_map[(self.labels[index])]
-
+            if self.label_map is not None:
+                label = torch.tensor(self.label_map[(self.labels[index])])
+            else:
+                label = torch.tensor(int(self.labels[index]))
             return img, label
         else:
             return img

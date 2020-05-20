@@ -243,8 +243,9 @@ class JPLStorage:
 
 
         train_val_data = CustomDataset(image_paths,
-                                       image_labels, self.label_map,
-                                       transform)
+                                       labels=image_labels,
+                                       label_map=self.label_map,
+                                       transform=transform)
 
         # 80% for training, 20% for validation
         train_percent = 0.8
@@ -270,8 +271,7 @@ class JPLStorage:
         image_names = self.get_unlabeled_image_names()
         image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
         return CustomDataset(image_paths,
-                             None,None,
-                             transform)
+                             transform=transform)
     
     def get_evaluation_dataset(self):
         """
@@ -285,8 +285,7 @@ class JPLStorage:
             evaluation_image_names.append(img)
         image_paths = [os.path.join(self.evaluation_image_path, image_name) for image_name in evaluation_image_names]
         return CustomDataset(image_paths,
-                             None,None,
-                             transform)
+                             transform=transform)
 
 
 class JPLRunner:
@@ -424,7 +423,8 @@ class JPLRunner:
 
 
         predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(), 'class': prediction_names}
-	#predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(), 'class': predictions}
+        
+        #predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(), 'class': predictions}
 
         self.submit_predictions(predictions_dict)
 
