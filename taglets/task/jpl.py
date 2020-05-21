@@ -352,8 +352,8 @@ class JPLRunner:
         self.jpl_storage.label_map = label_map
 
         self.jpl_storage.phase = session_status['pair_stage']
-        self.dataset_dir = os.path.join(self.dataset_dir, current_dataset['name'])
-        self.jpl_storage.set_image_path(self.dataset_dir, self.api.data_type)
+        phase_dataset_dir = os.path.join(self.dataset_dir, current_dataset['name'])
+        self.jpl_storage.set_image_path(phase_dataset_dir, self.api.data_type)
 
     def run_checkpoints(self):
         self.run_checkpoints_base()
