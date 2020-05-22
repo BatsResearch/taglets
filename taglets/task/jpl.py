@@ -299,6 +299,9 @@ class JPLRunner:
         self.jpl_storage, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_jpl_information()
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
+
+        self.initial_model = models.resnet18(pretrained=True)
+        self.initial_model.fc = torch.nn.Identity()
         
         self.use_gpu = use_gpu
         self.testing = testing
@@ -402,7 +405,7 @@ class JPLRunner:
                     unlabeled_dataset,
                     val_dataset,
                     None)
-        task.set_initial_model(models.resnet18(pretrained=True))
+        task.set_initial_model(self.initial_model)
         controller = Controller(task, self.batch_size, self.num_workers, self.use_gpu)
         end_model = controller.train_end_model()
 
