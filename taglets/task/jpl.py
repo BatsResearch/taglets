@@ -1,6 +1,7 @@
 import argparse
 import logging
 import sys
+import time
 import requests
 import os
 import numpy as np
@@ -381,6 +382,8 @@ class JPLRunner:
         log.info('------------------------------------------------------------')
         log.info('--------------------{} Checkpoint: {}'.format(phase, checkpoint_num)+'---------------------')
         log.info('------------------------------------------------------------')
+        
+        start_time = time.time()
 
         available_budget = self.get_available_budget()
         if checkpoint_num == 0:
@@ -437,6 +440,10 @@ class JPLRunner:
         _, confidences = end_model.predict(unlabeled_data_loader, self.use_gpu)
         candidates = np.argsort(confidences)
         self.confidence_active_learning.set_candidates(candidates)
+        
+        log.info('{} Checkpoint: {} Elapsed Time =  {}'.format(phase, checkpoint_num,
+                                                               time.strftime("%H:%M:%S",
+                                                                             time.gmtime(time.time()-start_time))))
 
     def get_available_budget(self):
         session_status = self.api.get_session_status()
