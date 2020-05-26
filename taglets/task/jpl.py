@@ -210,7 +210,7 @@ class JPLStorage:
         image_names = [item[1] for item in self.labeled_images]
         image_labels = [item[0] for item in self.labeled_images]
 
-        image_labels = sorted(image_labels)
+        # image_labels = sorted(image_labels)
 
         return image_names, image_labels
     
@@ -229,7 +229,7 @@ class JPLStorage:
             evaluation_image_names.append(img)
         return evaluation_image_names
 
-    def get_labeled_dataset(self):
+    def get_labeled_dataset(self, checkpoint_num):
         """
         Get training, validation, and testing data loaders from labeled data.
         :return: Training, validation, and testing data loaders
@@ -247,17 +247,21 @@ class JPLStorage:
                                        label_map=self.label_map,
                                        transform=transform)
 
-        # 80% for training, 20% for validation
-        train_percent = 0.8
-        num_data = len(train_val_data)
-        indices = list(range(num_data))
-        train_split = int(np.floor(train_percent * num_data))
-        np.random.shuffle(indices)
-        train_idx = indices[:train_split]
-        valid_idx = indices[train_split:]
-    
-        train_dataset = data.Subset(train_val_data, train_idx)
-        val_dataset = data.Subset(train_val_data, valid_idx)
+        if checkpoint_num >=2:
+            # 80% for training, 20% for validation
+            train_percent = 0.8
+            num_data = len(train_val_data)
+            indices = list(range(num_data))
+            train_split = int(np.floor(train_percent * num_data))
+            np.random.shuffle(indices)
+            train_idx = indices[:train_split]
+            valid_idx = indices[train_split:]
+
+            train_dataset = data.Subset(train_val_data, train_idx)
+            val_dataset = data.Subset(train_val_data, valid_idx)
+        else:
+            train_dataset = train_val_data
+            val_dataset = None
     
         return train_dataset, val_dataset
 
@@ -395,7 +399,7 @@ class JPLRunner:
             candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
             self.request_labels(candidates)
 
-        labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset()
+        labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num)
         unlabeled_dataset = self.jpl_storage.get_unlabeled_dataset()
         classes = self.get_class_map()
         task = Task(self.jpl_storage.name,

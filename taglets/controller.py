@@ -104,8 +104,11 @@ class Controller:
         :param shuffle: whether to shuffle the data
         :return: the DataLoader
         """
-        return DataLoader(dataset, batch_size=self.batch_size,
-                          shuffle=shuffle, num_workers=self.num_workers)
+        if dataset != None:
+            return DataLoader(dataset, batch_size=self.batch_size,
+                            shuffle=shuffle, num_workers=self.num_workers)
+        else:
+            return None
 
     def _train_label_model(self, vote_matrix):
         log.info("Training label model")

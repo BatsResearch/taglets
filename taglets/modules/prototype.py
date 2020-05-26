@@ -78,6 +78,11 @@ class PrototypeTaglet(Taglet):
             log.info('train loss: {:.4f}'.format(train_loss))
 
             # Evaluation on validation data
+            # Evaluation on validation data
+            if not val_data_loader:
+                val_loss = 0
+                val_acc = 0
+                continue
             val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu)
             log.info('validation loss: {:.4f}'.format(val_loss))
             log.info('validation acc: {:.4f}%'.format(val_acc*100))
