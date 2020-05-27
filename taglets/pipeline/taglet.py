@@ -218,6 +218,7 @@ class Trainable:
         :param mod: PyTorch model
         :return:
         """
+        mod = mod.cpu()
         f = mod(torch.rand(2, 3, *in_size))
         return int(np.prod(f.size()[1:]))
 
