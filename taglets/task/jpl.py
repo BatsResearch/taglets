@@ -441,7 +441,11 @@ class JPLRunner:
         candidates = np.argsort(confidences)
         self.confidence_active_learning.set_candidates(candidates)
         
-        log.info('{} Checkpoint: {} Elapsed Time =  {}'.format(phase, checkpoint_num,
+        # update initial model
+        self.initial_model = end_model.model[0]
+        
+        log.info('{} Checkpoint: {} Elapsed Time =  {}'.format(phase,
+                                                               checkpoint_num,
                                                                time.strftime("%H:%M:%S",
                                                                              time.gmtime(time.time()-start_time))))
 
