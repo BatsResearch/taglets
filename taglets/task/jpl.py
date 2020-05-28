@@ -13,6 +13,8 @@ from ..data import CustomDataset
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
 from ..task import Task
 from ..controller import Controller
+import linecache
+
 
 log = logging.getLogger(__name__)
 
@@ -109,6 +111,12 @@ class JPL:
             secondary_seed_labels.append([image["class"], image["id"]])
         return secondary_seed_labels
 
+    def deactivate_session(self, deactivate_session):
+
+        headers_active_session = {'user_secret': self.secret, 'session_token': self.session_token}
+
+        r = requests.post(self.url + "/deactivate_session", json={'session_token': deactivate_session}, headers=headers_active_session)
+        r.json()
 
     def request_label(self, query):
         """
@@ -146,7 +154,16 @@ class JPL:
         headers = {'user_secret': self.secret, 'session_token': self.session_token}
         r = requests.post(self.url + "/submit_predictions", json={'predictions': predictions}, headers=headers)
         return r.json()
-    
+
+    def deactivate_all_sessions(self):
+
+        headers_session = {'user_secret': self.secret}
+        r = requests.get(self.url+"/list_active_sessions", headers=headers_session)
+        active_sessions = r.json()['active_sessions']
+        for session_token in active_sessions:
+            headers_active_session = {'user_secret': self.secret, 'session_token': session_token}
+            self.deactivate_session(session_token)
+
     
 class JPLStorage:
     def __init__(self, task_name, metadata):
@@ -364,8 +381,21 @@ class JPLRunner:
         self.jpl_storage.set_image_path(phase_dataset_dir, self.api.data_type)
 
     def run_checkpoints(self):
-        self.run_checkpoints_base()
-        self.run_checkpoints_adapt()
+        try:
+            self.run_checkpoints_base()
+            self.run_checkpoints_adapt()
+        except Exception as ex:
+            exc_type, exc_obj, tb = sys.exc_info()
+            f = tb.tb_frame
+            lineno = tb.tb_lineno
+            filename = f.f_code.co_filename
+            linecache.checkcache(filename)
+            line = linecache.getline(filename, lineno, f.f_globals)
+            self.api.deactivate_session(self.api.session_token)
+
+            logging.info('exception has occured during joint trianing:')
+            logging.info(ex)
+            logging.info('EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj))
 
     def run_checkpoints_base(self):
         self.update_jpl_information()
