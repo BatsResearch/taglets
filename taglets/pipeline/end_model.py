@@ -66,7 +66,10 @@ class EndModel(Trainable):
         predicted_labels = []
         confidences = []
         self.model.eval()
-
+        if use_gpu:
+            self.model = self.model.cuda()
+        else:
+            self.model = self.model.cpu()
         for inputs in data_loader:
             if use_gpu:
                 inputs = inputs.cuda()
