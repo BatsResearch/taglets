@@ -120,8 +120,8 @@ class Controller:
 
     def combine_soft_labels(self, unlabeled_images, unlabeled_labels, train_images, train_images_labels):
         def to_soft_one_hot(l):
-            soh = [0.15] * len(self.task.classes)
-            soh[l] = 0.85
+            soh = [0.1 / len(self.task.classes)] * len(self.task.classes)
+            soh[l] += 0.9
             return soh
 
         soft_labels_labeled_images = []
