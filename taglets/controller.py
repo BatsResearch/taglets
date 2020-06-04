@@ -32,7 +32,7 @@ class Controller:
 
         # Creates data loaders
         labeled = self._get_data_loader(self.task.get_labeled_train_data(), shuffle=True)
-        unlabeled = self._get_data_loader(self.task.get_unlabeled_train_data(), shuffle=True)
+        unlabeled = self._get_data_loader(self.task.get_unlabeled_train_data(), shuffle=False)
         val = self._get_data_loader(self.task.get_validation_data(), shuffle=False)
 
         # Initializes taglet-creating modules
