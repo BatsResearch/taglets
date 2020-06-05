@@ -465,14 +465,15 @@ class JPLRunner:
         #predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(), 'class': predictions}
 
         self.submit_predictions(predictions_dict)
-
-        unlabeled_data_loader = torch.utils.data.DataLoader(unlabeled_dataset,
-                                                            batch_size=self.batch_size,
-                                                            shuffle=False,
-                                                            num_workers=self.num_workers)
-        _, confidences = end_model.predict(unlabeled_data_loader, self.use_gpu)
-        candidates = np.argsort(confidences)
-        self.confidence_active_learning.set_candidates(candidates)
+        
+        if unlabeled_dataset is not None:
+            unlabeled_data_loader = torch.utils.data.DataLoader(unlabeled_dataset,
+                                                                batch_size=self.batch_size,
+                                                                shuffle=False,
+                                                                num_workers=self.num_workers)
+            _, confidences = end_model.predict(unlabeled_data_loader, self.use_gpu)
+            candidates = np.argsort(confidences)
+            self.confidence_active_learning.set_candidates(candidates)
         
         # update initial model
         self.initial_model = end_model.model[0]
