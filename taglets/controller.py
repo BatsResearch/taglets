@@ -35,45 +35,45 @@ class Controller:
         unlabeled = self._get_data_loader(self.task.get_unlabeled_train_data(), shuffle=False)
         val = self._get_data_loader(self.task.get_validation_data(), shuffle=False)
 
-        # Initializes taglet-creating modules
-        modules = self._get_taglets_modules()
-        for module in modules:
-            log.info("Training %s module", module.__class__.__name__)
-            module.train_taglets(labeled, val, self.use_gpu)
-            log.info("Finished training %s module", module.__class__.__name__)
-
-        # Collects all taglets
-        taglets = []
-        for module in modules:
-            taglets.extend(module.get_taglets())
-        taglet_executor = TagletExecutor()
-        taglet_executor.set_taglets(taglets)
-
-        # Executes taglets
-        log.info("Executing taglets")
-        vote_matrix = taglet_executor.execute(unlabeled, self.use_gpu)
-        log.info("Finished executing taglets")
-
-        # Learns label model
-        labelmodel = self._train_label_model(vote_matrix)
-
-        # Computes label distribution
-        log.info("Getting label distribution")
-        weak_labels = labelmodel.get_label_distribution(vote_matrix)
-        log.info("Finished getting label distribution")
+        unlabeled_images = []
+        unlabeled_images_labels = []
+        
+        if unlabeled is not None:
+            # Initializes taglet-creating modules
+            modules = self._get_taglets_modules()
+            for module in modules:
+                log.info("Training %s module", module.__class__.__name__)
+                module.train_taglets(labeled, val, self.use_gpu)
+                log.info("Finished training %s module", module.__class__.__name__)
+    
+            # Collects all taglets
+            taglets = []
+            for module in modules:
+                taglets.extend(module.get_taglets())
+            taglet_executor = TagletExecutor()
+            taglet_executor.set_taglets(taglets)
+    
+            # Executes taglets
+            log.info("Executing taglets")
+            vote_matrix = taglet_executor.execute(unlabeled, self.use_gpu)
+            log.info("Finished executing taglets")
+    
+            # Learns label model
+            labelmodel = self._train_label_model(vote_matrix)
+    
+            # Computes label distribution
+            log.info("Getting label distribution")
+            weak_labels = labelmodel.get_label_distribution(vote_matrix)
+            log.info("Finished getting label distribution")
+            
+            for images in unlabeled:
+                for image in images:
+                    unlabeled_images.append(image)
+            for label in weak_labels:
+                unlabeled_images_labels.append(torch.FloatTensor(label))
 
         # Trains end model
         log.info("Training end model")
-        self.end_model = EndModel(self.task)
-
-        unlabeled_images = []
-        unlabeled_images_labels = []
-        for images in unlabeled:
-            for image in images:
-                unlabeled_images.append(image)
-        for label in weak_labels:
-            unlabeled_images_labels.append(torch.FloatTensor(label))
-            
         train_images = []
         train_images_labels = []
         for batch in labeled:
@@ -81,11 +81,12 @@ class Controller:
             for image, label in zip(images, labels):
                 train_images.append(image)
                 train_images_labels.append(label)
-                
+
         end_model_train_data_loader = self.combine_soft_labels(unlabeled_images,
                                                                unlabeled_images_labels,
                                                                train_images,
                                                                train_images_labels)
+        self.end_model = EndModel(self.task)
         self.end_model.train(end_model_train_data_loader, val, self.use_gpu)
         log.info("Finished training end model")
 

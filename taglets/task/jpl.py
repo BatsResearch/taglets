@@ -292,8 +292,11 @@ class JPLStorage:
     
         image_names = self.get_unlabeled_image_names()
         image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
-        return CustomDataset(image_paths,
-                             transform=transform)
+        if len(image_paths) == 0:
+            return None
+        else:
+            return CustomDataset(image_paths,
+                                 transform=transform)
     
     def get_evaluation_dataset(self):
         """
