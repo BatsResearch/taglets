@@ -90,7 +90,7 @@ class JPL:
     def get_initial_seed_labels(self):
         """
         Get seed labels.
-        :return: A list of lists with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
+        :return: A list of lists with name and label e.g., ['2', '1.png'], ['7', '2.png'], etc.
         """
         headers = {'user_secret': self.secret, 'session_token': self.session_token}
         r = requests.get(self.url + "/seed_labels", headers=headers)
@@ -132,9 +132,9 @@ class JPL:
             ]
         }
 
-        :return: A list of lists containing the name of the example and its label.
+        :return: A list of lists containing labels and names.
         For example:
-         [['45781.png', '3'], ['40214.png', '7'], ['49851.png', '8']]
+         [['7','56392.png'], ['8','3211.png'], ['4','19952.png']]
         """
         headers = {'user_secret': self.secret, 'session_token': self.session_token}
         r = requests.post(self.url + "/query_labels", json=query, headers=headers)
@@ -225,8 +225,8 @@ class JPLStorage:
     def get_labeled_images_list(self):
         """get list of image names and labels"""
         # Elaheh: changed the following line
-        image_names = [item[1] for item in self.labeled_images]
         image_labels = [item[0] for item in self.labeled_images]
+        image_names = [item[1] for item in self.labeled_images]
 
         # image_labels = sorted(image_labels)
 
@@ -234,7 +234,7 @@ class JPLStorage:
     
     def get_unlabeled_image_names(self):
         """return list of name of unlabeled images"""
-        labeled_image_names = {img_name for img_name, label in self.labeled_images}
+        labeled_image_names = [img_name for label, img_name in self.labeled_images]
         unlabeled_image_names = []
         for img in os.listdir(self.unlabeled_image_path):
             if img not in labeled_image_names:
