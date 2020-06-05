@@ -16,6 +16,15 @@ class EndModel(Trainable):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
+        # Parameters needed to be updated based on freezing layer
+        params_to_update = []
+        for param in self.model.parameters():
+            if param.requires_grad:
+                params_to_update.append(param)
+        self._params_to_update = params_to_update
+        self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
+        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.1)
+
     @staticmethod
     def soft_cross_entropy(prediction, target):
         prediction = prediction.double()
