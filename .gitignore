@@ -4,6 +4,7 @@
 
 # Data
 taglets/sql_data
+test/MNIST
 
 # Saved models
 trained_models
