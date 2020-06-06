@@ -56,6 +56,8 @@ class Controller:
             # Executes taglets
             log.info("Executing taglets")
             vote_matrix = taglet_executor.execute(unlabeled, self.use_gpu)
+            # plus 1 because labelmodel 1-based indexing (0 is for restraining from voting)
+            vote_matrix += 1
             log.info("Finished executing taglets")
     
             # Learns label model
