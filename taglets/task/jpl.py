@@ -138,7 +138,9 @@ class JPL:
         """
         headers = {'user_secret': self.secret, 'session_token': self.session_token}
         r = requests.post(self.url + "/query_labels", json=query, headers=headers)
-        return r.json()['Labels']
+        labels_dic = r.json()['Labels']
+        labels_list = [(d['class'],d['id']) for d in labels_dic]
+        return labels_list
 
     def submit_prediction(self, predictions):
         """
@@ -533,7 +535,7 @@ def main():
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
     
-    runner = JPLRunner(dataset_dir, task_ix, use_gpu=True, testing=False)
+    runner = JPLRunner(dataset_dir, task_ix, use_gpu=False, testing=False)
     runner.run_checkpoints()
 
 
