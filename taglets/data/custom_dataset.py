@@ -64,4 +64,4 @@ class SoftLabelDataset(Dataset):
         return data, label
 
     def __len__(self):
-        return len(self.images)
+        return len(self.dataset)
