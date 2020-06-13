@@ -44,20 +44,24 @@ class SoftLabelDataset(Dataset):
     """
     A custom dataset used to create dataloaders.
     """
-    def __init__(self, images, labels):
+    def __init__(self, dataset, labels, remove_old_labels=False):
         """
         Create a new SoftLabelDataset.
         :param images: A list of filenames
         :param labels: A list of labels
         """
-        self.images = images
+        self.dataset = dataset
         self.labels = labels
+        self.remove_old_labels = remove_old_labels
 
     def __getitem__(self, index):
-        img = self.images[index]
+        data = self.dataset[index]
         label = self.labels[index]
-
-        return img, label
+        
+        if self.remove_old_labels:
+            data = data[0]
+            
+        return data, label
 
     def __len__(self):
         return len(self.images)

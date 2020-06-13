@@ -4,9 +4,8 @@ from .pipeline import EndModel, TagletExecutor
 
 import labelmodels
 import logging
-import numpy as np
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset
 
 log = logging.getLogger(__name__)
 
@@ -35,9 +34,7 @@ class Controller:
         unlabeled = self._get_data_loader(self.task.get_unlabeled_train_data(), shuffle=False)
         val = self._get_data_loader(self.task.get_validation_data(), shuffle=False)
 
-        unlabeled_images = []
         unlabeled_images_labels = []
-        
         if unlabeled is not None:
             # Initializes taglet-creating modules
             modules = self._get_taglets_modules()
@@ -68,26 +65,15 @@ class Controller:
             weak_labels = labelmodel.get_label_distribution(vote_matrix)
             log.info("Finished getting label distribution")
             
-            for images in unlabeled:
-                for image in images:
-                    unlabeled_images.append(image)
             for label in weak_labels:
                 unlabeled_images_labels.append(torch.FloatTensor(label))
 
         # Trains end model
         log.info("Training end model")
-        train_images = []
-        train_images_labels = []
-        for batch in labeled:
-            images, labels = batch
-            for image, label in zip(images, labels):
-                train_images.append(image)
-                train_images_labels.append(label)
 
-        end_model_train_data_loader = self.combine_soft_labels(unlabeled_images,
-                                                               unlabeled_images_labels,
-                                                               train_images,
-                                                               train_images_labels)
+        end_model_train_data_loader = self.combine_soft_labels(unlabeled_images_labels,
+                                                               self.task.get_unlabeled_train_data(),
+                                                               self.task.get_labeled_train_data())
         self.end_model = EndModel(self.task)
         self.end_model.train(end_model_train_data_loader, val, self.use_gpu)
         log.info("Finished training end model")
@@ -121,20 +107,23 @@ class Controller:
         log.info("Finished training label model")
         return labelmodel
 
-    def combine_soft_labels(self, unlabeled_images, unlabeled_labels, train_images, train_images_labels):
+    def combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
         def to_soft_one_hot(l):
             soh = [0.1 / len(self.task.classes)] * len(self.task.classes)
             soh[l] += 0.9
             return soh
 
+        labeled = DataLoader(labeled_dataset, batch_size=1, shuffle=False)
         soft_labels_labeled_images = []
-        for image_label in train_images_labels:
-            soft_labels_labeled_images.append(torch.FloatTensor(to_soft_one_hot(int(image_label))))
+        for _, image_labels in labeled:
+            soft_labels_labeled_images.append(torch.FloatTensor(to_soft_one_hot(int(image_labels[0]))))
 
-        all_soft_labels = unlabeled_labels + soft_labels_labeled_images
-        all_images = unlabeled_images + train_images
-
-        end_model_train_data = SoftLabelDataset(all_images, all_soft_labels)
+        new_labeled_dataset = SoftLabelDataset(labeled_dataset, soft_labels_labeled_images, remove_old_labels=True)
+        if unlabeled_dataset is None:
+            end_model_train_data = new_labeled_dataset
+        else:
+            new_unlabeled_dataset = SoftLabelDataset(unlabeled_dataset, weak_labels, remove_old_labels=False)
+            end_model_train_data = ConcatDataset([new_labeled_dataset, new_unlabeled_dataset])
 
         train_data = torch.utils.data.DataLoader(end_model_train_data,
                                                  batch_size=self.batch_size,
