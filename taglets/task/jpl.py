@@ -522,10 +522,12 @@ def main():
 
     parser.add_argument("--task_ix", type=int, default=0,
                         help="Index of image classification task; 0, 1, 2, etc.")
+    parser.add_argument("--use_gpu", type=int, default=0, help="whether to use gpu")
 
     args = parser.parse_args()
 
     dataset_dir = args.dataset_dir
+    use_gpu = bool(args.use_gpu)
 
     task_ix = args.task_ix
     logger = logging.getLogger()
@@ -535,7 +537,7 @@ def main():
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
     
-    runner = JPLRunner(dataset_dir, task_ix, use_gpu=False, testing=False)
+    runner = JPLRunner(dataset_dir, task_ix, use_gpu=use_gpu, testing=False)
     runner.run_checkpoints()
 
 
