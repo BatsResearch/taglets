@@ -21,10 +21,10 @@ class Trainable:
         """
         self.name = 'base'
         self.task = task
-        self.lr = 0.001
+        self.lr = 0.0005
         self.criterion = torch.nn.CrossEntropyLoss()
         self.seed = 0
-        self.num_epochs = 20
+        self.num_epochs = 50
         self.select_on_val = True   # If true, save model on the best validation performance
         self.save_dir = None
 
@@ -39,7 +39,7 @@ class Trainable:
                 params_to_update.append(param)
         self._params_to_update = params_to_update
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.1)
+        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
         self._best_val_acc = 0.0
 
     @staticmethod
