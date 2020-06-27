@@ -1,3 +1,4 @@
+
 from taglets.data.custom_dataset import CustomDataset
 from torch.utils import data
 
@@ -54,13 +55,24 @@ class TransferTaglet(Taglet):
         image_paths = []
         image_labels = []
         visited = set()
-        for label, conceptnet_id in self.task.classes.items():
-            target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
+        for label in self.task.classes:
+            print(label)
+            # target_node = Scads.get_conceptnet_id(label)
+            # target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
+            target_node = Scads.get_conceptnet_id(label)
+
             neighbors = [edge.get_end_node() for edge in target_node.get_neighbors()]
+            #print('neighbors...')
+            #for n in neighbors:
+            #    print(n.get_conceptnet_id())
 
             # Add target node
             if target_node not in visited:
-                images = target_node.get_images()
+                #images = target_node.get_images()
+                #print('############')
+                #print(len(images))
+                #print(self.task.whitelist)
+                images = target_node.get_images_whitelist(self.task.whitelist)
                 images = [os.path.join(root_path, image) for image in images]
                 if images:
                     image_paths.extend(images)
@@ -72,7 +84,9 @@ class TransferTaglet(Taglet):
             for neighbor in neighbors:
                 if neighbor.get_conceptnet_id() in visited:
                     continue
-                images = neighbor.get_images()
+                #images = neighbor.get_images()
+
+                images = neighbor.get_images_whitelist(self.task.whitelist)
                 images = [os.path.join(root_path, image) for image in images]
                 if images:
                     image_paths.extend(images)
@@ -111,7 +125,12 @@ class TransferTaglet(Taglet):
         return train_data_loader, val_data_loader, len(visited)
 
     def _set_num_classes(self, num_classes):
-        self.model.fc = torch.nn.Linear(self.model.fc.in_features, num_classes)
+        #self.model.fc = torch.nn.Linear(self.model.fc.in_features, num_classes)
+
+        m = torch.nn.Sequential(*list(self.model.children())[:-1])
+        output_shape = self._get_model_output_shape(self.task.input_shape, m)
+        self.model.fc = torch.nn.Linear(output_shape, num_classes)
+
         params_to_update = []
         for param in self.model.parameters():
             if param.requires_grad:
@@ -226,3 +245,5 @@ class TransferTaglet(Taglet):
                 _, preds = torch.max(outputs, 1)
                 predicted_labels = predicted_labels + preds.detach().cpu().tolist()
         return predicted_labels
+
+
