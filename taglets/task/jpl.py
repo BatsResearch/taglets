@@ -185,6 +185,7 @@ class JPLStorage:
         self.train_data_loader = None
         self.phase = None  # base or adaptation
         self.pretrained = None  # can load from pretrained models on ImageNet
+        self.whitelist = metadata['whitelist']
 
         self.label_map = {}
     
@@ -353,6 +354,8 @@ class JPLRunner:
         jpl_task_name = image_classification_task
         self.api.create_session(jpl_task_name)
         jpl_task_metadata = self.api.get_task_metadata(jpl_task_name)
+        print('jpl_task_metadata')
+        print(jpl_task_metadata)
 
         if self.api.data_type == 'full':
             num_base_checkpoints = len(jpl_task_metadata['base_label_budget_full'])
@@ -372,6 +375,7 @@ class JPLRunner:
         current_dataset = session_status['current_dataset']
 
         self.jpl_storage.classes = current_dataset['classes']
+        print(self.jpl_storage.classes)
         self.jpl_storage.number_of_channels = current_dataset['number_of_channels']
 
         label_map = {}
@@ -439,14 +443,16 @@ class JPLRunner:
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num)
         unlabeled_dataset = self.jpl_storage.get_unlabeled_dataset()
-        classes = self.get_class_map()
+        #classes = self.get_class_map()
         task = Task(self.jpl_storage.name,
-                    classes,
+                    #classes,
+                    self.jpl_storage.classes,
                     (224, 224),
                     labeled_dataset,
                     unlabeled_dataset,
                     val_dataset,
-                    None)
+                    self.jpl_storage.whitelist,
+                    '/data/datasets/scads.sqlite3')
         task.set_initial_model(self.initial_model)
         controller = Controller(task, self.batch_size, self.num_workers, self.use_gpu)
         end_model = controller.train_end_model()
@@ -522,7 +528,7 @@ def main():
 
     parser.add_argument("--task_ix", type=int, default=0,
                         help="Index of image classification task; 0, 1, 2, etc.")
-    parser.add_argument("--use_gpu", type=int, default=0, help="whether to use gpu")
+    parser.add_argument("--use_gpu", type=int, default=1, help="whether to use gpu")
 
     args = parser.parse_args()
 
@@ -543,3 +549,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
