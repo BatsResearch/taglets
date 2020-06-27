@@ -1,3 +1,4 @@
+
 from .data import SoftLabelDataset
 from .modules import FineTuneModule, PrototypeModule, TransferModule, MultiTaskModule
 from .pipeline import EndModel, TagletExecutor
@@ -82,7 +83,8 @@ class Controller:
 
     def _get_taglets_modules(self):
         if self.task.scads_path:
-            return [FineTuneModule(task=self.task), PrototypeModule(task=self.task), TransferModule(task=self.task), MultiTaskModule(task=self.task)]
+            return [ TransferModule(task=self.task),FineTuneModule(task=self.task)]
+            # return [FineTuneModule(task=self.task), PrototypeModule(task=self.task), TransferModule(task=self.task), MultiTaskModule(task=self.task)]
         return [FineTuneModule(task=self.task), PrototypeModule(task=self.task)]
 
     def _get_data_loader(self, dataset, shuffle=True):
@@ -131,3 +133,5 @@ class Controller:
                                                  num_workers=self.num_workers)
 
         return train_data
+
+
