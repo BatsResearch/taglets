@@ -5,6 +5,8 @@ import numpy as np
 import random
 import torch
 
+from memory_profiler import profile
+
 
 log = logging.getLogger(__name__)
 
@@ -121,6 +123,7 @@ class Trainable:
 
         return epoch_loss, epoch_acc
 
+    @profile
     def train(self, train_data_loader, val_data_loader, use_gpu):
         """
         Train the Trainable.
