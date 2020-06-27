@@ -455,7 +455,7 @@ class JPLRunner:
         evaluation_data_loader = torch.utils.data.DataLoader(evaluation_dataset,
                                                              batch_size=self.batch_size,
                                                              shuffle=False,
-                                                             num_workers=0)
+                                                             num_workers=self.num_workers)
         predictions, _ = end_model.predict(evaluation_data_loader, self.use_gpu)
         prediction_names = []
         for p in predictions:
@@ -472,7 +472,7 @@ class JPLRunner:
             unlabeled_data_loader = torch.utils.data.DataLoader(unlabeled_dataset,
                                                                 batch_size=self.batch_size,
                                                                 shuffle=False,
-                                                                num_workers=0)
+                                                                num_workers=self.num_workers)
             _, confidences = end_model.predict(unlabeled_data_loader, self.use_gpu)
             candidates = np.argsort(confidences)
             self.confidence_active_learning.set_candidates(candidates)

@@ -67,6 +67,8 @@ class Controller:
             weak_labels = labelmodel.get_label_distribution(vote_matrix)
             log.info("Finished getting label distribution")
             
+            del labelmodel
+            
             for label in weak_labels:
                 unlabeled_images_labels.append(torch.FloatTensor(label))
 
@@ -132,6 +134,6 @@ class Controller:
         train_data = torch.utils.data.DataLoader(end_model_train_data,
                                                  batch_size=self.batch_size,
                                                  shuffle=True,
-                                                 num_workers=0)
+                                                 num_workers=self.num_workers)
 
         return train_data
