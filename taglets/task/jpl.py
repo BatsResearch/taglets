@@ -386,21 +386,21 @@ class JPLRunner:
         self.jpl_storage.set_image_path(phase_dataset_dir, self.api.data_type)
 
     def run_checkpoints(self):
-        try:
-            self.run_checkpoints_base()
-            self.run_checkpoints_adapt()
-        except Exception as ex:
-            exc_type, exc_obj, tb = sys.exc_info()
-            f = tb.tb_frame
-            lineno = tb.tb_lineno
-            filename = f.f_code.co_filename
-            linecache.checkcache(filename)
-            line = linecache.getline(filename, lineno, f.f_globals)
-            self.api.deactivate_session(self.api.session_token)
-
-            logging.info('exception has occured during joint trianing:')
-            logging.info(ex)
-            logging.info('EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj))
+        # try:
+        self.run_checkpoints_base()
+        self.run_checkpoints_adapt()
+        # except Exception as ex:
+        #     exc_type, exc_obj, tb = sys.exc_info()
+        #     f = tb.tb_frame
+        #     lineno = tb.tb_lineno
+        #     filename = f.f_code.co_filename
+        #     linecache.checkcache(filename)
+        #     line = linecache.getline(filename, lineno, f.f_globals)
+        #     self.api.deactivate_session(self.api.session_token)
+        #
+        #     logging.info('exception has occured during joint trianing:')
+        #     logging.info(ex)
+        #     logging.info('EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj))
 
     def run_checkpoints_base(self):
         self.update_jpl_information()
