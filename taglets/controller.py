@@ -1,3 +1,4 @@
+import gc
 from .data import SoftLabelDataset
 from .modules import FineTuneModule, PrototypeModule, TransferModule, MultiTaskModule
 from .pipeline import EndModel, TagletExecutor
@@ -68,6 +69,7 @@ class Controller:
             log.info("Finished getting label distribution")
             
             del labelmodel
+            gc.collect()
             
             for label in weak_labels:
                 unlabeled_images_labels.append(torch.FloatTensor(label))
