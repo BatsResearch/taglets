@@ -34,6 +34,19 @@ class ScadsNode:
             locations.append(image.path)
         return locations
 
+    def get_images_whitelist(self,whitelist):
+        """
+        Get all paths to the white list images for this concept .
+        :return: List of paths to images for this concept
+        """
+        locations = []
+        for image in self.node.images:
+            if image.dataset.path in whitelist:
+                locations.append(image.path)
+        return locations
+
+
+
     def get_neighbors(self):
         """
         Get the neighbors of this concept with the type of relationship.
