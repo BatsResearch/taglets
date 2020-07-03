@@ -6,7 +6,7 @@ import logging
 import torch
 import torch.nn as nn
 
-from memory_profiler import profile
+# from memory_profiler import profile
 
 log = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ class PrototypeTaglet(Taglet):
                 lab = key
         return lab
 
-    @profile
+    # @profile
     def train(self, train_data_loader, val_data_loader, use_gpu):
         """
         For 1-shot, use initial model
@@ -188,7 +188,7 @@ class PrototypeTaglet(Taglet):
         epoch_acc = running_acc.item() / len(val_data_loader.dataset)
         return epoch_loss, epoch_acc
 
-    @profile
+    # @profile
     def execute(self, unlabeled_data_loader, use_gpu):
         self.model.eval()
         if use_gpu:

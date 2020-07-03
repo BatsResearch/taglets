@@ -8,7 +8,8 @@ import logging
 import torch
 from torch.utils.data import DataLoader, ConcatDataset
 
-from memory_profiler import profile
+# from memory_profiler import profile
+from pympler import muppy, summary
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +32,13 @@ class Controller:
         :param task: description of the task for the EndModel
         :return: A trained EndModel
         """
+
+        # Add to leaky code within python_script_being_profiled.py
+        log.info('DEBUG MEMORY: START of train_end_model')
+        all_objects = muppy.get_objects()
+        sum1 = summary.summarize(all_objects)
+        # Prints out a summary of the large objects
+        summary.print_(sum1)
 
         # Creates data loaders
         labeled = self._get_data_loader(self.task.get_labeled_train_data(), shuffle=True)
@@ -84,6 +92,13 @@ class Controller:
         self.end_model.train(end_model_train_data_loader, val, self.use_gpu)
         log.info("Finished training end model")
 
+        # Add to leaky code within python_script_being_profiled.py
+        log.info('DEBUG MEMORY: END of train_end_model')
+        all_objects = muppy.get_objects()
+        sum1 = summary.summarize(all_objects)
+        # Prints out a summary of the large objects
+        summary.print_(sum1)
+
         return self.end_model
 
     def _get_taglets_modules(self):
@@ -105,7 +120,7 @@ class Controller:
         else:
             return None
 
-    @profile
+    # @profile
     def _train_label_model(self, vote_matrix):
         log.info("Training label model")
         labelmodel = labelmodels.NaiveBayes(
@@ -114,7 +129,7 @@ class Controller:
         log.info("Finished training label model")
         return labelmodel
 
-    @profile
+    # @profile
     def combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
         def to_soft_one_hot(l):
             soh = [0.1 / len(self.task.classes)] * len(self.task.classes)

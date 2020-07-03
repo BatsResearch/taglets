@@ -4,7 +4,7 @@ from ..pipeline import Taglet
 import os
 import torch
 
-from memory_profiler import profile
+# from memory_profiler import profile
 
 
 class FineTuneModule(Module):
@@ -36,7 +36,7 @@ class FineTuneTaglet(Taglet):
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
         
-    @profile
+    # @profile
     def execute(self, unlabeled_data_loader, use_gpu):
         """
         Execute the Taglet on unlabeled images.
