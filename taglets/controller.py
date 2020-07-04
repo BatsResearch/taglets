@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader, ConcatDataset
 
 # from memory_profiler import profile
 from pympler import muppy, summary
+from guppy import hpy
 
 log = logging.getLogger(__name__)
 
@@ -39,6 +40,9 @@ class Controller:
         sum1 = summary.summarize(all_objects)
         # Prints out a summary of the large objects
         summary.print_(sum1)
+
+        h = hpy()
+        print(h.heap())
 
         # Creates data loaders
         labeled = self._get_data_loader(self.task.get_labeled_train_data(), shuffle=True)
@@ -75,6 +79,9 @@ class Controller:
             log.info("Getting label distribution")
             weak_labels = labelmodel.get_label_distribution(vote_matrix)
             log.info("Finished getting label distribution")
+
+            h = hpy()
+            print(h.heap())
             
             del labelmodel
             gc.collect()
@@ -98,6 +105,9 @@ class Controller:
         sum1 = summary.summarize(all_objects)
         # Prints out a summary of the large objects
         summary.print_(sum1)
+
+        h = hpy()
+        print(h.heap())
 
         return self.end_model
 
