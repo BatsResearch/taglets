@@ -11,8 +11,35 @@ from torch.utils.data import DataLoader, ConcatDataset
 from memory_profiler import profile
 from pympler import muppy, summary
 from guppy import hpy
+import linecache
+import os
+import tracemalloc
 
 log = logging.getLogger(__name__)
+
+
+def display_top(snapshot, key_type='lineno', limit=10):
+    snapshot = snapshot.filter_traces((
+        tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
+        tracemalloc.Filter(False, "<unknown>"),
+    ))
+    top_stats = snapshot.statistics(key_type)
+    
+    print("Top %s lines" % limit)
+    for index, stat in enumerate(top_stats[:limit], 1):
+        frame = stat.traceback[0]
+        print("#%s: %s:%s: %.1f KiB"
+              % (index, frame.filename, frame.lineno, stat.size / 1024))
+        line = linecache.getline(frame.filename, frame.lineno).strip()
+        if line:
+            print('    %s' % line)
+
+    other = top_stats[limit:]
+    if other:
+        size = sum(stat.size for stat in other)
+        print("%s other: %.1f KiB" % (len(other), size / 1024))
+    total = sum(stat.size for stat in top_stats)
+    print("Total allocated size: %.1f KiB" % (total / 1024))
 
 
 class Controller:
@@ -36,6 +63,7 @@ class Controller:
 
         # Add to leaky code within python_script_being_profiled.py
         log.info('DEBUG MEMORY: START of train_end_model')
+        tracemalloc.start()
         all_objects = muppy.get_objects()
         sum1 = summary.summarize(all_objects)
         # Prints out a summary of the large objects
@@ -79,7 +107,9 @@ class Controller:
             log.info("Getting label distribution")
             weak_labels = labelmodel.get_label_distribution(vote_matrix)
             log.info("Finished getting label distribution")
-
+            
+            snapshot = tracemalloc.take_snapshot()
+            display_top(snapshot)
             h = hpy()
             print(h.heap())
             
