@@ -8,7 +8,7 @@ import logging
 import torch
 from torch.utils.data import DataLoader, ConcatDataset
 
-# from memory_profiler import profile
+from memory_profiler import profile
 from pympler import muppy, summary
 from guppy import hpy
 
@@ -130,7 +130,7 @@ class Controller:
         else:
             return None
 
-    # @profile
+    @profile
     def _train_label_model(self, vote_matrix):
         log.info("Training label model")
         labelmodel = labelmodels.NaiveBayes(
@@ -139,7 +139,7 @@ class Controller:
         log.info("Finished training label model")
         return labelmodel
 
-    # @profile
+    @profile
     def combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
         def to_soft_one_hot(l):
             soh = [0.1 / len(self.task.classes)] * len(self.task.classes)
