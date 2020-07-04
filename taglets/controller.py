@@ -9,7 +9,6 @@ import torch
 from torch.utils.data import DataLoader, ConcatDataset
 
 from memory_profiler import profile
-from pympler import muppy, summary
 from guppy import hpy
 import linecache
 import os
@@ -53,6 +52,7 @@ class Controller:
         self.num_workers = num_workers
         self.use_gpu = use_gpu
 
+    @profile
     def train_end_model(self):
         """
         Executes a training pipeline end-to-end, turning a Task into an EndModel
@@ -64,11 +64,8 @@ class Controller:
         # Add to leaky code within python_script_being_profiled.py
         log.info('DEBUG MEMORY: START of train_end_model')
         tracemalloc.start()
-        all_objects = muppy.get_objects()
-        sum1 = summary.summarize(all_objects)
-        # Prints out a summary of the large objects
-        summary.print_(sum1)
 
+        log.info("Print out all objects and their memory usages: Beginning of the controller")
         h = hpy()
         print(h.heap())
 
@@ -110,6 +107,7 @@ class Controller:
             
             snapshot = tracemalloc.take_snapshot()
             display_top(snapshot)
+            log.info("Print out all objects and their memory usages: After getting weak labels")
             h = hpy()
             print(h.heap())
             
@@ -126,16 +124,15 @@ class Controller:
                                                                self.task.get_unlabeled_train_data(),
                                                                self.task.get_labeled_train_data())
         self.end_model = EndModel(self.task)
+
+        log.info("Print out all objects and their memory usages: Before training end model")
+        h = hpy()
+        print(h.heap())
+        
         self.end_model.train(end_model_train_data_loader, val, self.use_gpu)
         log.info("Finished training end model")
 
-        # Add to leaky code within python_script_being_profiled.py
-        log.info('DEBUG MEMORY: END of train_end_model')
-        all_objects = muppy.get_objects()
-        sum1 = summary.summarize(all_objects)
-        # Prints out a summary of the large objects
-        summary.print_(sum1)
-
+        log.info("Print out all objects and their memory usages: After training end model")
         h = hpy()
         print(h.heap())
 
@@ -160,7 +157,6 @@ class Controller:
         else:
             return None
 
-    @profile
     def _train_label_model(self, vote_matrix):
         log.info("Training label model")
         labelmodel = labelmodels.NaiveBayes(
@@ -169,7 +165,6 @@ class Controller:
         log.info("Finished training label model")
         return labelmodel
 
-    @profile
     def combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
         def to_soft_one_hot(l):
             soh = [0.1 / len(self.task.classes)] * len(self.task.classes)
