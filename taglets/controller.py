@@ -186,6 +186,6 @@ class Controller:
         train_data = torch.utils.data.DataLoader(end_model_train_data,
                                                  batch_size=self.batch_size,
                                                  shuffle=True,
-                                                 num_workers=self.num_workers)
+                                                 num_workers=0)
 
         return train_data
