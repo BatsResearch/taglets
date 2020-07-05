@@ -135,4 +135,16 @@ if __name__ == '__main__':
     print(f'End loading embedding: {(time.time()-st) / 60} mins')
     
     node = Scads.get_conceptnet_id('dog')
-    print(ScadsEmbedding.get_related_nodes(node))
+    related_nodes = ScadsEmbedding.get_related_nodes(node)
+    related_nodes = [related_node.get_conceptnet_id() for related_node in related_nodes]
+    print(f'Related node to dog: {related_nodes}')
+
+    node = Scads.get_conceptnet_id('bear')
+    related_nodes = ScadsEmbedding.get_related_nodes(node)
+    related_nodes = [related_node.get_conceptnet_id() for related_node in related_nodes]
+    print(f'Related node to bear: {related_nodes}')
+
+    node = Scads.get_conceptnet_id('pen')
+    related_nodes = ScadsEmbedding.get_related_nodes(node)
+    related_nodes = [related_node.get_conceptnet_id() for related_node in related_nodes]
+    print(f'Related node to pen: {related_nodes}')
