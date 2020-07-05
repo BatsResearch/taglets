@@ -62,7 +62,7 @@ class ScadsEmbedding:
         """
         if ScadsEmbedding.frame is None:
             raise RuntimeError("Embeddings are not loaded")
-        if not node.get_conceptnet_id in ScadsEmbedding.frame.index:
+        if not node.get_conceptnet_id() in ScadsEmbedding.frame.index:
             return None
         vec = ScadsEmbedding.frame.loc[node.get_conceptnet_id()].values
         normalized_vec = vec / np.linalg.norm(vec)
@@ -86,7 +86,13 @@ class ScadsEmbedding:
 
         similar = ScadsEmbedding._similar_to_vec(similar_choices, vec, limit=limit)
         similar_concepts = similar.index.values
-        related_nodes = [Scads.get_node_by_conceptnet_id(concept) for concept in similar_concepts]
+        related_nodes = []
+        for concept in similar_concepts:
+            try:
+                related_node = Scads.get_node_by_conceptnet_id(concept)
+                related_nodes.append(related_node)
+            except:
+                print(f'Concept {concept} not found in Scads')
         return related_nodes
 
     @staticmethod
