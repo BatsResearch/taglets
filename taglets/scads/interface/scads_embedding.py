@@ -86,6 +86,7 @@ class ScadsEmbedding:
 
         similar = ScadsEmbedding._similar_to_vec(similar_choices, vec, limit=limit)
         similar_concepts = similar.index.values
+        print(similar)
         related_nodes = []
         for concept in similar_concepts:
             try:
@@ -139,12 +140,12 @@ if __name__ == '__main__':
     related_nodes = [related_node.get_conceptnet_id() for related_node in related_nodes]
     print(f'Related node to dog: {related_nodes}')
 
-    node = Scads.get_conceptnet_id('bear')
-    related_nodes = ScadsEmbedding.get_related_nodes(node)
-    related_nodes = [related_node.get_conceptnet_id() for related_node in related_nodes]
-    print(f'Related node to bear: {related_nodes}')
-
     node = Scads.get_conceptnet_id('pen')
     related_nodes = ScadsEmbedding.get_related_nodes(node)
     related_nodes = [related_node.get_conceptnet_id() for related_node in related_nodes]
     print(f'Related node to pen: {related_nodes}')
+
+    node = Scads.get_conceptnet_id('bear')
+    related_nodes = ScadsEmbedding.get_related_nodes(node)
+    related_nodes = [related_node.get_conceptnet_id() for related_node in related_nodes]
+    print(f'Related node to bear: {related_nodes}')
