@@ -1,4 +1,3 @@
-
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -15,7 +14,6 @@ class Scads:
     A class providing connection to Structured Collections of Annotated Data Sets (SCADS).
     """
     session = None
-    #root_path = None
     root_path = '/data/datasets/external/'
 
     @staticmethod
@@ -55,7 +53,6 @@ class Scads:
             raise Exception("Node not found.")
         return ScadsNode(sql_node, Scads.session)
 
-
     @staticmethod
     def get_conceptnet_id(concept_name):
         """
@@ -75,6 +72,3 @@ class Scads:
         if not sql_node:
             raise Exception("Node not found.")
         return ScadsNode(sql_node[0], Scads.session)
-
-
-
