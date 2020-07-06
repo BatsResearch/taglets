@@ -8,7 +8,7 @@ class Task:
     A class defining an image classification task
     """
     def __init__(self, name, classes, input_shape, labeled_train_data, unlabeled_train_data,
-                 validation_data, scads_path):
+                 validation_data, whitelist,scads_path):
         """
         Create a new Task
 
@@ -29,6 +29,7 @@ class Task:
 
         self.initial = models.resnet18(pretrained=True)
         self.initial.fc = torch.nn.Identity()
+        self.whitelist = whitelist
 
     def get_classes(self):
         """
