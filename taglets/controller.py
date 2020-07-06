@@ -9,10 +9,12 @@ import torch
 from torch.utils.data import DataLoader, ConcatDataset
 
 from memory_profiler import profile
+from pympler import muppy, tracker, asizeof, summary
 from guppy import hpy
 import linecache
 import os
 import tracemalloc
+import psutil
 
 log = logging.getLogger(__name__)
 
@@ -62,11 +64,12 @@ class Controller:
         """
 
         # Add to leaky code within python_script_being_profiled.py
-        log.info('DEBUG MEMORY: START of train_end_model')
+        print('DEBUG MEMORY: START of train_end_model')
         tracemalloc.start()
 
-        log.info("Print out all objects and their memory usages: Beginning of the controller")
+        print("DEBUG - Guppy: Beginning of the controller")
         h = hpy()
+        h.setrelheap()
         print(h.heap())
 
         # Creates data loaders
@@ -99,16 +102,42 @@ class Controller:
     
             # Learns label model
             labelmodel = self._train_label_model(vote_matrix)
-    
-            # Computes label distribution
-            log.info("Getting label distribution")
-            weak_labels = labelmodel.get_label_distribution(vote_matrix)
-            log.info("Finished getting label distribution")
-            
+
+            print("DEBUG - Tracemalloc: Before getting weak labels")
             snapshot = tracemalloc.take_snapshot()
             display_top(snapshot)
-            log.info("Print out all objects and their memory usages: After getting weak labels")
-            h = hpy()
+            print("DEBUG - Guppy: Before getting weak labels")
+            print(h.heap())
+
+            print("DEBUG - Psutil: Before getting weak labels")
+            print(psutil.virtual_memory())
+
+            tr = tracker.SummaryTracker()
+            
+            # Computes label distribution
+            print("Getting label distribution")
+            weak_labels = labelmodel.get_label_distribution(vote_matrix)
+            print("Finished getting label distribution")
+            
+            print("DEBUG - Pympler tracker: Memory diff before and after getting weak labels")
+            tr.print_diff()
+            
+            print("DEBUG - Pympler asizeof: size of labelmodel")
+            print(asizeof.asizeof(labelmodel))
+            
+            print("DEBUG - Pympler summary: After getting weak labels")
+            all_objects = muppy.get_objects()
+            sum1 = summary.summarize(all_objects)
+            summary.print_(sum1)
+
+            print("DEBUG - Psutil: After getting weak labels")
+            print(psutil.virtual_memory())
+            
+            
+            print("DEBUG - Tracemalloc: After getting weak labels")
+            snapshot = tracemalloc.take_snapshot()
+            display_top(snapshot)
+            print("DEBUG - Guppy: After getting weak labels")
             print(h.heap())
             
             del labelmodel
@@ -125,15 +154,13 @@ class Controller:
                                                                self.task.get_labeled_train_data())
         self.end_model = EndModel(self.task)
 
-        log.info("Print out all objects and their memory usages: Before training end model")
-        h = hpy()
+        print("DEBUG - Guppy: Before training end model")
         print(h.heap())
         
         self.end_model.train(end_model_train_data_loader, val, self.use_gpu)
         log.info("Finished training end model")
 
-        log.info("Print out all objects and their memory usages: After training end model")
-        h = hpy()
+        print("DEBUG - Guppy: After training end model")
         print(h.heap())
 
         return self.end_model
