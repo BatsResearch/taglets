@@ -10,7 +10,6 @@ from torch.utils.data import DataLoader, ConcatDataset
 
 from memory_profiler import profile
 from pympler import muppy, tracker, asizeof, summary
-from guppy import hpy
 import linecache
 import os
 import tracemalloc
@@ -64,13 +63,10 @@ class Controller:
         """
 
         # Add to leaky code within python_script_being_profiled.py
-        print('DEBUG MEMORY: START of train_end_model')
         tracemalloc.start()
 
-        print("DEBUG - Guppy: Beginning of the controller")
-        h = hpy()
-        h.setrelheap()
-        print(h.heap())
+        print("DEBUG - Psutil: START of train_end_model")
+        print(psutil.virtual_memory())
 
         # Creates data loaders
         labeled = self._get_data_loader(self.task.get_labeled_train_data(), shuffle=True)
@@ -103,8 +99,6 @@ class Controller:
             print("DEBUG - Tracemalloc: Before getting weak labels")
             snapshot = tracemalloc.take_snapshot()
             display_top(snapshot)
-            print("DEBUG - Guppy: Before getting weak labels")
-            print(h.heap())
 
             print("DEBUG - Psutil: Before getting weak labels")
             print(psutil.virtual_memory())
@@ -131,8 +125,6 @@ class Controller:
             print("DEBUG - Tracemalloc: After getting weak labels")
             snapshot = tracemalloc.take_snapshot()
             display_top(snapshot)
-            print("DEBUG - Guppy: After getting weak labels")
-            print(h.heap())
             
             # Computes label distribution
             print("Getting label distribution")
@@ -153,15 +145,12 @@ class Controller:
                                                                self.task.get_unlabeled_train_data(),
                                                                self.task.get_labeled_train_data())
         self.end_model = EndModel(self.task)
-
-        print("DEBUG - Guppy: Before training end model")
-        print(h.heap())
         
         self.end_model.train(end_model_train_data_loader, val, self.use_gpu)
         log.info("Finished training end model")
 
-        print("DEBUG - Guppy: After training end model")
-        print(h.heap())
+        print("DEBUG - Psutil: END of train_end_model")
+        print(psutil.virtual_memory())
 
         return self.end_model
 
