@@ -99,9 +99,6 @@ class Controller:
             # plus 1 because labelmodel 1-based indexing (0 is for restraining from voting)
             vote_matrix += 1
             log.info("Finished executing taglets")
-    
-            # Learns label model
-            labelmodel = self._train_label_model(vote_matrix)
 
             print("DEBUG - Tracemalloc: Before getting weak labels")
             snapshot = tracemalloc.take_snapshot()
@@ -113,18 +110,16 @@ class Controller:
             print(psutil.virtual_memory())
 
             tr = tracker.SummaryTracker()
-            
-            # Computes label distribution
-            print("Getting label distribution")
-            weak_labels = labelmodel.get_label_distribution(vote_matrix)
-            print("Finished getting label distribution")
-            
+    
+            # Learns label model
+            labelmodel = self._train_label_model(vote_matrix)
+
             print("DEBUG - Pympler tracker: Memory diff before and after getting weak labels")
             tr.print_diff()
-            
+
             print("DEBUG - Pympler asizeof: size of labelmodel")
             print(asizeof.asizeof(labelmodel))
-            
+
             print("DEBUG - Pympler summary: After getting weak labels")
             all_objects = muppy.get_objects()
             sum1 = summary.summarize(all_objects)
@@ -132,13 +127,18 @@ class Controller:
 
             print("DEBUG - Psutil: After getting weak labels")
             print(psutil.virtual_memory())
-            
-            
+
             print("DEBUG - Tracemalloc: After getting weak labels")
             snapshot = tracemalloc.take_snapshot()
             display_top(snapshot)
             print("DEBUG - Guppy: After getting weak labels")
             print(h.heap())
+            
+            # Computes label distribution
+            print("Getting label distribution")
+            weak_labels = labelmodel.get_label_distribution(vote_matrix)
+            print("Finished getting label distribution")
+            
             
             del labelmodel
             gc.collect()
