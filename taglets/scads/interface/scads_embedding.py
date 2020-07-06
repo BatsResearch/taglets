@@ -23,29 +23,32 @@ class ScadsEmbedding:
         :return:
         """
         if ScadsEmbedding.frame is None:
-            label_list = []
-            with gzip.open(path_to_embeddings, 'rt', encoding='utf-8') as infile:
-                nrows_str, ncols_str = infile.readline().rstrip().split()
+            if path_to_embeddings.endswith('.h5'):
+                df = pd.read_hdf(path_to_embeddings, 'mat', encoding='utf-8')
+            else:
+                label_list = []
+                with gzip.open(path_to_embeddings, 'rt', encoding='utf-8') as infile:
+                    nrows_str, ncols_str = infile.readline().rstrip().split()
+        
+                    nrows = int(nrows_str)
+                    ncols = int(ncols_str)
+                    arr = np.zeros((nrows, ncols), dtype='f')
+                    for line in infile:
+                        if len(label_list) >= nrows:
+                            break
+                        items = line.rstrip().split(' ')
+                        label = items[0]
+                        if label != '</s>':
+                            values = [float(x) for x in items[1:]]
+                            arr[len(label_list)] = values
+                            label_list.append(label)
+                df = pd.DataFrame(arr, index=label_list, dtype='f')
+                
+                if not df.index[1].startswith('/c/'):
+                    df.index = ['/c/en/' + label for label in df.index]
     
-                nrows = int(nrows_str)
-                ncols = int(ncols_str)
-                arr = np.zeros((nrows, ncols), dtype='f')
-                for line in infile:
-                    if len(label_list) >= nrows:
-                        break
-                    items = line.rstrip().split(' ')
-                    label = items[0]
-                    if label != '</s>':
-                        values = [float(x) for x in items[1:]]
-                        arr[len(label_list)] = values
-                        label_list.append(label)
-            df = pd.DataFrame(arr, index=label_list, dtype='f')
-            
-            if not df.index[1].startswith('/c/'):
-                df.index = ['/c/en/' + label for label in df.index]
-
-            if not df.index.is_monotonic_increasing:
-                df = df.sort_index()
+                if not df.index.is_monotonic_increasing:
+                    df = df.sort_index()
             
             ScadsEmbedding.k = df.shape[1]
             ScadsEmbedding.small_k = 100
