@@ -176,7 +176,8 @@ class Controller:
     def _train_label_model(self, vote_matrix):
         log.info("Training label model")
         config = labelmodels.LearningConfig()
-        config.epochs = 1
+        config.epochs = 5
+        config.batch_size = 16
         labelmodel = labelmodels.NaiveBayes(
             num_classes=len(self.task.classes), num_lfs=vote_matrix.shape[1])
         labelmodel.estimate_label_model(vote_matrix, config=config)
