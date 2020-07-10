@@ -73,7 +73,7 @@ class TestController(unittest.TestCase):
         labeled = Subset(mnist, [i for i in range(size)])
         unlabeled = HiddenLabelDataset(Subset(mnist, [i for i in range(size, 2 * size)]))
         val = Subset(mnist, [i for i in range(2 * size, 3 * size)])
-        task = Task("mnist-test", classes, (28, 28), labeled, unlabeled, val, None)
+        task = Task("mnist-test", classes, (28, 28), labeled, unlabeled, val)
         task.set_initial_model(MnistResNet())
 
         # Executes task
