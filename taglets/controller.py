@@ -5,6 +5,7 @@ from .pipeline import EndModel, TagletExecutor
 
 import labelmodels
 import logging
+import numpy as np
 import torch
 from torch.utils.data import DataLoader, ConcatDataset
 
@@ -54,17 +55,19 @@ class Controller:
             # Executes taglets
             log.info("Executing taglets")
             vote_matrix = taglet_executor.execute(unlabeled, self.use_gpu)
-            # plus 1 because labelmodel 1-based indexing (0 is for restraining from voting)
-            vote_matrix += 1
+            # # plus 1 because labelmodel 1-based indexing (0 is for restraining from voting)
+            # vote_matrix += 1
             log.info("Finished executing taglets")
     
-            # Learns label model
-            labelmodel = self._train_label_model(vote_matrix)
-    
-            # Computes label distribution
-            log.info("Getting label distribution")
-            weak_labels = labelmodel.get_label_distribution(vote_matrix)
-            log.info("Finished getting label distribution")
+            # # Learns label model
+            # labelmodel = self._train_label_model(vote_matrix)
+            #
+            # # Computes label distribution
+            # log.info("Getting label distribution")
+            # weak_labels = labelmodel.get_label_distribution(vote_matrix)
+            # log.info("Finished getting label distribution")
+            
+            weak_labels = self._get_majority(vote_matrix)
             
             for label in weak_labels:
                 unlabeled_images_labels.append(torch.FloatTensor(label))
@@ -72,7 +75,7 @@ class Controller:
         # Trains end model
         log.info("Training end model")
 
-        end_model_train_data_loader = self.combine_soft_labels(unlabeled_images_labels,
+        end_model_train_data_loader = self._combine_soft_labels(unlabeled_images_labels,
                                                                self.task.get_unlabeled_train_data(),
                                                                self.task.get_labeled_train_data())
         self.end_model = EndModel(self.task)
@@ -109,29 +112,35 @@ class Controller:
         log.info("Finished training label model")
         return labelmodel
 
-    def combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
-        def to_soft_one_hot(l):
-            soh = [0.1 / len(self.task.classes)] * len(self.task.classes)
-            soh[l] += 0.9
-            return soh
-
+    def _combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
         labeled = DataLoader(labeled_dataset, batch_size=1, shuffle=False)
         soft_labels_labeled_images = []
         for _, image_labels in labeled:
-            soft_labels_labeled_images.append(torch.FloatTensor(to_soft_one_hot(int(image_labels[0]))))
-
+            soft_labels_labeled_images.append(torch.FloatTensor(self._to_soft_one_hot(int(image_labels[0]))))
+    
         new_labeled_dataset = SoftLabelDataset(labeled_dataset, soft_labels_labeled_images, remove_old_labels=True)
         if unlabeled_dataset is None:
             end_model_train_data = new_labeled_dataset
         else:
             new_unlabeled_dataset = SoftLabelDataset(unlabeled_dataset, weak_labels, remove_old_labels=False)
             end_model_train_data = ConcatDataset([new_labeled_dataset, new_unlabeled_dataset])
-
+    
         train_data = torch.utils.data.DataLoader(end_model_train_data,
                                                  batch_size=self.batch_size,
                                                  shuffle=True,
-                                                 num_workers=self.num_workers)
-
+                                                 num_workers=0)
+    
         return train_data
 
+    def _get_majority(self, vote_matrix):
+        weak_labels = []
+        for vote in vote_matrix:
+            counts = np.bincount(vote)
+            majority_vote = np.argmax(counts)
+            weak_labels.append(self._to_soft_one_hot(majority_vote))
+        return weak_labels
 
+    def _to_soft_one_hot(self, l):
+        soh = [0.1 / len(self.task.classes)] * len(self.task.classes)
+        soh[l] += 0.9
+        return soh
