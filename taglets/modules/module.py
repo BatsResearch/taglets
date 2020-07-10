@@ -15,7 +15,6 @@ class Module:
         Train the Module's taglets.
         :param train_data_loader: A data loader for training data
         :param val_data_loader: A data loader for validation data
-        :param test_data_loader: A data loader for testing data
         :param use_gpu: Whether or not to use the GPU
         :return: None
         """

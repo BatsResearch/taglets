@@ -11,9 +11,9 @@ class CustomDataset(Dataset):
         """
         Create a new CustomDataset.
         
-        :param root: The root directory of the images
-        :param filenames: A list of filenames
+        :param filepaths: A list of filepaths
         :param labels: A list of labels
+        :param label_map: A dictionary to map string labels to intergers
         :param transform: A transform to perform on the images
         """
         self.filepaths = filepaths
@@ -47,8 +47,9 @@ class SoftLabelDataset(Dataset):
     def __init__(self, dataset, labels, remove_old_labels=False):
         """
         Create a new SoftLabelDataset.
-        :param images: A list of filenames
+        :param dataset: A PyTorch dataset
         :param labels: A list of labels
+        :param remove_old_labels: A boolean indicating whether to the dataset returns labels that we do not use
         """
         self.dataset = dataset
         self.labels = labels

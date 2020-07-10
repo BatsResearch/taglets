@@ -57,32 +57,3 @@ class FineTuneTaglet(Taglet):
                 _, preds = torch.max(outputs, 1)
                 predicted_labels = predicted_labels + preds.detach().cpu().tolist()
         return predicted_labels
-
-    def predict(self, data_loader, use_gpu):
-        """
-        predict on test data.
-        :param data_loader: A dataloader containing images
-        :param use_gpu: Whether or not to use the GPU
-        :return: predictions
-        """
-    
-        predicted_labels = []
-        confidences = []
-        self.model.eval()
-        if use_gpu:
-            self.model = self.model.cuda()
-        else:
-            self.model = self.model.cpu()
-        for inputs in data_loader:
-            if use_gpu:
-                inputs = inputs.cuda()
-        
-            with torch.set_grad_enabled(False):
-                for data in inputs:
-                    data = torch.unsqueeze(data, dim=0)
-                    outputs = self.model(data)
-                    _, preds = torch.max(outputs, 1)
-                    predicted_labels.append(preds.item())
-                    confidences.append(torch.max(torch.nn.functional.softmax(outputs)).item())
-    
-        return predicted_labels, confidences

@@ -2,7 +2,6 @@ from .taglet import Trainable
 
 import os
 import torch
-import pandas as pd
 
 
 class EndModel(Trainable):
@@ -57,7 +56,7 @@ class EndModel(Trainable):
                 self.optimizer.step()
 
             running_loss += loss.item()
-            running_acc += torch.sum(torch.max(outputs, 1)[1] == torch.max(labels, 1)[1]).item() #/ float(len(labels))
+            running_acc += torch.sum(torch.max(outputs, 1)[1] == torch.max(labels, 1)[1]).item()
 
         epoch_loss = running_loss / len(train_data_loader.dataset)
         epoch_acc = running_acc / len(train_data_loader.dataset)

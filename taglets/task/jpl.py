@@ -115,7 +115,9 @@ class JPL:
 
         headers_active_session = {'user_secret': self.secret, 'session_token': self.session_token}
 
-        r = requests.post(self.url + "/deactivate_session", json={'session_token': deactivate_session}, headers=headers_active_session)
+        r = requests.post(self.url + "/deactivate_session",
+                          json={'session_token': deactivate_session},
+                          headers=headers_active_session)
         r.json()
 
     def request_label(self, query):
@@ -139,7 +141,7 @@ class JPL:
         headers = {'user_secret': self.secret, 'session_token': self.session_token}
         r = requests.post(self.url + "/query_labels", json=query, headers=headers)
         labels_dic = r.json()['Labels']
-        labels_list = [(d['class'],d['id']) for d in labels_dic]
+        labels_list = [(d['class'], d['id']) for d in labels_dic]
         return labels_list
 
     def submit_prediction(self, predictions):
@@ -160,10 +162,9 @@ class JPL:
     def deactivate_all_sessions(self):
 
         headers_session = {'user_secret': self.secret}
-        r = requests.get(self.url+"/list_active_sessions", headers=headers_session)
+        r = requests.get(self.url + "/list_active_sessions", headers=headers_session)
         active_sessions = r.json()['active_sessions']
         for session_token in active_sessions:
-            headers_active_session = {'user_secret': self.secret, 'session_token': session_token}
             self.deactivate_session(session_token)
 
     
@@ -256,19 +257,14 @@ class JPLStorage:
         :return: Training, validation, and testing data loaders
         """
         transform = self.transform_image()
-    
         image_names, image_labels = self.get_labeled_images_list()
-
-
         image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
-
-
         train_val_data = CustomDataset(image_paths,
                                        labels=image_labels,
                                        label_map=self.label_map,
                                        transform=transform)
 
-        if checkpoint_num >=2:
+        if checkpoint_num >= 2:
             # 80% for training, 20% for validation
             train_percent = 0.8
             num_data = len(train_val_data)
@@ -337,19 +333,9 @@ class JPLRunner:
         self.batch_size = batch_size
         self.num_workers = num_workers
 
-    def get_class_map(self):
-        """
-        TODO: This is just a placeholder so that the code can run when not using SCADs. Waiting for Trisha's work
-        :return: map from DataLoader class labels to SCADS node IDs
-        """
-        classes = {}
-        for i in range(len(self.jpl_storage.classes)):
-            classes[i] = ""
-        return classes
-
     def get_jpl_information(self):
         jpl_task_names = self.api.get_available_tasks('image_classification')
-        #### Elaheh: (need change in eval) choose image classification task you would like. Now there are four tasks
+        # Elaheh: (need change in eval) choose image classification task you would like. Now there are four tasks
         image_classification_task = jpl_task_names[self.task_ix]
         jpl_task_name = image_classification_task
         self.api.create_session(jpl_task_name)
@@ -360,10 +346,9 @@ class JPLRunner:
         if self.api.data_type == 'full':
             num_base_checkpoints = len(jpl_task_metadata['base_label_budget_full'])
             num_adapt_checkpoints = len(jpl_task_metadata['adaptation_label_budget_full'])
-        elif self.api.data_type == 'sample':
+        else:
             num_base_checkpoints = len(jpl_task_metadata['base_label_budget_sample'])
             num_adapt_checkpoints = len(jpl_task_metadata['adaptation_label_budget_sample'])
-
 
         jpl_storage = JPLStorage(jpl_task_name, jpl_task_metadata)
 
@@ -415,7 +400,6 @@ class JPLRunner:
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
             self.run_one_checkpoint("Adapt", i)
-
     
     def run_one_checkpoint(self, phase, checkpoint_num):
         log.info('------------------------------------------------------------')
@@ -430,10 +414,9 @@ class JPLRunner:
         elif checkpoint_num == 1:
             self.jpl_storage.add_labeled_images(self.api.get_secondary_seed_labels())
 
-
         unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names()
         log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
-        if checkpoint_num == 2: #Elaheh: maybe we could get rid of random active learning?!
+        if checkpoint_num == 2:  # Elaheh: maybe we could get rid of random active learning?!
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
             self.request_labels(candidates)
 
@@ -443,9 +426,7 @@ class JPLRunner:
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num)
         unlabeled_dataset = self.jpl_storage.get_unlabeled_dataset()
-        #classes = self.get_class_map()
         task = Task(self.jpl_storage.name,
-                    #classes,
                     self.jpl_storage.classes,
                     (224, 224),
                     labeled_dataset,
@@ -465,12 +446,9 @@ class JPLRunner:
         predictions, _ = end_model.predict(evaluation_data_loader, self.use_gpu)
         prediction_names = []
         for p in predictions:
-            prediction_names.append([k for k,v in self.jpl_storage.label_map.items() if v == p][0])
-
+            prediction_names.append([k for k, v in self.jpl_storage.label_map.items() if v == p][0])
 
         predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(), 'class': prediction_names}
-        
-        #predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(), 'class': predictions}
 
         self.submit_predictions(predictions_dict)
         
@@ -549,6 +527,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-

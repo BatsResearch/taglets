@@ -26,11 +26,8 @@ class Controller:
     def train_end_model(self):
         """
         Executes a training pipeline end-to-end, turning a Task into an EndModel
-
-        :param task: description of the task for the EndModel
         :return: A trained EndModel
         """
-
         # Creates data loaders
         labeled = self._get_data_loader(self.task.get_labeled_train_data(), shuffle=True)
         unlabeled = self._get_data_loader(self.task.get_unlabeled_train_data(), shuffle=False)
@@ -76,8 +73,8 @@ class Controller:
         log.info("Training end model")
 
         end_model_train_data_loader = self._combine_soft_labels(unlabeled_images_labels,
-                                                               self.task.get_unlabeled_train_data(),
-                                                               self.task.get_labeled_train_data())
+                                                                self.task.get_unlabeled_train_data(),
+                                                                self.task.get_labeled_train_data())
         self.end_model = EndModel(self.task)
         self.end_model.train(end_model_train_data_loader, val, self.use_gpu)
         log.info("Finished training end model")
@@ -87,7 +84,8 @@ class Controller:
     def _get_taglets_modules(self):
         if self.task.scads_path is not None:
             return [TransferModule(task=self.task), FineTuneModule(task=self.task)]
-            # return [FineTuneModule(task=self.task), PrototypeModule(task=self.task), TransferModule(task=self.task), MultiTaskModule(task=self.task)]
+            # return [FineTuneModule(task=self.task), PrototypeModule(task=self.task),
+            # TransferModule(task=self.task), MultiTaskModule(task=self.task)]
         return [FineTuneModule(task=self.task), PrototypeModule(task=self.task)]
 
     def _get_data_loader(self, dataset, shuffle=True):
@@ -98,7 +96,7 @@ class Controller:
         :param shuffle: whether to shuffle the data
         :return: the DataLoader
         """
-        if dataset != None:
+        if dataset is not None:
             return DataLoader(dataset, batch_size=self.batch_size,
                             shuffle=shuffle, num_workers=self.num_workers)
         else:
