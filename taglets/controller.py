@@ -1,6 +1,6 @@
 
 from .data import SoftLabelDataset
-from .modules import FineTuneModule, PrototypeModule, TransferModule, MultiTaskModule
+from .modules import FineTuneModule, PrototypeModule, TransferModule, MultiTaskModule, HyperbolicProtoModule
 from .pipeline import EndModel, TagletExecutor
 
 import labelmodels
@@ -55,7 +55,7 @@ class Controller:
             log.info("Executing taglets")
             vote_matrix = taglet_executor.execute(unlabeled, self.use_gpu)
             # plus 1 because labelmodel 1-based indexing (0 is for restraining from voting)
-            vote_matrix += 1
+            #vote_matrix += 1
             log.info("Finished executing taglets")
     
             # Learns label model
@@ -85,7 +85,8 @@ class Controller:
         if self.task.scads_path:
             return [ TransferModule(task=self.task),FineTuneModule(task=self.task)]
             # return [FineTuneModule(task=self.task), PrototypeModule(task=self.task), TransferModule(task=self.task), MultiTaskModule(task=self.task)]
-        return [FineTuneModule(task=self.task), PrototypeModule(task=self.task)]
+        #return [FineTuneModule(task=self.task), PrototypeModule(task=self.task)]
+        return [HyperbolicProtoModule(task=self.task)]
 
     def _get_data_loader(self, dataset, shuffle=True):
         """
