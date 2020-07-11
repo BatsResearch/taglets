@@ -79,7 +79,7 @@ class Controller:
             # log.info("Getting label distribution")
             # weak_labels = labelmodel.get_label_distribution(vote_matrix)
             # log.info("Finished getting label distribution")
-            
+
             weak_labels = self._get_majority(vote_matrix)
             
             for label in weak_labels:
@@ -118,14 +118,14 @@ class Controller:
         soft_labels_labeled_images = []
         for _, image_labels in labeled:
             soft_labels_labeled_images.append(torch.FloatTensor(self._to_soft_one_hot(int(image_labels[0]))))
-    
+
         new_labeled_dataset = SoftLabelDataset(labeled_dataset, soft_labels_labeled_images, remove_old_labels=True)
         if unlabeled_dataset is None:
             end_model_train_data = new_labeled_dataset
         else:
             new_unlabeled_dataset = SoftLabelDataset(unlabeled_dataset, weak_labels, remove_old_labels=False)
             end_model_train_data = ConcatDataset([new_labeled_dataset, new_unlabeled_dataset])
-    
+
         return end_model_train_data
 
     def _get_majority(self, vote_matrix):
