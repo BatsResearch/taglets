@@ -34,11 +34,15 @@ class Controller:
         labeled = self._get_data_loader(self.task.get_labeled_train_data(), shuffle=True)
         unlabeled = self._get_data_loader(self.task.get_unlabeled_train_data(), shuffle=False)
         val = self._get_data_loader(self.task.get_validation_data(), shuffle=False)
-
+        print('data loaded')
         unlabeled_images_labels = []
         if unlabeled is not None:
             # Initializes taglet-creating modules
+            print('modules: ')
             modules = self._get_taglets_modules()
+            print(modules)
+            #log.info(str(modules))
+            #exit(0)
             for module in modules:
                 log.info("Training %s module", module.__class__.__name__)
                 module.train_taglets(labeled, val, self.use_gpu)
@@ -78,12 +82,11 @@ class Controller:
         self.end_model = EndModel(self.task)
         self.end_model.train(end_model_train_data_loader, val, self.use_gpu)
         log.info("Finished training end model")
-
         return self.end_model
 
     def _get_taglets_modules(self):
-        if self.task.scads_path:
-            return [ TransferModule(task=self.task),FineTuneModule(task=self.task)]
+        #if self.task.scads_path:
+           # return [ TransferModule(task=self.task),FineTuneModule(task=self.task)]
             # return [FineTuneModule(task=self.task), PrototypeModule(task=self.task), TransferModule(task=self.task), MultiTaskModule(task=self.task)]
         #return [FineTuneModule(task=self.task), PrototypeModule(task=self.task)]
         return [HyperbolicProtoModule(task=self.task)]

@@ -3,9 +3,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.init as init
-
-import hyptorch.pmath as pmath
-
+import pmath
 
 class HyperbolicMLR(nn.Module):
     r"""

@@ -40,7 +40,7 @@ class MnistResNet(ResNet):
         self.fc = torch.nn.Identity()
 
 
-class TestController(unittest.TestCase):
+class TestController():
     def setUp(self):
         logger = logging.getLogger()
         logger.level = logging.INFO
@@ -73,13 +73,15 @@ class TestController(unittest.TestCase):
         labeled = Subset(mnist, [i for i in range(size)])
         unlabeled = HiddenLabelDataset(Subset(mnist, [i for i in range(size, 2 * size)]))
         val = Subset(mnist, [i for i in range(2 * size, 3 * size)])
-        task = Task("mnist-test", classes, (28, 28), labeled, unlabeled, val, None)
+        task = Task("mnist-test", classes, (28, 28), labeled, unlabeled, val, scads_path=None, whitelist=None)
         task.set_initial_model(MnistResNet())
 
         # Executes task
+        print('cintriller')
         controller = Controller(task, use_gpu=False)
         _ = controller.train_end_model()
 
 
 if __name__ == "__main__":
-    unittest.main()
+    c = TestController()
+    c.test_mnist()
