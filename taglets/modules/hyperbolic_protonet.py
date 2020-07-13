@@ -31,7 +31,6 @@ class HyperbolicProtoTaglet(Taglet):
                  lr=0.001, step=40, train_c=False, train_x=False, n_batch=100):
         super().__init__(task)
         self.name = 'hyperbolic-protonet'
-
         self.classes = len(task.classes.keys())
         self.train_label_distr = task.get_train_label_distr()
         self.validation_label_distr = task.get_validation_label_distr()
