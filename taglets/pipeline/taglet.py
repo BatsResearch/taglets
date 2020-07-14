@@ -143,7 +143,7 @@ class Trainable:
         val_acc_list = []
 
         for epoch in range(self.num_epochs):
-            log.info('Epoch: %s', epoch)
+            log.info("Epoch {}: ".format(epoch + 1))
 
             # Train on training data
             train_loss, train_acc = self._train_epoch(train_data_loader, use_gpu)
