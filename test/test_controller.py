@@ -6,7 +6,7 @@ import unittest
 import logging
 import sys
 import torch
-from torch.utils.data import Dataset, Subset
+from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
 from torchvision.datasets import MNIST
 from torchvision.models.resnet import ResNet, BasicBlock
@@ -64,11 +64,11 @@ class TestController(unittest.TestCase):
             9: '/c/en/nine/n/wn/quantity',
         }
 
-        mnist = MNIST('.',
-                      train=True,
-                      transform=transforms.Compose([transforms.Grayscale(num_output_channels=3),
-                                                    transforms.ToTensor()]),
-                      download=True)
+        preprocess = transforms.Compose(
+            [transforms.Grayscale(num_output_channels=3),
+             transforms.ToTensor()])
+
+        mnist = MNIST('.', train=True, transform=preprocess, download=True)
         size = int(len(mnist) / 50)
         labeled = Subset(mnist, [i for i in range(size)])
         unlabeled = HiddenLabelDataset(Subset(mnist, [i for i in range(size, 2 * size)]))
@@ -78,7 +78,13 @@ class TestController(unittest.TestCase):
 
         # Executes task
         controller = Controller(task, use_gpu=False)
-        _ = controller.train_end_model()
+        end_model = controller.train_end_model()
+
+        # Evaluates end model
+        mnist_test = MNIST('.', train=False, transform=preprocess, download=True)
+        mnist_test = Subset(mnist_test, [i for i in range(1000)])
+        mnist_test = DataLoader(mnist_test, batch_size=32)
+        self.assertGreater(end_model.evaluate(mnist_test, use_gpu=False), .9)
 
 
 if __name__ == "__main__":
