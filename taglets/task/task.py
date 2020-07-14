@@ -8,7 +8,7 @@ class Task:
     A class defining an image classification task
     """
     def __init__(self, name, classes, input_shape, labeled_train_data, unlabeled_train_data,
-                 validation_data, whitelist,scads_path):
+                 validation_data, whitelist=None, scads_path=None):
         """
         Create a new Task
 
@@ -57,6 +57,7 @@ class Task:
         return self.train_label_distr
 
     def get_train_labels(self):
+        print(self.labeled_train_data.__dict__)
         return [int(x) for x in self.labeled_train_data.labels]
 
     def get_unlabeled_train_data(self):

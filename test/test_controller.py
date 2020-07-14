@@ -1,6 +1,5 @@
 from taglets.controller import Controller
 from taglets.task import Task
-
 import unittest
 
 import logging
@@ -40,6 +39,19 @@ class MnistResNet(ResNet):
         self.fc = torch.nn.Identity()
 
 
+class LabeledSubset(Dataset):
+    def __init__(self, dataset, labels, indices):
+        self.dataset = dataset
+        self.labels = labels[indices]
+        self.indices = indices
+
+    def __getitem__(self, idx):
+        return self.dataset[self.indices[idx]]
+
+    def __len__(self):
+        return len(self.indices)
+
+
 class TestController():
     def setUp(self):
         logger = logging.getLogger()
@@ -70,18 +82,18 @@ class TestController():
                                                     transforms.ToTensor()]),
                       download=True)
         size = int(len(mnist) / 50)
-        labeled = Subset(mnist, [i for i in range(size)])
+        labeled = LabeledSubset(mnist, mnist.targets, [i for i in range(size)])
         unlabeled = HiddenLabelDataset(Subset(mnist, [i for i in range(size, 2 * size)]))
-        val = Subset(mnist, [i for i in range(2 * size, 3 * size)])
-        task = Task("mnist-test", classes, (28, 28), labeled, unlabeled, val, scads_path=None, whitelist=None)
-        task.set_initial_model(MnistResNet())
+        val = LabeledSubset(mnist, mnist.targets, [i for i in range(2 * size, 3 * size)])
+        task = Task("mnist-test", classes, (28, 28), labeled, unlabeled, val)
+        #task.set_initial_model(MnistResNet())
 
         # Executes task
-        print('cintriller')
+        print('controller')
         controller = Controller(task, use_gpu=False)
         _ = controller.train_end_model()
 
 
 if __name__ == "__main__":
-    c = TestController()
-    c.test_mnist()
+    t = TestController()
+    t.test_mnist()

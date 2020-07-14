@@ -29,7 +29,6 @@ class Trainable:
         self.save_dir = None
 
         self.model = task.get_initial_model()
-
         self._init_random(self.seed)
 
         # Parameters needed to be updated based on freezing layer

@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 class HyperbolicProtoModule(Module):
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [HyperbolicProtoTaglet(task, way=task.classes)]
+        self.taglets = [HyperbolicProtoTaglet(task, shot=5)]
 
 
 # adapted from https://arxiv.org/pdf/1904.02239.pdf and
@@ -57,7 +57,7 @@ class HyperbolicProtoTaglet(Taglet):
             print('val shot: ' + str(self.val_shot))
 
         if self.shot is None or self.way is None:
-            print('Warning :: HyperbolicProtoTaglet -> way or shot is zero. '
+            print('Warning :: HyperbolicProtoTaglet -> way or shot is None. '
                   'Consider reducing query.')
 
         # set training hyperparameters
@@ -94,12 +94,14 @@ class HyperbolicProtoTaglet(Taglet):
                                                             gamma=self.gamma)
 
     def _determine_fewshot_params(self, desired_shot, desired_way, label_distr):
+        print('desired_way: ' + str(desired_way))
+        print('desired_shot: ' + str(desired_shot))
 
         # labels without enough training examples; abstain for these
         degenerate_labels = {}
         supp_shot = None
         i = 0
-        for label in degenerate_labels:
+        for label in label_distr:
             support = label_distr[label] - self.query
             if support <= 0:
                 degenerate_labels[label] = 1
@@ -117,7 +119,7 @@ class HyperbolicProtoTaglet(Taglet):
 
         if desired_way is None:
             desired_way = self.classes
-        desired_way = desired_way - i
+        desired_way = min(desired_way - i, self.classes)
         if desired_way == 0:
             desired_way = None
         return desired_shot, desired_way, degenerate_labels
@@ -125,7 +127,7 @@ class HyperbolicProtoTaglet(Taglet):
     def _filter_labeled_data(self, labels, degenerate_labels):
         # returns indices of examples with valid labels and num of valid labels
         valid_indices = []
-        for i in range(labels, degenerate_labels):
+        for i in range(len(labels)):
             if labels[i] not in degenerate_labels:
                 valid_indices.append(i)
         return valid_indices
@@ -140,11 +142,11 @@ class HyperbolicProtoTaglet(Taglet):
 
         # Next, we'll set up a proper training data loader
         valid_train_indices = self._filter_labeled_data(self.train_labels, self.train_degenerate_labels)
-        valid_train_labels = [x for x in range(1, self.classes) if x not in self.train_degenerate_labels]
+        valid_train_labels = [x for x in range(0, self.classes) if x not in self.train_degenerate_labels]
         train_sampler = CategoriesSampler(valid_train_indices, valid_train_labels,
                                           lambda l: np.array([self.train_labels[idx] for idx in l]),
                                           n_batch=self.n_batch, n_cls=self.way,
-                                          n_per=self.shot * self.query)
+                                          n_per=self.shot + self.query)
 
         batch_train_data_loader = DataLoader(train_data_loader.dataset,
                                        batch_sampler=train_sampler,
@@ -159,7 +161,7 @@ class HyperbolicProtoTaglet(Taglet):
             val_sampler = CategoriesSampler(valid_val_indices, valid_val_labels,
                                             lambda l: np.array([self.val_labels[idx] for idx in l]),
                                             n_batch=self.n_batch, n_cls=self.val_way,
-                                            n_per=self.val_shot * self.query)
+                                            n_per=self.val_shot + self.query)
 
             batch_val_data_loader = DataLoader(val_data_loader,
                                            batch_sampler=val_sampler,
@@ -255,13 +257,19 @@ class HyperbolicProtoTaglet(Taglet):
             else:
                 data = batch[0]
 
+            print('data shape: ' + str(data.shape))
             p = self.shot * self.way
             data_shot, data_query = data[:p], data[p:]
+            print(data_shot.shape)
+            print(data_query.shape)
 
             with torch.set_grad_enabled(True):
                 proto = self.model(data_shot).reshape(self.shot, self.way, -1)
                 proto = poincare_mean(proto, dim=0, c=self.c)
-                logits = (-dist_matrix(self.model(data_query), proto, c=self.c))
+                query_proto = self.model(data_query)
+                print(query_proto.shape)
+                logits = (-dist_matrix(query_proto, proto, c=self.c))
+                print(logits.shape)
                 loss = F.cross_entropy(logits, label)
 
                 self.optimizer.zero_grad()
@@ -372,8 +380,8 @@ class HyperbolicEncoder(nn.Module):
         self.encoder = euclid_encoder
         self.e2p = ToPoincare(c=c, train_c=train_c, train_x=train_x)
 
-    def forward(self, data_shot, data_query):
-        return self.e2p(self.encoder(data_shot))
+    def forward(self, encoded_shot):
+        return self.e2p(encoded_shot)
 
 
 class CategoriesSampler:
