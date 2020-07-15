@@ -84,6 +84,7 @@ class ZeroShotTaglet(Taglet):
         graph_path = "graph_data/imagenet_graph"
         glove_path = 'graph_data/'
 
+        start_time = time.time()
         # TODO: get the imagenet graph
         query_conceptnet(graph_path,
                          'zsl_kg_lite/imagenet_syns.json',
@@ -96,7 +97,9 @@ class ZeroShotTaglet(Taglet):
         compute_union_graph(graph_path)
 
         # TODO: run random walk on the graph
-        graph_random_walk(graph_path,k=20, n=10)
+        graph_random_walk(graph_path, k=20, n=10)
+
+        end_time = time.time()
 
         # TODO: compute embeddings for the nodes
         compute_embeddings(graph_path, \

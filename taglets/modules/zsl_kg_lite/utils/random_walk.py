@@ -47,8 +47,7 @@ def graph_random_walk(graph_path, k, n, seed=0):
     random.seed(seed)
 
     print("creating loading adj lists")
-    dir_path = os.path.dirname(graph_path)
-    en_nodes_path = os.path.join(dir_path, 'en_nodes.csv')
+    en_nodes_path = os.path.join(graph_path, 'en_nodes.csv')
     en_nodes = pd.read_csv(en_nodes_path)
     adj_rel_lists = json.load(open(os.path.join(graph_path)))
     
