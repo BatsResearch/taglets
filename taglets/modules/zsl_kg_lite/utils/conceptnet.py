@@ -113,12 +113,19 @@ def query_conceptnet(output_path, conceptnet_path, database_path, n=2):
         hops.append(list(new_nodes))
     
     # get all concepts
-    all_concepts = set((itertools.chain.from_iterable(hops)))
+    all_concepts = list(set((itertools.chain.from_iterable(hops))))
     nodes = []
-    for c in all_concepts:
-        x = cursor.execute("SELECT * from nodes where conceptnet_id=\""+str(c)+"\" LIMIT 1").fetchall()
-        for node_id, node_uri in x:
-            nodes.append((node_id, node_uri))
+    i =0
+    for batch_concepts in chunks(all_concepts, 5000):
+        i += 1 
+        query_string = 'select * from nodes where'
+        for c in batch_concepts:
+            query_string += " id=\""+str(c)+"\""
+            query_string += " or"
+        query_string = query_string[: -3]
+
+        x = cursor.execute(query_string).fetchall()
+        nodes.extend(x)
 
     # create directory if not present
     if not os.path.exists(output_path):
