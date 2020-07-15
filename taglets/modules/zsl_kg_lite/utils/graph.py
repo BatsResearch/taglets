@@ -23,7 +23,8 @@ def post_process_graph(graph_path):
     # read the graph path
     edges_path = os.path.join(graph_path, 'unreplaced_edges.csv')
     unreplaced_edges = pd.read_csv(edges_path)
-    
+    unreplaced_edges.drop_duplicates()
+
     # read all the nodes
     nodes_path = os.path.join(graph_path, 'nodes.csv')
     nodes = pd.read_csv(nodes_path)

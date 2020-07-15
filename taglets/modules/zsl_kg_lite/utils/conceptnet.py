@@ -62,7 +62,7 @@ def query_conceptnet(output_path, conceptnet_path, database_path, n=2):
     # 
     idx_to_relation = {}
     directed_dict = {"t": True, "f": False}
-    relations = cursor.execute("SELECT id, uri, directed from relations").fetchall()
+    relations = cursor.execute("SELECT id, type, is_directed from relations").fetchall()
     
     # get all the concepts related to the type
     idx_to_concept = {}
@@ -70,7 +70,7 @@ def query_conceptnet(output_path, conceptnet_path, database_path, n=2):
     syn_id_to_node_id = {}
     for concept, syns in concept_syn.items():
         # concept
-        x = cursor.execute("SELECT * from nodes where uri=\""+concept+"\" LIMIT 1").fetchall()
+        x = cursor.execute("SELECT * from nodes where conceptnet_id=\""+concept+"\" LIMIT 1").fetchall()
         
         if not x:
             raise Exception(concept + " not found")
@@ -79,7 +79,7 @@ def query_conceptnet(output_path, conceptnet_path, database_path, n=2):
         label_node_ids.add(label_node_id)
 
         for _syn in syns:
-            x = cursor.execute("SELECT * from nodes where uri=\""+_syn+"\" LIMIT 1").fetchall()
+            x = cursor.execute("SELECT * from nodes where conceptnet_id=\""+_syn+"\" LIMIT 1").fetchall()
 
             for node_id, node_uri in x:
                 syn_id_to_node_id[node_id] = label_node_id
@@ -94,22 +94,21 @@ def query_conceptnet(output_path, conceptnet_path, database_path, n=2):
         times = []
         new_nodes = set()
         for batch_nodes in chunks(hops[i], 5000):
+            for x in ['start_node', 'end_node']
+                query_string = "select start_node, end_node, relation_type, weight from edges where"        
+                for node_id in batch_nodes:
+                    query_string += " " + x + "=" + str(node_id)
+                    query_string += " or"
 
-            query_string = "select start_id, end_id, relation_id, weight from edges where"        
-            for node_id in batch_nodes:
-                query_string += " start_id=" + str(node_id)
-                query_string += " or end_id=" + str(node_id)
-                query_string += " or"
-
-            query_string = query_string[: -3]
-            neigh_concepts = cursor.execute(query_string).fetchall()
-            adj_list.extend(neigh_concepts)
-            all_concepts = set((itertools.chain.from_iterable(hops)))
-            for start_id, end_id, relation_id, weight in neigh_concepts:
-                if start_id not in all_concepts:
-                    new_nodes.add(start_id)
-                if end_id not in all_concepts:
-                    new_nodes.add(end_id)
+                query_string = query_string[: -3]
+                neigh_concepts = cursor.execute(query_string).fetchall()
+                adj_list.extend(neigh_concepts)
+                all_concepts = set((itertools.chain.from_iterable(hops)))
+                for start_id, end_id, relation_id, weight in neigh_concepts:
+                    if start_id not in all_concepts:
+                        new_nodes.add(start_id)
+                    if end_id not in all_concepts:
+                        new_nodes.add(end_id)
             
         hops.append(list(new_nodes))
     
@@ -117,7 +116,7 @@ def query_conceptnet(output_path, conceptnet_path, database_path, n=2):
     all_concepts = set((itertools.chain.from_iterable(hops)))
     nodes = []
     for c in all_concepts:
-        x = cursor.execute("SELECT * from nodes where uri=\""+c+"\" LIMIT 1").fetchall()
+        x = cursor.execute("SELECT * from nodes where conceptnet_id=\""+c+"\" LIMIT 1").fetchall()
         for node_id, node_uri in x:
             nodes.append((node_id, node_uri))
 
