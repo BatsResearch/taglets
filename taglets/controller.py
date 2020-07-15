@@ -38,11 +38,8 @@ class Controller:
         unlabeled_images_labels = []
         if unlabeled is not None:
             # Initializes taglet-creating modules
-            print('modules: ')
             modules = self._get_taglets_modules()
-            print(modules)
-            #log.info(str(modules))
-            #exit(0)
+
             for module in modules:
                 log.info("Training %s module", module.__class__.__name__)
                 module.train_taglets(labeled, val, self.use_gpu)

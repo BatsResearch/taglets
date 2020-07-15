@@ -94,9 +94,6 @@ class HyperbolicProtoTaglet(Taglet):
                                                             gamma=self.gamma)
 
     def _determine_fewshot_params(self, desired_shot, desired_way, label_distr):
-        print('desired_way: ' + str(desired_way))
-        print('desired_shot: ' + str(desired_shot))
-
         # labels without enough training examples; abstain for these
         degenerate_labels = {}
         supp_shot = None
@@ -257,19 +254,14 @@ class HyperbolicProtoTaglet(Taglet):
             else:
                 data = batch[0]
 
-            print('data shape: ' + str(data.shape))
             p = self.shot * self.way
             data_shot, data_query = data[:p], data[p:]
-            print(data_shot.shape)
-            print(data_query.shape)
 
             with torch.set_grad_enabled(True):
                 proto = self.model(data_shot).reshape(self.shot, self.way, -1)
                 proto = poincare_mean(proto, dim=0, c=self.c)
                 query_proto = self.model(data_query)
-                print(query_proto.shape)
                 logits = (-dist_matrix(query_proto, proto, c=self.c))
-                print(logits.shape)
                 loss = F.cross_entropy(logits, label)
 
                 self.optimizer.zero_grad()
@@ -277,7 +269,7 @@ class HyperbolicProtoTaglet(Taglet):
                 self.optimizer.step()
 
             running_loss += loss.item()
-        epoch_loss = running_loss / len(count)
+        epoch_loss = running_loss / count
         return epoch_loss
 
     def _validate_epoch(self, val_data_loader, use_gpu):
@@ -298,7 +290,9 @@ class HyperbolicProtoTaglet(Taglet):
 
         running_loss = 0.0
         running_acc = 0.0
+        count = 0
         for i, batch in enumerate(val_data_loader, 1):
+            count += 1
             if torch.cuda.is_available():
                 data, _ = [_.cuda() for _ in batch]
             else:
@@ -320,8 +314,8 @@ class HyperbolicProtoTaglet(Taglet):
             running_loss += loss.item()
             running_acc += count_acc(logits, label)
 
-        epoch_loss = running_loss / len(val_data_loader.dataset)
-        epoch_acc = running_acc / len(val_data_loader.dataset)
+        epoch_loss = running_loss / count
+        epoch_acc = running_acc / count
         return epoch_loss, epoch_acc
 
     def nn(self, data):
