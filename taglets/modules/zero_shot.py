@@ -6,6 +6,7 @@ from ..pipeline import Taglet
 from ..scads.interface.scads import Scads
 
 import os
+import re
 import json
 import random
 import torch
@@ -19,7 +20,14 @@ import torchvision.models as models
 from taglets.modules.zsl_kg_lite.class_encoders.transformer_model import TransformerConv
 from taglets.modules.zsl_kg_lite.utils.core import save_model, l2_loss, set_seed, \
     convert_index_to_int, mask_l2_loss
+from taglets.modules.zsl_kg_lite.imagenet_syns import IMAGENET_SYNS
 from taglets.modules.zsl_kg_lite.example_encoders.resnet import ResNet
+
+# graph related imports
+from taglets.modules.zsl_kg_lite.utils.conceptnet import query_conceptnet
+from taglets.modules.zsl_kg_lite.utils.graph import post_process_graph, \
+    compute_union_graph, compute_embeddings, compute_mapping
+from taglets.modules.zsl_kg_lite.utils.random_walk import graph_random_walk
 
 log = logging.getLogger(__name__)
 
@@ -66,8 +74,39 @@ class ZeroShotTaglet(Taglet):
         }
 
         # TODO: train graph path
-        self.train_graph_path = ""
-        self.test_graph_path = ""
+        self.train_graph_path = "graph_data/imagenet_graph"
+        self.test_graph_path = "graph_data/test_graph"
+
+    def setup_imagenet_graph(self):
+        root_path = Scads.get_root_path()
+        Scads.open(self.task.scads_path)
+
+        graph_path = "graph_data/imagenet_graph"
+        glove_path = 'graph_data/'
+
+        # TODO: get the imagenet graph
+        query_conceptnet(graph_path,
+                         'zsl_kg_lite/imagenet_syns.json',
+                         '/data/bats/users/nnayak2/scads.sqlite3')
+
+        # TODO: post process graph
+        post_process_graph(graph_path)
+        
+        # TODO: take the union of the graph
+        compute_union_graph(graph_path)
+
+        # TODO: run random walk on the graph
+        graph_random_walk(graph_path,k=20, n=10)
+
+        # TODO: compute embeddings for the nodes
+        compute_embeddings(graph_path, \
+            '/data/bats/users/nnayak2/taglets/taglets/modules/graph_data/glove.840B.300d.txt')
+
+        # TODO: compute mapping
+        id_to_concept = json.load(open('zsl_kg_lite/id_to_concept.json'))
+        compute_mapping(id_to_concept, graph_path)
+
+        print('done!')
 
     def setup_fc(self):
         resnet = models.resnet50(pretrained=True)
