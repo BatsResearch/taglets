@@ -116,7 +116,7 @@ def query_conceptnet(output_path, conceptnet_path, database_path, n=2):
     all_concepts = set((itertools.chain.from_iterable(hops)))
     nodes = []
     for c in all_concepts:
-        x = cursor.execute("SELECT * from nodes where conceptnet_id=\""+c+"\" LIMIT 1").fetchall()
+        x = cursor.execute("SELECT * from nodes where conceptnet_id=\""+str(c)+"\" LIMIT 1").fetchall()
         for node_id, node_uri in x:
             nodes.append((node_id, node_uri))
 
