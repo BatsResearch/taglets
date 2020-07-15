@@ -165,6 +165,7 @@ class HyperbolicProtoTaglet(Taglet):
                                            num_workers=8,
                                            pin_memory=True)
         else:
+            batch_train_data_loader = None
             print('Warning :: HyperbolicProtoTaglet -> insufficient amount of validation data. Training '
                   'will still occur but validation will not.')
 
@@ -177,7 +178,7 @@ class HyperbolicProtoTaglet(Taglet):
             log.info('train loss: {:.4f}'.format(train_loss))
 
             # Evaluation on validation data
-            if not val_data_loader:
+            if not batch_train_data_loader:
                 val_loss = 0
                 val_acc = 0
                 continue

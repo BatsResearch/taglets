@@ -52,7 +52,7 @@ class LabeledSubset(Dataset):
         return len(self.indices)
 
 
-class TestController():
+class TestController(unittest.TestCase):
     def setUp(self):
         logger = logging.getLogger()
         logger.level = logging.INFO
@@ -89,11 +89,9 @@ class TestController():
         #task.set_initial_model(MnistResNet())
 
         # Executes task
-        print('controller')
         controller = Controller(task, use_gpu=False)
         _ = controller.train_end_model()
 
 
 if __name__ == "__main__":
-    t = TestController()
-    t.test_mnist()
+    unittest.main()
