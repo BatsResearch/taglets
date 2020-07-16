@@ -9,6 +9,7 @@ import os
 import re
 import json
 import random
+import tempfile
 import torch
 import logging
 import copy
@@ -73,9 +74,9 @@ class ZeroShotTaglet(Taglet):
             ]
         }
 
-        # TODO: train graph path
-        self.train_graph_path = "graph_data/imagenet_graph"
-        self.test_graph_path = "graph_data/test_graph"
+        # using tempfile to create directories
+        self.imagenet_graph_path = tempfile.mkdtemp()
+        self.test_graph_path = tempfile.mkdtemp()
 
     def setup_imagenet_graph(self):
         root_path = Scads.get_root_path()

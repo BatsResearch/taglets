@@ -11,6 +11,10 @@ import itertools
 import pandas as pd
 import numpy as np
 
+import torch
+import torch.nn.functional as F
+from .conceptnet import chunks
+
 
 def post_process_graph(graph_path):
     """The function post processes the graph after extraction. 
@@ -222,15 +226,15 @@ def compute_embeddings(graph_path, glove_path):
         padded_concepts.append(concept_idx)
     
     # add the word embeddings of indivual words
-    print("adding the word embeddings -> conceptnet embeddings")
+    print("adding the word embeddings and l2 norm-> conceptnet embeddings")
+    concept_embs = torch.zeros((0, 300))
     padded_concepts = torch.tensor(padded_concepts)
-    concept_words = embedding_matrix[padded_concepts]
-    concept_embs = torch.sum(concept_words, dim=1)
-    
-    # normalizing conceptnet embs
-    print("normalizing the conceptnet embeddings")
-    concept_embs = F.normalize(concept_embs)
-    
+    for pc in chunks(padded_concepts, 100000):
+        concept_words = embedding_matrix[pc]
+        embs = torch.sum(concept_words, dim=1)
+        embs = F.normalize(embs)
+        concept_embs = torch.cat((concept_embs, embs), dim=0)
+
     # save the conceptnet embs
     print('saving the concept embeddings')
     concept_path = os.path.join(graph_path, 'concepts.pt')
