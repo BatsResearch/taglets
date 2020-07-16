@@ -17,11 +17,11 @@ class EndModel(Trainable):
         self.criterion = self.soft_cross_entropy
 
     @staticmethod
-    def soft_cross_entropy(prediction, target):
-        prediction = prediction.double()
+    def soft_cross_entropy(outputs, target):
+        outputs = outputs.double()
         target = target.double()
         logs = torch.nn.LogSoftmax(dim=1)
-        return torch.mean(torch.sum(-target * logs(prediction), 1))
+        return torch.mean(torch.sum(-target * logs(outputs), 1))
 
     @staticmethod
     def _get_train_acc(outputs, labels):
