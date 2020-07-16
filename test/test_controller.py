@@ -3,8 +3,6 @@ from taglets.task import Task
 
 import unittest
 
-import logging
-import sys
 import torch
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
@@ -41,14 +39,6 @@ class MnistResNet(ResNet):
 
 
 class TestController(unittest.TestCase):
-    def setUp(self):
-        logger = logging.getLogger()
-        logger.level = logging.INFO
-        stream_handler = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
-        stream_handler.setFormatter(formatter)
-        logger.addHandler(stream_handler)
-
     def test_mnist(self):
         # Creates task
         classes = {
