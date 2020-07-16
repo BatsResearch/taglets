@@ -32,7 +32,6 @@ class Trainable:
         self.batch_size = 32
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
-        self.log = logging.getLogger(__name__)
 
         self.model = task.get_initial_model()
 
@@ -46,7 +45,6 @@ class Trainable:
         self._params_to_update = params_to_update
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
-        self._best_val_acc = 0.0
 
     def train(self, train_data, val_data, use_gpu, n_proc=2):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
@@ -119,6 +117,7 @@ class Trainable:
 
         # Initializes statistics containers (will only be filled by lead process)
         best_model_to_save = None
+        best_val_acc = 0
         train_loss_list = []
         train_acc_list = []
         val_loss_list = []
@@ -159,12 +158,12 @@ class Trainable:
                 log.info('Validation acc: {:.4f}%'.format(val_acc * 100))
                 val_loss_list.append(val_loss)
                 val_acc_list.append(val_acc)
-                if val_acc > self._best_val_acc:
+                if val_acc > best_val_acc:
                     log.debug("Deep copying new best model." +
                               "(validation of {:.4f}%, over {:.4f}%)".format(
-                                  val_acc * 100, self._best_val_acc * 100))
-                    self._best_val_acc = val_acc
+                                  val_acc * 100, best_val_acc * 100))
                     best_model_to_save = copy.deepcopy(self.model.state_dict())
+                    best_val_acc = val_acc
                     if self.save_dir:
                         torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
@@ -202,12 +201,11 @@ class Trainable:
             with torch.set_grad_enabled(True):
                 outputs = self.model(inputs)
                 loss = self.criterion(outputs, labels)
-                _, preds = torch.max(outputs, 1)
                 loss.backward()
                 self.optimizer.step()
 
             running_loss += loss.item()
-            running_acc += torch.sum(preds == labels)
+            running_acc += self._get_train_acc(outputs, labels)
 
         if not len(train_data_loader.dataset):
             return 0, 0
@@ -235,7 +233,7 @@ class Trainable:
                 labels = labels.cuda()
             with torch.set_grad_enabled(False):
                 outputs = self.model(inputs)
-                loss = self.criterion(outputs, labels)
+                loss = torch.nn.functional.cross_entropy(outputs, labels)
                 _, preds = torch.max(outputs, 1)
 
             running_loss += loss.item()
@@ -246,7 +244,22 @@ class Trainable:
 
         return epoch_loss, epoch_acc
 
-    def save_plot(self, plt_mode, val_dic, save_dir):
+    @staticmethod
+    def _get_train_acc(outputs, labels):
+        """
+        Gets the training accuracy for a tensor of outputs and training labels.
+
+        The method primarily exists so that EndModel can compute the accuracy of
+        soft labels differently.
+
+        :param outputs: outputs of the model being trained
+        :param labels: training labels
+        :return: the total number of correct predictions
+        """
+        return torch.sum(torch.max(outputs, 1)[1] == labels)
+
+    @staticmethod
+    def save_plot(plt_mode, val_dic, save_dir):
         plt.figure()
         colors = ['r', 'b', 'g']
 

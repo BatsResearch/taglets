@@ -14,15 +14,7 @@ class EndModel(Trainable):
         self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
-
-        # Parameters needed to be updated based on freezing layer
-        params_to_update = []
-        for param in self.model.parameters():
-            if param.requires_grad:
-                params_to_update.append(param)
-        self._params_to_update = params_to_update
-        self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.1)
+        self.criterion = self.soft_cross_entropy
 
     @staticmethod
     def soft_cross_entropy(prediction, target):
@@ -31,37 +23,9 @@ class EndModel(Trainable):
         logs = torch.nn.LogSoftmax(dim=1)
         return torch.mean(torch.sum(-target * logs(prediction), 1))
 
-    def _train_epoch(self, train_data_loader, use_gpu):
-        """
-        Train for one epoch.
-        :param train_data_loader: A dataloader containing training data
-        :param use_gpu: Whether or not to use the GPU
-        :return: None
-        """
-        self.model.train()
-        running_loss = 0
-        running_acc = 0
-        for batch_idx, batch in enumerate(train_data_loader):
-            inputs = batch[0]
-            labels = batch[1]
-            if use_gpu:
-                inputs = inputs.cuda()
-                labels = labels.cuda()
-
-            self.optimizer.zero_grad()
-            with torch.set_grad_enabled(True):
-                outputs = self.model(inputs)
-                loss = EndModel.soft_cross_entropy(outputs, labels)
-                loss.backward()
-                self.optimizer.step()
-
-            running_loss += loss.item()
-            running_acc += torch.sum(torch.max(outputs, 1)[1] == torch.max(labels, 1)[1]).item()
-
-        epoch_loss = running_loss / len(train_data_loader.dataset)
-        epoch_acc = running_acc / len(train_data_loader.dataset)
-
-        return epoch_loss, epoch_acc
+    @staticmethod
+    def _get_train_acc(outputs, labels):
+        return torch.sum(torch.max(outputs, 1)[1] == torch.max(labels, 1)[1])
 
     def predict(self, data_loader, use_gpu):
         """
