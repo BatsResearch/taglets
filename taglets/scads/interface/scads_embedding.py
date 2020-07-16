@@ -1,4 +1,5 @@
 import gzip
+import marisa_trie
 import numpy as np
 import pandas as pd
 import os
@@ -54,7 +55,7 @@ class ScadsEmbedding:
             ScadsEmbedding.small_k = 100
             ScadsEmbedding.frame = df
             ScadsEmbedding.small_frame = df.iloc[:, : ScadsEmbedding.small_k].copy()
-            
+            ScadsEmbedding._trie = marisa_trie.Trie(list(df.index))
     @staticmethod
     def get_vector(node):
         """
@@ -65,9 +66,7 @@ class ScadsEmbedding:
         """
         if ScadsEmbedding.frame is None:
             raise RuntimeError("Embeddings are not loaded")
-        if not node.get_conceptnet_id() in ScadsEmbedding.frame.index:
-            return None
-        vec = ScadsEmbedding.frame.loc[node.get_conceptnet_id()].values
+        vec = ScadsEmbedding._expanded_vector(node.get_conceptnet_id())
         normalized_vec = vec / np.linalg.norm(vec)
         return normalized_vec
     
@@ -77,6 +76,7 @@ class ScadsEmbedding:
         Get the related nodes based on the cosine similarity of their embeddings
 
         :param node: target ScadsNode to get its related nodes
+        :param limit: number of related nodes to get
         :return:
         """
         vec = ScadsEmbedding.get_vector(node)
@@ -123,6 +123,70 @@ class ScadsEmbedding:
         return pd.DataFrame(
             data=frame.apply(lambda row: row / np.linalg.norm(row), axis=1), index=index
         )
+
+    @staticmethod
+    def _expanded_vector(term):
+        """
+        Given a term, make a vector representing information from:
+        - The vector for the term
+        - The vectors for terms that share a sufficiently-long prefix with
+          any terms in this list that are out-of-vocabulary
+        """
+        return ScadsEmbedding._weighted_average(
+            ScadsEmbedding.frame, ScadsEmbedding._expand_terms(term)
+        )
+
+    @staticmethod
+    def _expand_terms(term):
+        """
+        Given a term, if it is OOV, find approximations to the terms: terms
+        that share a prefix that's as long as possible with the given term.
+        This helps increase the recall power of the vector space, because it means
+        you can find terms that are too infrequent to have their own vector, getting
+        a reasonable guess at the vector they might have.
+        """
+        expanded = [(term, 1.)]
+        if term not in ScadsEmbedding.frame.index:
+            prefix_weight = 0.01
+            prefix_matches = ScadsEmbedding._match_prefix(term, prefix_weight)
+            expanded.extend(prefix_matches)
+    
+        total_weight = sum(abs(weight) for term, weight in expanded)
+        if total_weight == 0:
+            return []
+        else:
+            return [
+                (term, weight / total_weight) for (term, weight) in expanded
+            ]
+
+    @staticmethod
+    def _match_prefix(term, prefix_weight):
+        results = []
+        while term:
+            prefixed = ScadsEmbedding._trie.keys(term)
+            if prefixed:
+                n_prefixed = len(prefixed)
+                for prefixed_term in prefixed:
+                    results.append((prefixed_term, prefix_weight / n_prefixed))
+                break
+            term = term[:-1]
+        return results
+
+    @staticmethod
+    def _weighted_average(frame, weight_series):
+        if isinstance(weight_series, list):
+            weight_dict = dict(weight_series)
+            weight_series = pd.Series(weight_dict)
+        vec = np.zeros(frame.shape[1], dtype='f')
+        print(weight_series)
+    
+        for i, label in enumerate(weight_series.index):
+            if label in frame.index:
+                val = weight_series[i]
+                vec += val * frame.loc[label].values
+    
+        return pd.Series(data=vec, index=frame.columns, dtype='f')
+    
 
 if __name__ == '__main__':
     dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
