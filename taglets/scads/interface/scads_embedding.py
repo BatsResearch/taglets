@@ -185,7 +185,6 @@ class ScadsEmbedding:
             weight_dict = dict(weight_series)
             weight_series = pd.Series(weight_dict)
         vec = np.zeros(frame.shape[1], dtype='f')
-        print(weight_series)
     
         for i, label in enumerate(weight_series.index):
             if label in frame.index:
