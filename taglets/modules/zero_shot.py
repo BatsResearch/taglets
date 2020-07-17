@@ -75,11 +75,10 @@ class ZeroShotTaglet(Taglet):
             ]
         }
 
+        # TODO: change this if necessary
         # using tempfile to create directories
         self.imagenet_graph_path = tempfile.mkdtemp()
         self.test_graph_path = tempfile.mkdtemp()
-
-        # TODO: change this if necessary
         root_path = Scads.get_root_path()
         self.glove_path = os.path.join(root_path, 'glove.840B.300d.txt')
 
@@ -161,13 +160,16 @@ class ZeroShotTaglet(Taglet):
             device = torch.device('cuda:0')
         else:
             device = torch.device('cpu')
+
+        # setup imagenet graph
+        self.setup_imagenet_graph()
+
+        # setup test graph (this will be used later)
+        self.setup_test_graph()
         
         log.debug('loading pretrained resnet50 fc weights')
         fc_vectors = self.setup_fc()
         fc_vectors.to(device)
-
-        self.optimizer = torch.optim.Adam(model.parameters(), lr=0.001,
-                            weight_decay=0.0005)
 
         self.model = self._train(fc_vectors, device)
 
@@ -182,6 +184,9 @@ class ZeroShotTaglet(Taglet):
         log.debug('setting up gnn for traning')
         model = self.setup_gnn(self.train_graph_path, device)
         model.to(device)
+
+        self.optimizer = torch.optim.Adam(model.parameters(), lr=0.001,
+                            weight_decay=0.0005)
 
         v_train, v_val = 0.95, 0.05
         n_trainval = len(fc_vectors)
@@ -198,7 +203,7 @@ class ZeroShotTaglet(Taglet):
         num_w = fc_vectors.shape[0]
 
         log.debug('zero-shot learning training started')
-        for epoch in tqdm(range(1, 1000 + 1)):    
+        for epoch in tqdm(range(1, self.num_epochs + 1)):    
             model.train()
             for i, start in enumerate(range(0, n_train, 100)):
                 end = min(start + 100, n_train)
@@ -261,14 +266,38 @@ class ZeroShotTaglet(Taglet):
                 predictions.extend([p.cpu().numpy().tolist() for p in pred])
 
         return predictions
+    
+    def _switch_graph(self, gnn, graph_path):
+        
+        # load the graph
+        adj_lists_path = os.path.join(graph_path, 'rw_adj_rel_lists.json')
+        adj_lists = json.load(open(adj_lists_path))
+        adj_lists = convert_index_to_int(adj_lists)
+
+        # load embs
+        concept_path = os.path.join(graph_path, 'concepts.pt')
+        init_feats = torch.load(concept_path)
+       
+        gnn.gnn_modules[0].features = nn.Embedding.from_pretrained(init_feats, freeze=True)
+        
+        gnn.gnn_modules[0].adj_lists = adj_lists
+        gnn.gnn_modules[1].adj_lists = adj_lists
+
+        return gnn
 
     def execute(self, unlabeled_data_loader, use_gpu):
         if use_gpu:
             device = torch.device('cuda:0')
         else:
             device = torch.device('cpu')
-        
-        self.model = self.setup_gnn(self.test_graph_path, device)
+
+        self.model = self.setup_gnn(self.imagenet_graph_path, device)
+
+        log.debug('loading trained model parameters for the gnn')
+        self.model.load_state_dict(torch.load(self.save_path))
+
+        log.debug('change graph and conceptnet embs')
+        self.model = self._switch_graph(self.model, self.test_graph_path)
 
         log.debug('loading pretrained resnet')
         resnet = ResNet()
