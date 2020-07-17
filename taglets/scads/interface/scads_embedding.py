@@ -56,8 +56,9 @@ class ScadsEmbedding:
             ScadsEmbedding.frame = df
             ScadsEmbedding.small_frame = df.iloc[:, : ScadsEmbedding.small_k].copy()
             ScadsEmbedding._trie = marisa_trie.Trie(list(df.index))
+    
     @staticmethod
-    def get_vector(node):
+    def get_vector(node, is_node=True):
         """
         Get the embedding of the given ScadsNode
         
@@ -66,20 +67,24 @@ class ScadsEmbedding:
         """
         if ScadsEmbedding.frame is None:
             raise RuntimeError("Embeddings are not loaded")
-        vec = ScadsEmbedding._expanded_vector(node.get_conceptnet_id())
+        if is_node:
+            vec = ScadsEmbedding._expanded_vector(node.get_conceptnet_id())
+        else:
+            vec = ScadsEmbedding._expanded_vector(node)
         normalized_vec = vec / np.linalg.norm(vec)
         return normalized_vec
     
     @staticmethod
-    def get_related_nodes(node, limit=20):
+    def get_related_nodes(node, limit=20, is_node=True):
         """
         Get the related nodes based on the cosine similarity of their embeddings
 
         :param node: target ScadsNode to get its related nodes
         :param limit: number of related nodes to get
+        :param is_node: whether we are working with ScadsNode or string
         :return:
         """
-        vec = ScadsEmbedding.get_vector(node)
+        vec = ScadsEmbedding.get_vector(node, is_node)
         small_vec = vec[: ScadsEmbedding.small_k]
         search_frame = ScadsEmbedding.small_frame
         similar_sloppy = ScadsEmbedding._similar_to_vec(search_frame, small_vec, limit=limit * 50)
@@ -89,15 +94,17 @@ class ScadsEmbedding:
 
         similar = ScadsEmbedding._similar_to_vec(similar_choices, vec, limit=limit)
         similar_concepts = similar.index.values
-        print(similar)
-        related_nodes = []
-        for concept in similar_concepts:
-            try:
-                related_node = Scads.get_node_by_conceptnet_id(concept)
-                related_nodes.append(related_node)
-            except:
-                print(f'Concept {concept} not found in Scads')
-        return related_nodes
+        if is_node:
+            related_nodes = []
+            for concept in similar_concepts:
+                try:
+                    related_node = Scads.get_node_by_conceptnet_id(concept)
+                    related_nodes.append(related_node)
+                except:
+                    print(f'Concept {concept} not found in Scads')
+            return related_nodes
+        else:
+            return similar_concepts
 
     @staticmethod
     def _similar_to_vec(frame, vec, limit=50):
