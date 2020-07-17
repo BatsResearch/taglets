@@ -33,13 +33,13 @@ def chunks(lst, n):
         yield lst[i:i + n]
 
 
-def query_conceptnet(output_path, conceptnet_path, database_path, n=2):
+def query_conceptnet(output_path, concept_syn, database_path, n=2):
     """The function is used to query the conceptnet database. 
 
     Args:
         output_path (str): the path to the output directory
 
-        conceptnet_path (str): json file containing concept and its synonyms;
+        concept_syn (dict): json file containing concept and its synonyms;
         {
             "/c/en/horse": ["/c/en/house/n"],
             ...
@@ -52,8 +52,8 @@ def query_conceptnet(output_path, conceptnet_path, database_path, n=2):
     # conceptnet path
 
     import json
-    with open(conceptnet_path) as fp:
-        concept_syn = json.load(fp)
+    # with open(conceptnet_path) as fp:
+    #     concept_syn = json.load(fp)
     
     concepts = []
     for concept, syns in concept_syn.items():
