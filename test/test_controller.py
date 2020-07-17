@@ -73,7 +73,6 @@ class TestController(unittest.TestCase):
         # Evaluates end model
         mnist_test = MNIST('.', train=False, transform=preprocess, download=True)
         mnist_test = Subset(mnist_test, [i for i in range(1000)])
-        mnist_test = DataLoader(mnist_test, batch_size=32)
         self.assertGreater(end_model.evaluate(mnist_test, use_gpu=False), .9)
 
 

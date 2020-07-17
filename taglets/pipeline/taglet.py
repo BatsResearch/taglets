@@ -9,7 +9,7 @@ class Taglet(Trainable):
     """
     A trainable model that produces votes for unlabeled images
     """
-    def execute(self, unlabeled_data_loader, use_gpu):
+    def execute(self, unlabeled_data, use_gpu):
         """
         Execute the Taglet on unlabeled images.
 
@@ -18,7 +18,7 @@ class Taglet(Trainable):
         :return: A list of predicted labels
         """
         unlabeled_data_loader = torch.utils.data.DataLoader(
-            dataset=unlabeled_data_loader, batch_size=self.batch_size, shuffle=False,
+            dataset=unlabeled_data, batch_size=self.batch_size, shuffle=False,
             num_workers=1, pin_memory=True
         )
 

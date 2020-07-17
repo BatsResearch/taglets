@@ -32,6 +32,7 @@ class Trainable:
         self.batch_size = 32
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
+        self.n_proc = 3
 
         self.model = task.get_initial_model()
 
@@ -46,11 +47,87 @@ class Trainable:
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
-    def train(self, train_data, val_data, use_gpu, n_proc=2):
+    def train(self, train_data, val_data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
         os.environ['MASTER_PORT'] = '8888'
-        args = (self, train_data, val_data, use_gpu, n_proc)
-        mp.spawn(self._do_train, nprocs=n_proc, args=args)
+        args = (self, train_data, val_data, use_gpu, self.n_proc)
+        mp.spawn(self._do_train, nprocs=self.n_proc, args=args)
+
+    def predict(self, data, use_gpu):
+        os.environ['MASTER_ADDR'] = '127.0.0.1'
+        os.environ['MASTER_PORT'] = '8888'
+
+        # Launches workers and collects results from queue
+        processes = []
+        results = []
+        q = mp.Queue()
+        for i in range(self.n_proc):
+            args = (i, self, q, data, use_gpu, self.n_proc)
+            p = mp.Process(target=self._do_predict, args=args)
+            p.start()
+            processes.append(p)
+        for _ in processes:
+            results.append(q.get())
+        for p in processes:
+            p.join()
+
+        # Collates results so output order matches input order
+        # Results are either (rank, outputs) or (rank, outputs, label)
+        size = 0
+        for result in results:
+            size += result[1].size()[0]
+
+        outputs = np.ndarray((size, results[0][1].shape[1]), dtype=np.float32)
+        if len(results[0]) > 2:
+            labels = np.ndarray((size,), dtype=np.int32)
+        else:
+            labels = None
+
+        # Sorts results in rank order
+        sorted(results, key=lambda x: x[0])
+
+        # Collects the results
+        for i in range(size):
+            outputs[i] = results[i % len(results)][1][i // len(results), :]
+            if labels is not None:
+                labels[i] = results[i % len(results)][2][i // len(results)]
+
+        if labels is not None:
+            return outputs, labels
+        else:
+            return outputs
+
+    def evaluate(self, labeled_data, use_gpu):
+        """
+        Evaluate on labeled data.
+
+        :param data_loader: A dataloader containing images and ground truth labels
+        :param use_gpu: Whether or not to use the GPU
+        :return: accuracy
+        """
+        outputs, labels = self.predict(labeled_data, use_gpu)
+        correct = (np.argmax(outputs, 1) == labels).sum()
+        return correct / outputs.shape[0]
+
+    @staticmethod
+    def save_plot(plt_mode, val_dic, save_dir):
+        plt.figure()
+        colors = ['r', 'b', 'g']
+
+        counter = 0
+        for k, v in val_dic.items():
+            val = [np.round(float(i), decimals=3) for i in v]
+            plt.plot(val, color=colors[counter], label=k + ' ' + plt_mode)
+            counter += 1
+
+        if plt_mode == 'loss':
+            plt.legend(loc='upper right')
+        elif plt_mode == 'accuracy':
+            plt.legend(loc='lower right')
+        title = '_vs.'.join(list(val_dic.keys()))
+        plt.title(title + ' ' + plt_mode)
+        plt.savefig(save_dir + '/' + plt_mode + '_' + title + '.pdf')
+        plt.close()
 
     @staticmethod
     def _init_random(seed):
@@ -138,7 +215,7 @@ class Trainable:
                 val_loss = 0
                 val_acc = 0
 
-            # Gathers result statistics to lead process
+            # Gathers results statistics to lead process
             summaries = [train_loss, train_acc, val_loss, val_acc]
             summaries = torch.tensor(summaries, requires_grad=False)
             if use_gpu:
@@ -259,26 +336,73 @@ class Trainable:
         return torch.sum(torch.max(outputs, 1)[1] == labels)
 
     @staticmethod
-    def save_plot(plt_mode, val_dic, save_dir):
-        plt.figure()
-        colors = ['r', 'b', 'g']
+    def _do_predict(rank, self, q, data, use_gpu, n_proc):
+        """
+        predict on test data.
+        :param data_loader: A dataloader containing images
+        :param use_gpu: Whether or not to use the GPU
+        :return: predictions
+        """
+        if rank == 0:
+            log.info('Beginning prediction')
 
-        counter = 0
-        for k, v in val_dic.items():
-            val = [np.round(float(i), decimals=3) for i in v]
-            plt.plot(val, color=colors[counter], label=k + ' ' + plt_mode)
-            counter += 1
+        # Initializes distributed backend
+        backend = 'nccl' if use_gpu else 'gloo'
+        dist.init_process_group(
+            backend=backend, init_method='env://', world_size=n_proc, rank=rank
+        )
 
-        if plt_mode == 'loss':
-            plt.legend(loc='upper right')
-        elif plt_mode == 'accuracy':
-            plt.legend(loc='lower right')
-        title = '_vs.'.join(list(val_dic.keys()))
-        plt.title(title + ' ' + plt_mode)
-        plt.savefig(save_dir + '/' + plt_mode + '_' + title + '.pdf')
-        plt.close()
+        # Configures model to be distributed
+        if use_gpu:
+            self.model = self.model.cuda(rank)
+            self.model = nn.parallel.DistributedDataParallel(
+                self.model, device_ids=[rank]
+            )
+        else:
+            self.model = self.model.cpu()
+            self.model = nn.parallel.DistributedDataParallel(
+                self.model, device_ids=None
+            )
 
-    def _get_model_output_shape(self, in_size, mod):
+        # Creates distributed data loader from dataset
+        sampler = torch.utils.data.distributed.DistributedSampler(
+            data, num_replicas=n_proc, rank=rank,
+        )
+        data_loader = torch.utils.data.DataLoader(
+            dataset=data, batch_size=self.batch_size, shuffle=False,
+            num_workers=0, pin_memory=True, sampler=sampler
+        )
+
+        outputs = []
+        labels = []
+
+        self.model.eval()
+        for batch in data_loader:
+            try:
+                inputs, targets = batch
+            except (TypeError, ValueError):
+                inputs, targets = batch, None
+
+            if use_gpu:
+                inputs = inputs.cuda(rank)
+
+            with torch.set_grad_enabled(False):
+                output = self.model(inputs)
+                outputs.append(torch.nn.functional.softmax(output, 1))
+                if targets is not None:
+                    labels.append(targets)
+
+        outputs = torch.cat(outputs)
+        if len(labels) > 0:
+            labels = torch.cat(labels)
+
+        if len(labels) > 0:
+            q.put((rank, outputs, labels))
+        else:
+            q.put((rank, outputs))
+
+    @staticmethod
+    def _get_model_output_shape(in_size, mod):
         """
         Adopt from https://gist.github.com/lebedov/0db63ffcd0947c2ea008c4a50be31032
         Compute output size of Module `mod` given an input with size `in_size`
