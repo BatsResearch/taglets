@@ -22,6 +22,7 @@ from taglets.modules.zsl_kg_lite.class_encoders.transformer_model import Transfo
 from taglets.modules.zsl_kg_lite.utils.core import save_model, l2_loss, set_seed, \
     convert_index_to_int, mask_l2_loss
 from taglets.modules.zsl_kg_lite.imagenet_syns import IMAGENET_SYNS
+from taglets.modules.zsl_kg_lite.id_to_concept import IDX_TO_CONCEPT_IMGNET
 from taglets.modules.zsl_kg_lite.example_encoders.resnet import ResNet
 
 # graph related imports
@@ -78,39 +79,56 @@ class ZeroShotTaglet(Taglet):
         self.imagenet_graph_path = tempfile.mkdtemp()
         self.test_graph_path = tempfile.mkdtemp()
 
-    def setup_imagenet_graph(self):
+        # TODO: change this if necessary
         root_path = Scads.get_root_path()
-        Scads.open(self.task.scads_path)
+        self.glove_path = os.path.join(root_path, 'glove.840B.300d.txt')
 
-        graph_path = "graph_data/imagenet_graph"
-        glove_path = 'graph_data/'
+    def setup_test_graph(self):
+        syns = {}
+        idx_to_concept = {}
+        # TODO: get the synonyms
+        for i, label in enumerate(self.task.classes):
+            syns['/c/en/'+label] = ['/c/en/'+label+'/n']
+            idx_to_concept[i] = '/c/en/'+label
+        
+        self.graph_setup(syns,
+                         self.test_graph_path,
+                         self.task.scads_path,
+                         self.glove_path,
+                         idx_to_concept)
 
-        start_time = time.time()
-        # TODO: get the imagenet graph
+    def setup_imagenet_graph(self):
+        syns = IMAGENET_SYNS
+
+        self.graph_setup(IMAGENET_SYNS,
+                         self.imagenet_graph_path,
+                         self.task.scads_path,
+                         self.glove_path,
+                         IDX_TO_CONCEPT_IMGNET)
+
+    def graph_setup(self, syns, graph_path, database_path, 
+                    glove_path, id_to_concept):
+        
         query_conceptnet(graph_path,
-                         'zsl_kg_lite/imagenet_syns.json',
-                         '/data/bats/users/nnayak2/scads.sqlite3')
+                         syns,
+                         database_path)
 
-        # TODO: post process graph
+        # post process graph
         post_process_graph(graph_path)
         
-        # TODO: take the union of the graph
+        # take the union of the graph
         compute_union_graph(graph_path)
 
-        # TODO: run random walk on the graph
+        # run random walk on the graph
         graph_random_walk(graph_path, k=20, n=10)
 
-        end_time = time.time()
+        # compute embeddings for the nodes
+        compute_embeddings(graph_path, database_path)
 
-        # TODO: compute embeddings for the nodes
-        compute_embeddings(graph_path, \
-            '/data/bats/users/nnayak2/taglets/taglets/modules/graph_data/glove.840B.300d.txt')
-
-        # TODO: compute mapping
-        id_to_concept = json.load(open('zsl_kg_lite/id_to_concept.json'))
+        # compute mapping
         compute_mapping(id_to_concept, graph_path)
 
-        print('done!')
+        log.debug('completed graph related processing!')
 
     def setup_fc(self):
         resnet = models.resnet50(pretrained=True)
@@ -138,10 +156,6 @@ class ZeroShotTaglet(Taglet):
         return model
 
     def train(self, train_data_loader, val_data_loader, use_gpu):
-        # 
-        # TODO: ask from where to get the graph path, save path
-        # the graph path for train and test will be different
-
         # TODO: check if this is right 
         if use_gpu:
             device = torch.device('cuda:0')
