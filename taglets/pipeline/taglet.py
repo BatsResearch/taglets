@@ -2,6 +2,7 @@ import copy
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import random
 import torch
 
@@ -24,7 +25,7 @@ class Trainable:
         self.lr = 0.0005
         self.criterion = torch.nn.CrossEntropyLoss()
         self.seed = 0
-        self.num_epochs = 50
+        self.num_epochs = 50 if not os.environ.get("CI") else 5
         self.select_on_val = True   # If true, save model on the best validation performance
         self.save_dir = None
 
@@ -142,7 +143,7 @@ class Trainable:
         val_acc_list = []
 
         for epoch in range(self.num_epochs):
-            log.info('Epoch: %s', epoch)
+            log.info("Epoch {}: ".format(epoch + 1))
 
             # Train on training data
             train_loss, train_acc = self._train_epoch(train_data_loader, use_gpu)

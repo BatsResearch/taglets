@@ -73,21 +73,46 @@ class EndModel(Trainable):
 
         predicted_labels = []
         confidences = []
+
         self.model.eval()
-        if use_gpu:
-            self.model = self.model.cuda()
-        else:
-            self.model = self.model.cpu()
         for inputs in data_loader:
             if use_gpu:
                 inputs = inputs.cuda()
 
             with torch.set_grad_enabled(False):
-                for data in inputs:
-                    data = torch.unsqueeze(data, dim=0)
-                    outputs = self.model(data)
-                    _, preds = torch.max(outputs, 1)
-                    predicted_labels.append(preds.item())
-                    confidences.append(torch.max(torch.nn.functional.softmax(outputs)).item())
+                outputs = self.model(inputs)
+                _, preds = torch.max(outputs, 1)
+                predicted_labels.append(preds.item())
+                confidences.append(torch.max(torch.nn.functional.softmax(outputs)).item())
         
         return predicted_labels, confidences
+
+    def evaluate(self, data_loader, use_gpu):
+        """
+        Evaluate on labeled data.
+
+        :param data_loader: A dataloader containing images and ground truth labels
+        :param use_gpu: Whether or not to use the GPU
+        :return: accuracy
+        """
+
+        self.model.eval()
+        correct = 0
+        total = 0
+
+        for batch in data_loader:
+            inputs = batch[0]
+            labels = batch[1]
+            if use_gpu:
+                inputs = inputs.cuda()
+                labels = labels.cuda()
+
+            with torch.set_grad_enabled(False):
+                outputs = self.model(inputs)
+                _, preds = torch.max(outputs, 1)
+                for pred, label in zip(preds, labels):
+                    total += 1
+                    if pred == label:
+                        correct += 1
+
+        return correct / total
