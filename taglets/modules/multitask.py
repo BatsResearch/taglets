@@ -68,7 +68,7 @@ class MultiTaskTaglet(Taglet):
         image_paths = []
         image_labels = []
         visited = set()
-        for label, conceptnet_id in self.task.classes.items():
+        for conceptnet_id in self.task.classes:
             target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
             neighbors = [edge.get_end_node() for edge in target_node.get_neighbors()]
 

@@ -208,17 +208,17 @@ if __name__ == '__main__':
     ScadsEmbedding.load('/data/datasets/numberbatch-en-19.08.txt.gz')
     print(f'End loading embedding: {(time.time()-st) / 60} mins')
     
-    node = Scads.get_conceptnet_id('dog')
+    node = Scads.get_node_by_conceptnet_id('/c/en/dog')
     related_nodes = ScadsEmbedding.get_related_nodes(node)
     related_nodes = [related_node.get_conceptnet_id() for related_node in related_nodes]
     print(f'Related node to dog: {related_nodes}')
 
-    node = Scads.get_conceptnet_id('pen')
+    node = Scads.get_node_by_conceptnet_id('/c/en/pen')
     related_nodes = ScadsEmbedding.get_related_nodes(node)
     related_nodes = [related_node.get_conceptnet_id() for related_node in related_nodes]
     print(f'Related node to pen: {related_nodes}')
 
-    node = Scads.get_conceptnet_id('bear')
+    node = Scads.get_node_by_conceptnet_id('/c/en/bear')
     related_nodes = ScadsEmbedding.get_related_nodes(node)
     related_nodes = [related_node.get_conceptnet_id() for related_node in related_nodes]
     print(f'Related node to bear: {related_nodes}')
