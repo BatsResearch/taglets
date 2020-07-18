@@ -28,3 +28,4 @@ script:
   - python test/modules/test_with_scads.py
   - python test/test_controller.py
   - python test/scads/test_scads.py
+  - python test/active/test_active_learning.py
