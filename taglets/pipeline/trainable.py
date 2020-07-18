@@ -32,7 +32,7 @@ class Trainable:
         self.batch_size = 32
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
-        self.n_proc = 3
+        self.n_proc = 1
 
         self.model = task.get_initial_model()
 
@@ -73,21 +73,20 @@ class Trainable:
 
         # Collates results so output order matches input order
         # Results are either (rank, outputs) or (rank, outputs, label)
-        size = 0
-        for result in results:
-            size += result[1].size()[0]
-
-        outputs = np.ndarray((size, results[0][1].shape[1]), dtype=np.float32)
+        #
+        # Remember to only return the first len(data) results, since the
+        # distributed data sampler adds extra copies to make each worker the same
+        outputs = np.ndarray((len(data), results[0][1].shape[1]), dtype=np.float32)
         if len(results[0]) > 2:
-            labels = np.ndarray((size,), dtype=np.int32)
+            labels = np.ndarray((len(data),), dtype=np.int32)
         else:
             labels = None
 
         # Sorts results in rank order
-        sorted(results, key=lambda x: x[0])
+        results.sort(key=lambda x: x[0])
 
         # Collects the results
-        for i in range(size):
+        for i in range(len(data)):
             outputs[i] = results[i % len(results)][1][i // len(results), :]
             if labels is not None:
                 labels[i] = results[i % len(results)][2][i // len(results)]
@@ -366,7 +365,7 @@ class Trainable:
 
         # Creates distributed data loader from dataset
         sampler = torch.utils.data.distributed.DistributedSampler(
-            data, num_replicas=n_proc, rank=rank,
+            data, num_replicas=n_proc, rank=rank, shuffle=False
         )
         data_loader = torch.utils.data.DataLoader(
             dataset=data, batch_size=self.batch_size, shuffle=False,
@@ -395,6 +394,9 @@ class Trainable:
         outputs = torch.cat(outputs)
         if len(labels) > 0:
             labels = torch.cat(labels)
+
+        if rank == 0:
+            log.info('Finished prediction')
 
         if len(labels) > 0:
             q.put((rank, outputs, labels))

@@ -14,7 +14,7 @@ class TagletExecutor:
     def set_taglets(self, taglets):
         self.taglets = taglets
 
-    def execute(self, unlabeled_images, use_gpu, nproc=1):
+    def execute(self, unlabeled_images, use_gpu):
         """
         Execute a list of Taglets and get a label matrix.
         :param unlabeled_images: A dataloader containing unlabeled_images
@@ -24,5 +24,5 @@ class TagletExecutor:
         label_matrix = []
         for taglet in self.taglets:
             labels = taglet.execute(unlabeled_images, use_gpu)
-            label_matrix.append(labels)
-        return np.transpose(label_matrix)
+            label_matrix.append(np.expand_dims(labels, 1))
+        return np.concatenate(label_matrix, 1)
