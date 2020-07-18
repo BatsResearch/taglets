@@ -391,9 +391,9 @@ class Trainable:
                 if targets is not None:
                     labels.append(targets)
 
-        outputs = torch.cat(outputs)
+        outputs = torch.cat(outputs).cpu().detach().numpy()
         if len(labels) > 0:
-            labels = torch.cat(labels)
+            labels = torch.cat(labels).cpu().detach().numpy()
 
         if rank == 0:
             log.info('Finished prediction')
