@@ -41,18 +41,16 @@ class MnistResNet(ResNet):
 class TestController(unittest.TestCase):
     def test_mnist(self):
         # Creates task
-        classes = {
-            0: '/c/en/zero/n/wn/quantity',
-            1: '/c/en/one/n/wn/quantity',
-            2: '/c/en/two/n/wn/quantity',
-            3: '/c/en/three/n/wn/quantity',
-            4: '/c/en/four/n/wn/quantity',
-            5: '/c/en/five/n/wn/quantity',
-            6: '/c/en/six/n/wn/quantity',
-            7: '/c/en/seven/n/wn/quantity',
-            8: '/c/en/eight/n/wn/quantity',
-            9: '/c/en/nine/n/wn/quantity',
-        }
+        classes = ['/c/en/zero/n/wn/quantity',
+                   '/c/en/one/n/wn/quantity',
+                   '/c/en/two/n/wn/quantity',
+                   '/c/en/three/n/wn/quantity',
+                   '/c/en/four/n/wn/quantity',
+                   '/c/en/five/n/wn/quantity',
+                   '/c/en/six/n/wn/quantity',
+                   '/c/en/seven/n/wn/quantity',
+                   '/c/en/eight/n/wn/quantity',
+                   '/c/en/nine/n/wn/quantity']
 
         preprocess = transforms.Compose(
             [transforms.Grayscale(num_output_channels=3),
