@@ -361,13 +361,12 @@ class JPLRunner:
         current_dataset = session_status['current_dataset']
 
         self.jpl_storage.classes = current_dataset['classes']
-        print(self.jpl_storage.classes)
         self.jpl_storage.number_of_channels = current_dataset['number_of_channels']
 
         label_map = {}
-        sorted_class_names = self.jpl_storage.classes
-        for item in sorted_class_names:
-            label_map[item] = len(label_map)
+        class_names = self.jpl_storage.classes
+        for idx, item in enumerate(class_names):
+            label_map[item] = idx
 
         self.jpl_storage.label_map = label_map
 

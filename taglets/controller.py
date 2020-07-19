@@ -1,13 +1,29 @@
-
 from .data import SoftLabelDataset
 from .modules import FineTuneModule, PrototypeModule, TransferModule, MultiTaskModule
 from .pipeline import EndModel, TagletExecutor
 
 import labelmodels
 import logging
+import sys
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, ConcatDataset
+
+####################################################################
+# We configure logging in the main class of the application so that
+# subprocesses inherit the same configuration. This would have to be
+# redesigned if used as part of a larger application with its own
+# logging configuration
+####################################################################
+logger = logging.getLogger()
+logger.level = logging.INFO
+stream_handler = logging.StreamHandler(sys.stdout)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+stream_handler.setFormatter(formatter)
+logger.addHandler(stream_handler)
+####################################################################
+# End of logging configuration
+####################################################################
 
 log = logging.getLogger(__name__)
 
@@ -28,10 +44,10 @@ class Controller:
         Executes a training pipeline end-to-end, turning a Task into an EndModel
         :return: A trained EndModel
         """
-        # Creates data loaders
-        labeled = self._get_data_loader(self.task.get_labeled_train_data(), shuffle=True)
-        unlabeled = self._get_data_loader(self.task.get_unlabeled_train_data(), shuffle=False)
-        val = self._get_data_loader(self.task.get_validation_data(), shuffle=False)
+        # Gets datasets
+        labeled = self.task.get_labeled_train_data()
+        unlabeled = self.task.get_unlabeled_train_data()
+        val = self.task.get_validation_data()
 
         unlabeled_images_labels = []
         if unlabeled is not None:
@@ -72,11 +88,11 @@ class Controller:
         # Trains end model
         log.info("Training end model")
 
-        end_model_train_data_loader = self._combine_soft_labels(unlabeled_images_labels,
-                                                                self.task.get_unlabeled_train_data(),
-                                                                self.task.get_labeled_train_data())
+        end_model_train_data = self._combine_soft_labels(unlabeled_images_labels,
+                                                         self.task.get_unlabeled_train_data(),
+                                                         self.task.get_labeled_train_data())
         self.end_model = EndModel(self.task)
-        self.end_model.train(end_model_train_data_loader, val, self.use_gpu)
+        self.end_model.train(end_model_train_data, val, self.use_gpu)
         log.info("Finished training end model")
 
         return self.end_model
@@ -86,21 +102,8 @@ class Controller:
             return [TransferModule(task=self.task), FineTuneModule(task=self.task)]
             # return [FineTuneModule(task=self.task), PrototypeModule(task=self.task),
             # TransferModule(task=self.task), MultiTaskModule(task=self.task)]
-        return [FineTuneModule(task=self.task), PrototypeModule(task=self.task)]
-
-    def _get_data_loader(self, dataset, shuffle=True):
-        """
-        Creates a DataLoader for the given dataset
-
-        :param dataset: Dataset to wrap
-        :param shuffle: whether to shuffle the data
-        :return: the DataLoader
-        """
-        if dataset is not None:
-            return DataLoader(dataset, batch_size=self.batch_size,
-                            shuffle=shuffle, num_workers=self.num_workers)
-        else:
-            return None
+        #return [FineTuneModule(task=self.task), PrototypeModule(task=self.task)]
+        return [FineTuneModule(task=self.task)]
 
     def _train_label_model(self, vote_matrix):
         log.info("Training label model")
@@ -123,12 +126,7 @@ class Controller:
             new_unlabeled_dataset = SoftLabelDataset(unlabeled_dataset, weak_labels, remove_old_labels=False)
             end_model_train_data = ConcatDataset([new_labeled_dataset, new_unlabeled_dataset])
     
-        train_data = torch.utils.data.DataLoader(end_model_train_data,
-                                                 batch_size=self.batch_size,
-                                                 shuffle=True,
-                                                 num_workers=0)
-    
-        return train_data
+        return end_model_train_data
 
     def _get_majority(self, vote_matrix):
         weak_labels = []
