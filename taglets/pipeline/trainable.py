@@ -115,7 +115,7 @@ class Trainable:
                                                                rank=rank)
 
     def get_dataloader(self, data, sampler):
-        torch.utils.data.DataLoader(
+        return torch.utils.data.DataLoader(
             dataset=data, batch_size=self.batch_size, shuffle=False,
             num_workers=0, pin_memory=True, sampler=sampler
         )
