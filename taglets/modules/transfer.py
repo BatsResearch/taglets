@@ -55,11 +55,11 @@ class TransferTaglet(Taglet):
         image_paths = []
         image_labels = []
         visited = set()
-        for label in self.task.classes:
-            print(label)
+        for conceptnet_id in self.task.classes:
+            print(conceptnet_id)
             # target_node = Scads.get_conceptnet_id(label)
             # target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
-            target_node = Scads.get_conceptnet_id(label)
+            target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
 
             neighbors = [edge.get_end_node() for edge in target_node.get_neighbors()]
             #print('neighbors...')

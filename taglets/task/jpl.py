@@ -13,6 +13,7 @@ from ..data import CustomDataset
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
 from ..task import Task
 from ..controller import Controller
+from .utils import labels_to_concept_ids
 import linecache
 
 
@@ -426,7 +427,7 @@ class JPLRunner:
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num)
         unlabeled_dataset = self.jpl_storage.get_unlabeled_dataset()
         task = Task(self.jpl_storage.name,
-                    self.jpl_storage.classes, # TODO: Turn this into a list of ConceptNet IDs
+                    labels_to_concept_ids(self.jpl_storage.classes),
                     (224, 224),
                     labeled_dataset,
                     unlabeled_dataset,
