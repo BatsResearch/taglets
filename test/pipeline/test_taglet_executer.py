@@ -1,8 +1,8 @@
 import unittest
 import numpy as np
-from taglets.modules.module import TransferModule
+from taglets.modules import TransferModule
 from taglets.controller import Controller
-from taglets.taglet_executer import TagletExecutor
+from taglets.pipeline.taglet_executer import TagletExecutor
 
 
 class TestTagletExecuter(unittest.TestCase):
