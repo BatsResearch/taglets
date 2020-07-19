@@ -5,23 +5,60 @@ import os
 import logging
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
+from .fewshot_utils import CategoriesSampler, get_label_distr, get_label_distr_stats
+from torch.utils.data import DataLoader
 
 log = logging.getLogger(__name__)
+
+
+def euclidean_metric(a, b):
+    n = a.shape[0]
+    m = b.shape[0]
+    a = a.unsqueeze(1).expand(n, m, -1)
+    b = b.unsqueeze(0).expand(n, m, -1)
+    return -((a - b) ** 2).sum(dim=2)
+
+
+def count_acc(logits, label):
+    pred = torch.argmax(logits, dim=1)
+    if torch.cuda.is_available():
+        return (pred == label).type(torch.cuda.FloatTensor).mean().item()
+    else:
+        return (pred == label).type(torch.FloatTensor).mean().item()
+
+
+class Flatten(torch.nn.Module):
+    def forward(self, x):
+        batch_size = x.shape[0]
+        return x.view(batch_size, -1)
 
 
 class PrototypeModule(Module):
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [PrototypeTaglet(task)]
+        self.taglets = [PrototypeTaglet(task, train_shot=5, train_way=30, query=15, use_scads=False)]
 
 
 class PrototypeTaglet(Taglet):
-    def __init__(self, task, few_shot_support=1):
+    def __init__(self, task, train_shot, train_way, query, val_shot=None, val_way=None, use_scads=True):
         super().__init__(task)
         self.name = 'prototype'
-        self.few_shot_support = few_shot_support
-        output_shape = self._get_model_output_shape(self.task.input_shape, self.model)
-        self.classifier = Linear(output_shape, len(self.task.classes))
+
+        self.model = nn.Sequential(self.model, Flatten())
+
+        # when testing, these parameters matter less
+        self.train_shot = train_shot
+        self.train_way = train_way
+        self.query = query
+
+        if val_shot is None:
+            self.val_shot = train_shot
+
+        if val_way is None:
+            self.val_way = train_way
+
         self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
@@ -31,64 +68,107 @@ class PrototypeTaglet(Taglet):
         for param in self.model.parameters():
             if param.requires_grad:
                 params_to_update.append(param)
-        for param in self.classifier.parameters():
-            if param.requires_grad:
-                params_to_update.append(param)
+
         self._params_to_update = params_to_update
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
-    @staticmethod
-    def euclidean_metric(a, b):
-        n = a.shape[0]
-        m = b.shape[0]
-        a = a.unsqueeze(1).expand(n, m, -1)
-        b = b.unsqueeze(0).expand(n, m, -1)
-        return torch.pow(a - b, 2).sum(2)
+        self.use_scads = use_scads
+        self.abstain = False
 
     def onn(self, i):
-        dist = float("Inf")
-        lab = ''
-        for key, item in self.prototypes.items():
-            prototype = item[0]
-            rel_dist = PrototypeTaglet.euclidean_metric(prototype, i)
-            if rel_dist < dist:
+        min_dist = None
+        lab = None
+        for key, proto in self.prototypes.items():
+            rel_dist = euclidean_metric(proto, i)
+            if min_dist is None or rel_dist < min_dist:
                 dist = rel_dist
-                lab = key
+                lab = key + 1
+
+        if min_dist is None:
+            log.warning('No prototypes found! Abstaining from labeling.')
+            lab = 0
         return lab
 
-    def train(self, train_data_loader, val_data_loader, use_gpu):
-        """
-        For 1-shot, use initial model
-        """
+    def train(self, train_dataset, val_dataset, use_gpu):
+        if len(train_dataset) == 0:
+            log.debug('train -> train dataset is empty! abstaining from labeling.')
+            self.abstain = True
+            return
 
-        if use_gpu:
-            self.model = self.model.cuda()
-            self.classifier = self.classifier.cuda()
+        # TODO: swap this when using steve's parallel solution
+        device = torch.device('cuda:0' if torch.cuda.is_available() and use_gpu else 'cpu')
+        self.model.to(device)
+
+        if self.use_scads:
+            # merge val_dataset in train_dataset
+            # train_dataset
+            pass
         else:
-            self.model = self.model.cpu()
-            self.classifier = self.classifier.cpu()
+            base_dataset = train_dataset
+            infer_dataset = train_dataset
+
+        perform_validation = True
+        base_label_distr = get_label_distr_stats(base_dataset.labels)
+        _, base_min_labels = get_label_distr_stats(base_label_distr)
+
+        if len(base_label_distr.keys()) < self.train_way:
+            log.warning('Base dataset is too small for selected way (%d). Dataset contains %d classes'
+                      % (self.train_way, len(base_label_distr.keys())))
+            self.abstain = True
+            return
+
+        if base_min_labels < self.query + self.train_shot:
+            log.warning('Base dataset is too small for selected shot (%d) and query (%d). '
+                             'Smallest class contains %d points.' % (self.train_shot, self.query, base_min_labels))
+            self.abstain = True
+            return
+
+        if val_dataset is not None:
+            val_label_distr = get_label_distr(val_dataset.labels)
+            _, val_min_labels = get_label_distr_stats(val_label_distr)
+
+            if len(val_label_distr.keys()) < self.val_way:
+                log.error('Validation dataset is too small for selected way (%d). Dataset contains %d classes'
+                          % (self.val_way, len(val_label_distr.keys())))
+                perform_validation = False
+
+            if val_min_labels < self.query + self.train_shot:
+                log.error('Validation dataset is too small for selected shot (%d) and query (%d). '
+                          'Smallest class contains %d points.' % (self.val_shot, self.query, val_min_labels))
+                perform_validation = False
+        else:
+            perform_validation = False
+
+        # TODO: replace with base_dataset and tune n_batch
+        base_sampler = CategoriesSampler(label=base_dataset.labels, n_batch=50, n_cls=self.train_way,
+                                          n_per=self.train_shot + self.query)
+        # TODO: tune num_workers
+        base_dataloader = DataLoader(dataset=base_dataset, batch_sampler=base_sampler, num_workers=0, pin_memory=True)
+
+        if perform_validation:
+            val_sampler = CategoriesSampler(label=val_dataset.labels, n_batch=100, n_cls=self.val_way,
+                                        n_per=self.val_shot + self.query)
+            val_dataloader = DataLoader(dataset=val_dataset, batch_sampler=val_sampler, num_workers=0, pin_memory=True)
 
         best_model_to_save = None
         for epoch in range(self.num_epochs):
             log.info('epoch: {}'.format(epoch))
+            if self.lr_scheduler:
+                self.lr_scheduler.step()
 
             # Train on training data
-            train_loss = self._train_epoch(train_data_loader, use_gpu)
+            train_loss = self._train_epoch(base_dataloader, use_gpu)
             log.info('train loss: {:.4f}'.format(train_loss))
 
-            # Evaluation on validation data
-            # Evaluation on validation data
-            if not val_data_loader:
+            if not perform_validation:
                 val_loss = 0
                 val_acc = 0
                 continue
-            val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu)
-            log.info('validation loss: {:.4f}'.format(val_loss))
-            log.info('validation acc: {:.4f}%'.format(val_acc*100))
 
-            if self.lr_scheduler:
-                self.lr_scheduler.step()
+            val_loss, val_acc = self._validate_epoch(val_dataloader, use_gpu)
+            log.info('validation loss: {:.4f}'.format(val_loss))
+            log.info('validation acc: {:.4f}%'.format(val_acc * 100))
 
             if val_acc > self._best_val_acc:
                 log.info("Deep copying new best model." +
@@ -108,8 +188,9 @@ class PrototypeTaglet(Taglet):
 
         self.model.eval()
 
+        # TODO: potentially speed this up
         self.prototypes = {}
-        for data in train_data_loader:
+        for data in infer_dataset:
             with torch.set_grad_enabled(False):
                 image, label = data[0], data[1]
                 # Memorize
@@ -121,12 +202,15 @@ class PrototypeTaglet(Taglet):
                     proto = self.model(torch.unsqueeze(img, dim=0))
                     lbl = int(lbl.item())
                     try:
-                        # 1-shot only no thoughts
                         self.prototypes[lbl].append(proto)
                     except:
                         self.prototypes[lbl] = [proto]
 
-    def _train_epoch(self, train_data_loader, use_gpu):
+            # form centroids
+            for key, values in self.prototypes.items():
+                self.prototypes[key] = torch.stack(values).mean(dim=0)
+
+    def _train_epoch(self, base_dataloader, use_gpu):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data
@@ -134,63 +218,82 @@ class PrototypeTaglet(Taglet):
         :return: None
         """
         self.model.train()
-        self.classifier.train()
-        running_loss = 0
-        for batch_idx, batch in enumerate(train_data_loader):
-            inputs = batch[0]
-            labels = batch[1]
-            if use_gpu:
-                inputs = inputs.cuda()
-                labels = labels.cuda()
+        label = torch.arange(self.train_way).repeat(self.query)
+        use_gpu = use_gpu and torch.cuda.is_available()
+
+        if use_gpu:
+            label = label.type(torch.cuda.LongTensor)
+        else:
+            label = label.type(torch.LongTensor)
+
+        running_loss = 0.0
+        count = 0
+        for i, batch in enumerate(base_dataloader, 1):
+            count += 1
+            if torch.cuda.is_available():
+                data, _ = [_.cuda() for _ in batch]
+            else:
+                data = batch[0]
+
+            p = self.train_way * self.train_shot
+            data_shot, data_query = data[:p], data[p:]
+
+            # calculate barycenter for each class
+            proto = self.model(data_shot).reshape(self.train_shot, self.train_way, -1).mean(dim=0)
+            query_proto = self.model(data_query)
+
+            logits = euclidean_metric(query_proto, proto)
+            loss = F.cross_entropy(logits, label)
 
             self.optimizer.zero_grad()
-            with torch.set_grad_enabled(True):
-                representation = self.model(inputs)
-                outputs = self.classifier(representation)
-                loss = self.criterion(outputs, labels)
-                loss.backward()
-                self.optimizer.step()
+            loss.backward()
+            self.optimizer.step()
 
             running_loss += loss.item()
-
-        epoch_loss = running_loss / len(train_data_loader.dataset)
+        epoch_loss = running_loss / count
         return epoch_loss
 
     def _validate_epoch(self, val_data_loader, use_gpu):
-        """
-        Validate for one epoch.
-        :param val_data_loader: A dataloader containing validation data
-        :return: None
-        """
         self.model.eval()
-        self.classifier.eval()
-        running_loss = 0
-        running_acc = 0
-        for batch_idx, batch in enumerate(val_data_loader):
+        label = torch.arange(self.val_way).repeat(self.query)
+        use_gpu = use_gpu and torch.cuda.is_available()
 
-            inputs = batch[0]
-            labels = batch[1]
-            if use_gpu:
-                inputs = inputs.cuda()
-                labels = labels.cuda()
-            with torch.set_grad_enabled(False):
-                representation = self.model(inputs)
-                outputs = self.classifier(representation)
-                loss = self.criterion(outputs, labels)
-                _, preds = torch.max(outputs, 1)
+        if use_gpu:
+            label = label.type(torch.cuda.LongTensor)
+        else:
+            label = label.type(torch.LongTensor)
+
+        running_loss = 0.0
+        running_acc = 0.0
+        count = 0
+        for i, batch in enumerate(val_data_loader, 1):
+            count += 1
+            if torch.cuda.is_available():
+                data, _ = [_.cuda() for _ in batch]
+            else:
+                data = batch[0]
+
+            p = self.val_shot * self.val_way
+            data_shot, data_query = data[:p], data[p:]
+
+            # calculate barycenter for each class
+            proto = self.model(data_shot).reshape(self.val_shot, self.val_way, -1).mean(dim=0)
+            query_proto = self.model(data_query)
+
+            logits = euclidean_metric(query_proto, proto)
+            loss = F.cross_entropy(logits, label)
 
             running_loss += loss.item()
-            running_acc += torch.sum(preds == labels)
-        epoch_loss = running_loss / len(val_data_loader.dataset)
-        epoch_acc = running_acc.item() / len(val_data_loader.dataset)
+            running_acc += count_acc(logits, label)
+
+        epoch_loss = running_loss / count
+        epoch_acc = running_acc / count
         return epoch_loss, epoch_acc
 
     def execute(self, unlabeled_data_loader, use_gpu):
         self.model.eval()
-        if use_gpu:
-            self.model = self.model.cuda()
-        else:
-            self.model = self.model.cpu()
+        device = torch.device('cuda:0' if torch.cuda.is_available() and use_gpu else 'cpu')
+        self.model.to(device)
 
         predicted_labels = []
         for inputs in unlabeled_data_loader:
@@ -201,40 +304,6 @@ class PrototypeTaglet(Taglet):
                     data = torch.unsqueeze(data, dim=0)
                     proto = self.model(data)
                     prediction = self.onn(proto)
+                    # add one to label since label of 0 represents abstaining
                     predicted_labels.append(prediction)
         return predicted_labels
-
-
-class Linear(nn.Module):
-    def __init__(self, in_feature=64, out_feature=10):
-        super().__init__()
-        self.classifier = nn.Sequential(nn.Linear(in_feature, out_feature))
-
-    def forward(self, x):
-        x = self.classifier(x)
-        return x
-
-
-class ConvEncoder(nn.Module):
-    def __init__(self, x_dim=3, hid_dim=64, z_dim=64):
-        super().__init__()
-        self.encoder = nn.Sequential(
-            self.conv_block(x_dim, hid_dim),
-            self.conv_block(hid_dim, hid_dim),
-            self.conv_block(hid_dim, hid_dim),
-            self.conv_block(hid_dim, z_dim),
-        )
-
-    def forward(self, x):
-        x = self.encoder(x)
-        return x.view(x.size(0), -1)
-
-    def conv_block(self, in_channels, out_channels):
-        bn = nn.BatchNorm2d(out_channels)
-        nn.init.uniform_(bn.weight)  # For pytorch 1.2 or later
-        return nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 3, padding=1),
-            bn,
-            nn.ReLU(),
-            nn.MaxPool2d(2)
-        )

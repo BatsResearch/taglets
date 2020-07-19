@@ -28,7 +28,7 @@ class Task:
         self.scads_path = scads_path
 
         self.initial = models.resnet18(pretrained=True)
-        self.initial.fc = torch.nn.Identity()
+
         self.whitelist = whitelist
         self.train_label_distr = Task._build_label_distr(self.labeled_train_data)
         self.validation_label_distr = Task._build_label_distr(self.validation_data)
