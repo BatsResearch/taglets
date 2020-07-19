@@ -88,11 +88,11 @@ class Controller:
         # Trains end model
         log.info("Training end model")
 
-        end_model_train_data_loader = self._combine_soft_labels(unlabeled_images_labels,
-                                                                self.task.get_unlabeled_train_data(),
-                                                                self.task.get_labeled_train_data())
+        end_model_train_data = self._combine_soft_labels(unlabeled_images_labels,
+                                                         self.task.get_unlabeled_train_data(),
+                                                         self.task.get_labeled_train_data())
         self.end_model = EndModel(self.task)
-        self.end_model.train(end_model_train_data_loader, val, self.use_gpu)
+        self.end_model.train(end_model_train_data, val, self.use_gpu)
         log.info("Finished training end model")
 
         return self.end_model
