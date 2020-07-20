@@ -52,23 +52,3 @@ class Scads:
         if not sql_node:
             raise Exception("Node not found.")
         return ScadsNode(sql_node, Scads.session)
-
-    @staticmethod
-    def get_conceptnet_id(concept_name):
-        """
-        Get a ScadsNode given a concept.
-        :return: The ScadsNode
-        """
-        if Scads.session is None:
-            raise RuntimeError("Session is not opened.")
-        try:
-            initial_uri = "/c/en/" + concept_name
-            sql_node = Scads.session.query(Node).filter(Node.conceptnet_id == initial_uri).all()
-            for sql  in sql_node:
-                print(sql.conceptnet_id)
-        except Exception as ex:
-            print(ex)
-            raise RuntimeError("Invalid database.")
-        if not sql_node:
-            raise Exception("Node not found.")
-        return ScadsNode(sql_node[0], Scads.session)

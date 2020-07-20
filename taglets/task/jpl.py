@@ -13,6 +13,7 @@ from ..data import CustomDataset
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
 from ..task import Task
 from ..controller import Controller
+from .utils import labels_to_concept_ids
 import linecache
 
 
@@ -360,13 +361,12 @@ class JPLRunner:
         current_dataset = session_status['current_dataset']
 
         self.jpl_storage.classes = current_dataset['classes']
-        print(self.jpl_storage.classes)
         self.jpl_storage.number_of_channels = current_dataset['number_of_channels']
 
         label_map = {}
-        sorted_class_names = self.jpl_storage.classes
-        for item in sorted_class_names:
-            label_map[item] = len(label_map)
+        class_names = self.jpl_storage.classes
+        for idx, item in enumerate(class_names):
+            label_map[item] = idx
 
         self.jpl_storage.label_map = label_map
 
@@ -427,7 +427,7 @@ class JPLRunner:
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num)
         unlabeled_dataset = self.jpl_storage.get_unlabeled_dataset()
         task = Task(self.jpl_storage.name,
-                    self.jpl_storage.classes,
+                    labels_to_concept_ids(self.jpl_storage.classes),
                     (224, 224),
                     labeled_dataset,
                     unlabeled_dataset,

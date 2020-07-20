@@ -3,8 +3,6 @@ from taglets.task import Task
 
 import unittest
 
-import logging
-import sys
 import torch
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
@@ -41,28 +39,18 @@ class MnistResNet(ResNet):
 
 
 class TestController(unittest.TestCase):
-    def setUp(self):
-        logger = logging.getLogger()
-        logger.level = logging.INFO
-        stream_handler = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
-        stream_handler.setFormatter(formatter)
-        logger.addHandler(stream_handler)
-
     def test_mnist(self):
         # Creates task
-        classes = {
-            0: '/c/en/zero/n/wn/quantity',
-            1: '/c/en/one/n/wn/quantity',
-            2: '/c/en/two/n/wn/quantity',
-            3: '/c/en/three/n/wn/quantity',
-            4: '/c/en/four/n/wn/quantity',
-            5: '/c/en/five/n/wn/quantity',
-            6: '/c/en/six/n/wn/quantity',
-            7: '/c/en/seven/n/wn/quantity',
-            8: '/c/en/eight/n/wn/quantity',
-            9: '/c/en/nine/n/wn/quantity',
-        }
+        classes = ['/c/en/zero/n/wn/quantity',
+                   '/c/en/one/n/wn/quantity',
+                   '/c/en/two/n/wn/quantity',
+                   '/c/en/three/n/wn/quantity',
+                   '/c/en/four/n/wn/quantity',
+                   '/c/en/five/n/wn/quantity',
+                   '/c/en/six/n/wn/quantity',
+                   '/c/en/seven/n/wn/quantity',
+                   '/c/en/eight/n/wn/quantity',
+                   '/c/en/nine/n/wn/quantity']
 
         preprocess = transforms.Compose(
             [transforms.Grayscale(num_output_channels=3),
@@ -83,7 +71,6 @@ class TestController(unittest.TestCase):
         # Evaluates end model
         mnist_test = MNIST('.', train=False, transform=preprocess, download=True)
         mnist_test = Subset(mnist_test, [i for i in range(1000)])
-        mnist_test = DataLoader(mnist_test, batch_size=32)
         self.assertGreater(end_model.evaluate(mnist_test, use_gpu=False), .9)
 
 
