@@ -199,10 +199,13 @@ class Trainable:
         val_loss_list = []
         val_acc_list = []
 
-        # Iterates over epochs
+        # Iterates over epochs()
         for epoch in range(self.num_epochs):
             if rank == 0:
                 log.info("Epoch {}: ".format(epoch + 1))
+
+            # this is necessary for shuffle to work
+            train_sampler.set_epoch(epoch)
 
             # Trains on training data
             train_loss, train_acc = self._train_epoch(train_data_loader, use_gpu)
