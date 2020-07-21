@@ -247,17 +247,18 @@ class ZeroShotTaglet(Taglet):
 
         return model
     
-    def _predict(self, loader, resnet, class_rep, use_gpu):
+    def _predict(self, loader, resnet, class_rep, use_gpu=False):
         predictions = []
         with torch.no_grad():
             for data in loader:
                 if use_gpu:
                     data = data.cuda()
-                else:
-                    data = data.cpu()
 
                 feat = resnet(data) # (batch_size, d)
-                feat = torch.cat([feat, torch.ones(len(feat)).view(-1, 1).cuda()], dim=1)
+                ones = torch.ones(len(feat)).view(-1, 1)
+                if use_gpu:
+                    ones = ones.cuda()
+                feat = torch.cat([feat, ones], dim=1)
 
                 logits = torch.matmul(feat, class_rep.t())
 
