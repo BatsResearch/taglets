@@ -37,7 +37,7 @@ log = logging.getLogger(__name__)
 class ZeroShotModule(Module):
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = []
+        self.taglets = [ZeroShotTaglet(task)]
 
 
 class ZeroShotTaglet(Taglet):
@@ -137,8 +137,7 @@ class ZeroShotTaglet(Taglet):
         b.requires_grad = False
         fc_vectors = torch.cat([w, b.unsqueeze(-1)], dim=1)
         fc_vectors = F.normalize(fc_vectors)
-
-    return fc_vectors
+        return fc_vectors
 
     def setup_gnn(self, graph_path, device):
         # load graph
@@ -150,7 +149,7 @@ class ZeroShotTaglet(Taglet):
         concept_path = os.path.join(graph_path, 'concepts.pt')
         init_feats = torch.load(concept_path)
 
-        model = TransformerConv(init_feats, adj_lists, device, self.options)
+        model = self._get_model(init_feats, adj_lists, device, self.options)
 
         return model
 
@@ -163,15 +162,15 @@ class ZeroShotTaglet(Taglet):
 
         # setup imagenet graph
         self.setup_imagenet_graph()
-
-        # setup test graph (this will be used later)
-        self.setup_test_graph()
         
         log.debug('loading pretrained resnet50 fc weights')
         fc_vectors = self.setup_fc()
         fc_vectors.to(device)
 
         self.model = self._train(fc_vectors, device)
+    
+    def _get_model(self, init_feats, adj_lists, device, options):
+        return TransformerConv(init_feats, adj_lists, device, self.options)
 
     def _train(self, fc_vectors, device):
         
@@ -248,7 +247,7 @@ class ZeroShotTaglet(Taglet):
 
         return model
     
-    def _predict(self, resnet, class_rep, use_gpu):
+    def _predict(self, loader, resnet, class_rep, use_gpu):
         predictions = []
         with torch.no_grad():
             for data in loader:
@@ -291,10 +290,13 @@ class ZeroShotTaglet(Taglet):
         else:
             device = torch.device('cpu')
 
-        self.model = self.setup_gnn(self.imagenet_graph_path, device)
+        # self.model = self.setup_gnn(self.imagenet_graph_path, device)
 
-        log.debug('loading trained model parameters for the gnn')
-        self.model.load_state_dict(torch.load(self.save_path))
+        # setup test graph (this will be used later)
+        self.setup_test_graph()
+
+        # log.debug('loading trained model parameters for the gnn')
+        # self.model.load_state_dict(torch.load(self.save_path))
 
         log.debug('change graph and conceptnet embs')
         self.model = self._switch_graph(self.model, self.test_graph_path)
@@ -312,6 +314,6 @@ class ZeroShotTaglet(Taglet):
 
         # 
         log.debug('predicting')
-        predictions = self._predict(resnet, class_rep, use_gpu)
+        predictions = self._predict(unlabeled_data_loader, resnet, class_rep, use_gpu)
 
         return predictions
