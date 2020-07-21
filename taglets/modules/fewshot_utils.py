@@ -1,6 +1,8 @@
 import torch
-import torch.nn as nn
 import numpy as np
+import logging
+
+log = logging.getLogger(__name__)
 
 
 # samples data in an episodic manner
@@ -53,3 +55,28 @@ def get_label_distr_stats(distr):
         if min_label is None or density < min_label:
             min_label = density
     return max_label, min_label
+
+
+def validate_few_shot_config(dataset_name, data_distr, shot, way, query):
+    """
+    validates that a dataset is sufficiently large for a given way / shot / query combination.
+
+    :param dataset_name: Name of the dataset to validate
+    :param data_distr: A label distribution returned from get_label_distr
+    :param shot: number of examples per class
+    :param way: number of classes per batch
+    :param query: number of test examples per class
+    return: whether the inputted few shot config is valid
+    """
+    if len(data_distr.keys()) < way:
+        log.warning('%s dataset is too small for selected way (%d). Dataset contains %d classes'
+                    % (dataset_name, way, len(data_distr.keys())))
+        return False
+
+    _, base_min_labels = get_label_distr_stats(data_distr)
+    if base_min_labels < query + shot:
+        log.warning('%s dataset is too small for selected shot (%d) and query (%d). '
+                    'Smallest class contains %d points.' %
+                    (dataset_name, shot, query, base_min_labels))
+        return False
+    return True

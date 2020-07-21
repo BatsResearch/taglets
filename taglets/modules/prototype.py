@@ -6,8 +6,10 @@ import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.multiprocessing as mp
 
-from .fewshot_utils import CategoriesSampler, get_label_distr, get_label_distr_stats
+from .fewshot_utils import CategoriesSampler, get_label_distr, \
+    get_label_distr_stats, validate_few_shot_config
 from torch.utils.data import DataLoader
 
 log = logging.getLogger(__name__)
@@ -35,6 +37,28 @@ class Flatten(torch.nn.Module):
         return x.view(batch_size, -1)
 
 
+# this is kind of a hack
+class NearestProtoModule(nn.Module):
+    #TODO: determine whether prototypes will be passed by reference or value
+    def __init__(self, prototypes, n_classes):
+        self.prototypes = prototypes
+        self.n_classes = n_classes
+        super(NearestProtoModule, self).__init__()
+
+    def forward(self, x):
+        if self.training:
+            return x
+        else:
+            batch_size = x.shape[0]
+            # +1 for abstaining
+            labels = torch.zeros((batch_size, self.n_classes + 1))
+            for i in range(batch_size):
+                # TODO: ensure x[i] is a vector
+                label = PrototypeTaglet.onn(x[i], prototypes=self.prototypes)
+                labels[label, label] = 1
+            return labels
+
+
 class PrototypeModule(Module):
     def __init__(self, task):
         super().__init__(task)
@@ -46,7 +70,9 @@ class PrototypeTaglet(Taglet):
         super().__init__(task)
         self.name = 'prototype'
 
-        self.model = nn.Sequential(self.model, Flatten())
+        self.model = nn.Sequential(self.model,
+                                   Flatten(),
+                                   NearestProtoModule(self.prototypes, len(task.classes)))
 
         # when testing, these parameters matter less
         self.train_shot = train_shot
@@ -76,13 +102,14 @@ class PrototypeTaglet(Taglet):
         self.use_scads = use_scads
         self.abstain = False
 
-    def onn(self, i):
+    @staticmethod
+    def onn(i, prototypes):
         min_dist = None
         lab = None
-        for key, proto in self.prototypes.items():
+        for key, proto in prototypes.items():
             rel_dist = euclidean_metric(proto, i)
             if min_dist is None or rel_dist < min_dist:
-                dist = rel_dist
+                min_dist = rel_dist
                 lab = key + 1
 
         if min_dist is None:
@@ -90,6 +117,76 @@ class PrototypeTaglet(Taglet):
             lab = 0
         return lab
 
+    def build_prototypes(self, infer_data, use_gpu):
+        self.model.eval()
+
+        infer_dataloader = DataLoader(dataset=infer_data, batch_size=self.batch_size,
+                                      num_workers=0, pin_memory=True)
+
+        device = torch.device('cuda:0' if torch.cuda.is_available() and use_gpu else 'cpu')
+        self.model.to(device)
+
+        # TODO: potentially speed this up
+        self.prototypes = {}
+        for data in infer_dataloader:
+            with torch.set_grad_enabled(False):
+                image, label = data[0], data[1]
+                # Memorize
+                if use_gpu:
+                    image = image.cuda()
+                    label = label.cuda()
+
+                for img, lbl in zip(image, label):
+                    proto = self.model(torch.unsqueeze(img, dim=0))
+                    lbl = int(lbl.item())
+                    try:
+                        self.prototypes[lbl].append(proto)
+                    except:
+                        self.prototypes[lbl] = [proto]
+
+            # form centroids
+            for key, values in self.prototypes.items():
+                self.prototypes[key] = torch.stack(values).mean(dim=0)
+
+    def train(self, train_data, val_data, use_gpu):
+        os.environ['MASTER_ADDR'] = '127.0.0.1'
+        os.environ['MASTER_PORT'] = '8888'
+
+        if len(train_data) == 0:
+            log.debug('train dataset is empty! abstaining from labeling.')
+            self.abstain = True
+
+        infer_data = None
+        if self.use_scads:
+            # merge val_data with train_data to form infer_data
+            # Imagenet 1K is used as a base dataset and partitioned in train / val
+            pass
+        else:
+            # use training data to build class prototypes
+            infer_data = train_data
+
+        # validate that train / val datasets are sufficiently large given shot / way
+        train_label_distr = get_label_distr(train_data.labels)
+        if not validate_few_shot_config('Train', train_label_distr, shot=self.train_shot,
+                                        way=self.train_way, query=self.query):
+            self.abstain = True
+            return
+
+        if val_data is not None:
+            val_label_distr = get_label_distr(val_data.labels)
+
+            if not validate_few_shot_config('Train', val_label_distr, shot=self.val_shot,
+                                            way=self.val_way, query=self.query):
+                self.abstain = True
+                val_data = None
+
+        args = (self, train_data, val_data, use_gpu, self.n_proc)
+        mp.spawn(self._do_train, nprocs=self.n_proc, args=args)
+
+        # after child training processes are done (waitpid!), construct prototypes
+        self.build_prototypes(infer_data, use_gpu=use_gpu)
+
+    '''
     def train(self, train_dataset, val_dataset, use_gpu):
         if len(train_dataset) == 0:
             log.debug('train -> train dataset is empty! abstaining from labeling.')
@@ -209,6 +306,7 @@ class PrototypeTaglet(Taglet):
             # form centroids
             for key, values in self.prototypes.items():
                 self.prototypes[key] = torch.stack(values).mean(dim=0)
+    '''
 
     def _train_epoch(self, base_dataloader, use_gpu):
         """
@@ -289,21 +387,3 @@ class PrototypeTaglet(Taglet):
         epoch_loss = running_loss / count
         epoch_acc = running_acc / count
         return epoch_loss, epoch_acc
-
-    def execute(self, unlabeled_data_loader, use_gpu):
-        self.model.eval()
-        device = torch.device('cuda:0' if torch.cuda.is_available() and use_gpu else 'cpu')
-        self.model.to(device)
-
-        predicted_labels = []
-        for inputs in unlabeled_data_loader:
-            if use_gpu:
-                inputs = inputs.cuda()
-            with torch.set_grad_enabled(False):
-                for data in inputs:
-                    data = torch.unsqueeze(data, dim=0)
-                    proto = self.model(data)
-                    prediction = self.onn(proto)
-                    # add one to label since label of 0 represents abstaining
-                    predicted_labels.append(prediction)
-        return predicted_labels
