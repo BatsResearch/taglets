@@ -187,11 +187,11 @@ class Trainable:
             )
 
         # Creates distributed data loaders from datasets
-        train_sampler = Trainable._get_train_sampler(train_data, n_proc=n_proc, rank=rank)
-        train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler)
+        train_sampler = Trainable.get_batch_sampler(train_data, n_proc=n_proc, rank=rank)
+        train_data_loader = self.get_dataloader(data=train_data, sampler=train_sampler)
 
-        val_sampler = Trainable._get_train_sampler(val_data, n_proc=n_proc, rank=rank)
-        val_data_loader = self._get_dtaloader(data=val_data, sampler=val_sampler)
+        val_sampler = Trainable.get_batch_sampler(val_data, n_proc=n_proc, rank=rank)
+        val_data_loader = self.get_dataloader(data=val_data, sampler=val_sampler)
 
         # Initializes statistics containers (will only be filled by lead process)
         best_model_to_save = None
