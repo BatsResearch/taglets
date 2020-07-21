@@ -1,6 +1,5 @@
 from taglets.controller import Controller
 from taglets.task import Task
-
 import unittest
 
 import torch
@@ -38,6 +37,19 @@ class MnistResNet(ResNet):
         self.fc = torch.nn.Identity()
 
 
+class LabeledSubset(Dataset):
+    def __init__(self, dataset, labels, indices):
+        self.dataset = dataset
+        self.labels = labels[indices]
+        self.indices = indices
+
+    def __getitem__(self, idx):
+        return self.dataset[self.indices[idx]]
+
+    def __len__(self):
+        return len(self.indices)
+
+
 class TestController(unittest.TestCase):
     def test_mnist(self):
         # Creates task
@@ -57,12 +69,15 @@ class TestController(unittest.TestCase):
              transforms.ToTensor()])
 
         mnist = MNIST('.', train=True, transform=preprocess, download=True)
+
         size = int(len(mnist) / 50)
-        labeled = Subset(mnist, [i for i in range(size)])
+        labeled = LabeledSubset(mnist, mnist.targets, [i for i in range(size)])
         unlabeled = HiddenLabelDataset(Subset(mnist, [i for i in range(size, 2 * size)]))
+
         val = Subset(mnist, [i for i in range(2 * size, 3 * size)])
         task = Task("mnist-test", classes, (28, 28), labeled, unlabeled, val)
         task.set_initial_model(MnistResNet())
+
 
         # Executes task
         controller = Controller(task, use_gpu=False)
@@ -72,7 +87,6 @@ class TestController(unittest.TestCase):
         mnist_test = MNIST('.', train=False, transform=preprocess, download=True)
         mnist_test = Subset(mnist_test, [i for i in range(1000)])
         self.assertGreater(end_model.evaluate(mnist_test, use_gpu=False), .9)
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,5 +1,5 @@
 from .data import SoftLabelDataset
-from .modules import FineTuneModule, PrototypeModule, TransferModule, MultiTaskModule
+from .modules import FineTuneModule, PrototypeModule, TransferModule, MultiTaskModule, HyperbolicProtoModule
 from .pipeline import EndModel, TagletExecutor
 
 import labelmodels
@@ -53,6 +53,7 @@ class Controller:
         if unlabeled is not None:
             # Initializes taglet-creating modules
             modules = self._get_taglets_modules()
+
             for module in modules:
                 log.info("Training %s module", module.__class__.__name__)
                 module.train_taglets(labeled, val, self.use_gpu)
@@ -68,8 +69,9 @@ class Controller:
             # Executes taglets
             log.info("Executing taglets")
             vote_matrix = taglet_executor.execute(unlabeled, self.use_gpu)
-            # # plus 1 because labelmodel 1-based indexing (0 is for restraining from voting)
+          # plus 1 because labelmodel 1-based indexing (0 is for restraining from voting)
             # vote_matrix += 1
+
             log.info("Finished executing taglets")
     
             # # Learns label model
@@ -94,7 +96,6 @@ class Controller:
         self.end_model = EndModel(self.task)
         self.end_model.train(end_model_train_data, val, self.use_gpu)
         log.info("Finished training end model")
-
         return self.end_model
 
     def _get_taglets_modules(self):

@@ -9,6 +9,7 @@ class Task:
     """
     def __init__(self, name, classes, input_shape, labeled_train_data, unlabeled_train_data, validation_data,
                  whitelist=None, scads_path=None):
+
         """
         Create a new Task
 
@@ -30,8 +31,6 @@ class Task:
         self.initial = models.resnet18(pretrained=True)
 
         self.whitelist = whitelist
-        self.train_label_distr = Task._build_label_distr(self.labeled_train_data)
-        self.validation_label_distr = Task._build_label_distr(self.validation_data)
 
     @staticmethod
     def _build_label_distr(dataset):
@@ -53,20 +52,11 @@ class Task:
     def get_labeled_train_data(self):
         return self.labeled_train_data
 
-    def get_train_label_distr(self):
-        return self.train_label_distr
-
-    def get_train_labels(self):
-        return [int(x) for x in self.labeled_train_data.labels]
-
     def get_unlabeled_train_data(self):
         return self.unlabeled_train_data
 
     def get_validation_data(self):
         return self.validation_data
-
-    def get_validation_label_distr(self):
-        return self.validation_label_distr
 
     def get_validation_labels(self):
         return [int(x) for x in self.validation_data.labels]
