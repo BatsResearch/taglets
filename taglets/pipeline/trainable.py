@@ -199,7 +199,7 @@ class Trainable:
         val_loss_list = []
         val_acc_list = []
 
-        # Iterates over epochs()
+        # Iterates over epochs
         for epoch in range(self.num_epochs):
             if rank == 0:
                 log.info("Epoch {}: ".format(epoch + 1))
