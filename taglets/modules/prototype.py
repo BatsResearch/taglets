@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.multiprocessing as mp
 
-from .fewshot_utils import CategoriesSampler, get_label_distr, \
+from .fewshot_utils import DistributedCategoriesSampler, get_label_distr, \
     get_label_distr_stats, validate_few_shot_config
 from torch.utils.data import DataLoader
 
@@ -62,14 +62,16 @@ class NearestProtoModule(nn.Module):
 class PrototypeModule(Module):
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [PrototypeTaglet(task, train_shot=5, train_way=30, query=15, use_scads=False)]
+        episodes = 200 if not os.environ.get("CI") else 5
+        self.taglets = [PrototypeTaglet(task, train_shot=5, train_way=30,
+                                        query=15, episodes=episodes, use_scads=False)]
 
 
 class PrototypeTaglet(Taglet):
-    def __init__(self, task, train_shot, train_way, query, val_shot=None, val_way=None, use_scads=True):
+    def __init__(self, task, train_shot, train_way, query, episodes, val_shot=None, val_way=None, use_scads=True):
         super().__init__(task)
         self.name = 'prototype'
-
+        self.episodes = episodes
         self.model = nn.Sequential(self.model,
                                    Flatten(),
                                    NearestProtoModule(self.prototypes, len(task.classes)))
@@ -116,6 +118,26 @@ class PrototypeTaglet(Taglet):
             log.warning('No prototypes found! Abstaining from labeling.')
             lab = 0
         return lab
+
+    def _get_train_sampler(self, data, n_proc, rank):
+        return DistributedCategoriesSampler(num_replicas=n_proc,
+                                            labels=data.labels,
+                                            n_episodes=self.episodes,
+                                            n_cls=self.train_way,
+                                            n_per=self.train_shot + self.query)
+
+    def _get_val_sampler(self, data, n_proc, rank):
+        return DistributedCategoriesSampler(num_replicas=n_proc,
+                                            labels=data.labels,
+                                            n_episodes=self.episodes,
+                                            n_cls=self.val_way,
+                                            n_per=self.val_shot + self.query)
+
+    def _get_dataloader(self, data, sampler):
+        return torch.utils.data.DataLoader(
+            dataset=data, shuffle=False,
+            num_workers=0, pin_memory=True, sampler=sampler
+        )
 
     def build_prototypes(self, infer_data, use_gpu):
         self.model.eval()
@@ -175,7 +197,7 @@ class PrototypeTaglet(Taglet):
         if val_data is not None:
             val_label_distr = get_label_distr(val_data.labels)
 
-            if not validate_few_shot_config('Train', val_label_distr, shot=self.val_shot,
+            if not validate_few_shot_config('Val', val_label_distr, shot=self.val_shot,
                                             way=self.val_way, query=self.query):
                 self.abstain = True
                 val_data = None
@@ -185,128 +207,6 @@ class PrototypeTaglet(Taglet):
 
         # after child training processes are done (waitpid!), construct prototypes
         self.build_prototypes(infer_data, use_gpu=use_gpu)
-
-    '''
-    def train(self, train_dataset, val_dataset, use_gpu):
-        if len(train_dataset) == 0:
-            log.debug('train -> train dataset is empty! abstaining from labeling.')
-            self.abstain = True
-            return
-
-        # TODO: swap this when using steve's parallel solution
-        device = torch.device('cuda:0' if torch.cuda.is_available() and use_gpu else 'cpu')
-        self.model.to(device)
-
-        if self.use_scads:
-            # merge val_dataset in train_dataset
-            # train_dataset
-            pass
-        else:
-            base_dataset = train_dataset
-            infer_dataset = train_dataset
-
-        perform_validation = True
-        base_label_distr = get_label_distr_stats(base_dataset.labels)
-        _, base_min_labels = get_label_distr_stats(base_label_distr)
-
-        if len(base_label_distr.keys()) < self.train_way:
-            log.warning('Base dataset is too small for selected way (%d). Dataset contains %d classes'
-                      % (self.train_way, len(base_label_distr.keys())))
-            self.abstain = True
-            return
-
-        if base_min_labels < self.query + self.train_shot:
-            log.warning('Base dataset is too small for selected shot (%d) and query (%d). '
-                             'Smallest class contains %d points.' % (self.train_shot, self.query, base_min_labels))
-            self.abstain = True
-            return
-
-        if val_dataset is not None:
-            val_label_distr = get_label_distr(val_dataset.labels)
-            _, val_min_labels = get_label_distr_stats(val_label_distr)
-
-            if len(val_label_distr.keys()) < self.val_way:
-                log.error('Validation dataset is too small for selected way (%d). Dataset contains %d classes'
-                          % (self.val_way, len(val_label_distr.keys())))
-                perform_validation = False
-
-            if val_min_labels < self.query + self.train_shot:
-                log.error('Validation dataset is too small for selected shot (%d) and query (%d). '
-                          'Smallest class contains %d points.' % (self.val_shot, self.query, val_min_labels))
-                perform_validation = False
-        else:
-            perform_validation = False
-
-        # TODO: replace with base_dataset and tune n_batch
-        base_sampler = CategoriesSampler(label=base_dataset.labels, n_batch=50, n_cls=self.train_way,
-                                          n_per=self.train_shot + self.query)
-        # TODO: tune num_workers
-        base_dataloader = DataLoader(dataset=base_dataset, batch_sampler=base_sampler, num_workers=0, pin_memory=True)
-
-        if perform_validation:
-            val_sampler = CategoriesSampler(label=val_dataset.labels, n_batch=100, n_cls=self.val_way,
-                                        n_per=self.val_shot + self.query)
-            val_dataloader = DataLoader(dataset=val_dataset, batch_sampler=val_sampler, num_workers=0, pin_memory=True)
-
-        best_model_to_save = None
-        for epoch in range(self.num_epochs):
-            log.info('epoch: {}'.format(epoch))
-            if self.lr_scheduler:
-                self.lr_scheduler.step()
-
-            # Train on training data
-            train_loss = self._train_epoch(base_dataloader, use_gpu)
-            log.info('train loss: {:.4f}'.format(train_loss))
-
-            if not perform_validation:
-                val_loss = 0
-                val_acc = 0
-                continue
-
-            val_loss, val_acc = self._validate_epoch(val_dataloader, use_gpu)
-            log.info('validation loss: {:.4f}'.format(val_loss))
-            log.info('validation acc: {:.4f}%'.format(val_acc * 100))
-
-            if val_acc > self._best_val_acc:
-                log.info("Deep copying new best model." +
-                         "(validation of {:.4f}%, over {:.4f}%)".format(val_acc, self._best_val_acc))
-                self._best_val_acc = val_acc
-                best_model_to_save = copy.deepcopy(self.model.state_dict())
-                torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
-
-        log.info("Epoch {} result: ".format(epoch + 1))
-        log.info("Average training loss: {:.4f}".format(train_loss))
-        log.info("Average validation loss: {:.4f}".format(val_loss))
-        log.info("Average validation accuracy: {:.4f}%".format(val_acc * 100))
-
-        if self.select_on_val and best_model_to_save:
-            # Reloads best model weights
-            self.model.load_state_dict(best_model_to_save)
-
-        self.model.eval()
-
-        # TODO: potentially speed this up
-        self.prototypes = {}
-        for data in infer_dataset:
-            with torch.set_grad_enabled(False):
-                image, label = data[0], data[1]
-                # Memorize
-                if use_gpu:
-                    image = image.cuda()
-                    label = label.cuda()
-
-                for img, lbl in zip(image, label):
-                    proto = self.model(torch.unsqueeze(img, dim=0))
-                    lbl = int(lbl.item())
-                    try:
-                        self.prototypes[lbl].append(proto)
-                    except:
-                        self.prototypes[lbl] = [proto]
-
-            # form centroids
-            for key, values in self.prototypes.items():
-                self.prototypes[key] = torch.stack(values).mean(dim=0)
-    '''
 
     def _train_epoch(self, base_dataloader, use_gpu):
         """

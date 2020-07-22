@@ -1,29 +1,35 @@
 import torch
 import numpy as np
 import logging
+import math
+
+from torch.utils.data import Sampler
 
 log = logging.getLogger(__name__)
 
 
 # samples data in an episodic manner
-class CategoriesSampler:
-    def __init__(self, label, n_batch, n_cls, n_per):
-        self.n_batch = n_batch
+class CategoriesSampler(Sampler):
+    def __init__(self, labels, n_episodes, n_cls, n_per):
+        super().__init__(labels)
+        self.n_episodes = n_episodes
+        # number of classes in dataset
         self.n_cls = n_cls
+        # number of examples per class to be extracted
         self.n_per = n_per
 
-        label = np.array(label)
+        labels = np.array(labels)
         self.m_ind = []
-        for i in range(max(label) + 1):
-            ind = np.argwhere(label == i).reshape(-1)
+        for i in range(max(labels) + 1):
+            ind = np.argwhere(labels == i).reshape(-1)
             ind = torch.from_numpy(ind)
             self.m_ind.append(ind)
 
     def __len__(self):
-        return self.n_batch
+        return self.n_episodes
 
     def __iter__(self):
-        for i_batch in range(self.n_batch):
+        for i_batch in range(self.n_episodes):
             batch = []
             classes = torch.randperm(len(self.m_ind))[: self.n_cls]
             for c in classes:
@@ -32,6 +38,19 @@ class CategoriesSampler:
                 batch.append(l[pos])
             batch = torch.stack(batch).t().reshape(-1)
             yield batch
+
+
+class DistributedCategoriesSampler(CategoriesSampler):
+    def __init__(self, num_replicas, labels, n_episodes, n_cls, n_per):
+        n_episodes_per_proc = int(math.ceil(n_episodes * 1.0 / num_replicas))
+        super(DistributedCategoriesSampler, self).__init__(labels=labels,
+                                                           n_episodes=n_episodes_per_proc,
+                                                           n_cls=n_cls,
+                                                           n_per=n_per)
+
+    # this is required for training, but we already perform shuffling automatically
+    def set_epoch(self, epoch):
+        pass
 
 
 def get_label_distr(labels):
