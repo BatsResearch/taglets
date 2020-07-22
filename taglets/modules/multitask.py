@@ -15,19 +15,43 @@ import torch.nn as nn
 
 log = logging.getLogger(__name__)
 
-
 class MultiTaskModel(nn.Module):
-    def __init__(self, model, num_target, num_source):
+    def __init__(self, model, num_target, num_source,input_shape):
         super().__init__()
         self.model = model
-        self.model.fc = torch.nn.Linear(self.model.fc.in_features, self.model.fc.in_features)
-        self.fc_target = torch.nn.Linear(self.model.fc.in_features, num_target)
-        self.fc_source = torch.nn.Linear(self.model.fc.in_features, num_source)
+        # self.model.fc = torch.nn.Linear(self.model.fc.in_features, self.model.fc.in_features)
+        self.num_target= num_target
+        self.num_source = num_source
+        self.base = nn.Sequential(*list(self.model.children())[:-1])
+        # m = torch.nn.Sequential(*list(self.model.children())[:-1])
+        output_shape = self._get_model_output_shape(input_shape, self.model)
+        self.fc_target = torch.nn.Linear(output_shape, self.num_target)
+        self.fc_source = torch.nn.Linear(output_shape, self.num_source)
 
     def forward(self, x):
-        x = self.model(x)
-        return self.fc_target(x), self.fc_source(x)
+        # x = self.model(x)
+        # return self.fc_target(x), self.fc_source(x)
 
+        x = self.base(x)
+        x = torch.flatten(x, 1)
+        # return self.fc_target(x), self.fc_source(x)
+        clf_outputs = {}
+        clf_outputs["fc_target"] = self.fc_target(x)
+        clf_outputs["fc_source"] = self.fc_source(x)
+
+        return clf_outputs
+
+    def _get_model_output_shape(self, in_size, mod):
+        """
+        Adopt from https://gist.github.com/lebedov/0db63ffcd0947c2ea008c4a50be31032
+        Compute output size of Module `mod` given an input with size `in_size`
+        :param in_size: input shape (height, width)
+        :param mod: PyTorch model
+        :return:
+        """
+        mod = mod.cpu()
+        f = mod(torch.rand(2, 3, *in_size))
+        return int(np.prod(f.size()[1:]))
 
 class MultiTaskModule(Module):
     """
@@ -37,7 +61,6 @@ class MultiTaskModule(Module):
     def __init__(self, task):
         super().__init__(task)
         self.taglets = [MultiTaskTaglet(task)]
-
 
 class MultiTaskTaglet(Taglet):
     def __init__(self, task):
@@ -68,13 +91,16 @@ class MultiTaskTaglet(Taglet):
         image_paths = []
         image_labels = []
         visited = set()
-        for conceptnet_id in self.task.classes:
-            target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
-            neighbors = [edge.get_end_node() for edge in target_node.get_neighbors()]
+        for label in self.task.classes:
+        # for label, conceptnet_id in self.task.classes.items():
+        #     target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
+            target_node = Scads.get_conceptnet_id(label)
 
+            neighbors = [edge.get_end_node() for edge in target_node.get_neighbors()]
             # Add target node
             if target_node not in visited:
-                images = target_node.get_images()
+                images = target_node.get_images_whitelist(self.task.whitelist)
+                # images = target_node.get_images()
                 images = [os.path.join(root_path, image) for image in images]
                 if images:
                     image_paths.extend(images)
@@ -86,7 +112,8 @@ class MultiTaskTaglet(Taglet):
             for neighbor in neighbors:
                 if neighbor.get_conceptnet_id() in visited:
                     continue
-                images = neighbor.get_images()
+                # images = neighbor.get_images()
+                images = neighbor.get_images_whitelist(self.task.whitelist)
                 images = [os.path.join(root_path, image) for image in images]
                 if images:
                     image_paths.extend(images)
@@ -101,7 +128,8 @@ class MultiTaskTaglet(Taglet):
                                    labels=image_labels,
                                    transform=transform)
 
-        batch_size = min(len(train_data) // num_batches, 256)
+        # batch_size = min(len(train_data) // num_batches, 256)
+        batch_size = 128
         train_data_loader = torch.utils.data.DataLoader(train_data,
                                                         batch_size=batch_size,
                                                         shuffle=True,
@@ -115,7 +143,10 @@ class MultiTaskTaglet(Taglet):
         scads_train_data_loader, scads_num_classes = self._get_scads_data(len(train_data_loader) // batch_size,
                                                                           num_workers)
         log.info("Source classes found: {}".format(scads_num_classes))
-        self.model = MultiTaskModel(self.model, len(self.task.classes), scads_num_classes)
+        log.info("number of source training images: {}".format(len(scads_train_data_loader.dataset)))
+        self.model = MultiTaskModel(self.model, len(self.task.classes), scads_num_classes,self.task.input_shape)
+
+
         # Parameters needed to be updated based on freezing layer
         params_to_update = []
         for param in self.model.parameters():
@@ -134,8 +165,10 @@ class MultiTaskTaglet(Taglet):
             self.model = self.model.cpu()
 
         best_model_to_save = None
-        train_loss_list = []
-        train_acc_list = []
+        source_train_loss_list = []
+        target_train_loss_list = []
+        source_train_acc_list = []
+        target_train_acc_list = []
         val_loss_list = []
         val_acc_list = []
 
@@ -143,13 +176,20 @@ class MultiTaskTaglet(Taglet):
             log.info('Epoch: %s', epoch)
 
             # Train on training data
-            train_loss, train_acc = self._multitask_train_epoch(train_data_loader,
+            epoch_loss_source_train, epoch_loss_target_train, epoch_acc_source_train, epoch_acc_target_train = self._multitask_train_epoch(train_data_loader,
                                                                 scads_train_data_loader,
                                                                 use_gpu)
-            train_loss_list.append(train_loss)
-            train_acc_list.append(train_acc)
-            log.info('train loss: {:.4f}'.format(train_loss))
-            log.info('train acc: {:.4f}%'.format(train_acc*100))
+            source_train_loss_list.append(epoch_loss_source_train)
+            target_train_loss_list.append(epoch_loss_target_train)
+
+            source_train_acc_list.append(epoch_acc_source_train)
+            target_train_acc_list.append(epoch_acc_target_train)
+
+            log.info("Epoch {} result: ".format(epoch + 1))
+            log.info('source train loss: {:.4f}'.format(epoch_loss_source_train))
+            log.info('source train acc: {:.4f}%'.format(epoch_acc_source_train*100))
+            log.info('target train loss: {:.4f}'.format(epoch_loss_target_train))
+            log.info('target train acc: {:.4f}%'.format(epoch_acc_target_train*100))
 
             # Evaluation on validation data
             if not val_data_loader:
@@ -159,8 +199,8 @@ class MultiTaskTaglet(Taglet):
             val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu)
             val_loss_list.append(val_loss)
             val_acc_list.append(val_acc)
-            log.info('validation loss: {:.4f}'.format(val_loss))
-            log.info('validation acc: {:.4f}%'.format(val_acc*100))
+            log.info('target validation loss: {:.4f}'.format(val_loss))
+            log.info('target validation acc: {:.4f}%'.format(val_acc*100))
 
             if self.lr_scheduler:
                 self.lr_scheduler.step()
@@ -174,16 +214,10 @@ class MultiTaskTaglet(Taglet):
                 if self.save_dir:
                     torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
-        log.info("Epoch {} result: ".format(epoch + 1))
-        log.info("Average training loss: {:.4f}".format(train_loss))
-        log.info("Average training accuracy: {:.4f}%".format(train_acc * 100))
-        log.info("Average validation loss: {:.4f}".format(val_loss))
-        log.info("Average validation accuracy: {:.4f}%".format(val_acc * 100))
-
-        val_dic = {'train': train_loss_list, 'validation': val_loss_list}
+        val_dic = {'target_train': target_train_loss_list, 'validation': val_loss_list}
         if self.save_dir:
             self.save_plot('loss', val_dic, self.save_dir)
-        val_dic = {'train': train_acc_list, 'validation': val_acc_list}
+        val_dic = {'target_train': target_train_acc_list, 'validation': val_acc_list}
         if self.save_dir:
             self.save_plot('accuracy', val_dic, self.save_dir)
 
@@ -201,36 +235,55 @@ class MultiTaskTaglet(Taglet):
         self.model.train()
         running_loss = 0
         running_acc = 0
-        for batch_idx, (target_batch, source_batch) in enumerate(zip(target_data_loader, scads_data_loader)):
-            target_inputs, target_labels = target_batch
-            source_inputs, source_labels = source_batch
+        running_loss_source_train = 0.0
+        running_loss_target_train = 0.0
+
+        running_corrects_source_train = 0
+        running_corrects_target_train = 0
+        # for batch_idx, (target_batch, source_batch) in enumerate(zip(target_data_loader, scads_data_loader)):
+        for s, t in zip(scads_data_loader, target_data_loader):
+
+            input_source, label_source = s
+            input_target, label_target = t
             if use_gpu:
-                target_inputs = target_inputs.cuda()
-                target_labels = target_labels.cuda()
-                source_inputs = source_inputs.cuda()
-                source_labels = source_labels.cuda()
+                input_source = input_source.cuda()
+                label_source = label_source.cuda()
+                input_target = input_target.cuda()
+                label_target = label_target.cuda()
+
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
-                target_outputs = self.model(target_inputs)[0]
-                source_outputs = self.model(source_inputs)[1]
-                target_loss = self.criterion(target_outputs, target_labels)
-                source_loss = self.criterion(source_outputs, source_labels)
-                total_loss = target_loss + source_loss
-                total_loss.backward()
-                self.optimizer.step()
-                _, target_predictions = torch.max(target_outputs, 1)
+                output_source = self.model(input_source)
+                loss_source = self.criterion(output_source['fc_source'], label_source)
+                _, pred_source = torch.max(output_source['fc_source'], 1)
+                loss_source.backward(retain_graph=True)
+                ####### update using target data
+                output_target = self.model(input_target)
+                loss_target = self.criterion(output_target['fc_target'], label_target)
 
-            running_loss += target_loss.item()
-            running_acc += torch.sum(target_predictions == target_labels)
+                _, pred_target = torch.max(output_target['fc_target'], 1)
+                loss_target.backward()
+                self.optimizer.step()
+
+            running_loss_source_train += loss_source.item() * input_source.size(0)
+            running_corrects_source_train += torch.sum(pred_source == label_source.data)
+
+            running_loss_target_train += loss_target.item() * input_target.size(0)
+            running_corrects_target_train += torch.sum(pred_target == label_target.data)
 
         if not len(target_data_loader.dataset):
             return 0, 0
 
-        epoch_loss = running_loss / len(target_data_loader.dataset)
-        epoch_acc = running_acc.item() / len(target_data_loader.dataset)
+        # epoch_loss = running_loss / len(target_data_loader.dataset)
+        # epoch_acc = running_acc.item() / len(target_data_loader.dataset)
+        epoch_loss_source_train = running_loss_source_train / len(scads_data_loader.dataset)
+        epoch_acc_source_train = running_corrects_source_train.double() / len(scads_data_loader.dataset)
 
-        return epoch_loss, epoch_acc
+        epoch_loss_target_train = running_loss_target_train / len(target_data_loader.dataset)
+        epoch_acc_target_train = running_corrects_target_train.double() / len(target_data_loader.dataset)
+
+        return epoch_loss_source_train, epoch_loss_target_train,epoch_acc_source_train,epoch_acc_target_train
 
     def _validate_epoch(self, val_data_loader, use_gpu):
         """
@@ -249,9 +302,9 @@ class MultiTaskTaglet(Taglet):
                 inputs = inputs.cuda()
                 labels = labels.cuda()
             with torch.set_grad_enabled(False):
-                outputs = self.model(inputs)[0]
-                loss = self.criterion(outputs, labels)
-                _, preds = torch.max(outputs, 1)
+                outputs = self.model(inputs)
+                loss = self.criterion(outputs['fc_target'], labels)
+                _, preds = torch.max(outputs['fc_target'], 1)
 
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels)
@@ -280,7 +333,7 @@ class MultiTaskTaglet(Taglet):
             if use_gpu:
                 inputs = inputs.cuda()
             with torch.set_grad_enabled(False):
-                outputs = self.model(inputs)[0]
-                _, preds = torch.max(outputs, 1)
+                outputs = self.model(inputs)
+                _, preds = torch.max(outputs['fc_target'], 1)
                 predicted_labels = predicted_labels + preds.detach().cpu().tolist()
         return predicted_labels
