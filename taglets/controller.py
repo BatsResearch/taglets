@@ -1,5 +1,5 @@
 from .data import SoftLabelDataset
-from .modules import FineTuneModule, PrototypeModule, TransferModule, MultiTaskModule, HyperbolicProtoModule
+from .modules import FineTuneModule, PrototypeModule, TransferModule, MultiTaskModule
 from .pipeline import EndModel, TagletExecutor
 
 import labelmodels
