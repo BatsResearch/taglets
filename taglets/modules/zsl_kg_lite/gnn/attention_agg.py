@@ -4,7 +4,7 @@ from torch.nn import init
 
 from allennlp.nn.util import masked_max, masked_mean, masked_softmax
 
-from zsl_kg_lite.utils.core import pad_tensor, base_modified_neighbours
+from taglets.modules.zsl_kg_lite.utils.core import pad_tensor, base_modified_neighbours
 
 
 class AttnAggregator(nn.Module):
