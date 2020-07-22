@@ -1,6 +1,7 @@
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Float
 from sqlalchemy.orm import relationship
+from sqlalchemy.schema import Index
 
 Base = declarative_base()
 
@@ -26,6 +27,11 @@ class Edge(Base):
 
     relation = relationship("Relation")
 
+    __table_args__ = (
+        Index('idx_edges_start_end', "start_node", "end_node"),
+        Index('idx_edges_end_start', "end_node", "start_node")
+    )
+
     def __repr__(self):
         return "<Edge(key='%s', relation='%s', weight='%s', start_node='%s', end_node='%s')>" % \
                (self.id, self.relation_type, self.weight, self.start_node, self.end_node)
@@ -42,7 +48,7 @@ class Node(Base):
     """
     __tablename__ = 'nodes'
     id = Column(Integer, primary_key=True)
-    conceptnet_id = Column(String)
+    conceptnet_id = Column(String, index=True, unique=True)
 
     images = relationship("Image", back_populates="node")
     outgoing_edges = relationship("Edge", primaryjoin=id == Edge.start_node)
