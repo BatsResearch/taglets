@@ -2,8 +2,8 @@
 import torch
 import torch.nn as nn
 
-from zsl_kg_lite.gnn.transformer_agg import TransformerAggregator
-from zsl_kg_lite.gnn.combine import Combine
+from taglets.modules.zsl_kg_lite.gnn.transformer_agg import TransformerAggregator
+from taglets.modules.zsl_kg_lite.gnn.combine import Combine
 
 class TransformerConv(nn.Module):
     def __init__(self, features, adj_lists, device, options):

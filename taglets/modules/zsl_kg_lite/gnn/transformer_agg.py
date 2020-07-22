@@ -4,7 +4,7 @@ import torch.nn as nn
 from allennlp.nn.util import masked_max, masked_mean, masked_softmax
 from allennlp.modules.seq2seq_encoders.stacked_self_attention import StackedSelfAttentionEncoder
 
-from zsl_kg_lite.utils.core import pad_tensor, base_modified_neighbours
+from taglets.modules.zsl_kg_lite.utils.core import pad_tensor, base_modified_neighbours
 
 class TransformerAggregator(nn.Module):
     def __init__(self, features, input_dim, device, 

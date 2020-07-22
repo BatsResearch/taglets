@@ -4,7 +4,7 @@ import click
 import pandas as pd 
 import random
 from collections import Counter
-from zsl_kg_lite.utils import core
+from taglets.modules.zsl_kg_lite.utils import core
 
 random.seed(0)
 
