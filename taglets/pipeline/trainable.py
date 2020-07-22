@@ -109,6 +109,18 @@ class Trainable:
         return correct / outputs.shape[0]
 
     @staticmethod
+    def _get_train_sampler(data, n_proc, rank):
+        return torch.utils.data.distributed.DistributedSampler(data,
+                                                               num_replicas=n_proc,
+                                                               rank=rank)
+
+    def _get_dataloader(self, data, sampler):
+        return torch.utils.data.DataLoader(
+            dataset=data, batch_size=self.batch_size, shuffle=False,
+            num_workers=0, pin_memory=True, sampler=sampler
+        )
+
+    @staticmethod
     def save_plot(plt_mode, val_dic, save_dir):
         plt.figure()
         colors = ['r', 'b', 'g']
@@ -175,21 +187,11 @@ class Trainable:
             )
 
         # Creates distributed data loaders from datasets
-        train_sampler = torch.utils.data.distributed.DistributedSampler(
-            train_data, num_replicas=n_proc, rank=rank,
-        )
-        train_data_loader = torch.utils.data.DataLoader(
-            dataset=train_data, batch_size=self.batch_size, shuffle=False,
-            num_workers=0, pin_memory=True, sampler=train_sampler
-        )
+        train_sampler = Trainable._get_train_sampler(train_data, n_proc=n_proc, rank=rank)
+        train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler)
 
-        val_sampler = torch.utils.data.distributed.DistributedSampler(
-            val_data, num_replicas=n_proc, rank=rank
-        )
-        val_data_loader = torch.utils.data.DataLoader(
-            dataset=val_data, batch_size=self.batch_size, shuffle=False,
-            num_workers=0, pin_memory=True, sampler=val_sampler
-        )
+        val_sampler = Trainable._get_train_sampler(val_data, n_proc=n_proc, rank=rank)
+        val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler)
 
         # Initializes statistics containers (will only be filled by lead process)
         best_model_to_save = None
