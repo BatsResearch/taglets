@@ -254,11 +254,34 @@ class MultiTaskTaglet(Taglet):
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
+                # ### update using source data
+                self.model.fc_target.train(False)
+                self.model.fc_source.train(True)
+                self.model.fc_target.weight.requires_grad = False
+                self.model.fc_target.bias.requires_grad = False
+                self.model.fc_source.weight.requires_grad = True
+                self.model.fc_source.bias.requires_grad = True
+
+                assert self.model.fc_target.weight.requires_grad == False
+                assert self.model.fc_source.weight.requires_grad == True
                 output_source = self.model(input_source)
                 loss_source = self.criterion(output_source['fc_source'], label_source)
                 _, pred_source = torch.max(output_source['fc_source'], 1)
-                loss_source.backward(retain_graph=True)
+                loss_source.backward()
+                self.optimizer.step()
+
                 ####### update using target data
+                self.model.fc_target.train(True)
+                self.model.fc_source.train(False)
+
+                self.model.fc_target.weight.requires_grad = True
+                self.model.fc_target.bias.requires_grad = True
+                self.model.fc_source.weight.requires_grad = False
+                self.model.fc_source.bias.requires_grad = False
+
+                assert self.model.fc_target.weight.requires_grad == True
+                assert self.model.fc_source.weight.requires_grad == False
+
                 output_target = self.model(input_target)
                 loss_target = self.criterion(output_target['fc_target'], label_target)
 
