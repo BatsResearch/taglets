@@ -100,11 +100,11 @@ class Controller:
 
     def _get_taglets_modules(self):
         if self.task.scads_path is not None:
-            return [TransferModule(task=self.task), FineTuneModule(task=self.task)]
+            return [PrototypeModule(task=self.task), TransferModule(task=self.task), FineTuneModule(task=self.task)]
             # return [FineTuneModule(task=self.task), PrototypeModule(task=self.task),
             # TransferModule(task=self.task), MultiTaskModule(task=self.task)]
         #return [FineTuneModule(task=self.task), PrototypeModule(task=self.task)]
-        return [FineTuneModule(task=self.task)]
+        return [FineTuneModule(task=self.task), PrototypeModule(task=self.task)]
 
     def _train_label_model(self, vote_matrix):
         log.info("Training label model")
