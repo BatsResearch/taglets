@@ -48,7 +48,7 @@ class Node(Base):
     """
     __tablename__ = 'nodes'
     id = Column(Integer, primary_key=True)
-    conceptnet_id = Column(String, index=True)
+    conceptnet_id = Column(String, index=True, unique=True)
 
     images = relationship("Image", back_populates="node")
     outgoing_edges = relationship("Edge", primaryjoin=id == Edge.start_node)
