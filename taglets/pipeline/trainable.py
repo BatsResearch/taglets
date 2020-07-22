@@ -279,11 +279,10 @@ class Trainable:
                 labels = labels.cuda()
 
             self.optimizer.zero_grad()
-            with torch.set_grad_enabled(True):
-                outputs = self.model(inputs)
-                loss = self.criterion(outputs, labels)
-                loss.backward()
-                self.optimizer.step()
+            outputs = self.model(inputs)
+            loss = self.criterion(outputs, labels)
+            loss.backward()
+            self.optimizer.step()
 
             running_loss += loss.item()
             running_acc += self._get_train_acc(outputs, labels)

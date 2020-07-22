@@ -19,12 +19,14 @@ from torch.utils.data import DataLoader
 log = logging.getLogger(__name__)
 
 
+
 def euclidean_metric(a, b):
     n = a.shape[0]
     m = b.shape[0]
     a = a.unsqueeze(1).expand(n, m, -1)
     b = b.unsqueeze(0).expand(n, m, -1)
     return ((a - b) ** 2).sum(dim=2)
+
 
 def euclidean_dist(x, y):
     '''
@@ -44,7 +46,6 @@ def euclidean_dist(x, y):
     return torch.pow(x - y, 2).sum(2)
 
 
-
 def count_acc(logits, label):
     pred = torch.argmax(logits, dim=1)
     if torch.cuda.is_available():
@@ -62,14 +63,26 @@ class Flatten(nn.Module):
 # this is kind of a hack
 class NearestProtoModule(nn.Module):
     #TODO: determine whether prototypes will be passed by reference or value
-    def __init__(self, prototypes, n_classes):
+    def __init__(self, prototypes, n_classes, encoder, shot, way, query):
+        super(NearestProtoModule, self).__init__()
         self.prototypes = prototypes
         self.n_classes = n_classes
-        super(NearestProtoModule, self).__init__()
+        self.encoder = encoder
+        self.shot = shot
+        self.way = way
+        self.query = query
+        self.criterion = nn.CrossEntropyLoss()
+
+    def set_feature(self, shot, way, query):
+        self.shot = shot
+        self.way = way
+        self.query = query
 
     def forward(self, x):
         if self.training:
-            return x
+            # calculate barycenter for each class
+            # make into single network
+            return self.encoder(x)
         else:
             batch_size = x.shape[0]
             # +1 for abstaining
@@ -80,13 +93,35 @@ class NearestProtoModule(nn.Module):
                 labels[label, label] = 1
             return labels
 
+    def set_forward(self, x, use_gpu):
+        p = self.shot * self.way
+        #data_shot, data_query = x[:p], x[p:]
+        encoding = self.forward(x)
+        shot_proto = encoding[:p]
+        query_proto = encoding[p:]
+
+        # calculate barycenter for each class
+        proto = shot_proto.reshape(self.shot, self.way, -1).mean(dim=0)
+        #query_proto = self.forward(query_proto)
+        return -euclidean_metric(query_proto, proto)
+
+    def set_forward_loss(self, x, y, use_gpu):
+        label = torch.arange(self.way).repeat(self.query)
+        if use_gpu:
+            label = Variable(label.cuda())
+        else:
+            label = Variable(label)
+        logits = self.set_forward(x, use_gpu)
+        log.info(count_acc(logits, label))
+        return self.criterion(logits, label)
+
 
 class PrototypeModule(Module):
     def __init__(self, task):
         super().__init__(task)
         episodes = 200 if not os.environ.get("CI") else 5
-        self.taglets = [PrototypeTaglet(task, train_shot=5, train_way=30,
-                                        query=15, episodes=episodes, use_scads=False)]
+        self.taglets = [PrototypeTaglet(task, train_shot=5, train_way=10,
+                                        query=30, episodes=episodes, use_scads=False)]
 
 
 class PrototypeTaglet(Taglet):
@@ -95,8 +130,6 @@ class PrototypeTaglet(Taglet):
         self.name = 'prototype'
         self.episodes = episodes
         self.prototypes = {}
-        self.model = self.model
-                              #     NearestProtoModule(self.prototypes, len(task.classes)))
 
         # when testing, these parameters matter less
         self.train_shot = train_shot
@@ -124,6 +157,12 @@ class PrototypeTaglet(Taglet):
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
+        self.protonet = NearestProtoModule(self.prototypes,
+                                        len(task.classes),
+                                        encoder=self.model,
+                                        shot=self.train_shot,
+                                        way=self.train_way,
+                                        query=self.query)
         self.use_scads = use_scads
         self.abstain = False
 
@@ -224,11 +263,10 @@ class PrototypeTaglet(Taglet):
                 val_data = None
 
         args = (self, train_data, val_data, use_gpu, self.n_proc)
-        #mp.spawn(self._do_train, nprocs=self.n_proc, args=args)
+        mp.spawn(self._do_train, nprocs=self.n_proc, args=args)
 
-
-        sampler = self._get_train_sampler(train_data, 1, 0)
-        self._train_epoch(self._get_dataloader(train_data, sampler), False)
+        #sampler = self._get_train_sampler(train_data, 1, 0)
+        #self._train_epoch(self._get_dataloader(train_data, sampler), False)
 
         # after child training processes are done (waitpid!), construct prototypes
         self.build_prototypes(infer_data, use_gpu=use_gpu)
@@ -240,48 +278,27 @@ class PrototypeTaglet(Taglet):
         :param cuda: Whether or not to use the GPU
         :return: None
         """
-        self.model.train()
+        self.protonet.train()
         use_gpu = use_gpu and torch.cuda.is_available()
-
-        #label = torch.arange(self.train_way).repeat(self.query)
-        #if use_gpu:
-        #    label = label.type(torch.cuda.LongTensor)
-        #else:
-        #    label = label.type(torch.LongTensor)
 
         running_loss = 0.0
         count = 0
         for i, batch in enumerate(train_data_loader, 1):
+            log.info('Episode: %d' % i)
             count += 1
-            if torch.cuda.is_available():
+            if use_gpu:
                 data, _ = [_.cuda() for _ in batch]
             else:
                 data = batch[0]
 
-            #with torch.autograd.set_detect_anomaly(True):
-                with torch.autograd.set_detect_anomaly(True):
-                    p = self.train_way * self.train_shot
-                    data_shot, data_query = data[:p], data[p:]
-
-
-                    # calculate barycenter for each class
-                    proto = self.model(data_shot)
-                    proto = proto.reshape(self.train_shot, self.train_way, -1).mean(dim=0)
-
-                    label = torch.from_numpy(np.repeat(range(self.train_way), self.query))
-                    label = Variable(label)
-                       # if use_gpu:
-                       #     label = label.cuda()
-
-                    query = self.model(data_query).reshape(self.train_way * self.query, -1)
-                    logits = -euclidean_metric(query, proto)
-                    loss = self.criterion(logits, label)
-
-                    self.optimizer.zero_grad()
-                    loss.backward()
-                    self.optimizer.step()
-
+            # if use_gpu:
+            #     label = label.cuda()
+            self.optimizer.zero_grad()
+            loss = self.protonet.set_forward_loss(data, use_gpu)
+            loss.backward()
+            self.optimizer.step()
             running_loss += loss.item()
+            log.info("loss: %d" % loss)
         epoch_loss = running_loss / count
         return epoch_loss
 

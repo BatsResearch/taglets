@@ -19,6 +19,7 @@ class CategoriesSampler(Sampler):
         self.m_ind = []
         labels = np.array(labels)
         for i in range(max(labels) + 1):
+            # indices where labels are the same
             ind = np.argwhere(labels == i).reshape(-1)
             ind = torch.from_numpy(ind)
             self.m_ind.append(ind)
