@@ -1,54 +1,103 @@
 import torch
 import numpy as np
 import logging
-import math
 
 from torch.utils.data import Sampler
 
 log = logging.getLogger(__name__)
 
 
-# samples data in an episodic manner
 class CategoriesSampler(Sampler):
-    def __init__(self, labels, n_episodes, n_cls, n_per):
+    def __init__(self, labels, n_cls, n_per, rand_generator=None):
         super().__init__(labels)
-        self.n_episodes = n_episodes
         # number of classes in dataset
         self.n_cls = n_cls
         # number of examples per class to be extracted
         self.n_per = n_per
+        self.rand_generator = rand_generator
 
-        labels = np.array(labels)
         self.m_ind = []
+        labels = np.array(labels)
         for i in range(max(labels) + 1):
             ind = np.argwhere(labels == i).reshape(-1)
             ind = torch.from_numpy(ind)
             self.m_ind.append(ind)
 
     def __len__(self):
-        return self.n_episodes
+        return self.n_cls * self.n_per
+
+    def __iter__(self):
+        batch = []
+        if self.rand_generator:
+            classes = torch.randperm(len(self.m_ind), generator=self.rand_generator)
+        else:
+            classes = torch.randperm(len(self.m_ind))
+
+        classes = classes[: self.n_cls]
+        for c in classes:
+            l = self.m_ind[c]
+            if self.rand_generator:
+                pos = torch.randperm(len(l), generator=self.rand_generator)
+            else:
+                pos = torch.randperm(len(l))
+            pos = pos[: self.n_per]
+            batch.append(l[pos])
+        return iter(batch)
+
+
+# samples data in an episodic manner
+class BatchCategoriesSampler(CategoriesSampler):
+    def __init__(self, labels, n_episodes, n_cls, n_per, rand_generator):
+        super().__init__(labels, n_cls, n_per, rand_generator)
+        self.n_episodes = n_episodes
 
     def __iter__(self):
         for i_batch in range(self.n_episodes):
             batch = []
-            classes = torch.randperm(len(self.m_ind))[: self.n_cls]
+
+            if self.rand_generator:
+                classes = torch.randperm(len(self.m_ind), generator=self.rand_generator)
+            else:
+                classes = torch.randperm(len(self.m_ind))
+            classes = classes[: self.n_cls]
+
             for c in classes:
                 l = self.m_ind[c]
-                pos = torch.randperm(len(l))[: self.n_per]
+                if self.rand_generator:
+                    pos = torch.randperm(len(l), generator=self.rand_generator)
+                else:
+                    pos = torch.randperm(len(l))
+                pos = pos[: self.n_per]
                 batch.append(l[pos])
             batch = torch.stack(batch).t().reshape(-1)
             yield batch
 
 
-class DistributedCategoriesSampler(CategoriesSampler):
-    def __init__(self, num_replicas, labels, n_episodes, n_cls, n_per):
-        n_episodes_per_proc = int(math.ceil(n_episodes * 1.0 / num_replicas))
-        super(DistributedCategoriesSampler, self).__init__(labels=labels,
-                                                           n_episodes=n_episodes_per_proc,
-                                                           n_cls=n_cls,
-                                                           n_per=n_per)
+class DistributedBatchCategoriesSampler(BatchCategoriesSampler):
+    def __init__(self, rank, labels, n_episodes, n_cls, n_per):
+        g = torch.Generator()
+        # set a large, deterministic seed
+        g.manual_seed((rank + 1) * (1 << 15))
+        super(DistributedBatchCategoriesSampler, self).__init__(labels=labels,
+                                                               n_episodes=n_episodes,
+                                                               n_cls=n_cls,
+                                                               n_per=n_per,
+                                                               rand_generator=g)
 
-    # this is required for training, but we already perform shuffling automatically
+    def set_epoch(self, epoch):
+        pass
+
+
+class DistributedCategoriesSampler(CategoriesSampler):
+    def __init__(self, rank, labels, n_cls, n_per):
+        g = torch.Generator()
+        # set a large, deterministic seed
+        g.manual_seed((rank + 1) * (1 << 15))
+        super(DistributedCategoriesSampler, self).__init__(labels=labels,
+                                                           n_cls=n_cls,
+                                                           n_per=n_per,
+                                                           rand_generator=g)
+
     def set_epoch(self, epoch):
         pass
 
@@ -57,9 +106,10 @@ def get_label_distr(labels):
     distr = {}
 
     for label in labels:
-        if label not in distr:
-            distr[label] = 0
-        distr[label] += 1
+        l = label.item()
+        if l not in distr:
+            distr[l] = 0
+        distr[l] += 1
     return distr
 
 
@@ -95,7 +145,7 @@ def validate_few_shot_config(dataset_name, data_distr, shot, way, query):
     _, base_min_labels = get_label_distr_stats(data_distr)
     if base_min_labels < query + shot:
         log.warning('%s dataset is too small for selected shot (%d) and query (%d). '
-                    'Smallest class contains %d points.' %
+                    'Smallest class contains %d point(s).' %
                     (dataset_name, shot, query, base_min_labels))
         return False
     return True
