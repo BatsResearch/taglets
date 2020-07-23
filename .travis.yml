@@ -18,6 +18,9 @@ before_install:
   - source $HOME/miniconda/etc/profile.d/conda.sh
   - conda config --set always_yes yes --set changeps1 no
   - conda info --all
+  - travis_retry
+    wget https://conceptnet.s3.amazonaws.com/downloads/2019/numberbatch/numberbatch-en-19.08.txt.gz
+    -O download/numberbatch-en-19.08.txt.gz
 
 install:
   - pip install -q .
@@ -25,6 +28,7 @@ install:
   - export PYTHONPATH=".:$PYTHONPATH"
 
 script:
+  - python test/scads/test_numberbatch.py
   - python test/modules/test_with_scads.py
   - python test/test_controller.py
   - python test/pipeline/test_trainable.py
