@@ -133,7 +133,9 @@ def query_conceptnet(output_path, concept_syn, database_path, n=2):
     
     # copy conceptnet path to output dir and save as syns.json
     syns_path = os.path.join(output_path, 'syns.json')
-    shutil.copy(conceptnet_path, syns_path)
+    with open(syns_path, 'w+') as fp:
+        json.dump(concept_syn, fp)
+    # shutil.copy(conceptnet_path, syns_path)
 
     # save the id relation directed
     rel_file = os.path.join(output_path, 'relations.csv')

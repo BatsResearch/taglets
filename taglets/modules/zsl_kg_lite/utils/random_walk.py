@@ -4,7 +4,7 @@ import click
 import pandas as pd 
 import random
 from collections import Counter
-from taglets.modules.zsl_kg_lite.utils import core
+from zsl_kg_lite.utils import core
 
 random.seed(0)
 
@@ -49,7 +49,7 @@ def graph_random_walk(graph_path, k, n, seed=0):
     print("creating loading adj lists")
     en_nodes_path = os.path.join(graph_path, 'en_nodes.csv')
     en_nodes = pd.read_csv(en_nodes_path)
-    adj_rel_lists = json.load(open(os.path.join(graph_path)))
+    adj_rel_lists = json.load(open(os.path.join(graph_path, 'union_adj_rel_lists.json')))
     
     rw_adj_lists = {}
     print("running random walks")
