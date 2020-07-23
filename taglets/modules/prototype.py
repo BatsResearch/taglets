@@ -3,21 +3,14 @@ from ..pipeline import Taglet
 import copy
 import os
 import logging
-import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.multiprocessing as mp
-from torch.autograd import Variable
 
-
-
-from .fewshot_utils import DistributedCategoriesSampler, get_label_distr, \
-    get_label_distr_stats, validate_few_shot_config, DistributedBatchCategoriesSampler
+from .fewshot_utils import get_label_distr, validate_few_shot_config, DistributedBatchCategoriesSampler
 from torch.utils.data import DataLoader
 
 log = logging.getLogger(__name__)
-
 
 
 def euclidean_metric(a, b):
@@ -28,36 +21,12 @@ def euclidean_metric(a, b):
     return ((a - b) ** 2).sum(dim=2)
 
 
-def euclidean_dist(x, y):
-    '''
-    Compute euclidean distance between two tensors
-    '''
-    # x: N x D
-    # y: M x D
-    n = x.size(0)
-    m = y.size(0)
-    d = x.size(1)
-    if d != y.size(1):
-        raise Exception
-
-    x = x.unsqueeze(1).expand(n, m, d)
-    y = y.unsqueeze(0).expand(n, m, d)
-
-    return torch.pow(x - y, 2).sum(2)
-
-
 def count_acc(logits, label):
     pred = torch.argmax(logits, dim=1)
     if torch.cuda.is_available():
         return (pred == label).type(torch.cuda.FloatTensor).mean().item()
     else:
         return (pred == label).type(torch.FloatTensor).mean().item()
-
-
-class Flatten(nn.Module):
-    def forward(self, x):
-        batch_size = x.shape[0]
-        return x.view(batch_size, -1)
 
 
 # this is kind of a hack
@@ -72,6 +41,7 @@ class NearestProtoModule(nn.Module):
         self.way = way
         self.query = query
         self.criterion = nn.CrossEntropyLoss()
+        self.val = False
 
     def set_feature(self, shot, way, query):
         self.shot = shot
@@ -79,9 +49,11 @@ class NearestProtoModule(nn.Module):
         self.query = query
 
     def forward(self, x):
-        if self.training:
-            # calculate barycenter for each class
-            # make into single network
+        if self.training or self.val:
+            if self.val:
+                self.val = False
+
+            # warning this will return an encoded vector rather than a label
             return self.encoder(x)
         else:
             batch_size = x.shape[0]
@@ -93,33 +65,46 @@ class NearestProtoModule(nn.Module):
                 labels[label, label] = 1
             return labels
 
-    def set_forward(self, x, use_gpu):
+    def _get_forward(self, x, way=None, shot=None, val=False):
+        if way is None:
+            way = self.way
+
+        if shot is None:
+            shot = self.shot
+
+        # way / shot stays constant while training
+        assert (self.shot == shot and self.way == way) or val
+
+        self.val = val
+
         p = self.shot * self.way
-        #data_shot, data_query = x[:p], x[p:]
         encoding = self.forward(x)
         shot_proto = encoding[:p]
         query_proto = encoding[p:]
 
         # calculate barycenter for each class
-        proto = shot_proto.reshape(self.shot, self.way, -1).mean(dim=0)
-        #query_proto = self.forward(query_proto)
+        proto = shot_proto.reshape(shot, way, -1).mean(dim=0)
         return -euclidean_metric(query_proto, proto)
 
-    def set_forward_loss(self, x, y, use_gpu):
-        label = torch.arange(self.way).repeat(self.query)
+    def get_forward_loss(self, x, use_gpu, way=None, shot=None, val=False):
+        if way is None:
+            way = self.way
+
+        if shot is None:
+            shot = self.shot
+
+        label = torch.arange(way).repeat(self.query)
         if use_gpu:
-            label = Variable(label.cuda())
-        else:
-            label = Variable(label)
-        logits = self.set_forward(x, use_gpu)
-        log.info(count_acc(logits, label))
-        return self.criterion(logits, label)
+            label.cuda()
+
+        logits = self._get_forward(x, way=way, shot=shot, val=val)
+        return self.criterion(logits, label), count_acc(logits, label)
 
 
 class PrototypeModule(Module):
     def __init__(self, task):
         super().__init__(task)
-        episodes = 200 if not os.environ.get("CI") else 5
+        episodes = 2 if not os.environ.get("CI") else 5
         self.taglets = [PrototypeTaglet(task, train_shot=5, train_way=10,
                                         query=30, episodes=episodes, use_scads=False)]
 
@@ -165,6 +150,8 @@ class PrototypeTaglet(Taglet):
                                         query=self.query)
         self.use_scads = use_scads
         self.abstain = False
+        self.num_epochs = 2
+        self.n_proc = 1
 
     @staticmethod
     def onn(i, prototypes):
@@ -200,16 +187,17 @@ class PrototypeTaglet(Taglet):
             dataset=data, batch_sampler=sampler,
             num_workers=0, pin_memory=True)
 
+    def _get_pred_classifier(self):
+        return self.protonet
+
     def build_prototypes(self, infer_data, use_gpu):
-        self.model.eval()
+        self.protonet.eval()
 
         infer_dataloader = DataLoader(dataset=infer_data, batch_size=self.batch_size,
                                       num_workers=0, pin_memory=True)
+        if use_gpu and torch.cuda.is_available():
+            self.protonet.cuda()
 
-        device = torch.device('cuda:0' if torch.cuda.is_available() and use_gpu else 'cpu')
-        self.model.to(device)
-
-        # TODO: potentially speed this up
         for data in infer_dataloader:
             with torch.set_grad_enabled(False):
                 image, label = data[0], data[1]
@@ -221,14 +209,13 @@ class PrototypeTaglet(Taglet):
                 for img, lbl in zip(image, label):
                     proto = self.model(torch.unsqueeze(img, dim=0))
                     lbl = int(lbl.item())
-                    try:
-                        self.prototypes[lbl].append(proto)
-                    except:
-                        self.prototypes[lbl] = [proto]
+                    if lbl not in self.prototypes:
+                        self.prototypes[lbl] = []
+                    self.prototypes[lbl].append(proto)
 
-            # form centroids
-            for key, values in self.prototypes.items():
-                self.prototypes[key] = torch.stack(values).mean(dim=0)
+        # form centroids
+        for key, values in self.prototypes.items():
+            self.prototypes[key] = torch.stack(values).mean(dim=0)
 
     def train(self, train_data, val_data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
@@ -265,9 +252,6 @@ class PrototypeTaglet(Taglet):
         args = (self, train_data, val_data, use_gpu, self.n_proc)
         mp.spawn(self._do_train, nprocs=self.n_proc, args=args)
 
-        #sampler = self._get_train_sampler(train_data, 1, 0)
-        #self._train_epoch(self._get_dataloader(train_data, sampler), False)
-
         # after child training processes are done (waitpid!), construct prototypes
         self.build_prototypes(infer_data, use_gpu=use_gpu)
 
@@ -279,62 +263,65 @@ class PrototypeTaglet(Taglet):
         :return: None
         """
         self.protonet.train()
-        use_gpu = use_gpu and torch.cuda.is_available()
+
+        if use_gpu and torch.cuda.is_available():
+            self.protonet.cuda()
 
         running_loss = 0.0
+        running_acc = 0.0
         count = 0
         for i, batch in enumerate(train_data_loader, 1):
-            log.info('Episode: %d' % i)
+            log.info('Train Episode: %d' % i)
             count += 1
             if use_gpu:
                 data, _ = [_.cuda() for _ in batch]
             else:
                 data = batch[0]
 
-            # if use_gpu:
-            #     label = label.cuda()
             self.optimizer.zero_grad()
-            loss = self.protonet.set_forward_loss(data, use_gpu)
+            loss, acc = self.protonet.get_forward_loss(data, use_gpu)
             loss.backward()
             self.optimizer.step()
+
             running_loss += loss.item()
-            log.info("loss: %d" % loss)
-        epoch_loss = running_loss / count
-        return epoch_loss
+            running_acc += acc
+            log.info("avg train episode loss: %f" % (loss.item() / self.query))
+            log.info("train episode accuracy: %f%s" % (acc * 100.0, "%"))
+        epoch_loss = running_loss / count if count > 0 else 0.0
+        epoch_acc = running_acc / count if count > 0 else 0.0
+        return epoch_loss, epoch_acc
 
     def _validate_epoch(self, val_data_loader, use_gpu):
-        self.model.eval()
-        label = torch.arange(self.val_way).repeat(self.query)
-        use_gpu = use_gpu and torch.cuda.is_available()
+        self.protonet.eval()
 
-        if use_gpu:
-            label = label.type(torch.cuda.LongTensor)
-        else:
-            label = label.type(torch.LongTensor)
+        if use_gpu and torch.cuda.is_available():
+            self.protonet.cuda()
 
         running_loss = 0.0
         running_acc = 0.0
         count = 0
         for i, batch in enumerate(val_data_loader, 1):
+            log.info('Val Episode: %d' % i)
             count += 1
-            if torch.cuda.is_available():
+            if use_gpu:
                 data, _ = [_.cuda() for _ in batch]
             else:
                 data = batch[0]
 
-            p = self.val_shot * self.val_way
-            data_shot, data_query = data[:p], data[p:]
-
-            # calculate barycenter for each class
-            proto = self.model(data_shot).reshape(self.val_shot, self.val_way, -1).mean(dim=0)
-            query_proto = self.model(data_query)
-
-            logits = euclidean_metric(query_proto, proto)
-            loss = F.cross_entropy(logits, label)
+            self.optimizer.zero_grad()
+            loss, acc = self.protonet.get_forward_loss(data,
+                                                       use_gpu,
+                                                       way=self.val_way,
+                                                       shot=self.val_shot,
+                                                       val=True)
+            loss.backward()
+            self.optimizer.step()
 
             running_loss += loss.item()
-            running_acc += count_acc(logits, label)
-
-        epoch_loss = running_loss / count
-        epoch_acc = running_acc / count
+            running_acc += acc
+            log.info("avg val episode loss: %f" % (loss.item() / self.query))
+            log.info("val episode accuracy: %f%s" % (acc * 100.0, "%"))
+        epoch_loss = running_loss / count if count > 0 else 0.0
+        epoch_acc = running_acc / count if count > 0 else 0.0
         return epoch_loss, epoch_acc
+

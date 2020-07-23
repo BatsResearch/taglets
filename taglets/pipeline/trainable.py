@@ -28,7 +28,7 @@ class Trainable:
         self.lr = 0.0005
         self.criterion = torch.nn.CrossEntropyLoss()
         self.seed = 0
-        self.num_epochs = 50 if not os.environ.get("CI") else 5
+        self.num_epochs = 2 if not os.environ.get("CI") else 5
         self.batch_size = 32
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
@@ -49,13 +49,13 @@ class Trainable:
 
     def train(self, train_data, val_data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '9000'
+        os.environ['MASTER_PORT'] = '8888'
         args = (self, train_data, val_data, use_gpu, self.n_proc)
         mp.spawn(self._do_train, nprocs=self.n_proc, args=args)
 
     def predict(self, data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '9000'
+        os.environ['MASTER_PORT'] = '8888'
 
         # Launches workers and collects results from queue
         processes = []
@@ -121,6 +121,9 @@ class Trainable:
             dataset=data, batch_size=self.batch_size, shuffle=False,
             num_workers=0, pin_memory=True, sampler=sampler
         )
+
+    def _get_pred_classifier(self):
+        return self.model
 
     @staticmethod
     def save_plot(plt_mode, val_dic, save_dir):
@@ -283,7 +286,6 @@ class Trainable:
             loss = self.criterion(outputs, labels)
             loss.backward()
             self.optimizer.step()
-
             running_loss += loss.item()
             running_acc += self._get_train_acc(outputs, labels)
 
@@ -380,6 +382,7 @@ class Trainable:
         labels = []
 
         self.model.eval()
+        pred_classifier = self._get_pred_classifier()
         for batch in data_loader:
             try:
                 inputs, targets = batch
@@ -390,7 +393,7 @@ class Trainable:
                 inputs = inputs.cuda(rank)
 
             with torch.set_grad_enabled(False):
-                output = self.model(inputs)
+                output = pred_classifier(inputs)
                 outputs.append(torch.nn.functional.softmax(output, 1))
                 if targets is not None:
                     labels.append(targets)

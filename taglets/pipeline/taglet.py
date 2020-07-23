@@ -17,4 +17,5 @@ class Taglet(Trainable):
         :return: A 1-d NumPy array of predicted labels
         """
         outputs = self.predict(unlabeled_data, use_gpu)
+        log.info(outputs)
         return np.argmax(outputs, 1)
