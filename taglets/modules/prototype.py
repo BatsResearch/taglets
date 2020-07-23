@@ -49,20 +49,21 @@ class NearestProtoModule(nn.Module):
         self.query = query
 
     def forward(self, x):
+        embedding = self.encoder(x)
         if self.training or self.val:
             if self.val:
                 self.val = False
 
             # warning this will return an encoded vector rather than a label
-            return self.encoder(x)
+            return embedding
         else:
             batch_size = x.shape[0]
             # +1 for abstaining
             labels = torch.zeros((batch_size, self.n_classes + 1))
+            label = PrototypeTaglet.onn(embedding, prototypes=self.prototypes)
             for i in range(batch_size):
                 # TODO: ensure x[i] is a vector
-                label = PrototypeTaglet.onn(x[i], prototypes=self.prototypes)
-                labels[label, label] = 1
+                labels[label[i], label[i]] = 1
             return labels
 
     def _get_forward(self, x, way=None, shot=None, val=False):
