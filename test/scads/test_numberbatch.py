@@ -26,7 +26,7 @@ class TestScadsEmbedding(unittest.TestCase):
                             '/c/en/swimming_pool',
                             '/c/en/velodrome',
                             '/c/en/newsstand',
-                            '/c/en/carport'
+                            '/c/en/carport',
                             '/c/en/residential_area',
                             '/c/en/airport_terminal']
         related_classes = [ScadsEmbedding.get_related_nodes(label, limit=1, is_node=False)[0] for label in classes]
