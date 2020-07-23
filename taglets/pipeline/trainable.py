@@ -365,9 +365,9 @@ class Trainable:
             )
         else:
             self.model = self.model.cpu()
-            #self.model = nn.parallel.DistributedDataParallel(
-            #    self.model, device_ids=None
-            #)
+            self.model = nn.parallel.DistributedDataParallel(
+                self.model, device_ids=None
+            )
 
         # Creates distributed data loader from dataset
         sampler = torch.utils.data.distributed.DistributedSampler(
@@ -377,6 +377,7 @@ class Trainable:
             dataset=data, batch_size=self.batch_size, shuffle=False,
             num_workers=0, pin_memory=True, sampler=sampler
         )
+        log.info('here')
 
         outputs = []
         labels = []

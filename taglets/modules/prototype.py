@@ -164,7 +164,8 @@ class PrototypeTaglet(Taglet):
             rel_dist = torch.dist(proto, i)
             if min_dist is None or rel_dist < min_dist:
                 min_dist = rel_dist
-                lab = key + 1
+                lab = key
+                #lab = key + 1
 
         if min_dist is None:
             log.warning('No prototypes found! Abstaining from labeling.')
