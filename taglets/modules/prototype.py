@@ -64,8 +64,8 @@ class NearestProtoModule(nn.Module):
             for i in range(batch_size):
                 label = PrototypeTaglet.onn(embeddings[i], prototypes=self.prototypes)
                 # TODO: ensure x[i] is a vector
-                labels[label, label] = 1
-            print(labels)
+                labels[i, label] = 1
+                print(label)
             return labels
 
     def _get_forward(self, x, way=None, shot=None, val=False):
@@ -107,7 +107,7 @@ class NearestProtoModule(nn.Module):
 class PrototypeModule(Module):
     def __init__(self, task):
         super().__init__(task)
-        episodes = 2 if not os.environ.get("CI") else 5
+        episodes = 2 if not os.environ.get("CI") else 10
         self.taglets = [PrototypeTaglet(task, train_shot=5, train_way=10,
                                         query=30, episodes=episodes, use_scads=False)]
 
