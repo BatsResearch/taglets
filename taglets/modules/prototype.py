@@ -42,11 +42,11 @@ class NearestProtoModule(nn.Module):
         self.query = query
         self.criterion = nn.CrossEntropyLoss()
         self.val = False
+        self.abstain = False
 
-    def set_feature(self, shot, way, query):
-        self.shot = shot
-        self.way = way
-        self.query = query
+    # abstain from all labeling
+    def set_label_abstaining(self, abstain):
+        self.abstain = abstain
 
     def forward(self, x):
         embeddings = self.encoder(x)
@@ -59,13 +59,14 @@ class NearestProtoModule(nn.Module):
         else:
             batch_size = x.shape[0]
             # +1 for abstaining
+            #TODO: add back abstaining
             #labels = torch.zeros((batch_size, self.n_classes + 1))
-            labels = torch.zeros((batch_size, self.n_classes ))
+            labels = torch.zeros((batch_size, self.n_classes))
+            if self.abstain:
+                return labels
             for i in range(batch_size):
                 label = PrototypeTaglet.onn(embeddings[i], prototypes=self.prototypes)
-                # TODO: ensure x[i] is a vector
                 labels[i, label] = 1
-                print(label)
             return labels
 
     def _get_forward(self, x, way=None, shot=None, val=False):
@@ -152,7 +153,6 @@ class PrototypeTaglet(Taglet):
                                         way=self.train_way,
                                         query=self.query)
         self.use_scads = use_scads
-        self.abstain = False
         self.num_epochs = 2
         self.n_proc = 1
 
@@ -165,6 +165,7 @@ class PrototypeTaglet(Taglet):
             if min_dist is None or rel_dist < min_dist:
                 min_dist = rel_dist
                 lab = key
+                #TODO: add back abstaining
                 #lab = key + 1
 
         if min_dist is None:
@@ -223,11 +224,12 @@ class PrototypeTaglet(Taglet):
 
     def train(self, train_data, val_data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '9000'
+        os.environ['MASTER_PORT'] = '9002'
 
         if len(train_data) == 0:
             log.debug('train dataset is empty! abstaining from labeling.')
-            self.abstain = True
+            self.protonet.set_label_abstaining(True)
+            return
 
         infer_data = None
         if self.use_scads:
@@ -242,7 +244,7 @@ class PrototypeTaglet(Taglet):
         train_label_distr = get_label_distr(train_data.labels)
         if not validate_few_shot_config('Train', train_label_distr, shot=self.train_shot,
                                         way=self.train_way, query=self.query):
-            self.abstain = True
+            self.protonet.set_label_abstaining(True)
             return
 
         if val_data is not None:
@@ -250,7 +252,6 @@ class PrototypeTaglet(Taglet):
 
             if not validate_few_shot_config('Val', val_label_distr, shot=self.val_shot,
                                             way=self.val_way, query=self.query):
-                self.abstain = True
                 val_data = None
 
         args = (self, train_data, val_data, use_gpu, self.n_proc)

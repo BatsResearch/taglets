@@ -34,6 +34,19 @@ class HiddenLabelDataset(Dataset):
         return len(self.dataset)
 
 
+class LabeledSubset(Dataset):
+    def __init__(self, dataset, labels, indices):
+        self.dataset = dataset
+        self.labels = labels[indices]
+        self.indices = indices
+
+    def __getitem__(self, idx):
+        return self.dataset[self.indices[idx]]
+
+    def __len__(self):
+        return len(self.indices)
+
+
 class MnistResNet(ResNet):
     """
     A small ResNet for MNIST.
@@ -82,9 +95,9 @@ class TestSCADS(unittest.TestCase):
                                                     transforms.ToTensor()]),
                       download=True)
         size = int(len(mnist) / 50)
-        labeled = Subset(mnist, [i for i in range(size)])
+        labeled = LabeledSubset(mnist, mnist.targets, [i for i in range(size)])
         unlabeled = HiddenLabelDataset(Subset(mnist, [i for i in range(size, 2 * size)]))
-        val = Subset(mnist, [i for i in range(2 * size, 3 * size)])
+        val = LabeledSubset(mnist, mnist.targets, [i for i in range(2 * size, 3 * size)])
         task = Task("mnist-test", classes, (28, 28), labeled, unlabeled, val, DB_PATH)
         task.set_initial_model(MnistResNet())
         Scads.set_root_path(os.path.join("/home/travis/build/BatsResearch/taglets", ROOT))

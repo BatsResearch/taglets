@@ -49,13 +49,13 @@ class Trainable:
 
     def train(self, train_data, val_data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '9000'
+        os.environ['MASTER_PORT'] = '9002'
         args = (self, train_data, val_data, use_gpu, self.n_proc)
         mp.spawn(self._do_train, nprocs=self.n_proc, args=args)
 
     def predict(self, data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '9000'
+        os.environ['MASTER_PORT'] = '9002'
 
         # Launches workers and collects results from queue
         processes = []
@@ -195,8 +195,11 @@ class Trainable:
         train_sampler = self._get_train_sampler(train_data, n_proc=n_proc, rank=rank)
         train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler)
 
-        val_sampler = self._get_val_sampler(val_data, n_proc=n_proc, rank=rank)
-        val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler)
+        if val_data is None:
+            val_data_loader = None
+        else:
+            val_sampler = self._get_val_sampler(val_data, n_proc=n_proc, rank=rank)
+            val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler)
 
 
         # Initializes statistics containers (will only be filled by lead process)
