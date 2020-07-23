@@ -59,12 +59,13 @@ class NearestProtoModule(nn.Module):
         else:
             batch_size = x.shape[0]
             # +1 for abstaining
-            labels = torch.zeros((batch_size, self.n_classes + 1))
-
+            #labels = torch.zeros((batch_size, self.n_classes + 1))
+            labels = torch.zeros((batch_size, self.n_classes ))
             for i in range(batch_size):
                 label = PrototypeTaglet.onn(embeddings[i], prototypes=self.prototypes)
                 # TODO: ensure x[i] is a vector
                 labels[label, label] = 1
+            print(labels)
             return labels
 
     def _get_forward(self, x, way=None, shot=None, val=False):
@@ -221,7 +222,7 @@ class PrototypeTaglet(Taglet):
 
     def train(self, train_data, val_data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '8889'
+        os.environ['MASTER_PORT'] = '9000'
 
         if len(train_data) == 0:
             log.debug('train dataset is empty! abstaining from labeling.')

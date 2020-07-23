@@ -49,13 +49,13 @@ class Trainable:
 
     def train(self, train_data, val_data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '8889'
+        os.environ['MASTER_PORT'] = '9000'
         args = (self, train_data, val_data, use_gpu, self.n_proc)
         mp.spawn(self._do_train, nprocs=self.n_proc, args=args)
 
     def predict(self, data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '8889'
+        os.environ['MASTER_PORT'] = '9000'
 
         # Launches workers and collects results from queue
         processes = []
