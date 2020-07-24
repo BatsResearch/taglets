@@ -11,6 +11,7 @@ import json
 import random
 import tempfile
 import torch
+import torch.nn as nn
 import logging
 import copy
 import numpy as np
@@ -18,6 +19,7 @@ import torchvision.transforms as transforms
 import torch.nn.functional as F
 import torchvision.models as models
 
+from tqdm import tqdm
 from taglets.modules.zsl_kg_lite.class_encoders.transformer_model import TransformerConv
 from taglets.modules.zsl_kg_lite.utils.core import save_model, l2_loss, set_seed, \
     convert_index_to_int, mask_l2_loss
@@ -122,7 +124,7 @@ class ZeroShotTaglet(Taglet):
         graph_random_walk(graph_path, k=20, n=10)
 
         # compute embeddings for the nodes
-        compute_embeddings(graph_path, database_path)
+        compute_embeddings(graph_path, glove_path)
 
         # compute mapping
         compute_mapping(id_to_concept, graph_path)
@@ -165,7 +167,7 @@ class ZeroShotTaglet(Taglet):
         
         log.debug('loading pretrained resnet50 fc weights')
         fc_vectors = self.setup_fc()
-        fc_vectors.to(device)
+        fc_vectors = fc_vectors.to(device)
 
         self.model = self._train(fc_vectors, device)
     
@@ -175,13 +177,13 @@ class ZeroShotTaglet(Taglet):
     def _train(self, fc_vectors, device):
         
         log.debug("fc id to graph id mapping")
-        mapping_path = os.path.join(self.train_graph_path, 'mapping.json')
+        mapping_path = os.path.join(self.imagenet_graph_path, 'mapping.json')
         mapping = json.load(open(mapping_path))
         # 1000 because we are training on imagenet 1000
         imagenet_idx = torch.tensor([mapping[str(idx)] for idx in range(1000)]).to(device)
 
         log.debug('setting up gnn for traning')
-        model = self.setup_gnn(self.train_graph_path, device)
+        model = self.setup_gnn(self.imagenet_graph_path, device)
         model.to(device)
 
         self.optimizer = torch.optim.Adam(model.parameters(), lr=0.001,
@@ -202,16 +204,16 @@ class ZeroShotTaglet(Taglet):
         num_w = fc_vectors.shape[0]
 
         log.debug('zero-shot learning training started')
-        for epoch in tqdm(range(1, self.num_epochs + 1)):    
+        for epoch in range(1, self.num_epochs + 1):    
             model.train()
             for i, start in enumerate(range(0, n_train, 100)):
                 end = min(start + 100, n_train)
                 indices = tlist[start:end]
                 output_vectors = model(imagenet_idx[indices])
                 loss = l2_loss(output_vectors, fc_vectors[indices])
-                optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 loss.backward()
-                optimizer.step()
+                self.optimizer.step()
 
             model.eval()
             output_vectors = torch.empty(num_w, 2049, device=device)
@@ -279,7 +281,7 @@ class ZeroShotTaglet(Taglet):
         init_feats = torch.load(concept_path)
        
         gnn.gnn_modules[0].features = nn.Embedding.from_pretrained(init_feats, freeze=True)
-        
+        gnn.gnn_modules[0].aggregator.features = nn.Embedding.from_pretrained(init_feats, freeze=True)
         gnn.gnn_modules[0].adj_lists = adj_lists
         gnn.gnn_modules[1].adj_lists = adj_lists
 
@@ -308,10 +310,10 @@ class ZeroShotTaglet(Taglet):
 
         self.model.eval()
         log.debug('generating class representation')
-        mapping_path = os.path.join(self.train_graph_path, 'mapping.json')
+        mapping_path = os.path.join(self.imagenet_graph_path, 'mapping.json')
         mapping = json.load(open(mapping_path))
         conceptnet_idx = torch.tensor([mapping[str(idx)] for idx in len(mapping)]).to(device)
-        class_rep = model(conceptnet_idx)
+        class_rep = self.model(conceptnet_idx)
 
         # 
         log.debug('predicting')
