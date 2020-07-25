@@ -46,6 +46,8 @@ class ZeroShotTaglet(Taglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'zero-shot'
+
+        # this is not used but keeping it just in case
         self.num_epochs = 1000
         self.save_dir = os.path.join('trained_model', self.name)
         if not os.path.exists(self.save_dir):
@@ -77,11 +79,12 @@ class ZeroShotTaglet(Taglet):
             ]
         }
 
-        # TODO: change this if necessary
         # using tempfile to create directories
         self.imagenet_graph_path = tempfile.mkdtemp()
         self.test_graph_path = tempfile.mkdtemp()
         root_path = Scads.get_root_path()
+        model_path = 'pretrained_models/zero-shot/transformer.pt'
+        self.pretrained_model_path = os.path.join(root_path, model_path)
         self.glove_path = os.path.join(root_path, 'glove.840B.300d.txt')
 
     def setup_test_graph(self):
@@ -159,7 +162,6 @@ class ZeroShotTaglet(Taglet):
         # using pretrained model
         pass
 
-    
     def _get_model(self, init_feats, adj_lists, device, options):
         return TransformerConv(init_feats, adj_lists, device, self.options)
 
@@ -297,7 +299,8 @@ class ZeroShotTaglet(Taglet):
 
         log.debug('loading trained model parameters for the gnn')
         # imagenet model params
-        imagenet_params = torch.load(self.save_path, map_location='cpu')
+        imagenet_params = torch.load(self.pretrained_model_path, 
+                                     map_location='cpu')
 
         # get the size of the init features for imagenet 
         # this will be replaced later
