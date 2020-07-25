@@ -288,35 +288,65 @@ class ZeroShotTaglet(Taglet):
         return gnn
 
     def execute(self, unlabeled_data_loader, use_gpu):
+        # checking if gpu needs to be used
         if use_gpu:
             device = torch.device('cuda:0')
         else:
             device = torch.device('cpu')
 
-        # self.model = self.setup_gnn(self.imagenet_graph_path, device)
+        ###
+        # Assuming there is no need for the imagenet graph, 
+        # the code will load the weights and initialize the 
+        # model with random init vectors and then load the 
+        # imagenet weights. These vectors will be replaced
+        # in the self._swtich_graph function with the correct
+        # vectors
+        ###
 
         # setup test graph (this will be used later)
         self.setup_test_graph()
 
-        # log.debug('loading trained model parameters for the gnn')
-        # self.model.load_state_dict(torch.load(self.save_path))
+        log.debug('loading trained model parameters for the gnn')
+        # imagenet model params
+        imagenet_params = torch.load(self.save_path, map_location='cpu')
+
+        # get the size of the init features for imagenet 
+        # this will be replaced later
+        num_feat = imagenet_params['init_feat.weight'].size(0)
+        rand_feat = torch.randn(num_feat, 300, device=device)
+
+        # load the test random walked graph
+        adj_lists_path = os.path.join(self.test_graph_path, 
+                                      'rw_adj_rel_lists.json')
+        adj_lists = json.load(open(adj_lists_path))
+        adj_lists = convert_index_to_int(adj_lists)
+
+        self.model = self._get_model(rand_feat, adj_lists, device, self.options)
+
+        self.model.load_state_dict(imagenet_params)
 
         log.debug('change graph and conceptnet embs')
         self.model = self._switch_graph(self.model, self.test_graph_path)
 
         log.debug('loading pretrained resnet')
         resnet = ResNet()
+        resnet.to(device)
         resnet.eval()
-
+        
+        self.model.to(device)
         self.model.eval()
-        log.debug('generating class representation')
-        mapping_path = os.path.join(self.imagenet_graph_path, 'mapping.json')
+        print('loading mapping files for the conceptnet word ids')
+        mapping_path = os.path.join(self.test_graph_path,
+                                    'mapping.json')
         mapping = json.load(open(mapping_path))
-        conceptnet_idx = torch.tensor([mapping[str(idx)] for idx in len(mapping)]).to(device)
+        conceptnet_idx = torch.tensor([mapping[str(idx)] for idx in range(len(mapping))]).to(device)
+
+        log.debug('generating class representation')
         class_rep = self.model(conceptnet_idx)
 
-        # 
+        #
         log.debug('predicting')
         predictions = self._predict(unlabeled_data_loader, resnet, class_rep, use_gpu)
 
         return predictions
+
