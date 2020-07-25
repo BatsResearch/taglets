@@ -156,20 +156,9 @@ class ZeroShotTaglet(Taglet):
         return model
 
     def train(self, train_data_loader, val_data_loader, use_gpu):
-        # TODO: check if this is right 
-        if use_gpu:
-            device = torch.device('cuda:0')
-        else:
-            device = torch.device('cpu')
+        # using pretrained model
+        pass
 
-        # setup imagenet graph
-        self.setup_imagenet_graph()
-        
-        log.debug('loading pretrained resnet50 fc weights')
-        fc_vectors = self.setup_fc()
-        fc_vectors = fc_vectors.to(device)
-
-        self.model = self._train(fc_vectors, device)
     
     def _get_model(self, init_feats, adj_lists, device, options):
         return TransformerConv(init_feats, adj_lists, device, self.options)
