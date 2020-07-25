@@ -320,9 +320,12 @@ class ZeroShotTaglet(Taglet):
                                       'rw_adj_rel_lists.json')
         adj_lists = json.load(open(adj_lists_path))
         adj_lists = convert_index_to_int(adj_lists)
+        
+        log.debug('creating the transformer model')
+        self.model = self._get_model(rand_feat, adj_lists, 
+                                     device, self.options)
 
-        self.model = self._get_model(rand_feat, adj_lists, device, self.options)
-
+        log.debug('loading imagenet parameters into the model')
         self.model.load_state_dict(imagenet_params)
 
         log.debug('change graph and conceptnet embs')
@@ -346,7 +349,9 @@ class ZeroShotTaglet(Taglet):
 
         #
         log.debug('predicting')
-        predictions = self._predict(unlabeled_data_loader, resnet, class_rep, use_gpu)
+        predictions = self._predict(unlabeled_data_loader, 
+                                    resnet, class_rep, 
+                                    use_gpu)
 
         return predictions
 
