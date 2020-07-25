@@ -79,10 +79,10 @@ class ScadsEmbedding:
         """
         Get the related nodes based on the cosine similarity of their embeddings
 
-        :param node: target ScadsNode to get its related nodes
+        :param node: target ScadsNode/ConceptNet ID to get its related nodes
         :param limit: number of related nodes to get
         :param is_node: whether we are working with ScadsNode or string
-        :return:
+        :return: list of ScadsNode if is_node is True, else, list of ConceptNet IDs
         """
         vec = ScadsEmbedding.get_vector(node, is_node)
         small_vec = vec[: ScadsEmbedding.small_k]
@@ -105,6 +105,18 @@ class ScadsEmbedding:
             return related_nodes
         else:
             return similar_concepts
+
+    @staticmethod
+    def get_similarity(node1, node2, is_node=True):
+        """
+        Get cosine similarity between two classes
+ 
+        :param node1: ScadsNode/ConceptNet ID
+        :param node2: ScadsNode/ConceptNet ID
+        """
+        vec1 = ScadsEmbedding.get_vector(node1, is_node)
+        vec2 = ScadsEmbedding.get_vector(node2, is_node)
+        return vec1.dot(vec2)
 
     @staticmethod
     def _similar_to_vec(frame, vec, limit=50):

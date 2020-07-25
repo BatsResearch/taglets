@@ -13,7 +13,7 @@ class Task:
         Create a new Task
 
         :param name: a human-readable name for this task
-        :param classes: map from DataLoader class labels to SCADS node IDs
+        :param classes: list of SCADS node IDs
         :param labeled_train_data: DataLoader for labeled training data
         :param unlabeled_train_data: DataLoader for unlabeled training data
         :param validation_data: DataLoader for labeled validation data
@@ -30,12 +30,6 @@ class Task:
         self.initial = models.resnet18(pretrained=True)
         self.initial.fc = torch.nn.Identity()
         self.whitelist = whitelist
-
-    def get_classes(self):
-        """
-        :return: a copy of the map from DataLoader class labels to SCADS node IDs
-        """
-        return dict(self.classes)
 
     def get_labeled_train_data(self):
         return self.labeled_train_data
