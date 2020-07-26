@@ -1,4 +1,4 @@
-from fewshot_utils import get_label_distr, validate_few_shot_config
+from fewshot_utils import get_label_distr, validate_few_shot_config, count_acc
 from .module import Module
 from ..pipeline import Taglet
 
@@ -13,10 +13,11 @@ import logging
 log = logging.getLogger(__name__)
 
 
-class Linear_fw(nn.Linear): # used in MAML to forward input with fast weight
+# Modified from https://github.com/wyharveychen/CloserLookFewShot
+class Linear_fw(nn.Linear):
     def __init__(self, in_features, out_features):
         super(Linear_fw, self).__init__(in_features, out_features)
-        self.weight.fast = None #Lazy hack to add fast weight link
+        self.weight.fast = None
         self.bias.fast = None
 
     def forward(self, x):
@@ -159,11 +160,12 @@ class MAMLTaglet(Taglet):
         if use_gpu and torch.cuda.is_available():
             self.model.cuda()
 
+        assert self.n_meta_tasks >= self.episodes
+
         running_loss = 0.0
         running_acc = 0.0
         count = 0
         avg_loss = 0
-        acc = 0
         task_count = 0
         loss_all = []
         for i, batch in enumerate(train_data_loader, 1):
@@ -179,6 +181,7 @@ class MAMLTaglet(Taglet):
             labels = torch.arange(self.way).repeat(self.train_shot)
             query_scores = self._set_forward(data)
             loss = self.criterion(query_scores, labels)
+            acc = count_acc(query_scores, labels)
 
             avg_loss = avg_loss + loss.data[0]
             loss_all.append(loss)
@@ -193,10 +196,12 @@ class MAMLTaglet(Taglet):
                 task_count = 0
                 loss_all = []
 
-            running_loss += loss.item()
-            running_acc += acc
-            log.info("avg train episode loss: %f" % (loss.item() / self.query))
-            log.info("train episode accuracy: %f%s" % (acc * 100.0, "%"))
+                log.info("avg train episode loss: %f" % (loss.item() / self.query))
+                log.info("train episode accuracy: %f%s" % (acc * 100.0, "%"))
+
+                running_loss += loss.item()
+                running_acc += acc
+
         epoch_loss = running_loss / count if count > 0 else 0.0
         epoch_acc = running_acc / count if count > 0 else 0.0
         return epoch_loss, epoch_acc
@@ -206,6 +211,8 @@ class MAMLTaglet(Taglet):
 
         if use_gpu and torch.cuda.is_available():
             self.model.cuda()
+
+        labels = torch.arange(self.way).repeat(self.train_shot)
 
         running_loss = 0.0
         running_acc = 0.0
@@ -218,14 +225,9 @@ class MAMLTaglet(Taglet):
             else:
                 data = batch[0]
 
-            self.optimizer.zero_grad()
-            loss, acc = self.model.get_forward_loss(data,
-                                                       use_gpu,
-                                                       way=self.way,
-                                                       shot=self.val_shot,
-                                                       val=True)
-            loss.backward()
-            self.optimizer.step()
+            query_scores = self._set_forward(data)
+            loss = self.criterion(query_scores, labels)
+            acc = count_acc(query_scores, labels)
 
             running_loss += loss.item()
             running_acc += acc

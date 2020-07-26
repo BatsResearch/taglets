@@ -184,3 +184,12 @@ def validate_few_shot_config(dataset_name, data_distr, shot, way, query):
                     (dataset_name, shot, query, base_min_labels))
         return False
     return True
+
+
+def count_acc(logits, label):
+    pred = torch.argmax(logits, dim=1)
+    if torch.cuda.is_available():
+        return (pred == label).type(torch.cuda.FloatTensor).mean().item()
+    else:
+        return (pred == label).type(torch.FloatTensor).mean().item()
+

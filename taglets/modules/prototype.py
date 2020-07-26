@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.multiprocessing as mp
 
-from .fewshot_utils import get_label_distr, validate_few_shot_config, DistributedBatchCategoriesSampler
+from .fewshot_utils import get_label_distr, validate_few_shot_config, DistributedBatchCategoriesSampler, count_acc
 from torch.utils.data import DataLoader
 
 log = logging.getLogger(__name__)
@@ -19,15 +19,6 @@ def euclidean_metric(a, b):
     a = a.unsqueeze(1).expand(n, m, -1)
     b = b.unsqueeze(0).expand(n, m, -1)
     return ((a - b) ** 2).sum(dim=2)
-
-
-def count_acc(logits, label):
-    pred = torch.argmax(logits, dim=1)
-    if torch.cuda.is_available():
-        return (pred == label).type(torch.cuda.FloatTensor).mean().item()
-    else:
-        return (pred == label).type(torch.FloatTensor).mean().item()
-
 
 # this is kind of a hack
 class NearestProtoModule(nn.Module):
