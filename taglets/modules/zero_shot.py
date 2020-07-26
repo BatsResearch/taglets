@@ -83,7 +83,7 @@ class ZeroShotTaglet(Taglet):
         self.imagenet_graph_path = tempfile.mkdtemp()
         self.test_graph_path = tempfile.mkdtemp()
         root_path = Scads.get_root_path()
-        model_path = 'pretrained_models/zero-shot/transformer.pt'
+        model_path = 'pretrained_models/zero_shot/transformer.pt'
         self.pretrained_model_path = os.path.join(root_path, model_path)
         self.glove_path = os.path.join(root_path, 'glove.840B.300d.txt')
 
@@ -158,9 +158,9 @@ class ZeroShotTaglet(Taglet):
 
         return model
 
-    def train(self, train_data_loader, val_data_loader, use_gpu):
-        # using pretrained model
-        pass
+    def train(self, train_data_loader, val_data_loader, use_gpu):        
+        # setup test graph (this will be used later)
+        self.setup_test_graph()
 
     def _get_model(self, init_feats, adj_lists, device, options):
         return TransformerConv(init_feats, adj_lists, device, self.options)
@@ -293,9 +293,6 @@ class ZeroShotTaglet(Taglet):
         # in the self._swtich_graph function with the correct
         # vectors
         ###
-
-        # setup test graph (this will be used later)
-        self.setup_test_graph()
 
         log.debug('loading trained model parameters for the gnn')
         # imagenet model params
