@@ -2,9 +2,43 @@ import torch
 import numpy as np
 import logging
 
+from ..pipeline import Taglet
 from torch.utils.data import Sampler
 
 log = logging.getLogger(__name__)
+
+class MetaTaglet(Taglet):
+    def __init__(self, task, train_shot, train_way, query, episodes, val_shot, val_way, use_scads):
+        super().__init__(task)
+        self.task = task
+        self.train_shot = train_shot
+        self.train_way = train_way
+
+        self.query = query
+        self.episodes = episodes
+
+        self.val_shot = val_shot
+        self.val_way = val_way
+        self.use_scads = use_scads
+
+    def _get_train_sampler(self, data, n_proc, rank):
+        return DistributedBatchCategoriesSampler(rank=rank,
+                                                 labels=data.labels,
+                                                 n_episodes=self.episodes,
+                                                 n_cls=self.train_way,
+                                                 n_per=self.train_shot + self.query)
+
+    def _get_val_sampler(self, data, n_proc, rank):
+        return DistributedBatchCategoriesSampler(rank=rank,
+                                                 labels=data.labels,
+                                                 n_episodes=self.episodes,
+                                                 n_cls=self.val_way,
+                                                 n_per=self.val_shot + self.query)
+
+    def _get_dataloader(self, data, sampler):
+        return torch.utils.data.DataLoader(
+            dataset=data, batch_sampler=sampler,
+            num_workers=0, pin_memory=True)
 
 
 class CategoriesSampler(Sampler):
