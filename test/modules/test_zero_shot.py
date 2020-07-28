@@ -8,7 +8,7 @@ from taglets.scads import Scads
 from taglets.scads.create.install import Installer, MnistInstallation
 from taglets.controller import Controller
 from taglets.task import Task
-from taglets.modules.zero_shot import ZeroShotModule, ZeroShotTaglet
+from taglets.modules.zero_shot_kg import ZSLKGModule, ZSLKGTaglet
 from taglets.modules.zsl_kg_lite.example_encoders.resnet import ResNet
 from taglets.data.custom_dataset import CustomDataset
 
@@ -28,9 +28,9 @@ class TestZeroShotModule(unittest.TestCase):
                     labeled_train_data=None, unlabeled_train_data=None,
                     validation_data=None, whitelist=None,
                     scads_path=None)
-        cls.module = ZeroShotModule(task)
+        cls.module = ZSLKGModule(task)
 
-        options = cls.module.taglets[0].options
+        options = cls.module.taglets[0].zsl_kg.options
 
 
         cls.adj_lists = {
@@ -43,8 +43,8 @@ class TestZeroShotModule(unittest.TestCase):
 
 
         # the graph neural network model
-        cls.taglet = cls.module.taglets[0]
-        cls.model = cls.module.taglets[0]._get_model(features, cls.adj_lists, device, options)
+        cls.taglet = cls.module.taglets[0].zsl_kg
+        cls.model = cls.module.taglets[0].zsl_kg._get_model(features, cls.adj_lists, device, options)
 
         cls.resnet = ResNet()
 
