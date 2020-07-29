@@ -226,9 +226,9 @@ class Trainable:
             summaries = [train_loss, train_acc, val_loss, val_acc]
             summaries = torch.tensor(summaries, requires_grad=False)
             if use_gpu:
-                summaries.cuda(rank)
+                summaries = summaries.cuda(rank)
             else:
-                summaries.cpu()
+                summaries = summaries.cpu()
             dist.reduce(summaries, 0, op=dist.ReduceOp.SUM)
             train_loss, train_acc, val_loss, val_acc = summaries
 
