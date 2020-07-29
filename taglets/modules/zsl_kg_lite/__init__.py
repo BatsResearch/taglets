@@ -1,1 +1,1 @@
-from .zsl_kg import ZSLKG
+from .zsl_kg import ZSLKGModule, ZSLKGTaglet
