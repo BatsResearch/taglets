@@ -160,8 +160,8 @@ class Trainable:
         This method carries out the actual training iterations. It is designed
         to be called by train().
 
-        :param train_data_loader: A dataloader containing training data
-        :param val_data_loader: A dataloader containing validation data
+        :param train_data_loader: A dataset containing training data
+        :param val_data_loader: A dataset containing validation data
         :param use_gpu: Whether or not to use the GPU
         :return:
         """
@@ -189,9 +189,12 @@ class Trainable:
         # Creates distributed data loaders from datasets
         train_sampler = Trainable._get_train_sampler(train_data, n_proc=n_proc, rank=rank)
         train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler)
-
-        val_sampler = Trainable._get_train_sampler(val_data, n_proc=n_proc, rank=rank)
-        val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler)
+        
+        if val_data:
+            val_sampler = Trainable._get_train_sampler(val_data, n_proc=n_proc, rank=rank)
+            val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler)
+        else:
+            val_data_loader = None
 
         # Initializes statistics containers (will only be filled by lead process)
         best_model_to_save = None
