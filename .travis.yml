@@ -34,3 +34,4 @@ script:
   - python test/pipeline/test_trainable.py
   - python test/scads/test_scads.py
   - python test/active/test_active_learning.py
+  - python test/modules/test_zero_shot.py
