@@ -374,9 +374,9 @@ class Trainable:
 
         self.model.eval()
         for batch in data_loader:
-            try:
+            if isinstance(batch, list):
                 inputs, targets = batch
-            except (TypeError, ValueError):
+            else:
                 inputs, targets = batch, None
 
             if use_gpu:
