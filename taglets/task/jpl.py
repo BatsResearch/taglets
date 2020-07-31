@@ -450,7 +450,7 @@ class JPLRunner:
         self.submit_predictions(predictions_dict)
         
         if unlabeled_dataset is not None:
-            _, confidences = end_model.predict(unlabeled_dataset, self.use_gpu)
+            confidences = end_model.predict(unlabeled_dataset, self.use_gpu)
             candidates = np.argsort(confidences)
             self.confidence_active_learning.set_candidates(candidates)
         
