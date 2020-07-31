@@ -7,7 +7,14 @@ import logging
 import sys
 import numpy as np
 import torch
+import torch.multiprocessing as mp
 from torch.utils.data import DataLoader, ConcatDataset
+
+####################################################################
+# We change the multiprocessing start method to ensure it works for
+# CUDA devices.
+####################################################################
+mp.set_start_method('spawn')
 
 ####################################################################
 # We configure logging in the main class of the application so that

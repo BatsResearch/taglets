@@ -353,23 +353,11 @@ class Trainable:
         if rank == 0:
             log.info('Beginning prediction')
 
-        # Initializes distributed backend
-        backend = 'nccl' if use_gpu else 'gloo'
-        dist.init_process_group(
-            backend=backend, init_method='env://', world_size=n_proc, rank=rank
-        )
-
-        # Configures model to be distributed
+        # Configures model for device
         if use_gpu:
             self.model = self.model.cuda(rank)
-            self.model = nn.parallel.DistributedDataParallel(
-                self.model, device_ids=[rank]
-            )
         else:
             self.model = self.model.cpu()
-            self.model = nn.parallel.DistributedDataParallel(
-                self.model, device_ids=None
-            )
 
         # Creates distributed data loader from dataset
         sampler = torch.utils.data.distributed.DistributedSampler(
