@@ -60,10 +60,11 @@ class Trainable:
         # Launches workers and collects results from queue
         processes = []
         results = []
-        q = mp.Queue()
+        ctx = mp.get_context('spawn')
+        q = ctx.Queue()
         for i in range(self.n_proc):
             args = (i, self, q, data, use_gpu, self.n_proc)
-            p = mp.Process(target=self._do_predict, args=args)
+            p = ctx.Process(target=self._do_predict, args=args)
             p.start()
             processes.append(p)
         for _ in processes:
