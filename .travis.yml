@@ -4,7 +4,7 @@ dist: xenial
 sudo: false
 language: python
 python:
-  - "3.7"
+  - "3.8"
 
 cache:
   directories:
@@ -28,9 +28,5 @@ install:
   - export PYTHONPATH=".:$PYTHONPATH"
 
 script:
-  - python test/test_controller.py
-  - python test/pipeline/test_trainable.py
-  - python test/scads/test_scads.py
-  - python test/scads/test_numberbatch.py
-  - python test/active/test_active_learning.py
-  - python test/modules/test_zero_shot.py
+  - python -m unittest discover -s test
+
