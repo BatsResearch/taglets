@@ -439,8 +439,8 @@ class JPLRunner:
         end_model = controller.train_end_model()
 
         evaluation_dataset = self.jpl_storage.get_evaluation_dataset()
-        confidences = end_model.predict(evaluation_dataset, self.use_gpu)
-        predictions = np.argmax(confidences, 1)
+        outputs = end_model.predict(evaluation_dataset, self.use_gpu)
+        predictions = np.argmax(outputs, 1)
         prediction_names = []
         for p in predictions:
             prediction_names.append([k for k, v in self.jpl_storage.label_map.items() if v == p][0])
@@ -450,7 +450,8 @@ class JPLRunner:
         self.submit_predictions(predictions_dict)
         
         if unlabeled_dataset is not None:
-            confidences = end_model.predict(unlabeled_dataset, self.use_gpu)
+            outputs = end_model.predict(unlabeled_dataset, self.use_gpu)
+            confidences = np.max(outputs, 1)
             candidates = np.argsort(confidences)
             self.confidence_active_learning.set_candidates(candidates)
         
