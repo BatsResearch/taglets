@@ -7,7 +7,7 @@ from torchvision import transforms
 from torchvision.datasets import ImageFolder
 
 TEST_DATA = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../test_data/modules")
-DB_PATH = os.path.join(TEST_DATA, "test_scads.db")
+DB_PATH = os.path.join(TEST_DATA, "test_module.db")
 
 
 class HiddenLabelDataset(Dataset):
@@ -54,29 +54,29 @@ class TestModule:
 
         # Creates edges
         edge0 = Edge(id=0, weight=1.0)
-        edge0.relation_type = related_to
-        edge0.start_node = airplane
-        edge0.end_node = propeller_plane
+        edge0.relation = related_to
+        edge0.start_node = airplane.id
+        edge0.end_node = propeller_plane.id
 
         edge1 = Edge(id=1, weight=1.0)
-        edge1.relation_type = related_to
-        edge1.start_node = cat
-        edge1.end_node = lion
+        edge1.relation = related_to
+        edge1.start_node = cat.id
+        edge1.end_node = lion.id
 
         edge2 = Edge(id=2, weight=2.0)
-        edge2.relation_type = related_to
-        edge2.start_node = dog
-        edge2.end_node = wolf
+        edge2.relation = related_to
+        edge2.start_node = dog.id
+        edge2.end_node = wolf.id
 
         edge3 = Edge(id=3, weight=0.5)
-        edge3.relation_type = related_to
-        edge3.start_node = lion
-        edge3.end_node = wolf
+        edge3.relation = related_to
+        edge3.start_node = lion.id
+        edge3.end_node = wolf.id
 
         edge4 = Edge(id=4, weight=1.0)
-        edge4.relation_type = is_a
-        edge4.start_node = propeller_plane
-        edge4.end_node = airplane
+        edge4.relation = is_a
+        edge4.start_node = propeller_plane.id
+        edge4.end_node = airplane.id
 
         session.add_all((edge0, edge1, edge2, edge3, edge4))
 
@@ -112,6 +112,9 @@ class TestModule:
                 image.dataset = related
                 image.node = node
                 session.add(image)
+
+        # Commits data
+        session.commit()
 
     def setUp(self):
         preprocess = transforms.Compose(
