@@ -4,16 +4,13 @@ import torch
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
-from taglets.scads import Scads
-from taglets.scads.create.install import Installer, MnistInstallation
-from taglets.controller import Controller
 from taglets.task import Task
-from taglets.modules.zsl_kg_lite import ZSLKGModule, ZSLKGTaglet
+from taglets.modules.zsl_kg_lite import ZSLKGModule
 from taglets.modules.zsl_kg_lite.example_encoders.resnet import ResNet
 from taglets.data.custom_dataset import CustomDataset
 
 TEST_DATA = os.path.dirname(os.path.realpath(__file__))
-# TEST_DATA = os.path.join(pathlib.Path(__file__).parent.absolute(), "../../test/test_data")
+
 
 class TestZeroShotModule(unittest.TestCase):
     @classmethod
@@ -51,8 +48,8 @@ class TestZeroShotModule(unittest.TestCase):
         # load sample images for classification
         
         image_path = [
-            os.path.join(TEST_DATA, '../../test/test_data/imagenet_1k/imagenet_1k_full/test/ILSVRC2012_val_00049419.JPEG'),
-            os.path.join(TEST_DATA, '../../test/test_data/imagenet_1k/imagenet_1k_full/test/ILSVRC2012_val_00049991.JPEG')
+            os.path.join(TEST_DATA, '../../test/test_data/scads/imagenet_1k/imagenet_1k_full/test/ILSVRC2012_val_00049419.JPEG'),
+            os.path.join(TEST_DATA, '../../test/test_data/scads/imagenet_1k/imagenet_1k_full/test/ILSVRC2012_val_00049991.JPEG')
         ]
 
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
