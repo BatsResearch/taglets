@@ -60,10 +60,11 @@ class Trainable:
         # Launches workers and collects results from queue
         processes = []
         results = []
-        q = mp.Queue()
+        ctx = mp.get_context('spawn')
+        q = ctx.Queue()
         for i in range(self.n_proc):
             args = (i, self, q, data, use_gpu, self.n_proc)
-            p = mp.Process(target=self._do_predict, args=args)
+            p = ctx.Process(target=self._do_predict, args=args)
             p.start()
             processes.append(p)
         for _ in processes:
@@ -353,23 +354,11 @@ class Trainable:
         if rank == 0:
             log.info('Beginning prediction')
 
-        # Initializes distributed backend
-        backend = 'nccl' if use_gpu else 'gloo'
-        dist.init_process_group(
-            backend=backend, init_method='env://', world_size=n_proc, rank=rank
-        )
-
-        # Configures model to be distributed
+        # Configures model for device
         if use_gpu:
             self.model = self.model.cuda(rank)
-            self.model = nn.parallel.DistributedDataParallel(
-                self.model, device_ids=[rank]
-            )
         else:
             self.model = self.model.cpu()
-            self.model = nn.parallel.DistributedDataParallel(
-                self.model, device_ids=None
-            )
 
         # Creates distributed data loader from dataset
         sampler = torch.utils.data.distributed.DistributedSampler(
@@ -385,9 +374,9 @@ class Trainable:
 
         self.model.eval()
         for batch in data_loader:
-            try:
+            if isinstance(batch, list):
                 inputs, targets = batch
-            except (TypeError, ValueError):
+            else:
                 inputs, targets = batch, None
 
             if use_gpu:

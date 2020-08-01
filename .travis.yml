@@ -33,3 +33,4 @@ script:
   - python test/scads/test_scads.py
   - python test/scads/test_numberbatch.py
   - python test/active/test_active_learning.py
+  - python test/modules/test_zero_shot.py

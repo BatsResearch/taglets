@@ -19,7 +19,18 @@ pip install -r requirements.txt
 ```
 
 ## How To
-To start, you will need to run 'controller.py', which is located in the 'taglets' directory. It interacts with the API to receive all the information related the given task. There are two phases: `base` and `adaptation`. Each phase has several checkpoints; in each checkpoint you can request the label for some data points, and after training the model submit the predictions on test data.  
+To start, you will need to run 'controller.py', which is located in the 'taglets' directory. It interacts with the API to receive all the information related the given task. There are two phases: `base` and `adaptation`. Each phase has several checkpoints; in each checkpoint you can request the label for some data points, and after training the model submit the predictions on test data. 
+
+## Additional Setup
+### Zero-Shot Learning Setup
+1. Download the GloVe embeddings in the scads root folder `<TAGLETS data root folder>/glove.840B.300d.txt`.
+
+```
+wget http://nlp.stanford.edu/data/glove.840B.300d.zip
+unzip glove.840B.300d.zip
+```
+
+2. Place the pretrained model in `<TAGLETS data root folder>/pretrained_models/zero_shot/transformer.pt`
 
 ## Contributing
 We welcome pull requests. For any changes, please open an issue first to discuss what you would like to change.
