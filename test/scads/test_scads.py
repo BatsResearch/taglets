@@ -4,7 +4,7 @@ from taglets.scads import Scads
 from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation, ImageNetInstallation, COCO2014Installation
 
 ROOT = os.path.dirname(os.path.realpath(__file__))
-ROOT = ROOT + "/../test_data"
+ROOT = ROOT + "/../test_data/scads"
 DB_PATH = ROOT + "/test_scads.db"
 CONCEPTNET_PATH = ROOT + "/conceptnet"
 CIFAR_PATH = "cifar100"
