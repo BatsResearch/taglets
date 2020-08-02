@@ -8,12 +8,11 @@ from taglets.task import Task
 from taglets.modules.zsl_kg_lite import ZSLKGModule
 from taglets.modules.zsl_kg_lite.example_encoders.resnet import ResNet
 from taglets.data.custom_dataset import CustomDataset
-from .test_module import TestModule
 
 TEST_DATA = os.path.dirname(os.path.realpath(__file__))
 
 
-class TestZeroShotModule(TestModule, unittest.TestCase):
+class TestZeroShotModule(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Get Task
