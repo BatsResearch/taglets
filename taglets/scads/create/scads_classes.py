@@ -85,8 +85,8 @@ class Dataset(Base):
     For example:
         cifar100 = Dataset(key=0, name='CIFAR100', nb_classes=100)
     key: The unique, autoincremented key of the dataset
-    name: The name of the dataset
-    nb_classes: The total number of classes in the dataset
+    name: The name of the dataset (optional)
+    path: The path to the dataset relative to the SCADS root path (optional)
     """
     __tablename__ = 'datasets'
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -114,7 +114,7 @@ class Image(Base):
     node_key: The key of the corresponding node for the image. A foreign key from 'nodes' table
     mode: If the image is saved for 'train' or 'test' in actual dataset
           If None, the image is not categorized based on train and test
-    location: The location of the image
+    location: The location of the image relateive to the SCADS root path
     """
     __tablename__ = 'images'
     id = Column(Integer, primary_key=True, autoincrement=True)

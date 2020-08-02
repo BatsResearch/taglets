@@ -1,4 +1,3 @@
-
 from taglets.data.custom_dataset import CustomDataset
 from torch.utils import data
 
@@ -9,7 +8,6 @@ from ..scads.interface.scads import Scads
 import os
 import torch
 import logging
-import copy
 import numpy as np
 import torchvision.transforms as transforms
 

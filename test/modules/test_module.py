@@ -2,6 +2,7 @@ import os
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 from taglets.task import Task
+from taglets.scads import Scads
 from taglets.scads.create.scads_classes import Node, Edge, Relation, Dataset, Image, Base
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
@@ -81,7 +82,7 @@ class TestModule:
         session.add_all((edge0, edge1, edge2, edge3, edge4))
 
         # Creates dataset
-        related = Dataset(id=0, name="related", path=TEST_DATA + "related")
+        related = Dataset(id=0, name="related", path=os.path.join(TEST_DATA, "related"))
         session.add(related)
 
         # Creates images
@@ -108,7 +109,7 @@ class TestModule:
 
         for (node, name), paths in images.items():
             for path in paths:
-                image = Image(path=os.path.join(name, path))
+                image = Image(path=os.path.join("related", name, path))
                 image.dataset = related
                 image.node = node
                 session.add(image)
@@ -130,6 +131,7 @@ class TestModule:
         self.task = Task("test_module", ["/c/en/airplane", "/c/en/cat", "/c/en/dog"],
                          (224, 224), self.train, self.unlabeled, self.val,
                          scads_path=DB_PATH)
+        Scads.set_root_path(TEST_DATA)
 
     def test_module(self):
         module = self._get_module(self.task)
