@@ -278,7 +278,7 @@ class Trainable:
                 self.save_plot('loss', val_dic, self.save_dir)
                 val_dic = {'train': train_acc_list, 'validation': val_acc_list}
                 self.save_plot('accuracy', val_dic, self.save_dir)
-            if self.select_on_val:
+            if self.select_on_val and val_data_loader:
                 self.model.module.load_state_dict(best_model_to_save)
 
             self.model.cpu()
