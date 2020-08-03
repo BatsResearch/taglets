@@ -31,7 +31,7 @@ class Trainable:
         self.num_epochs = 50 if not os.environ.get("CI") else 5
         self.batch_size = 32
         self.select_on_val = True  # If true, save model on the best validation performance
-        self.save_dir = "."
+        self.save_dir = None
         self.n_proc = 1
 
         self.model = task.get_initial_model()
@@ -52,7 +52,6 @@ class Trainable:
         os.environ['MASTER_PORT'] = '8888'
         args = (self, train_data, val_data, use_gpu, self.n_proc)
         mp.spawn(self._do_train, nprocs=self.n_proc, args=args)
-        self.model.load_state_dict(torch.load(self.save_dir  + '/model.pth.tar'))
 
     def predict(self, data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
@@ -244,24 +243,27 @@ class Trainable:
                 log.info('Validation acc: {:.4f}%'.format(val_acc * 100))
                 val_loss_list.append(val_loss)
                 val_acc_list.append(val_acc)
-                if val_acc > best_val_acc or not self.select_on_val:
-                    log.debug("Deep copying new model." +
+                if val_acc > best_val_acc:
+                    log.debug("Deep copying new best model." +
                               "(validation of {:.4f}%, over {:.4f}%)".format(
                                   val_acc * 100, best_val_acc * 100))
-                    model_to_save = copy.deepcopy(self.model.module.state_dict())
-                    torch.save(model_to_save, self.save_dir + '/model.pth.tar')
-                if val_acc > best_val_acc:
+                    best_model_to_save = copy.deepcopy(self.model.state_dict())
                     best_val_acc = val_acc
+                    if self.save_dir:
+                        torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
             if self.lr_scheduler:
                 self.lr_scheduler.step()
 
         # Lead process saves plots and loads best model
         if rank == 0:
-            val_dic = {'train': train_loss_list, 'validation': val_loss_list}
-            self.save_plot('loss', val_dic, self.save_dir)
-            val_dic = {'train': train_acc_list, 'validation': val_acc_list}
-            self.save_plot('accuracy', val_dic, self.save_dir)
+            if self.save_dir:
+                val_dic = {'train': train_loss_list, 'validation': val_loss_list}
+                self.save_plot('loss', val_dic, self.save_dir)
+                val_dic = {'train': train_acc_list, 'validation': val_acc_list}
+                self.save_plot('accuracy', val_dic, self.save_dir)
+            if self.select_on_val and best_model_to_save:
+                self.model.load_state_dict(best_model_to_save)
 
     def _train_epoch(self, train_data_loader, use_gpu):
         """
