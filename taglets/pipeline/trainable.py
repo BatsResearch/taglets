@@ -3,6 +3,7 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import pickle
 import random
 import torch
 import torch.distributed as dist
@@ -66,6 +67,7 @@ class Trainable:
         for p in processes:
             p.join()
 
+        state_dict = pickle.loads(state_dict)
         self.model.load_state_dict(state_dict)
 
     def predict(self, data, use_gpu):
@@ -175,8 +177,8 @@ class Trainable:
         This method carries out the actual training iterations. It is designed
         to be called by train().
 
-        :param train_data_loader: A dataset containing training data
-        :param val_data_loader: A dataset containing validation data
+        :param train_data: A dataset containing training data
+        :param val_data: A dataset containing validation data
         :param use_gpu: Whether or not to use the GPU
         :return:
         """
@@ -228,11 +230,11 @@ class Trainable:
             train_sampler.set_epoch(epoch)
 
             # Trains on training data
-            train_loss, train_acc = self._train_epoch(train_data_loader, use_gpu)
+            train_loss, train_acc = self._train_epoch(rank, train_data_loader, use_gpu)
 
             # Evaluates on validation data
             if val_data_loader:
-                val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu)
+                val_loss, val_acc = self._validate_epoch(rank, val_data_loader, use_gpu)
             else:
                 val_loss = 0
                 val_acc = 0
@@ -277,11 +279,14 @@ class Trainable:
                 val_dic = {'train': train_acc_list, 'validation': val_acc_list}
                 self.save_plot('accuracy', val_dic, self.save_dir)
             if self.select_on_val:
-                q.put(best_model_to_save)
-            else:
-                q.put(self.model.module.state_dict())
+                self.model.module.load_state_dict(best_model_to_save)
 
-    def _train_epoch(self, train_data_loader, use_gpu):
+            self.model.cpu()
+            state_dict = self.model.module.state_dict()
+            state_dict = pickle.dumps(state_dict)
+            q.put(state_dict)
+
+    def _train_epoch(self, rank, train_data_loader, use_gpu):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data
@@ -295,8 +300,8 @@ class Trainable:
             inputs = batch[0]
             labels = batch[1]
             if use_gpu:
-                inputs = inputs.cuda()
-                labels = labels.cuda()
+                inputs = inputs.cuda(rank)
+                labels = labels.cuda(rank)
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
@@ -316,7 +321,7 @@ class Trainable:
 
         return epoch_loss, epoch_acc
 
-    def _validate_epoch(self, val_data_loader, use_gpu):
+    def _validate_epoch(self, rank, val_data_loader, use_gpu):
         """
         Validate for one epoch.
         :param val_data_loader: A dataloader containing validation data
@@ -330,8 +335,8 @@ class Trainable:
             inputs = batch[0]
             labels = batch[1]
             if use_gpu:
-                inputs = inputs.cuda()
-                labels = labels.cuda()
+                inputs = inputs.cuda(rank)
+                labels = labels.cuda(rank)
             with torch.set_grad_enabled(False):
                 outputs = self.model(inputs)
                 loss = torch.nn.functional.cross_entropy(outputs, labels)
