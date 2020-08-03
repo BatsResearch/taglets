@@ -50,8 +50,23 @@ class Trainable:
     def train(self, train_data, val_data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
         os.environ['MASTER_PORT'] = '8888'
-        args = (self, train_data, val_data, use_gpu, self.n_proc)
-        mp.spawn(self._do_train, nprocs=self.n_proc, args=args)
+
+        # Launches workers and collects results from queue
+        processes = []
+        ctx = mp.get_context('spawn')
+        q = ctx.Queue()
+        for i in range(self.n_proc):
+            args = (i, q, train_data, val_data, use_gpu, self.n_proc)
+            p = ctx.Process(target=self._do_train, args=args)
+            p.start()
+            processes.append(p)
+
+        state_dict = q.get()
+
+        for p in processes:
+            p.join()
+
+        self.model.load_state_dict(state_dict)
 
     def predict(self, data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
@@ -63,7 +78,7 @@ class Trainable:
         ctx = mp.get_context('spawn')
         q = ctx.Queue()
         for i in range(self.n_proc):
-            args = (i, self, q, data, use_gpu, self.n_proc)
+            args = (i, q, data, use_gpu, self.n_proc)
             p = ctx.Process(target=self._do_predict, args=args)
             p.start()
             processes.append(p)
@@ -153,8 +168,7 @@ class Trainable:
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
 
-    @staticmethod
-    def _do_train(rank, self, train_data, val_data, use_gpu, n_proc):
+    def _do_train(self, rank, q, train_data, val_data, use_gpu, n_proc):
         """
         One worker for training.
 
@@ -247,7 +261,7 @@ class Trainable:
                     log.debug("Deep copying new best model." +
                               "(validation of {:.4f}%, over {:.4f}%)".format(
                                   val_acc * 100, best_val_acc * 100))
-                    best_model_to_save = copy.deepcopy(self.model.state_dict())
+                    best_model_to_save = copy.deepcopy(self.model.module.state_dict())
                     best_val_acc = val_acc
                     if self.save_dir:
                         torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
@@ -255,15 +269,17 @@ class Trainable:
             if self.lr_scheduler:
                 self.lr_scheduler.step()
 
-        # Lead process saves plots and loads best model
+        # Lead process saves plots and returns best model
         if rank == 0:
             if self.save_dir:
                 val_dic = {'train': train_loss_list, 'validation': val_loss_list}
                 self.save_plot('loss', val_dic, self.save_dir)
                 val_dic = {'train': train_acc_list, 'validation': val_acc_list}
                 self.save_plot('accuracy', val_dic, self.save_dir)
-            if self.select_on_val and best_model_to_save:
-                self.model.load_state_dict(best_model_to_save)
+            if self.select_on_val:
+                q.put(best_model_to_save)
+            else:
+                q.put(self.model.module.state_dict())
 
     def _train_epoch(self, train_data_loader, use_gpu):
         """
@@ -343,8 +359,7 @@ class Trainable:
         """
         return torch.sum(torch.max(outputs, 1)[1] == labels)
 
-    @staticmethod
-    def _do_predict(rank, self, q, data, use_gpu, n_proc):
+    def _do_predict(self, rank, q, data, use_gpu, n_proc):
         """
         predict on test data.
         :param data_loader: A dataloader containing images
