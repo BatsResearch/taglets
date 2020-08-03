@@ -5,6 +5,7 @@ from ..create.scads_classes import Node, Image
 from ..create.create_scads import add_conceptnet
 from ..create.add_datasets import add_dataset
 import requests
+import time
 
 
 class DatasetInstaller:
@@ -13,7 +14,6 @@ class DatasetInstaller:
 
     def get_images(self, dataset, session, root):
         raise NotImplementedError()
-
 
 class CifarInstallation(DatasetInstaller):
     def get_name(self):
@@ -51,7 +51,6 @@ class CifarInstallation(DatasetInstaller):
 
     def get_conceptnet_id(self, label):
         return "/c/en/" + label.replace(" ", "_")
-
 
 class MnistInstallation(DatasetInstaller):
     def get_name(self):
@@ -102,7 +101,6 @@ class MnistInstallation(DatasetInstaller):
         }
         return mnist_classes[label]
 
-
 class ImageNetInstallation(DatasetInstaller):
     def get_name(self):
         return "ImageNet"
@@ -116,6 +114,8 @@ class ImageNetInstallation(DatasetInstaller):
 
         all_images = []
         for mode in modes:
+            print(mode)
+            counter = 0
             df_label = pd.read_feather(
                 os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
             mode_dir = os.path.join(dataset.path, "imagenet_1k_" + size, mode)
@@ -128,6 +128,12 @@ class ImageNetInstallation(DatasetInstaller):
                 if synset in synset_to_labels:
                     labels = synset_to_labels[synset]
                 else:
+                    counter += 1
+                    print(counter)
+                    if counter % 40 == 0:
+                        print('....sleeping....')
+                        time.sleep(10)
+
                     labels = requests.get(synset_to_labels_endpoint + synset)
                     labels = list(filter(lambda x: x, labels.text.split("\n")))
                     synset_to_labels[synset] = labels
@@ -151,7 +157,6 @@ class ImageNetInstallation(DatasetInstaller):
 
     def get_conceptnet_id(self, label):
         return "/c/en/" + label.replace(" ", "_")
-
 
 class COCO2014Installation(DatasetInstaller):
     def get_name(self):
@@ -205,7 +210,6 @@ class COCO2014Installation(DatasetInstaller):
     def get_conceptnet_id(self, label):
         return "/c/en/" + label.replace(" ", "_")
 
-
 class DomainNetInstallation(DatasetInstaller):
     def __init__(self, domain_name):
         self.domain = domain_name
@@ -219,10 +223,98 @@ class DomainNetInstallation(DatasetInstaller):
         label_to_node_id = {}
 
         all_images = []
+        missed_labels = set([])
         for mode in modes:
             df_label = pd.read_feather(
                 os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
             mode_dir = os.path.join(dataset.path, dataset.path + "_" + size, mode)
+            for image in os.listdir(os.path.join(root, mode_dir)):
+                if image.startswith('.'):
+                    continue
+                label = df_label.loc[df_label['id'] == image]['class'].values[0]
+
+                # Get node_id
+                if label in label_to_node_id:
+                    node_id = label_to_node_id[label]
+                else:
+                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                    node_id = node.id if node else None
+                    label_to_node_id[label] = node_id
+                if not node_id:
+                    missed_labels.add(label)
+                    continue  # Scads is missing a missing conceptnet id
+                img = Image(dataset_id=dataset.id,
+                            node_id=node_id,
+                            path=os.path.join(mode_dir, image))
+                all_images.append(img)
+        print(missed_labels)
+        return all_images
+
+    def get_conceptnet_id(self, label):
+        exceptions = {'paint_can':'can_of_paint', 'The_Eiffel_Tower':'eiffel_tower', 'animal_migration':'migration', 'teddy-bear':'teddy_bear', 'The_Mona_Lisa':'mona_lisa', 't-shirt':'t_shirt',
+         'The_Great_Wall_of_China':'great_wall_of_china'}
+        if label in exceptions:
+            return "/c/en/" +exceptions[label]
+        return "/c/en/" + label.replace(" ", "_")
+
+class VOC2009Installation(DatasetInstaller):
+    def get_name(self):
+        return "VOC2009"
+
+    def get_images(self, dataset, session, root):
+        size = "full"
+        modes = ['train', 'test']
+        label_to_node_id = {}
+
+        all_images = []
+        missed_labels = set([])
+        for mode in modes:
+            df_label = pd.read_feather(
+                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            mode_dir = os.path.join(dataset.path, "voc2009_" + size, mode)
+            for image in os.listdir(os.path.join(root, mode_dir)):
+                if image.startswith('.'):
+                    continue
+                label = df_label.loc[df_label['id'] == image]['class'].values[0]
+
+                # Get node_id
+                if label in label_to_node_id:
+                    node_id = label_to_node_id[label]
+                else:
+                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                    node_id = node.id if node else None
+                    label_to_node_id[label] = node_id
+                if not node_id:
+                    missed_labels.add(label)
+                    continue  # Scads is missing a missing conceptnet id
+                img = Image(dataset_id=dataset.id,
+                            node_id=node_id,
+                            path=os.path.join(mode_dir, image))
+                all_images.append(img)
+        print('missed_labels:')
+        print(missed_labels)
+        return all_images
+
+    def get_conceptnet_id(self, label):
+        exceptions = {'pottedplant':'potted_plant', 'tvmonitor':'tv_monitor', 'diningtable':'dining_table'}
+        if label in exceptions:
+            return "/c/en/" +exceptions[label]
+        return "/c/en/" + label.replace(" ", "_")
+
+class GoogleOpenImageInstallation(DatasetInstaller):
+    def get_name(self):
+        return "GoogleOpenImage"
+
+    def get_images(self, dataset, session, root):
+        size = "full"
+        modes = ['train', 'test']
+        label_to_node_id = {}
+
+        all_images = []
+        for mode in modes:
+            df_label = pd.read_feather(
+                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            mode_dir = os.path.join(dataset.path, "google_open_image_" + size, mode)
             for image in os.listdir(os.path.join(root, mode_dir)):
                 if image.startswith('.'):
                     continue
@@ -246,7 +338,6 @@ class DomainNetInstallation(DatasetInstaller):
     def get_conceptnet_id(self, label):
         return "/c/en/" + label.replace(" ", "_")
 
-
 class Installer:
     def __init__(self, path_to_database):
         self.db = path_to_database
@@ -268,6 +359,8 @@ if __name__ == "__main__":
     parser.add_argument("--mnist", type=str, help="Path to MNIST directory from the root")
     parser.add_argument("--imagenet", type=str, help="Path to ImageNet directory from the root")
     parser.add_argument("--coco2014", type=str, help="Path to COCO2014 directory from the root")
+    parser.add_argument("--voc2009", type=str, help="Path to voc2009 directory from the root")
+    parser.add_argument("--googleopenimage", type=str, help="Path to googleopenimage directory from the root")
     parser.add_argument("--domainnet", nargs="+")
     args = parser.parse_args()
 
@@ -291,9 +384,21 @@ if __name__ == "__main__":
         if not args.root:
             raise RuntimeError("Must specify root directory.")
         installer.install_dataset(args.root, args.coco2014, COCO2014Installation())
+
+    if args.voc2009:
+        if not args.root:
+            raise RuntimeError("Must specify root directory.")
+        installer.install_dataset(args.root, args.voc2009, VOC2009Installation())
+
+    if args.googleopenimage:
+        if not args.root:
+            raise RuntimeError("Must specify root directory.")
+        installer.install_dataset(args.root, args.googleopenimage, GoogleOpenImageInstallation())
+
     if args.domainnet:
         if not args.root:
             raise RuntimeError("Must specify root directory.")
         for domain in args.domainnet:
             name = domain.split("-")[1].capitalize()
             installer.install_dataset(args.root, domain, DomainNetInstallation(name))
+
