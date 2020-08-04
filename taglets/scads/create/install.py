@@ -50,7 +50,7 @@ class CifarInstallation(DatasetInstaller):
         return all_images
 
     def get_conceptnet_id(self, label):
-        return "/c/en/" + label.replace(" ", "_")
+        return "/c/en/" + label.lower().replace(" ", "_")
 
 class MnistInstallation(DatasetInstaller):
     def get_name(self):
@@ -169,7 +169,7 @@ class ImageNetInstallation(DatasetInstaller):
         return all_images
 
     def get_conceptnet_id(self, label):
-        return "/c/en/" + label.replace(" ", "_")
+        return "/c/en/" + label.lower().replace(" ", "_")
 
 class COCO2014Installation(DatasetInstaller):
     def get_name(self):
@@ -221,7 +221,7 @@ class COCO2014Installation(DatasetInstaller):
         return all_images
 
     def get_conceptnet_id(self, label):
-        return "/c/en/" + label.replace(" ", "_")
+        return "/c/en/" + label.lower().replace(" ", "_")
 
 class DomainNetInstallation(DatasetInstaller):
     def __init__(self, domain_name):
@@ -268,7 +268,7 @@ class DomainNetInstallation(DatasetInstaller):
          'The_Great_Wall_of_China':'great_wall_of_china'}
         if label in exceptions:
             return "/c/en/" +exceptions[label]
-        return "/c/en/" + label.replace(" ", "_")
+        return "/c/en/" + label.lower().replace(" ", "_")
 
 class VOC2009Installation(DatasetInstaller):
     def get_name(self):
@@ -312,7 +312,7 @@ class VOC2009Installation(DatasetInstaller):
         exceptions = {'pottedplant':'potted_plant', 'tvmonitor':'tv_monitor', 'diningtable':'dining_table'}
         if label in exceptions:
             return "/c/en/" +exceptions[label]
-        return "/c/en/" + label.replace(" ", "_")
+        return "/c/en/" + label.lower().replace(" ", "_")
 
 class GoogleOpenImageInstallation(DatasetInstaller):
     def get_name(self):
