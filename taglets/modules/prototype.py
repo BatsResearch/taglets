@@ -4,7 +4,6 @@ import os
 import logging
 import torch
 import torch.nn as nn
-import torch.multiprocessing as mp
 import numpy as np
 
 from torch.utils.data import DataLoader, Sampler
@@ -50,6 +49,7 @@ class CategoriesSampler(Sampler):
             pos = pos[: self.n_per]
             batch.append(l[pos])
         return iter(batch)
+
 
 # samples data in an episodic manner
 class BatchCategoriesSampler(CategoriesSampler):
@@ -345,7 +345,7 @@ class PrototypeTaglet(Taglet):
 
     def train(self, train_data, val_data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '9002'
+        os.environ['MASTER_PORT'] = '8888'
 
         if len(train_data) == 0:
             log.debug('train dataset is empty! abstaining from labeling.')
@@ -375,13 +375,10 @@ class PrototypeTaglet(Taglet):
                                             way=self.val_way, query=self.query):
                 val_data = None
 
-        args = (self, train_data, val_data, use_gpu, self.n_proc)
-        mp.spawn(self._do_train, nprocs=self.n_proc, args=args)
-
-        # after child training processes are done (waitpid!), construct prototypes
+        super().train(infer_data, val_data, use_gpu)
         self.build_prototypes(infer_data, use_gpu=use_gpu)
 
-    def _train_epoch(self, train_data_loader, use_gpu):
+    def _train_epoch(self, rank, train_data_loader, use_gpu):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data
@@ -390,8 +387,10 @@ class PrototypeTaglet(Taglet):
         """
         self.protonet.train()
 
-        if use_gpu and torch.cuda.is_available():
-            self.protonet.cuda()
+        if use_gpu:
+            self.protonet = self.protonet.cuda(rank)
+        else:
+            self.protonet = self.protonet.cpu()
 
         running_loss = 0.0
         running_acc = 0.0
@@ -400,7 +399,7 @@ class PrototypeTaglet(Taglet):
             log.info('Train Episode: %d' % i)
             count += 1
             if use_gpu:
-                data, _ = [_.cuda() for _ in batch]
+                data, _ = [_.cuda(rank) for _ in batch]
             else:
                 data = batch[0]
 
@@ -417,11 +416,13 @@ class PrototypeTaglet(Taglet):
         epoch_acc = running_acc / count if count > 0 else 0.0
         return epoch_loss, epoch_acc
 
-    def _validate_epoch(self, val_data_loader, use_gpu):
+    def _validate_epoch(self, rank, val_data_loader, use_gpu):
         self.protonet.eval()
 
         if use_gpu and torch.cuda.is_available():
-            self.protonet.cuda()
+            self.protonet = self.protonet.cuda(rank)
+        else:
+            self.protonet = self.protonet.cpu()
 
         running_loss = 0.0
         running_acc = 0.0
@@ -430,7 +431,7 @@ class PrototypeTaglet(Taglet):
             log.info('Val Episode: %d' % i)
             count += 1
             if use_gpu:
-                data, _ = [_.cuda() for _ in batch]
+                data, _ = [_.cuda(rank) for _ in batch]
             else:
                 data = batch[0]
 
