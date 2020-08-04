@@ -9,6 +9,7 @@ python:
 cache:
   directories:
     - download
+    - predefined
 
 before_install:
   - travis_retry
@@ -18,13 +19,9 @@ before_install:
   - source $HOME/miniconda/etc/profile.d/conda.sh
   - conda config --set always_yes yes --set changeps1 no
   - conda info --all
-  - travis_retry
-    wget https://conceptnet.s3.amazonaws.com/downloads/2019/numberbatch/numberbatch-en-19.08.txt.gz
-    -O download/numberbatch-en-19.08.txt.gz
 
 install:
-  - pip install -q .
-  - pip install -r requirements.txt
+  - travis_retry setup.sh
   - export PYTHONPATH=".:$PYTHONPATH"
 
 script:
