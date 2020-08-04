@@ -144,5 +144,6 @@ class TestController(unittest.TestCase):
     def tearDownClass(cls):
         os.remove(DB_PATH)
 
+
 if __name__ == "__main__":
     unittest.main()
