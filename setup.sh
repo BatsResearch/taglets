@@ -10,7 +10,9 @@ cd predefined
 # wget https://storage.googleapis.com/taglets-public/scads.fall2020.sqlite3
 
 cd embeddings
-wget https://storage.googleapis.com/taglets-public/embeddings/glove.840B.300d.zip
+wget https://storage.googleapis.com/taglets-public/embeddings/glove.840B.300d.txt.gz
+gunzip glove.840B.300d.txt.gz
+
 wget https://storage.googleapis.com/taglets-public/embeddings/numberbatch-en19.08.txt.gz
 
 cd ../zsl_kg_lite

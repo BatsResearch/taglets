@@ -21,9 +21,10 @@ before_install:
   - conda info --all
 
 install:
-  - travis_retry setup.sh
-  - export PYTHONPATH=".:$PYTHONPATH"
+  - chmod u+x ./setup.sh
+  - travis_retry ./setup.sh
 
 script:
+  - export PYTHONPATH=".:$PYTHONPATH"
   - python -m unittest discover -s test
 
