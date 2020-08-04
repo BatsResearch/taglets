@@ -1,7 +1,7 @@
 import unittest
 import os
 from taglets.scads import Scads
-from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation, ImageNetInstallation, COCO2014Installation
+from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation, ImageNetInstallation, COCO2014Installation, GoogleOpenImageInstallation
 
 ROOT = os.path.dirname(os.path.realpath(__file__))
 ROOT = ROOT + "/../test_data/scads"
@@ -11,6 +11,7 @@ CIFAR_PATH = "cifar100"
 MNIST_PATH = "mnist"
 IMAGENET_PATH = "imagenet_1k"
 COCO2014_PATH = "coco2014"
+GOOGLE_OPEN_IMAGE_PATH = "google_open_image"
 
 
 class TestSCADS(unittest.TestCase):
@@ -23,6 +24,7 @@ class TestSCADS(unittest.TestCase):
         installer.install_dataset(ROOT, MNIST_PATH, MnistInstallation())
         installer.install_dataset(ROOT, IMAGENET_PATH, ImageNetInstallation())
         installer.install_dataset(ROOT, COCO2014_PATH, COCO2014Installation())
+        installer.install_dataset(ROOT, GOOGLE_OPEN_IMAGE_PATH, GoogleOpenImageInstallation())
         Scads.open(DB_PATH)
 
     def test_invalid_conceptnet_id(self):
@@ -79,6 +81,20 @@ class TestSCADS(unittest.TestCase):
         images = node2.get_images()
         self.assertEqual(len(images), 1)
         self.assertTrue('coco2014/coco2014_full/train/COCO_train2014_000000581674.jpg'
+                        in images)
+
+        node3 = Scads.get_node_by_conceptnet_id("/c/en/person")
+        self.assertEqual(node3.get_datasets(), ['GoogleOpenImage'])
+        images = node3.get_images()
+        self.assertEqual(len(images), 1)
+        self.assertTrue('google_open_image/google_open_image_full/test/067e21aeda713b53.jpg'
+                        in images)
+
+        node4 = Scads.get_node_by_conceptnet_id("/c/en/doll")
+        self.assertEqual(node4.get_datasets(), ['GoogleOpenImage'])
+        images = node4.get_images()
+        self.assertEqual(len(images), 1)
+        self.assertTrue('google_open_image/google_open_image_full/train/0100de671be66c38.jpg'
                         in images)
 
     def test_undirected_relation(self):
