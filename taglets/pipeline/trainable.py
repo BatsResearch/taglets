@@ -50,7 +50,7 @@ class Trainable:
 
     def train(self, train_data, val_data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '8888'
+        os.environ['MASTER_PORT'] = '9000'
 
         # Launches workers and collects results from queue
         processes = []
@@ -72,7 +72,7 @@ class Trainable:
 
     def predict(self, data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '8888'
+        os.environ['MASTER_PORT'] = '9000'
 
         # Launches workers and collects results from queue
         processes = []
@@ -398,8 +398,8 @@ class Trainable:
         outputs = []
         labels = []
 
-        self.model.eval()
         pred_classifier = self._get_pred_classifier()
+        pred_classifier.eval()
         for batch in data_loader:
             if isinstance(batch, list):
                 inputs, targets = batch

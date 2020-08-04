@@ -248,8 +248,8 @@ class PrototypeModule(Module):
     def __init__(self, task):
         super().__init__(task)
         episodes = 20 if not os.environ.get("CI") else 20
-        self.taglets = [PrototypeTaglet(task, train_shot=5, train_way=10,
-                                        query=30, episodes=episodes, use_scads=False)]
+        self.taglets = [PrototypeTaglet(task, train_shot=3, train_way=10,
+                                        query=2, episodes=episodes, use_scads=False)]
 
 
 class PrototypeTaglet(Taglet):
@@ -288,6 +288,9 @@ class PrototypeTaglet(Taglet):
         self.num_epochs = 2
         self.n_proc = 1
 
+        self.train_labels = None
+        self.val_labels = None
+
     @staticmethod
     def onn(i, prototypes):
         min_dist = None
@@ -307,14 +310,14 @@ class PrototypeTaglet(Taglet):
 
     def _get_train_sampler(self, data, n_proc, rank):
         return DistributedBatchCategoriesSampler(rank=rank,
-                                                labels=data.labels,
+                                                labels=self.train_labels,
                                                 n_episodes=self.episodes,
                                                 n_cls=self.train_way,
                                                 n_per=self.train_shot + self.query)
 
     def _get_val_sampler(self, data, n_proc, rank):
         return DistributedBatchCategoriesSampler(rank=rank,
-                                                labels=data.labels,
+                                                labels=self.val_labels,
                                                 n_episodes=self.episodes,
                                                 n_cls=self.val_way,
                                                 n_per=self.val_shot + self.query)
@@ -356,7 +359,7 @@ class PrototypeTaglet(Taglet):
 
     def train(self, train_data, val_data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '8888'
+        os.environ['MASTER_PORT'] = '9000'
 
         if len(train_data) == 0:
             log.debug('train dataset is empty! abstaining from labeling.')
@@ -374,10 +377,10 @@ class PrototypeTaglet(Taglet):
 
         # validate that train / val datasets are sufficiently large given shot / way
         try:
-            train_label_distr = get_label_distr(train_data.labels)
+            self.train_labels = train_data.labels
         except AttributeError:
-            train_labels = get_dataset_labels(train_data)
-            train_label_distr = get_label_distr(train_labels)
+            self.train_labels = get_dataset_labels(train_data)
+        train_label_distr = get_label_distr(self.train_labels)
 
         if not validate_few_shot_config('Train', train_label_distr, shot=self.train_shot,
                                         way=self.train_way, query=self.query):
@@ -386,10 +389,10 @@ class PrototypeTaglet(Taglet):
 
         if val_data is not None:
             try:
-                val_label_distr = get_label_distr(val_data.labels)
+                self.val_labels = val_data.labels
             except AttributeError:
-                val_labels = get_dataset_labels(val_data)
-                val_label_distr = get_label_distr(val_data)
+                self.val_labels = get_dataset_labels(val_data)
+            val_label_distr = get_label_distr(self.val_labels)
 
             if not validate_few_shot_config('Val', val_label_distr, shot=self.val_shot,
                                             way=self.val_way, query=self.query):
