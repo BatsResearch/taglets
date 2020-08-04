@@ -113,8 +113,9 @@ class ImageNetInstallation(DatasetInstaller):
         label_to_node_id = {}
 
         all_images = []
+        image_counter = 0
+        missed_labeles = set([])
         for mode in modes:
-            print(mode)
             counter = 0
             df_label = pd.read_feather(
                 os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
@@ -128,13 +129,16 @@ class ImageNetInstallation(DatasetInstaller):
                 if synset in synset_to_labels:
                     labels = synset_to_labels[synset]
                 else:
-                    counter += 1
-                    print(counter)
-                    if counter % 40 == 0:
-                        print('....sleeping....')
-                        time.sleep(10)
 
-                    labels = requests.get(synset_to_labels_endpoint + synset)
+                    try:
+                        labels = requests.get(synset_to_labels_endpoint + synset)
+                    except:
+                        print("Connection refused by the server..")
+                        print("Let me sleep for 60 seconds")
+                        print("ZZzzzz...")
+                        time.sleep(60)
+                        print("Was a nice sleep, now let me continue...")
+                        continue
                     labels = list(filter(lambda x: x, labels.text.split("\n")))
                     synset_to_labels[synset] = labels
 
@@ -148,11 +152,20 @@ class ImageNetInstallation(DatasetInstaller):
                         node_id = node.id if node else None
                         label_to_node_id[label] = node_id
                     if not node_id:
+                        missed_labeles.add(label)
                         continue  # Scads is missing a missing conceptnet id
                     img = Image(dataset_id=dataset.id,
                                 node_id=node_id,
                                 path=os.path.join(mode_dir, image))
                     all_images.append(img)
+                    image_counter += 1
+                    if image_counter % 500 == 0:
+                        session.add_all(all_images)
+                        session.commit()
+                        all_images = []
+                        image_counter = 0
+                        print('a chunk of 500 images from imagenet is added to images dataset')
+        print(missed_labeles)
         return all_images
 
     def get_conceptnet_id(self, label):
@@ -309,8 +322,9 @@ class GoogleOpenImageInstallation(DatasetInstaller):
         size = "full"
         modes = ['train', 'test']
         label_to_node_id = {}
-
+        missed_labeles=set([])
         all_images = []
+        image_counter = 0
         for mode in modes:
             df_label = pd.read_feather(
                 os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
@@ -328,11 +342,21 @@ class GoogleOpenImageInstallation(DatasetInstaller):
                     node_id = node.id if node else None
                     label_to_node_id[label] = node_id
                 if not node_id:
+                    missed_labeles.add(label)
                     continue  # Scads is missing a missing conceptnet id
                 img = Image(dataset_id=dataset.id,
                             node_id=node_id,
                             path=os.path.join(mode_dir, image))
                 all_images.append(img)
+                image_counter += 1
+                if image_counter % 500 == 0:
+                    print(image_counter)
+                    session.add_all(all_images)
+                    session.commit()
+                    all_images = []
+                    image_counter = 0
+                    print('a chunk of 500 images from google open image is added to images dataset')
+        print(missed_labeles)
         return all_images
 
     def get_conceptnet_id(self, label):
