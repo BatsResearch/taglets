@@ -98,7 +98,10 @@ def get_label_distr(labels):
     distr = {}
 
     for label in labels:
-        l = label.item()
+        try:
+            l = label.item()
+        except AttributeError:
+            l = label
         if l not in distr:
             distr[l] = 0
         distr[l] += 1
