@@ -1,6 +1,7 @@
 from taglets.controller import Controller
 from taglets.task import Task
 import unittest
+import multiprocessing as mp
 
 import torch
 from torch.utils.data import DataLoader, Dataset, Subset
@@ -88,4 +89,5 @@ class TestController(unittest.TestCase):
         self.assertGreater(end_model.evaluate(mnist_test, use_gpu=False), .9)
 
 if __name__ == "__main__":
+    mp.set_start_method('spawn')
     unittest.main()

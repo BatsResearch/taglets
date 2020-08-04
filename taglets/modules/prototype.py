@@ -1,16 +1,154 @@
 from .module import Module
 from ..pipeline import Taglet
-import copy
 import os
 import logging
 import torch
 import torch.nn as nn
 import torch.multiprocessing as mp
+import numpy as np
 
-from .fewshot_utils import get_label_distr, validate_few_shot_config, DistributedBatchCategoriesSampler, count_acc
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Sampler
 
 log = logging.getLogger(__name__)
+
+
+# TODO: put these samplers in a separate file
+class CategoriesSampler(Sampler):
+    def __init__(self, labels, n_cls, n_per, rand_generator=None):
+        super().__init__(labels)
+        # number of classes in dataset
+        self.n_cls = n_cls
+        # number of examples per class to be extracted
+        self.n_per = n_per
+        self.rand_generator = rand_generator
+
+        self.m_ind = []
+        labels = np.array(labels)
+        for i in range(max(labels) + 1):
+            # indices where labels are the same
+            ind = np.argwhere(labels == i).reshape(-1)
+            ind = torch.from_numpy(ind)
+            self.m_ind.append(ind)
+
+    def __len__(self):
+        return self.n_cls * self.n_per
+
+    def __iter__(self):
+        batch = []
+        if self.rand_generator:
+            classes = torch.randperm(len(self.m_ind), generator=self.rand_generator)
+        else:
+            classes = torch.randperm(len(self.m_ind))
+
+        classes = classes[: self.n_cls]
+        for c in classes:
+            l = self.m_ind[c]
+            if self.rand_generator:
+                pos = torch.randperm(len(l), generator=self.rand_generator)
+            else:
+                pos = torch.randperm(len(l))
+            pos = pos[: self.n_per]
+            batch.append(l[pos])
+        return iter(batch)
+
+# samples data in an episodic manner
+class BatchCategoriesSampler(CategoriesSampler):
+    def __init__(self, labels, n_episodes, n_cls, n_per, rand_generator):
+        super().__init__(labels, n_cls, n_per, rand_generator)
+        self.n_episodes = n_episodes
+
+    def __iter__(self):
+        for i_batch in range(self.n_episodes):
+            batch = []
+
+            if self.rand_generator:
+                classes = torch.randperm(len(self.m_ind), generator=self.rand_generator)
+            else:
+                classes = torch.randperm(len(self.m_ind))
+            classes = classes[: self.n_cls]
+
+            for c in classes:
+                l = self.m_ind[c]
+                if self.rand_generator:
+                    pos = torch.randperm(len(l), generator=self.rand_generator)
+                else:
+                    pos = torch.randperm(len(l))
+                pos = pos[: self.n_per]
+                batch.append(l[pos])
+            batch = torch.stack(batch).t().reshape(-1)
+            yield batch
+
+
+class DistributedBatchCategoriesSampler(BatchCategoriesSampler):
+    def __init__(self, rank, labels, n_episodes, n_cls, n_per):
+        g = torch.Generator()
+        # set a large, deterministic seed so that different processes get different data
+        g.manual_seed((rank + 1) * (1 << 15))
+        super(DistributedBatchCategoriesSampler, self).__init__(labels=labels,
+                                                               n_episodes=n_episodes,
+                                                               n_cls=n_cls,
+                                                               n_per=n_per,
+                                                               rand_generator=g)
+
+    def set_epoch(self, epoch):
+        pass
+
+
+def get_label_distr(labels):
+    distr = {}
+
+    for label in labels:
+        l = label.item()
+        if l not in distr:
+            distr[l] = 0
+        distr[l] += 1
+    return distr
+
+
+def get_label_distr_stats(distr):
+    max_label = None
+    min_label = None
+
+    for label in distr:
+        density = distr[label]
+        if max_label is None or density > max_label:
+            max_label = density
+        if min_label is None or density < min_label:
+            min_label = density
+    return max_label, min_label
+
+
+def validate_few_shot_config(dataset_name, data_distr, shot, way, query):
+    """
+    validates that a dataset is sufficiently large for a given way / shot / query combination.
+
+    :param dataset_name: Name of the dataset to validate
+    :param data_distr: A label distribution returned from get_label_distr
+    :param shot: number of examples per class
+    :param way: number of classes per batch
+    :param query: number of test examples per class
+    return: whether the inputted few shot config is valid
+    """
+    if len(data_distr.keys()) < way:
+        log.warning('%s dataset is too small for selected way (%d). Dataset contains %d classes'
+                    % (dataset_name, way, len(data_distr.keys())))
+        return False
+
+    _, base_min_labels = get_label_distr_stats(data_distr)
+    if base_min_labels < query + shot:
+        log.warning('%s dataset is too small for selected shot (%d) and query (%d). '
+                    'Smallest class contains %d point(s).' %
+                    (dataset_name, shot, query, base_min_labels))
+        return False
+    return True
+
+
+def count_acc(logits, label, use_gpu):
+    pred = torch.argmax(logits, dim=1)
+    if use_gpu:
+        return (pred == label).type(torch.cuda.FloatTensor).mean().item()
+    else:
+        return (pred == label).type(torch.FloatTensor).mean().item()
 
 
 def euclidean_metric(a, b):
@@ -20,9 +158,7 @@ def euclidean_metric(a, b):
     b = b.unsqueeze(0).expand(n, m, -1)
     return ((a - b) ** 2).sum(dim=2)
 
-# this is kind of a hack
 class NearestProtoModule(nn.Module):
-    #TODO: determine whether prototypes will be passed by reference or value
     def __init__(self, prototypes, n_classes, encoder, shot, way, query):
         super(NearestProtoModule, self).__init__()
         self.prototypes = prototypes
@@ -60,6 +196,7 @@ class NearestProtoModule(nn.Module):
                 labels[i, label] = 1
             return labels
 
+    # hook for calculating forward
     def _get_forward(self, x, way=None, shot=None, val=False):
         if way is None:
             way = self.way
@@ -93,7 +230,7 @@ class NearestProtoModule(nn.Module):
             label.cuda()
 
         logits = self._get_forward(x, way=way, shot=shot, val=val)
-        return self.criterion(logits, label), count_acc(logits, label)
+        return self.criterion(logits, label), count_acc(logits, label, use_gpu)
 
 
 class PrototypeModule(Module):
@@ -127,13 +264,6 @@ class PrototypeTaglet(Taglet):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
-        # Parameters needed to be updated based on freezing layer
-        params_to_update = []
-        for param in self.model.parameters():
-            if param.requires_grad:
-                params_to_update.append(param)
-
-        self._params_to_update = params_to_update
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 

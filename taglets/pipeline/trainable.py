@@ -56,6 +56,7 @@ class Trainable:
     def predict(self, data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
         os.environ['MASTER_PORT'] = '9002'
+        log.info(mp.get_start_method())
 
         # Launches workers and collects results from queue
         processes = []
@@ -65,11 +66,15 @@ class Trainable:
             args = (i, self, q, data, use_gpu, self.n_proc)
             p = mp.Process(target=self._do_predict, args=args)
             p.start()
+            log.info('pid: %d' % p.pid)
             processes.append(p)
+
         for _ in processes:
             results.append(q.get())
+
         for p in processes:
             p.join()
+
 
         # Collates results so output order matches input order
         # Results are either (rank, outputs) or (rank, outputs, label)
@@ -364,8 +369,7 @@ class Trainable:
         if use_gpu:
             self.model = self.model.cuda(rank)
             self.model = nn.parallel.DistributedDataParallel(
-                self.model, device_ids=[rank]
-            )
+                self.model, device_ids=[rank])
         else:
             self.model = self.model.cpu()
             self.model = nn.parallel.DistributedDataParallel(
