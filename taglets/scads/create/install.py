@@ -360,7 +360,7 @@ class GoogleOpenImageInstallation(DatasetInstaller):
         return all_images
 
     def get_conceptnet_id(self, label):
-        return "/c/en/" + label.replace(" ", "_")
+        return "/c/en/" + label.lower().replace(" ", "_")
 
 class Installer:
     def __init__(self, path_to_database):
@@ -425,4 +425,3 @@ if __name__ == "__main__":
         for domain in args.domainnet:
             name = domain.split("-")[1].capitalize()
             installer.install_dataset(args.root, domain, DomainNetInstallation(name))
-
