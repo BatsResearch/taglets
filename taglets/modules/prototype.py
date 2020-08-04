@@ -118,6 +118,13 @@ def get_label_distr_stats(distr):
     return max_label, min_label
 
 
+def get_dataset_labels(dataset):
+    labels = []
+    log.warning('Manually getting dataset labels. This might cause a Memory Overflow.')
+    for _, label in dataset:
+        labels.append(label)
+    return labels
+
 def validate_few_shot_config(dataset_name, data_distr, shot, way, query):
     """
     validates that a dataset is sufficiently large for a given way / shot / query combination.
@@ -363,14 +370,23 @@ class PrototypeTaglet(Taglet):
             infer_data = train_data
 
         # validate that train / val datasets are sufficiently large given shot / way
-        train_label_distr = get_label_distr(train_data.labels)
+        try:
+            train_label_distr = get_label_distr(train_data.labels)
+        except AttributeError:
+            train_labels = get_dataset_labels(train_data)
+            train_label_distr = get_label_distr(train_labels)
+
         if not validate_few_shot_config('Train', train_label_distr, shot=self.train_shot,
                                         way=self.train_way, query=self.query):
             self.protonet.set_label_abstaining(True)
             return
 
         if val_data is not None:
-            val_label_distr = get_label_distr(val_data.labels)
+            try:
+                val_label_distr = get_label_distr(val_data.labels)
+            except AttributeError:
+                val_labels = get_dataset_labels(val_data)
+                val_label_distr = get_label_distr(val_data)
 
             if not validate_few_shot_config('Val', val_label_distr, shot=self.val_shot,
                                             way=self.val_way, query=self.query):
