@@ -4,33 +4,25 @@ automatically construct and integrate weak supervision sources
 [![Build Status](https://travis-ci.com/BatsResearch/taglets.svg?token=sinAgJjnTsxQ2oN3R9vi&branch=master)](https://travis-ci.com/BatsResearch/taglets)
 
 ## Description
-In this package, we automatically construct labeling functions for the given ```image classification problem``` in which there is not enough labeled data. Based on the amount of labeled data, we call appropriate labeling functions, train them, then combine them. We leverage many few shot and transfer learning methodologies in order to create a reliable framework for learning with less labeled data.
+In this package, we automatically construct labeling functions for the given 
+image classification problem in which there is not enough labeled data.
+Based on the amount of labeled data, we call appropriate modules, create weak
+labelers called _taglets_, and then combine their outputs to train an end model.
+
+## Prerequisites
+1. Python 3.7 with `pip` installed in a *nix environment.
+2. An internet connection is required
+to download predefined data and pretrained models.
+3. External datasets provided by JPL at `TODO`
 
 ## Installation
-
-1. Clone the repository
-2. In the top level directory, execute
+In the top level directory, run
 ```
-pip install .
-```
-3. Install the dependencies by executing:
-```
-pip install -r requirements.txt
+./setup.sh
 ```
 
-## How To
-To start, you will need to run 'controller.py', which is located in the 'taglets' directory. It interacts with the API to receive all the information related the given task. There are two phases: `base` and `adaptation`. Each phase has several checkpoints; in each checkpoint you can request the label for some data points, and after training the model submit the predictions on test data. 
-
-## Additional Setup
-### Zero-Shot Learning Setup
-1. Download the GloVe embeddings in the scads root folder `<TAGLETS data root folder>/glove.840B.300d.txt`.
-
+## Running the evaluation
+To run the Fall 2020 LwLL evaluation, run 
 ```
-wget http://nlp.stanford.edu/data/glove.840B.300d.zip
-unzip glove.840B.300d.zip
+./run_jpl.sh
 ```
-
-2. Place the pretrained model in `<TAGLETS data root folder>/pretrained_models/zero_shot/transformer.pt`
-
-## Contributing
-We welcome pull requests. For any changes, please open an issue first to discuss what you would like to change.

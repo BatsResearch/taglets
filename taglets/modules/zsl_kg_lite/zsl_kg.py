@@ -37,13 +37,13 @@ class ZSLKGModule(Module):
         super().__init__(task)
         self.taglets = [ZSLKGTaglet(task)]
 
+
 class ZSLKGTaglet(Taglet):
     def __init__(self, task):
+        super().__init__(task)
 
         # this is not used but keeping it just in case
         self.name = 'zsl_kg'
-        root_path = Scads.get_root_path()
-        self.root_path = root_path
         self.task = task
         self.num_epochs = 1000
         self.save_dir = os.path.join('../trained_model', self.name)
@@ -80,9 +80,8 @@ class ZSLKGTaglet(Taglet):
         # using tempfile to create directories
         self.imagenet_graph_path = tempfile.mkdtemp()
         self.test_graph_path = tempfile.mkdtemp()
-        model_path = 'pretrained_models/zero_shot/transformer.pt'
-        self.pretrained_model_path = os.path.join(root_path, model_path)
-        self.glove_path = os.path.join(root_path, 'glove.840B.300d.txt')
+        self.pretrained_model_path = 'predefined/zsl_kg_lite/transformer.pt'
+        self.glove_path = 'predefined/embeddings/glove.840B.300d.txt'
 
     def setup_test_graph(self):
         syns = {}
