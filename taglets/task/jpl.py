@@ -439,11 +439,8 @@ class JPLRunner:
         end_model = controller.train_end_model()
 
         evaluation_dataset = self.jpl_storage.get_evaluation_dataset()
-        evaluation_data_loader = torch.utils.data.DataLoader(evaluation_dataset,
-                                                             batch_size=self.batch_size,
-                                                             shuffle=False,
-                                                             num_workers=self.num_workers)
-        predictions, _ = end_model.predict(evaluation_data_loader, self.use_gpu)
+        outputs = end_model.predict(evaluation_dataset, self.use_gpu)
+        predictions = np.argmax(outputs, 1)
         prediction_names = []
         for p in predictions:
             prediction_names.append([k for k, v in self.jpl_storage.label_map.items() if v == p][0])
@@ -453,11 +450,8 @@ class JPLRunner:
         self.submit_predictions(predictions_dict)
         
         if unlabeled_dataset is not None:
-            unlabeled_data_loader = torch.utils.data.DataLoader(unlabeled_dataset,
-                                                                batch_size=self.batch_size,
-                                                                shuffle=False,
-                                                                num_workers=self.num_workers)
-            _, confidences = end_model.predict(unlabeled_data_loader, self.use_gpu)
+            outputs = end_model.predict(unlabeled_dataset, self.use_gpu)
+            confidences = np.max(outputs, 1)
             candidates = np.argsort(confidences)
             self.confidence_active_learning.set_candidates(candidates)
         

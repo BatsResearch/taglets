@@ -3,9 +3,10 @@ import os
 from taglets.scads import Scads
 from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation, ImageNetInstallation, COCO2014Installation
 
-DB_PATH = "test/test_data/test_scads.db"
-CONCEPTNET_PATH = "test/test_data/conceptnet"
-ROOT = "test/test_data"
+ROOT = os.path.dirname(os.path.realpath(__file__))
+ROOT = ROOT + "/../test_data/scads"
+DB_PATH = ROOT + "/test_scads.db"
+CONCEPTNET_PATH = ROOT + "/conceptnet"
 CIFAR_PATH = "cifar100"
 MNIST_PATH = "mnist"
 IMAGENET_PATH = "imagenet_1k"
@@ -82,28 +83,35 @@ class TestSCADS(unittest.TestCase):
 
     def test_undirected_relation(self):
         node = Scads.get_node_by_conceptnet_id("/c/en/zero/n/wn/quantity")
-        relation = node.get_neighbors()[0]
+        edges = node.get_neighbors()
+        edges.sort(key=lambda x: x.get_relationship())
+        edge = edges[0]
 
-        self.assertEqual(relation.get_relationship(), "/r/Antonym")
-        self.assertFalse(relation.is_directed())
-        self.assertIsNotNone(relation.get_end_node())
+        self.assertEqual(edge.get_relationship(), "/r/Antonym")
+        self.assertFalse(edge.is_directed())
+        self.assertIsNotNone(edge.get_end_node())
 
     def test_directed_relation(self):
         node = Scads.get_node_by_conceptnet_id("/c/en/zero/n/wn/quantity")
-        relation = node.get_neighbors()[1]
+        edges = node.get_neighbors()
+        edges.sort(key=lambda x: x.get_relationship())
+        edge = edges[1]
 
-        self.assertEqual(relation.get_relationship(), "/r/AtLocation")
-        self.assertTrue(relation.is_directed())
-        self.assertIsNotNone(relation.get_end_node())
+        self.assertEqual(edge.get_relationship(), "/r/AtLocation")
+        self.assertTrue(edge.is_directed())
+        self.assertIsNotNone(edge.get_end_node())
 
     def test_neighbors(self):
         node = Scads.get_node_by_conceptnet_id("/c/en/zero/n/wn/quantity")
-        neighbor1 = node.get_neighbors()[0].get_end_node()
+        edges = node.get_neighbors()
+        edges.sort(key=lambda x: x.get_relationship())
+
+        neighbor1 = edges[0].get_end_node()
         self.assertEqual(neighbor1.node.id, 1)
         self.assertEqual(node.node.id, neighbor1.get_neighbors()[0].get_end_node().node.id)
         self.assertEqual(len(neighbor1.get_images()), 2)
 
-        neighbor2 = node.get_neighbors()[1].get_end_node()
+        neighbor2 = edges[1].get_end_node()
         self.assertEqual(neighbor2.node.id, 2)
         self.assertEqual(neighbor2.get_datasets(), [])
         self.assertEqual(len(neighbor2.get_images()), 0)
@@ -111,6 +119,7 @@ class TestSCADS(unittest.TestCase):
     def test_weights(self):
         node = Scads.get_node_by_conceptnet_id("/c/en/zero/n/wn/quantity")
         edges = node.get_neighbors()
+        edges.sort(key=lambda x: x.get_relationship())
         self.assertEqual(edges[0].get_weight(), 2.5)
         self.assertEqual(edges[1].get_weight(), 1.0)
 

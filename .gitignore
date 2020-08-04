@@ -148,6 +148,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 .idea
+.vscode
 
 # Data
 /taglets/sql_data
@@ -159,4 +160,5 @@ dmypy.json
 /taglets/trained_models
 /test/trained_models/*
 
-TODO
+# additional graph data
+graph_data/

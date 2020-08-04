@@ -3,6 +3,7 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import pickle
 import random
 import torch
 import torch.distributed as dist
@@ -49,32 +50,44 @@ class Trainable:
 
     def train(self, train_data, val_data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '9002'
-        args = (self, train_data, val_data, use_gpu, self.n_proc)
-        mp.spawn(self._do_train, nprocs=self.n_proc, args=args)
-
-    def predict(self, data, use_gpu):
-        os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '9002'
-        log.info(mp.get_start_method())
+        os.environ['MASTER_PORT'] = '8888'
 
         # Launches workers and collects results from queue
         processes = []
-        results = []
-        q = mp.Queue()
+        ctx = mp.get_context('spawn')
+        q = ctx.Queue()
         for i in range(self.n_proc):
-            args = (i, self, q, data, use_gpu, self.n_proc)
-            p = mp.Process(target=self._do_predict, args=args)
+            args = (i, q, train_data, val_data, use_gpu, self.n_proc)
+            p = ctx.Process(target=self._do_train, args=args)
             p.start()
-            log.info('pid: %d' % p.pid)
             processes.append(p)
 
-        for _ in processes:
-            results.append(q.get())
+        state_dict = q.get()
 
         for p in processes:
             p.join()
 
+        state_dict = pickle.loads(state_dict)
+        self.model.load_state_dict(state_dict)
+
+    def predict(self, data, use_gpu):
+        os.environ['MASTER_ADDR'] = '127.0.0.1'
+        os.environ['MASTER_PORT'] = '8888'
+
+        # Launches workers and collects results from queue
+        processes = []
+        results = []
+        ctx = mp.get_context('spawn')
+        q = ctx.Queue()
+        for i in range(self.n_proc):
+            args = (i, q, data, use_gpu, self.n_proc)
+            p = ctx.Process(target=self._do_predict, args=args)
+            p.start()
+            processes.append(p)
+        for _ in processes:
+            results.append(q.get())
+        for p in processes:
+            p.join()
 
         # Collates results so output order matches input order
         # Results are either (rank, outputs) or (rank, outputs, label)
@@ -162,16 +175,15 @@ class Trainable:
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
 
-    @staticmethod
-    def _do_train(rank, self, train_data, val_data, use_gpu, n_proc):
+    def _do_train(self, rank, q, train_data, val_data, use_gpu, n_proc):
         """
         One worker for training.
 
         This method carries out the actual training iterations. It is designed
         to be called by train().
 
-        :param train_data_loader: A dataloader containing training data
-        :param val_data_loader: A dataloader containing validation data
+        :param train_data: A dataset containing training data
+        :param val_data: A dataset containing validation data
         :param use_gpu: Whether or not to use the GPU
         :return:
         """
@@ -220,12 +232,15 @@ class Trainable:
             if rank == 0:
                 log.info("Epoch {}: ".format(epoch + 1))
 
+            # this is necessary for shuffle to work
+            train_sampler.set_epoch(epoch)
+
             # Trains on training data
-            train_loss, train_acc = self._train_epoch(train_data_loader, use_gpu)
+            train_loss, train_acc = self._train_epoch(rank, train_data_loader, use_gpu)
 
             # Evaluates on validation data
             if val_data_loader:
-                val_loss, val_acc = self._validate_epoch(val_data_loader, use_gpu)
+                val_loss, val_acc = self._validate_epoch(rank, val_data_loader, use_gpu)
             else:
                 val_loss = 0
                 val_acc = 0
@@ -234,9 +249,9 @@ class Trainable:
             summaries = [train_loss, train_acc, val_loss, val_acc]
             summaries = torch.tensor(summaries, requires_grad=False)
             if use_gpu:
-                summaries.cuda(rank)
+                summaries = summaries.cuda(rank)
             else:
-                summaries.cpu()
+                summaries = summaries.cpu()
             dist.reduce(summaries, 0, op=dist.ReduceOp.SUM)
             train_loss, train_acc, val_loss, val_acc = summaries
 
@@ -254,7 +269,7 @@ class Trainable:
                     log.debug("Deep copying new best model." +
                               "(validation of {:.4f}%, over {:.4f}%)".format(
                                   val_acc * 100, best_val_acc * 100))
-                    best_model_to_save = copy.deepcopy(self.model.state_dict())
+                    best_model_to_save = copy.deepcopy(self.model.module.state_dict())
                     best_val_acc = val_acc
                     if self.save_dir:
                         torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
@@ -262,17 +277,22 @@ class Trainable:
             if self.lr_scheduler:
                 self.lr_scheduler.step()
 
-        # Lead process saves plots and loads best model
+        # Lead process saves plots and returns best model
         if rank == 0:
             if self.save_dir:
                 val_dic = {'train': train_loss_list, 'validation': val_loss_list}
                 self.save_plot('loss', val_dic, self.save_dir)
                 val_dic = {'train': train_acc_list, 'validation': val_acc_list}
                 self.save_plot('accuracy', val_dic, self.save_dir)
-            if self.select_on_val and best_model_to_save:
-                self.model.load_state_dict(best_model_to_save)
+            if self.select_on_val and val_data_loader:
+                self.model.module.load_state_dict(best_model_to_save)
 
-    def _train_epoch(self, train_data_loader, use_gpu):
+            self.model.cpu()
+            state_dict = self.model.module.state_dict()
+            state_dict = pickle.dumps(state_dict)
+            q.put(state_dict)
+
+    def _train_epoch(self, rank, train_data_loader, use_gpu):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data
@@ -286,14 +306,16 @@ class Trainable:
             inputs = batch[0]
             labels = batch[1]
             if use_gpu:
-                inputs = inputs.cuda()
-                labels = labels.cuda()
+                inputs = inputs.cuda(rank)
+                labels = labels.cuda(rank)
 
             self.optimizer.zero_grad()
-            outputs = self.model(inputs)
-            loss = self.criterion(outputs, labels)
-            loss.backward()
-            self.optimizer.step()
+            with torch.set_grad_enabled(True):
+                outputs = self.model(inputs)
+                loss = self.criterion(outputs, labels)
+                loss.backward()
+                self.optimizer.step()
+
             running_loss += loss.item()
             running_acc += self._get_train_acc(outputs, labels)
 
@@ -305,7 +327,7 @@ class Trainable:
 
         return epoch_loss, epoch_acc
 
-    def _validate_epoch(self, val_data_loader, use_gpu):
+    def _validate_epoch(self, rank, val_data_loader, use_gpu):
         """
         Validate for one epoch.
         :param val_data_loader: A dataloader containing validation data
@@ -319,8 +341,8 @@ class Trainable:
             inputs = batch[0]
             labels = batch[1]
             if use_gpu:
-                inputs = inputs.cuda()
-                labels = labels.cuda()
+                inputs = inputs.cuda(rank)
+                labels = labels.cuda(rank)
             with torch.set_grad_enabled(False):
                 outputs = self.model(inputs)
                 loss = torch.nn.functional.cross_entropy(outputs, labels)
@@ -348,8 +370,7 @@ class Trainable:
         """
         return torch.sum(torch.max(outputs, 1)[1] == labels)
 
-    @staticmethod
-    def _do_predict(rank, self, q, data, use_gpu, n_proc):
+    def _do_predict(self, rank, q, data, use_gpu, n_proc):
         """
         predict on test data.
         :param data_loader: A dataloader containing images
@@ -359,22 +380,11 @@ class Trainable:
         if rank == 0:
             log.info('Beginning prediction')
 
-        # Initializes distributed backend
-        backend = 'nccl' if use_gpu else 'gloo'
-        dist.init_process_group(
-            backend=backend, init_method='env://', world_size=n_proc, rank=rank
-        )
-
-        # Configures model to be distributed
+        # Configures model for device
         if use_gpu:
             self.model = self.model.cuda(rank)
-            self.model = nn.parallel.DistributedDataParallel(
-                self.model, device_ids=[rank])
         else:
             self.model = self.model.cpu()
-            self.model = nn.parallel.DistributedDataParallel(
-                self.model, device_ids=None
-            )
 
         # Creates distributed data loader from dataset
         sampler = torch.utils.data.distributed.DistributedSampler(
@@ -384,7 +394,6 @@ class Trainable:
             dataset=data, batch_size=self.batch_size, shuffle=False,
             num_workers=0, pin_memory=True, sampler=sampler
         )
-        log.info('here')
 
         outputs = []
         labels = []
@@ -392,9 +401,9 @@ class Trainable:
         self.model.eval()
         pred_classifier = self._get_pred_classifier()
         for batch in data_loader:
-            try:
+            if isinstance(batch, list):
                 inputs, targets = batch
-            except (TypeError, ValueError):
+            else:
                 inputs, targets = batch, None
 
             if use_gpu:

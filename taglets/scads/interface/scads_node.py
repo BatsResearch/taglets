@@ -41,7 +41,7 @@ class ScadsNode:
         """
         locations = []
         for image in self.node.images:
-            if image.dataset.path in whitelist:
+            if whitelist is None or image.dataset.path in whitelist:
                 locations.append(image.path)
         return locations
 

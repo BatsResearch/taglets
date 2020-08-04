@@ -9,12 +9,11 @@ class Task:
     """
     def __init__(self, name, classes, input_shape, labeled_train_data, unlabeled_train_data, validation_data,
                  whitelist=None, scads_path=None):
-
         """
         Create a new Task
 
         :param name: a human-readable name for this task
-        :param classes: map from DataLoader class labels to SCADS node IDs
+        :param classes: list of SCADS node IDs
         :param labeled_train_data: DataLoader for labeled training data
         :param unlabeled_train_data: DataLoader for unlabeled training data
         :param validation_data: DataLoader for labeled validation data
@@ -30,25 +29,7 @@ class Task:
 
         self.initial = models.resnet18(pretrained=True)
         self.initial.fc = torch.nn.Identity()
-
         self.whitelist = whitelist
-
-    @staticmethod
-    def _build_label_distr(dataset):
-        label_distr = {}
-        # possibly naive?
-        for i in range(len(dataset)):
-            _, label = dataset[i]
-            if label not in label_distr:
-                label_distr[label] = 0
-            label_distr[label] += 1
-        return label_distr
-
-    def get_classes(self):
-        """
-        :return: a copy of the map from DataLoader class labels to SCADS node IDs
-        """
-        return dict(self.classes)
 
     def get_labeled_train_data(self):
         return self.labeled_train_data
@@ -58,9 +39,6 @@ class Task:
 
     def get_validation_data(self):
         return self.validation_data
-
-    def get_validation_labels(self):
-        return [int(x) for x in self.validation_data.labels]
 
     def set_initial_model(self, initial):
         """
