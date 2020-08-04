@@ -212,12 +212,12 @@ if __name__ == '__main__':
 
     st = time.time()
     print('Start loading database')
-    Scads.open('/data/datasets/scads.sqlite3')
+    Scads.open('predefined/scads.sqlite3')
     print(f'End loading database: {(time.time() - st) / 60} mins')
     
     st = time.time()
     print('Start loading embedding')
-    ScadsEmbedding.load('/data/datasets/numberbatch-en-19.08.txt.gz')
+    ScadsEmbedding.load('predefined/numberbatch-en-19.08.txt.gz')
     print(f'End loading embedding: {(time.time()-st) / 60} mins')
     
     node = Scads.get_node_by_conceptnet_id('/c/en/dog')

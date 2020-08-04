@@ -1,4 +1,3 @@
-import os
 import unittest
 from taglets.scads import ScadsEmbedding
 import numpy as np
@@ -7,7 +6,7 @@ import numpy as np
 class TestScadsEmbedding(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        embedding_path = os.path.join(os.environ.get("TRAVIS_BUILD_DIR"), 'download', 'numberbatch-en-19.08.txt.gz')
+        embedding_path = 'predefined/numberbatch-en-19.08.txt.gz'
         ScadsEmbedding.load(embedding_path)
 
     def test_oov(self):
