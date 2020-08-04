@@ -158,6 +158,7 @@ def euclidean_metric(a, b):
     b = b.unsqueeze(0).expand(n, m, -1)
     return ((a - b) ** 2).sum(dim=2)
 
+
 class NearestProtoModule(nn.Module):
     def __init__(self, prototypes, n_classes, encoder, shot, way, query):
         super(NearestProtoModule, self).__init__()
@@ -236,7 +237,7 @@ class NearestProtoModule(nn.Module):
 class PrototypeModule(Module):
     def __init__(self, task):
         super().__init__(task)
-        episodes = 2 if not os.environ.get("CI") else 10
+        episodes = 20 if not os.environ.get("CI") else 10
         self.taglets = [PrototypeTaglet(task, train_shot=5, train_way=10,
                                         query=30, episodes=episodes, use_scads=False)]
 
@@ -435,14 +436,14 @@ class PrototypeTaglet(Taglet):
             else:
                 data = batch[0]
 
-            self.optimizer.zero_grad()
+            #self.optimizer.zero_grad()
             loss, acc = self.protonet.get_forward_loss(data,
                                                        use_gpu,
                                                        way=self.val_way,
                                                        shot=self.val_shot,
                                                        val=True)
-            loss.backward()
-            self.optimizer.step()
+            #loss.backward()
+            #self.optimizer.step()
 
             running_loss += loss.item()
             running_acc += acc
