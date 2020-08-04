@@ -122,9 +122,9 @@ class TestController(unittest.TestCase):
 
         mnist = MNIST('.', train=True, transform=preprocess, download=True)
         size = int(len(mnist) / 50)
-        labeled = Subset(mnist, [i for i in range(size)])
-        unlabeled = HiddenLabelDataset(Subset(mnist, [i for i in range(size, 2 * size)]))
-        val = Subset(mnist, [i for i in range(2 * size, 3 * size)])
+        labeled = LabeledSubset(mnist, mnist.targets, [i for i in range(size)])
+        unlabeled = HiddenLabelDataset(LabeledSubset(mnist, mnist.targets, [i for i in range(size, 2 * size)]))
+        val = LabeledSubset(mnist, mnist.targets, [i for i in range(2 * size, 3 * size)])
         task = Task(
             "mnist-test", classes, (28, 28), labeled, unlabeled, val, scads_path=DB_PATH
         )
