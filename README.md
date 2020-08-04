@@ -13,7 +13,7 @@ labelers called _taglets_, and then combine their outputs to train an end model.
 1. Python 3.7 with `pip` installed in a *nix environment.
 2. An internet connection is required
 to download predefined data and pretrained models.
-3. External datasets provided by JPL at `TODO`
+3. External datasets provided by JPL at `/lwll/external`
 
 ## Installation
 In the top level directory, run
