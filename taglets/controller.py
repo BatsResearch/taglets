@@ -53,6 +53,7 @@ class Controller:
         if unlabeled is not None:
             # Initializes taglet-creating modules
             modules = self._get_taglets_modules()
+
             for module in modules:
                 log.info("Training %s module", module.__class__.__name__)
                 module.train_taglets(labeled, val, self.use_gpu)
@@ -68,8 +69,9 @@ class Controller:
             # Executes taglets
             log.info("Executing taglets")
             vote_matrix = taglet_executor.execute(unlabeled, self.use_gpu)
-            # # plus 1 because labelmodel 1-based indexing (0 is for restraining from voting)
+          # plus 1 because labelmodel 1-based indexing (0 is for restraining from voting)
             # vote_matrix += 1
+
             log.info("Finished executing taglets")
     
             # # Learns label model
@@ -79,7 +81,7 @@ class Controller:
             # log.info("Getting label distribution")
             # weak_labels = labelmodel.get_label_distribution(vote_matrix)
             # log.info("Finished getting label distribution")
-            
+
             weak_labels = self._get_majority(vote_matrix)
             
             for label in weak_labels:
@@ -94,16 +96,12 @@ class Controller:
         self.end_model = EndModel(self.task)
         self.end_model.train(end_model_train_data, val, self.use_gpu)
         log.info("Finished training end model")
-
         return self.end_model
 
     def _get_taglets_modules(self):
         if self.task.scads_path is not None:
-            return [TransferModule(task=self.task), FineTuneModule(task=self.task)]
-            # return [FineTuneModule(task=self.task), PrototypeModule(task=self.task),
-            # TransferModule(task=self.task), MultiTaskModule(task=self.task)]
-        #return [FineTuneModule(task=self.task), PrototypeModule(task=self.task)]
-        return [FineTuneModule(task=self.task)]
+            return [PrototypeModule(task=self.task), TransferModule(task=self.task), FineTuneModule(task=self.task)]
+        return [FineTuneModule(task=self.task), PrototypeModule(task=self.task)]
 
     def _train_label_model(self, vote_matrix):
         log.info("Training label model")
@@ -118,14 +116,14 @@ class Controller:
         soft_labels_labeled_images = []
         for _, image_labels in labeled:
             soft_labels_labeled_images.append(torch.FloatTensor(self._to_soft_one_hot(int(image_labels[0]))))
-    
+
         new_labeled_dataset = SoftLabelDataset(labeled_dataset, soft_labels_labeled_images, remove_old_labels=True)
         if unlabeled_dataset is None:
             end_model_train_data = new_labeled_dataset
         else:
             new_unlabeled_dataset = SoftLabelDataset(unlabeled_dataset, weak_labels, remove_old_labels=False)
             end_model_train_data = ConcatDataset([new_labeled_dataset, new_unlabeled_dataset])
-    
+
         return end_model_train_data
 
     def _get_majority(self, vote_matrix):
