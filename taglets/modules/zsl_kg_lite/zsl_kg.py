@@ -159,7 +159,7 @@ class ZSLKGTaglet(Taglet):
 
     def train(self, train_data_loader, val_data_loader, use_gpu):        
         # setup test graph (this will be used later)
-        pass
+        self.setup_test_graph()
 
     def _get_model(self, init_feats, adj_lists, device, options):
         return TransformerConv(init_feats, adj_lists, device, self.options)
@@ -280,8 +280,6 @@ class ZSLKGTaglet(Taglet):
             device = torch.device('cuda:0')
         else:
             device = torch.device('cpu')
-        
-        self.setup_test_graph()
 
         ###
         # Assuming there is no need for the imagenet graph, 
@@ -309,22 +307,22 @@ class ZSLKGTaglet(Taglet):
         adj_lists = convert_index_to_int(adj_lists)
         
         log.debug('creating the transformer model')
-        self.gnn_model = self._get_model(rand_feat, adj_lists, 
+        gnn_model = self._get_model(rand_feat, adj_lists, 
                                      device, self.options)
 
         log.debug('loading imagenet parameters into the model')
-        self.gnn_model.load_state_dict(imagenet_params)
+        gnn_model.load_state_dict(imagenet_params)
 
         log.debug('change graph and conceptnet embs')
-        self.gnn_model = self._switch_graph(self.gnn_model, self.test_graph_path)
+        gnn_model = self._switch_graph(gnn_model, self.test_graph_path)
 
         log.debug('loading pretrained resnet')
         resnet = ResNet()
         resnet.to(device)
         resnet.eval()
         
-        self.gnn_model.to(device)
-        self.gnn_model.eval()
+        gnn_model.to(device)
+        gnn_model.eval()
         print('loading mapping files for the conceptnet word ids')
         mapping_path = os.path.join(self.test_graph_path,
                                     'mapping.json')
@@ -333,7 +331,7 @@ class ZSLKGTaglet(Taglet):
 
         log.debug('generating class representation')
         with torch.set_grad_enabled(False):
-            class_rep = self.gnn_model(conceptnet_idx)
+            class_rep = gnn_model(conceptnet_idx)
 
         # instantiating the model
         self.model = ZeroShot(class_rep, resnet, use_gpu)
