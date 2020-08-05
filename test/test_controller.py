@@ -4,9 +4,6 @@ from taglets.scads.create.install import Installer, MnistInstallation
 from taglets.task import Task
 
 import os
-import unittest
-import multiprocessing as mp
-
 import torch
 from torch.utils.data import Dataset, Subset
 from torchvision import transforms
@@ -46,19 +43,6 @@ class MnistResNet(ResNet):
         super(MnistResNet, self).__init__(BasicBlock, [2, 2, 2, 2], num_classes=10)
         self.conv1 = torch.nn.Conv2d(3, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
         self.fc = torch.nn.Identity()
-
-
-class LabeledSubset(Dataset):
-    def __init__(self, dataset, labels, indices):
-        self.dataset = dataset
-        self.labels = labels[indices]
-        self.indices = indices
-
-    def __getitem__(self, idx):
-        return self.dataset[self.indices[idx]]
-
-    def __len__(self):
-        return len(self.indices)
 
 
 class TestController(unittest.TestCase):
@@ -122,7 +106,7 @@ class TestController(unittest.TestCase):
 
         mnist = MNIST('.', train=True, transform=preprocess, download=True)
         size = int(len(mnist) / 50)
-        labeled = Subset(mnist,  [i for i in range(size)])
+        labeled = Subset(mnist, [i for i in range(size)])
         unlabeled = HiddenLabelDataset(Subset(mnist, [i for i in range(size, 2 * size)]))
         val = Subset(mnist, [i for i in range(2 * size, 3 * size)])
         task = Task(
