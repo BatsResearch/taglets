@@ -29,7 +29,7 @@ class Trainable:
         self.lr = 0.0005
         self.criterion = torch.nn.CrossEntropyLoss()
         self.seed = 0
-        self.num_epochs = 5 if not os.environ.get("CI") else 5
+        self.num_epochs = 50 if not os.environ.get("CI") else 5
         self.batch_size = 32
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
@@ -50,7 +50,7 @@ class Trainable:
 
     def train(self, train_data, val_data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '9000'
+        os.environ['MASTER_PORT'] = '8888'
 
         # Launches workers and collects results from queue
         processes = []
@@ -72,7 +72,7 @@ class Trainable:
 
     def predict(self, data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '9000'
+        os.environ['MASTER_PORT'] = '8888'
 
         # Launches workers and collects results from queue
         processes = []
@@ -380,11 +380,14 @@ class Trainable:
         if rank == 0:
             log.info('Beginning prediction')
 
+        pred_classifier = self._get_pred_classifier()
+        pred_classifier.eval()
+
         # Configures model for device
         if use_gpu:
-            self.model = self.model.cuda(rank)
+            pred_classifier = pred_classifier.cuda(rank)
         else:
-            self.model = self.model.cpu()
+            pred_classifier = pred_classifier.cpu()
 
         # Creates distributed data loader from dataset
         sampler = torch.utils.data.distributed.DistributedSampler(
@@ -397,9 +400,6 @@ class Trainable:
 
         outputs = []
         labels = []
-
-        pred_classifier = self._get_pred_classifier()
-        pred_classifier.eval()
         for batch in data_loader:
             if isinstance(batch, list):
                 inputs, targets = batch

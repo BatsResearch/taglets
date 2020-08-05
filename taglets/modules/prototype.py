@@ -275,7 +275,6 @@ class PrototypeTaglet(Taglet):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
-        self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
         self.protonet = NearestProtoModule(self.prototypes,
@@ -284,9 +283,8 @@ class PrototypeTaglet(Taglet):
                                         shot=self.train_shot,
                                         way=self.train_way,
                                         query=self.query)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=1e-4)
         self.use_scads = use_scads
-        self.num_epochs = 2
-        self.n_proc = 1
 
         self.train_labels = None
         self.val_labels = None
@@ -359,7 +357,7 @@ class PrototypeTaglet(Taglet):
 
     def train(self, train_data, val_data, use_gpu):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '9000'
+        os.environ['MASTER_PORT'] = '8888'
 
         if len(train_data) == 0:
             log.debug('train dataset is empty! abstaining from labeling.')
@@ -422,7 +420,7 @@ class PrototypeTaglet(Taglet):
             log.info('Train Episode: %d' % i)
             count += 1
             if use_gpu:
-                data, _ = [_.cuda(rank) for _ in batch]
+                data, _ = [x.cuda(rank) for x in batch]
             else:
                 data = batch[0]
 
@@ -454,19 +452,15 @@ class PrototypeTaglet(Taglet):
             log.info('Val Episode: %d' % i)
             count += 1
             if use_gpu:
-                data, _ = [_.cuda(rank) for _ in batch]
+                data, _ = [x.cuda(rank) for x in batch]
             else:
                 data = batch[0]
-
-            #self.optimizer.zero_grad()
-            loss, acc = self.protonet.get_forward_loss(data,
-                                                       use_gpu,
-                                                       way=self.val_way,
-                                                       shot=self.val_shot,
-                                                       val=True)
-            #loss.backward()
-            #self.optimizer.step()
-
+            with torch.set_grad_enabled(False):
+                loss, acc = self.protonet.get_forward_loss(data,
+                                                           use_gpu,
+                                                           way=self.val_way,
+                                                           shot=self.val_shot,
+                                                           val=True)
             running_loss += loss.item()
             running_acc += acc
             log.info("avg val episode loss: %f" % (loss.item() / self.query))
