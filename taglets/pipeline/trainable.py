@@ -126,17 +126,22 @@ class Trainable:
         correct = (np.argmax(outputs, 1) == labels).sum()
         return correct / outputs.shape[0]
 
-    @staticmethod
-    def _get_train_sampler(data, n_proc, rank):
+    def _get_train_sampler(self, data, n_proc, rank):
         return torch.utils.data.distributed.DistributedSampler(data,
                                                                num_replicas=n_proc,
                                                                rank=rank)
+
+    def _get_val_sampler(self, data, n_proc, rank):
+        return self._get_train_sampler(data, n_proc, rank)
 
     def _get_dataloader(self, data, sampler):
         return torch.utils.data.DataLoader(
             dataset=data, batch_size=self.batch_size, shuffle=False,
             num_workers=0, pin_memory=True, sampler=sampler
         )
+
+    def _get_pred_classifier(self):
+        return self.model
 
     @staticmethod
     def save_plot(plt_mode, val_dic, save_dir):
@@ -204,14 +209,15 @@ class Trainable:
             )
 
         # Creates distributed data loaders from datasets
-        train_sampler = Trainable._get_train_sampler(train_data, n_proc=n_proc, rank=rank)
+        train_sampler = self._get_train_sampler(train_data, n_proc=n_proc, rank=rank)
         train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler)
-        
-        if val_data:
-            val_sampler = Trainable._get_train_sampler(val_data, n_proc=n_proc, rank=rank)
-            val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler)
-        else:
+
+        if val_data is None:
             val_data_loader = None
+        else:
+            val_sampler = self._get_val_sampler(val_data, n_proc=n_proc, rank=rank)
+            val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler)
+
 
         # Initializes statistics containers (will only be filled by lead process)
         best_model_to_save = None
@@ -374,11 +380,14 @@ class Trainable:
         if rank == 0:
             log.info('Beginning prediction')
 
+        pred_classifier = self._get_pred_classifier()
+        pred_classifier.eval()
+
         # Configures model for device
         if use_gpu:
-            self.model = self.model.cuda(rank)
+            pred_classifier = pred_classifier.cuda(rank)
         else:
-            self.model = self.model.cpu()
+            pred_classifier = pred_classifier.cpu()
 
         # Creates distributed data loader from dataset
         sampler = torch.utils.data.distributed.DistributedSampler(
@@ -391,8 +400,6 @@ class Trainable:
 
         outputs = []
         labels = []
-
-        self.model.eval()
         for batch in data_loader:
             if isinstance(batch, list):
                 inputs, targets = batch
@@ -403,7 +410,7 @@ class Trainable:
                 inputs = inputs.cuda(rank)
 
             with torch.set_grad_enabled(False):
-                output = self.model(inputs)
+                output = pred_classifier(inputs)
                 outputs.append(torch.nn.functional.softmax(output, 1))
                 if targets is not None:
                     labels.append(targets)
