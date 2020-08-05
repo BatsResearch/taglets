@@ -14,6 +14,7 @@ import numpy as np
 import torchvision.transforms as transforms
 import torch.nn.functional as F
 import torchvision.models as models
+from torch.utils.data import DataLoader
 
 from tqdm import tqdm
 from .class_encoders.transformer_model import TransformerConv
@@ -78,8 +79,10 @@ class ZSLKGTaglet(Taglet):
         }
 
         # using tempfile to create directories
-        self.imagenet_graph_path = tempfile.mkdtemp()
-        self.test_graph_path = tempfile.mkdtemp()
+        # self.imagenet_graph_path = tempfile.mkdtemp()
+        self.test_graph_path = 'trained_models/zsl_kg_lite'
+        if not os.path.exists(self.test_graph_path):
+            os.makedirs(self.test_graph_path)
         self.pretrained_model_path = 'predefined/zsl_kg_lite/transformer.pt'
         self.glove_path = 'predefined/embeddings/glove.840B.300d.txt'
 
@@ -88,8 +91,8 @@ class ZSLKGTaglet(Taglet):
         idx_to_concept = {}
         # TODO: get the synonyms
         for i, label in enumerate(self.task.classes):
-            syns['/c/en/'+label] = ['/c/en/'+label+'/n']
-            idx_to_concept[i] = '/c/en/'+label
+            syns[label] = [label+'/n']
+            idx_to_concept[i] = label
         
         self.graph_setup(syns,
                          self.test_graph_path,
@@ -236,20 +239,17 @@ class ZSLKGTaglet(Taglet):
 
         return model
     
-    def _predict(self, loader, resnet, class_rep, use_gpu=False):
+    def _predict(self, dataset, use_gpu=False):
         predictions = []
+        loader = DataLoader(dataset=dataset, batch_size=self.batch_size,
+                    shuffle=False)
+        
         with torch.no_grad():
             for data in loader:
                 if use_gpu:
                     data = data.cuda()
 
-                feat = resnet(data) # (batch_size, d)
-                ones = torch.ones(len(feat)).view(-1, 1)
-                if use_gpu:
-                    ones = ones.cuda()
-                feat = torch.cat([feat, ones], dim=1)
-
-                logits = torch.matmul(feat, class_rep.t())
+                logits = self.model(data)
 
                 pred = torch.argmax(logits, dim=1)
                 predictions.extend([p.cpu().numpy().tolist() for p in pred])
@@ -307,22 +307,22 @@ class ZSLKGTaglet(Taglet):
         adj_lists = convert_index_to_int(adj_lists)
         
         log.debug('creating the transformer model')
-        self.model = self._get_model(rand_feat, adj_lists, 
+        gnn_model = self._get_model(rand_feat, adj_lists, 
                                      device, self.options)
 
         log.debug('loading imagenet parameters into the model')
-        self.model.load_state_dict(imagenet_params)
+        gnn_model.load_state_dict(imagenet_params)
 
         log.debug('change graph and conceptnet embs')
-        self.model = self._switch_graph(self.model, self.test_graph_path)
+        gnn_model = self._switch_graph(gnn_model, self.test_graph_path)
 
         log.debug('loading pretrained resnet')
         resnet = ResNet()
         resnet.to(device)
         resnet.eval()
         
-        self.model.to(device)
-        self.model.eval()
+        gnn_model.to(device)
+        gnn_model.eval()
         print('loading mapping files for the conceptnet word ids')
         mapping_path = os.path.join(self.test_graph_path,
                                     'mapping.json')
@@ -330,13 +330,35 @@ class ZSLKGTaglet(Taglet):
         conceptnet_idx = torch.tensor([mapping[str(idx)] for idx in range(len(mapping))]).to(device)
 
         log.debug('generating class representation')
-        class_rep = self.model(conceptnet_idx)
+        with torch.set_grad_enabled(False):
+            class_rep = gnn_model(conceptnet_idx)
+
+        # instantiating the model
+        self.model = ZeroShot(class_rep, resnet, use_gpu)
 
         #
         log.debug('predicting')
         predictions = self._predict(unlabeled_data_loader, 
-                                    resnet, class_rep, 
                                     use_gpu)
 
         return predictions
+
+
+class ZeroShot(nn.Module):
+    def __init__(self, class_rep, resnet, use_gpu):
+        super(ZeroShot, self).__init__()
+        self.class_rep = class_rep
+        self.resnet = resnet
+        self.use_gpu = use_gpu
+    
+    def forward(self, data):
+        feat = self.resnet(data) # (batch_size, d)
+        ones = torch.ones(len(feat)).view(-1, 1)
+        if self.use_gpu:
+            ones = ones.cuda()
+    
+        feat = torch.cat([feat, ones], dim=1)
+
+        logits = torch.matmul(feat, self.class_rep.t())
+        return logits
 
