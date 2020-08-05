@@ -128,6 +128,7 @@ def get_dataset_labels(dataset):
         labels.append(label)
     return labels
 
+
 def validate_few_shot_config(dataset_name, data_distr, shot, way, query):
     """
     validates that a dataset is sufficiently large for a given way / shot / query combination.
@@ -151,6 +152,41 @@ def validate_few_shot_config(dataset_name, data_distr, shot, way, query):
                     (dataset_name, shot, query, base_min_labels))
         return False
     return True
+
+
+def calc_meta_params(distr, desired_way, desired_shot, desired_query):
+    assert desired_way > 0 and desired_shot > 0
+    num_classes = len(distr.keys())
+
+    if num_classes == 0:
+        raise ValueError('Label distribution has no data points. No meta params can be calculated.')
+    way = num_classes if num_classes < desired_way else desired_way
+
+    _, base_min_labels = get_label_distr_stats(distr)
+    shot = min(base_min_labels, desired_shot)
+    if base_min_labels - shot >= desired_query:
+        return way, shot, desired_query
+
+    if base_min_labels <= 1:
+        raise ValueError('Label distribution is too small. No meta params can be calculated.')
+
+    query = 0
+    shot = 0
+    idx = 0
+    while 1:
+        if base_min_labels == query + shot:
+            break
+        # distribute based on three query for every shot
+        if idx % 3 == 0:
+            shot += 1
+        else:
+            query += 1
+        idx += 1
+
+    if query - shot > 2:
+        query -= 1
+        shot += 1
+    return way, shot, query
 
 
 def count_acc(logits, label, use_gpu):
@@ -185,6 +221,15 @@ class NearestProtoModule(nn.Module):
     # abstain from all labeling
     def set_label_abstaining(self, abstain):
         self.abstain = abstain
+
+    def set_way(self, new_way):
+        self.way = new_way
+
+    def set_shot(self, new_shot):
+        self.shot = new_shot
+
+    def set_query(self, new_query):
+        self.query = new_query
 
     def forward(self, x):
         embeddings = self.encoder(x)
@@ -245,15 +290,19 @@ class NearestProtoModule(nn.Module):
 
 
 class PrototypeModule(Module):
-    def __init__(self, task):
+    def __init__(self, task, auto_meta_param=False):
         super().__init__(task)
         episodes = 20 if not os.environ.get("CI") else 20
-        self.taglets = [PrototypeTaglet(task, train_shot=3, train_way=10,
-                                        query=2, episodes=episodes, use_scads=False)]
+        self.taglets = [PrototypeTaglet(task, train_shot=5, train_way=10,
+                                                            query=15,
+                                                            episodes=episodes,
+                                                            auto_meta_param=auto_meta_param,
+                                                            use_scads=False)]
 
 
 class PrototypeTaglet(Taglet):
-    def __init__(self, task, train_shot, train_way, query, episodes, val_shot=None, val_way=None, use_scads=True):
+    def __init__(self, task, train_shot, train_way, query,
+                 episodes, auto_meta_param, val_shot=None, val_way=None, use_scads=True):
         super().__init__(task)
         self.name = 'prototype'
         self.episodes = episodes
@@ -288,6 +337,8 @@ class PrototypeTaglet(Taglet):
 
         self.train_labels = None
         self.val_labels = None
+
+        self.auto_meta_param = auto_meta_param
 
     @staticmethod
     def onn(i, prototypes):
@@ -380,7 +431,20 @@ class PrototypeTaglet(Taglet):
             self.train_labels = get_dataset_labels(train_data)
         train_label_distr = get_label_distr(self.train_labels)
 
-        if not validate_few_shot_config('Train', train_label_distr, shot=self.train_shot,
+        if self.auto_meta_param:
+            log.info('Automatically calculating meta parameters. Note that this might produce suboptimal results.')
+            try:
+                self.train_way, self.train_shot, self.query = calc_meta_params(train_label_distr,
+                                                                               self.train_way,
+                                                                               self.train_shot,
+                                                                               self.query)
+                self.protonet.set_way(self.train_way)
+                self.protonet.set_shot(self.train_shot)
+                self.protonet.set_query(self.query)
+            except ValueError:
+                self.protonet.set_label_abstaining(True)
+                return
+        elif not validate_few_shot_config('Train', train_label_distr, shot=self.train_shot,
                                         way=self.train_way, query=self.query):
             self.protonet.set_label_abstaining(True)
             return
