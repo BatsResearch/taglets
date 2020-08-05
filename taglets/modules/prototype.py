@@ -332,7 +332,6 @@ class PrototypeTaglet(Taglet):
                                         shot=self.train_shot,
                                         way=self.train_way,
                                         query=self.query)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=1e-4)
         self.use_scads = use_scads
 
         self.train_labels = None
