@@ -15,6 +15,7 @@ class DatasetInstaller:
     def get_images(self, dataset, session, root):
         raise NotImplementedError()
 
+
 class CifarInstallation(DatasetInstaller):
     def get_name(self):
         return "CIFAR100"
@@ -28,11 +29,12 @@ class CifarInstallation(DatasetInstaller):
         for mode in modes:
             df_label = pd.read_feather(
                 os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            df = pd.crosstab(df_label['id'], df_label['class'])
             mode_dir = os.path.join(dataset.path, "cifar100_" + size, mode)
             for image in os.listdir(os.path.join(root, mode_dir)):
                 if image.startswith('.'):
                     continue
-                label = df_label.loc[df_label['id'] == image]['class'].values[0]
+                label = df.loc[image].idxmax()
 
                 # Get node_id
                 if label in label_to_node_id:
@@ -52,6 +54,7 @@ class CifarInstallation(DatasetInstaller):
     def get_conceptnet_id(self, label):
         return "/c/en/" + label.lower().replace(" ", "_")
 
+
 class MnistInstallation(DatasetInstaller):
     def get_name(self):
         return "MNIST"
@@ -65,11 +68,12 @@ class MnistInstallation(DatasetInstaller):
         for mode in modes:
             df_label = pd.read_feather(
                 os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            df = pd.crosstab(df_label['id'], df_label['class'])
             mode_dir = os.path.join(dataset.path, "mnist_" + size, mode)
             for image in os.listdir(os.path.join(root, mode_dir)):
                 if image.startswith('.'):
                     continue
-                label = df_label.loc[df_label['id'] == image]['class'].values[0]
+                label = df.loc[image].idxmax()
 
                 # Get node_id
                 if label in label_to_node_id:
@@ -101,6 +105,7 @@ class MnistInstallation(DatasetInstaller):
         }
         return mnist_classes[label]
 
+
 class ImageNetInstallation(DatasetInstaller):
     def get_name(self):
         return "ImageNet"
@@ -116,16 +121,16 @@ class ImageNetInstallation(DatasetInstaller):
         image_counter = 0
         missed_labeles = set([])
         for mode in modes:
-            counter = 0
             df_label = pd.read_feather(
                 os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            df = pd.crosstab(df_label['id'], df_label['class'])
             mode_dir = os.path.join(dataset.path, "imagenet_1k_" + size, mode)
             for image in os.listdir(os.path.join(root, mode_dir)):
                 if image.startswith('.'):
                     continue
 
                 # Get labels
-                synset = df_label.loc[df_label['id'] == image]['class'].values[0]
+                synset = df.loc[image].idxmax()
                 if synset in synset_to_labels:
                     labels = synset_to_labels[synset]
                 else:
@@ -159,17 +164,18 @@ class ImageNetInstallation(DatasetInstaller):
                                 path=os.path.join(mode_dir, image))
                     all_images.append(img)
                     image_counter += 1
-                    if image_counter % 500 == 0:
+                    if image_counter % 100000 == 0:
                         session.add_all(all_images)
                         session.commit()
                         all_images = []
                         image_counter = 0
-                        print('a chunk of 500 images from imagenet is added to images dataset')
+                        print('a chunk of 100,000 images from imagenet is added to images dataset')
         print(missed_labeles)
         return all_images
 
     def get_conceptnet_id(self, label):
         return "/c/en/" + label.lower().replace(" ", "_")
+
 
 class COCO2014Installation(DatasetInstaller):
     def get_name(self):
@@ -199,11 +205,12 @@ class COCO2014Installation(DatasetInstaller):
         for mode in modes:
             df_label = pd.read_feather(
                 os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            df = pd.crosstab(df_label['id'], df_label['class'])
             mode_dir = os.path.join(dataset.path, "coco2014_" + size, mode)
             for image in os.listdir(os.path.join(root, mode_dir)):
                 if image.startswith('.'):
                     continue
-                label = class_to_label[df_label.loc[df_label['id'] == image]['class'].values[0]]
+                label = class_to_label[df.loc[image].idxmax()]
 
                 # Get node_id
                 if label in label_to_node_id:
@@ -223,6 +230,7 @@ class COCO2014Installation(DatasetInstaller):
     def get_conceptnet_id(self, label):
         return "/c/en/" + label.lower().replace(" ", "_")
 
+
 class DomainNetInstallation(DatasetInstaller):
     def __init__(self, domain_name):
         self.domain = domain_name
@@ -240,11 +248,12 @@ class DomainNetInstallation(DatasetInstaller):
         for mode in modes:
             df_label = pd.read_feather(
                 os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            df = pd.crosstab(df_label['id'], df_label['class'])
             mode_dir = os.path.join(dataset.path, dataset.path + "_" + size, mode)
             for image in os.listdir(os.path.join(root, mode_dir)):
                 if image.startswith('.'):
                     continue
-                label = df_label.loc[df_label['id'] == image]['class'].values[0]
+                label = df.loc[image].idxmax()
 
                 # Get node_id
                 if label in label_to_node_id:
@@ -264,11 +273,17 @@ class DomainNetInstallation(DatasetInstaller):
         return all_images
 
     def get_conceptnet_id(self, label):
-        exceptions = {'paint_can':'can_of_paint', 'The_Eiffel_Tower':'eiffel_tower', 'animal_migration':'migration', 'teddy-bear':'teddy_bear', 'The_Mona_Lisa':'mona_lisa', 't-shirt':'t_shirt',
-         'The_Great_Wall_of_China':'great_wall_of_china'}
+        exceptions = {'paint_can': 'can_of_paint',
+                      'The_Eiffel_Tower': 'eiffel_tower',
+                      'animal_migration': 'migration',
+                      'teddy-bear': 'teddy_bear',
+                      'The_Mona_Lisa': 'mona_lisa',
+                      't-shirt': 't_shirt',
+                      'The_Great_Wall_of_China': 'great_wall_of_china'}
         if label in exceptions:
-            return "/c/en/" +exceptions[label]
+            return "/c/en/" + exceptions[label]
         return "/c/en/" + label.lower().replace(" ", "_")
+
 
 class VOC2009Installation(DatasetInstaller):
     def get_name(self):
@@ -284,11 +299,12 @@ class VOC2009Installation(DatasetInstaller):
         for mode in modes:
             df_label = pd.read_feather(
                 os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            df = pd.crosstab(df_label['id'], df_label['class'])
             mode_dir = os.path.join(dataset.path, "voc2009_" + size, mode)
             for image in os.listdir(os.path.join(root, mode_dir)):
                 if image.startswith('.'):
                     continue
-                label = df_label.loc[df_label['id'] == image]['class'].values[0]
+                label = df.loc[image].idxmax()
 
                 # Get node_id
                 if label in label_to_node_id:
@@ -309,10 +325,13 @@ class VOC2009Installation(DatasetInstaller):
         return all_images
 
     def get_conceptnet_id(self, label):
-        exceptions = {'pottedplant':'potted_plant', 'tvmonitor':'tv_monitor', 'diningtable':'dining_table'}
+        exceptions = {'pottedplant': 'potted_plant',
+                      'tvmonitor': 'tv_monitor',
+                      'diningtable': 'dining_table'}
         if label in exceptions:
-            return "/c/en/" +exceptions[label]
+            return "/c/en/" + exceptions[label]
         return "/c/en/" + label.lower().replace(" ", "_")
+
 
 class GoogleOpenImageInstallation(DatasetInstaller):
     def get_name(self):
@@ -322,17 +341,18 @@ class GoogleOpenImageInstallation(DatasetInstaller):
         size = "full"
         modes = ['train', 'test']
         label_to_node_id = {}
-        missed_labeles=set([])
+        missed_labeles = set([])
         all_images = []
         image_counter = 0
         for mode in modes:
             df_label = pd.read_feather(
                 os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            df = pd.crosstab(df_label['id'], df_label['class'])
             mode_dir = os.path.join(dataset.path, "google_open_image_" + size, mode)
             for image in os.listdir(os.path.join(root, mode_dir)):
                 if image.startswith('.'):
                     continue
-                label = df_label.loc[df_label['id'] == image]['class'].values[0]
+                label = df.loc[image].idxmax()
 
                 # Get node_id
                 if label in label_to_node_id:
@@ -349,18 +369,19 @@ class GoogleOpenImageInstallation(DatasetInstaller):
                             path=os.path.join(mode_dir, image))
                 all_images.append(img)
                 image_counter += 1
-                if image_counter % 500 == 0:
+                if image_counter % 100000 == 0:
                     print(image_counter)
                     session.add_all(all_images)
                     session.commit()
                     all_images = []
                     image_counter = 0
-                    print('a chunk of 500 images from google open image is added to images dataset')
+                    print('a chunk of 100,000 images from google open image is added to images dataset')
         print(missed_labeles)
         return all_images
 
     def get_conceptnet_id(self, label):
         return "/c/en/" + label.lower().replace(" ", "_")
+
 
 class Installer:
     def __init__(self, path_to_database):
