@@ -44,7 +44,10 @@ class Trainable:
             self.n_proc = n_gpu
         else:
             self.use_gpu = False
-            self.n_proc = mp.cpu_count()
+            self.n_proc = max(1, mp.cpu_count() - 1)
+
+        # Gradients are summed over workers, so need to scale the step size
+        self.lr = self.lr / self.n_proc
 
         self.model = task.get_initial_model()
 
