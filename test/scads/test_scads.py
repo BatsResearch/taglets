@@ -1,7 +1,7 @@
 import unittest
 import os
 from taglets.scads import Scads
-from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation, ImageNetInstallation, COCO2014Installation, GoogleOpenImageInstallation
+from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation, ImageNetInstallation, COCO2014Installation, GoogleOpenImageInstallation, VOC2009Installation, DomainNetInstallation
 
 ROOT = os.path.dirname(os.path.realpath(__file__))
 ROOT = ROOT + "/../test_data/scads"
@@ -12,6 +12,8 @@ MNIST_PATH = "mnist"
 IMAGENET_PATH = "imagenet_1k"
 COCO2014_PATH = "coco2014"
 GOOGLE_OPEN_IMAGE_PATH = "google_open_image"
+VOC2009_PATH = "voc2009"
+domainnet_PATH = "domainnet"
 
 
 class TestSCADS(unittest.TestCase):
@@ -25,6 +27,10 @@ class TestSCADS(unittest.TestCase):
         installer.install_dataset(ROOT, IMAGENET_PATH, ImageNetInstallation())
         installer.install_dataset(ROOT, COCO2014_PATH, COCO2014Installation())
         installer.install_dataset(ROOT, GOOGLE_OPEN_IMAGE_PATH, GoogleOpenImageInstallation())
+        installer.install_dataset(ROOT, VOC2009_PATH, VOC2009Installation())
+        installer.install_dataset(ROOT, domainnet_PATH, DomainNetInstallation('clipart'))
+
+
         Scads.open(DB_PATH)
 
     def test_invalid_conceptnet_id(self):
@@ -83,8 +89,23 @@ class TestSCADS(unittest.TestCase):
         self.assertTrue('coco2014/coco2014_full/train/COCO_train2014_000000581674.jpg'
                         in images)
 
+
+        node6 = Scads.get_node_by_conceptnet_id("/c/en/bird")
+        self.assertEqual(node6.get_datasets(), ['VOC2009'])
+        images = node6.get_images()
+        self.assertEqual(len(images), 1)
+        self.assertTrue('voc2009/voc2009_full/train/2008_007250.jpg'
+                        in images)
+        node5 = Scads.get_node_by_conceptnet_id("/c/en/tv_monitor")
+        self.assertEqual(node5.get_datasets(), ['VOC2009'])
+        images = node5.get_images()
+        self.assertEqual(len(images), 1)
+        self.assertTrue('voc2009/voc2009_full/test/2009_005240.jpg'
+                        in images)
+
+
         node3 = Scads.get_node_by_conceptnet_id("/c/en/person")
-        self.assertEqual(node3.get_datasets(), ['GoogleOpenImage'])
+        self.assertTrue('GoogleOpenImage' in node3.get_datasets())
         images = node3.get_images()
         self.assertEqual(len(images), 1)
         self.assertTrue('google_open_image/google_open_image_full/test/067e21aeda713b53.jpg'
@@ -96,6 +117,25 @@ class TestSCADS(unittest.TestCase):
         self.assertEqual(len(images), 1)
         self.assertTrue('google_open_image/google_open_image_full/train/0100de671be66c38.jpg'
                         in images)
+
+
+
+        node7 = Scads.get_node_by_conceptnet_id("/c/en/aircraft_carrier")
+        print(node7.get_datasets())
+        self.assertTrue('DomainNet: clipart' in node7.get_datasets())
+        images = node7.get_images()
+        self.assertEqual(len(images), 1)
+        self.assertTrue('domainnet/domainnet_full/test/clipart_001_000005.jpg'
+                        in images)
+
+        node8 = Scads.get_node_by_conceptnet_id("/c/en/snake")
+        self.assertTrue('DomainNet: clipart' in node8.get_datasets())
+        images = node8.get_images()
+        self.assertEqual(len(images), 1)
+        self.assertTrue('domainnet/domainnet_full/train/clipart_270_000029.jpg'
+                        in images)
+
+
 
     def test_undirected_relation(self):
         node = Scads.get_node_by_conceptnet_id("/c/en/zero/n/wn/quantity")
