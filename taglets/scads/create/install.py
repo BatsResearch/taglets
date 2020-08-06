@@ -117,9 +117,9 @@ class ImageNetInstallation(DatasetInstaller):
         modes = ['train', 'test']
         synset_to_labels_endpoint = "http://www.image-net.org/api/text/wordnet.synset.getwords?wnid="
         with open('/home/ubuntu/top/wnids_to_concept.json') as json_file:
-            synset_to_node_id = json.load(json_file)
+            synset_to_conceptnet_id = json.load(json_file)
         synset_to_labels = {}
-        label_to_node_id = {}
+        conceptnet_id_to_node_id = {}
 
         all_images = []
         image_counter = 0
@@ -151,17 +151,19 @@ class ImageNetInstallation(DatasetInstaller):
                     labels = list(filter(lambda x: x, labels.text.split("\n")))
                     synset_to_labels[synset] = labels
 
+                conceptnet_ids = [self.get_conceptnet_id(label) for label in labels]
+                conceptnet_ids.append(synset_to_conceptnet_id[synset])
                 # Get nodes
-                for label in labels:
+                for conceptnet_id in conceptnet_ids:
                     # Get node_id
-                    if label in label_to_node_id:
-                        node_id = label_to_node_id[label]
+                    if conceptnet_id in conceptnet_id_to_node_id:
+                        node_id = conceptnet_id_to_node_id[conceptnet_id]
                     else:
-                        node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                        node = session.query(Node).filter_by(conceptnet_id=conceptnet_id).first()
                         node_id = node.id if node else None
-                        label_to_node_id[label] = node_id
+                        conceptnet_id_to_node_id[conceptnet_id] = node_id
                     if not node_id:
-                        missed_labeles.add(label)
+                        missed_labeles.add(conceptnet_id)
                         continue  # Scads is missing a missing conceptnet id
                     img = Image(dataset_id=dataset.id,
                                 node_id=node_id,
@@ -174,18 +176,6 @@ class ImageNetInstallation(DatasetInstaller):
                         all_images = []
                         image_counter = 0
                         logging.info('a chunk of 100,000 images from imagenet is added to images dataset')
-
-                img = Image(dataset_id=dataset.id,
-                            node_id=synset_to_node_id[synset],
-                            path=os.path.join(mode_dir, image))
-                all_images.append(img)
-                image_counter += 1
-                if image_counter % 100000 == 0:
-                    session.add_all(all_images)
-                    session.commit()
-                    all_images = []
-                    image_counter = 0
-                    logging.info('a chunk of 100,000 images from imagenet is added to images dataset')
         print(missed_labeles)
         return all_images
 
