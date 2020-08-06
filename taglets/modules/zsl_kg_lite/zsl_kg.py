@@ -1,6 +1,7 @@
 from ..module import Module
 from ...pipeline import Taglet
 
+import copy
 import os
 import random
 import json
@@ -210,13 +211,12 @@ class ZSLKGTaglet(Taglet):
         log.debug('generating class representation')
         with torch.set_grad_enabled(False):
             class_rep = gnn_model(conceptnet_idx)
-        print(class_rep.shape)
 
         # Instantiating the model
         output_shape = self._get_model_output_shape(self.task.input_shape, resnet)
         fc = nn.Linear(output_shape, len(self.task.classes))
-        fc.weight = nn.Parameter(class_rep[:, :output_shape], False)
-        fc.bias = nn.Parameter(class_rep[:, -1], False)
+        fc.weight = nn.Parameter(copy.deepcopy(class_rep[:, :output_shape]), False)
+        fc.bias = nn.Parameter(copy.deepcopy(class_rep[:, -1]), False)
         self.model = nn.Sequential(resnet, fc)
 
     def _get_model(self, init_feats, adj_lists, device):
