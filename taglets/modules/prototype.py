@@ -292,7 +292,7 @@ class NearestProtoModule(nn.Module):
 class PrototypeModule(Module):
     def __init__(self, task, auto_meta_param=False):
         super().__init__(task)
-        episodes = 20 if not os.environ.get("CI") else 20
+        episodes = 20 if not os.environ.get("CI") else 5
         self.taglets = [PrototypeTaglet(task, train_shot=5, train_way=10,
                                                             query=15,
                                                             episodes=episodes,
@@ -378,19 +378,19 @@ class PrototypeTaglet(Taglet):
     def _get_pred_classifier(self):
         return self.protonet
 
-    def build_prototypes(self, infer_data, use_gpu):
+    def build_prototypes(self, infer_data):
         self.protonet.eval()
 
         infer_dataloader = DataLoader(dataset=infer_data, batch_size=self.batch_size,
                                       num_workers=0, pin_memory=True)
-        if use_gpu and torch.cuda.is_available():
+        if self.use_gpu:
             self.protonet.cuda()
 
         for data in infer_dataloader:
             with torch.set_grad_enabled(False):
                 image, label = data[0], data[1]
                 # Memorize
-                if use_gpu:
+                if self.use_gpu:
                     image = image.cuda()
                     label = label.cuda()
 
@@ -405,7 +405,7 @@ class PrototypeTaglet(Taglet):
         for key, values in self.prototypes.items():
             self.prototypes[key] = torch.stack(values).mean(dim=0)
 
-    def train(self, train_data, val_data, use_gpu):
+    def train(self, train_data, val_data):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
         os.environ['MASTER_PORT'] = '8888'
 
@@ -459,19 +459,18 @@ class PrototypeTaglet(Taglet):
                                             way=self.val_way, query=self.query):
                 val_data = None
 
-        super().train(infer_data, val_data, use_gpu)
-        self.build_prototypes(infer_data, use_gpu=use_gpu)
+        super().train(infer_data, val_data)
+        self.build_prototypes(infer_data)
 
-    def _train_epoch(self, rank, train_data_loader, use_gpu):
+    def _train_epoch(self, rank, train_data_loader):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data
-        :param cuda: Whether or not to use the GPU
         :return: None
         """
         self.protonet.train()
 
-        if use_gpu:
+        if self.use_gpu:
             self.protonet = self.protonet.cuda(rank)
         else:
             self.protonet = self.protonet.cpu()
@@ -482,13 +481,13 @@ class PrototypeTaglet(Taglet):
         for i, batch in enumerate(train_data_loader, 1):
             log.info('Train Episode: %d' % i)
             count += 1
-            if use_gpu:
+            if self.use_gpu:
                 data, _ = [x.cuda(rank) for x in batch]
             else:
                 data = batch[0]
 
             self.optimizer.zero_grad()
-            loss, acc = self.protonet.get_forward_loss(data, use_gpu)
+            loss, acc = self.protonet.get_forward_loss(data, self.use_gpu)
             loss.backward()
             self.optimizer.step()
 
@@ -500,10 +499,10 @@ class PrototypeTaglet(Taglet):
         epoch_acc = running_acc / count if count > 0 else 0.0
         return epoch_loss, epoch_acc
 
-    def _validate_epoch(self, rank, val_data_loader, use_gpu):
+    def _validate_epoch(self, rank, val_data_loader):
         self.protonet.eval()
 
-        if use_gpu and torch.cuda.is_available():
+        if self.use_gpu:
             self.protonet = self.protonet.cuda(rank)
         else:
             self.protonet = self.protonet.cpu()
@@ -514,13 +513,13 @@ class PrototypeTaglet(Taglet):
         for i, batch in enumerate(val_data_loader, 1):
             log.info('Val Episode: %d' % i)
             count += 1
-            if use_gpu:
+            if self.use_gpu:
                 data, _ = [x.cuda(rank) for x in batch]
             else:
                 data = batch[0]
             with torch.set_grad_enabled(False):
                 loss, acc = self.protonet.get_forward_loss(data,
-                                                           use_gpu,
+                                                           self.use_gpu,
                                                            way=self.val_way,
                                                            shot=self.val_shot,
                                                            val=True)

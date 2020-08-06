@@ -32,12 +32,10 @@ class Controller:
     """
     Manages training and execution of taglets, as well as training EndModels
     """
-    def __init__(self, task, batch_size=32, num_workers=2, use_gpu=False):
+    def __init__(self, task, batch_size=32):
         self.task = task
         self.end_model = None
         self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.use_gpu = use_gpu
 
     def train_end_model(self):
         """
@@ -56,7 +54,7 @@ class Controller:
 
             for module in modules:
                 log.info("Training %s module", module.__class__.__name__)
-                module.train_taglets(labeled, val, self.use_gpu)
+                module.train_taglets(labeled, val)
                 log.info("Finished training %s module", module.__class__.__name__)
     
             # Collects all taglets
@@ -68,8 +66,8 @@ class Controller:
     
             # Executes taglets
             log.info("Executing taglets")
-            vote_matrix = taglet_executor.execute(unlabeled, self.use_gpu)
-          # plus 1 because labelmodel 1-based indexing (0 is for restraining from voting)
+            vote_matrix = taglet_executor.execute(unlabeled)
+            # plus 1 because labelmodel 1-based indexing (0 is for restraining from voting)
             # vote_matrix += 1
 
             log.info("Finished executing taglets")
@@ -94,7 +92,7 @@ class Controller:
                                                          self.task.get_unlabeled_train_data(),
                                                          self.task.get_labeled_train_data())
         self.end_model = EndModel(self.task)
-        self.end_model.train(end_model_train_data, val, self.use_gpu)
+        self.end_model.train(end_model_train_data, val)
         log.info("Finished training end model")
         return self.end_model
 
