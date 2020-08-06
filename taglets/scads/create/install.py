@@ -153,6 +153,7 @@ class ImageNetInstallation(DatasetInstaller):
 
                 conceptnet_ids = [self.get_conceptnet_id(label) for label in labels]
                 conceptnet_ids.append(synset_to_conceptnet_id[synset])
+                conceptnet_ids = list(set(conceptnet_ids))
                 # Get nodes
                 for conceptnet_id in conceptnet_ids:
                     # Get node_id
