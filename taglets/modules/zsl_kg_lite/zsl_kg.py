@@ -16,7 +16,6 @@ import torch.nn.functional as F
 import torchvision.models as models
 from torch.utils.data import DataLoader
 
-from tqdm import tqdm
 from .class_encoders.transformer_model import TransformerConv
 from .utils.core import save_model, l2_loss, set_seed, \
     convert_index_to_int, mask_l2_loss
