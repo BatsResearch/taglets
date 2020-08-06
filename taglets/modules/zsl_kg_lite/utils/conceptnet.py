@@ -8,7 +8,6 @@ import sqlite3
 
 log = logging.getLogger(__name__)
 
-
 TABLE_COLUMNS = {
     'nodes': ['id', 'uri'],
     'sources': ['id', 'uri'],
@@ -17,6 +16,7 @@ TABLE_COLUMNS = {
     'edges_gin': ['edge_id', 'weight', 'data'],
     'edge_features': ['rel_id', 'direction', 'node_id', 'edge_id']
 }
+
 
 def run_commands(connection, commands):
     cursor = connection.cursor()
