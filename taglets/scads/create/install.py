@@ -16,6 +16,9 @@ class DatasetInstaller:
 
     def get_images(self, dataset, session, root):
         raise NotImplementedError()
+    
+    def get_conceptnet_id(self, label):
+        return "/c/en/" + label.lower().replace(" ", "_").replace("-", "_")
 
 
 class CifarInstallation(DatasetInstaller):
@@ -52,9 +55,6 @@ class CifarInstallation(DatasetInstaller):
                             path=os.path.join(mode_dir, image))
                 all_images.append(img)
         return all_images
-
-    def get_conceptnet_id(self, label):
-        return "/c/en/" + label.lower().replace(" ", "_")
 
 
 class MnistInstallation(DatasetInstaller):
@@ -180,9 +180,6 @@ class ImageNetInstallation(DatasetInstaller):
         print(missed_labeles)
         return all_images
 
-    def get_conceptnet_id(self, label):
-        return "/c/en/" + label.lower().replace(" ", "_")
-
 
 class COCO2014Installation(DatasetInstaller):
     def get_name(self):
@@ -233,9 +230,6 @@ class COCO2014Installation(DatasetInstaller):
                             path=os.path.join(mode_dir, image))
                 all_images.append(img)
         return all_images
-
-    def get_conceptnet_id(self, label):
-        return "/c/en/" + label.lower().replace(" ", "_")
 
 
 class DomainNetInstallation(DatasetInstaller):
@@ -289,7 +283,7 @@ class DomainNetInstallation(DatasetInstaller):
                       'The_Great_Wall_of_China': 'great_wall_of_china'}
         if label in exceptions:
             return "/c/en/" + exceptions[label]
-        return "/c/en/" + label.lower().replace(" ", "_")
+        return "/c/en/" + label.lower().replace(" ", "_").replace("-", "_")
 
 
 class VOC2009Installation(DatasetInstaller):
@@ -337,7 +331,7 @@ class VOC2009Installation(DatasetInstaller):
                       'diningtable': 'dining_table'}
         if label in exceptions:
             return "/c/en/" + exceptions[label]
-        return "/c/en/" + label.lower().replace(" ", "_")
+        return "/c/en/" + label.lower().replace(" ", "_").replace("-", "_")
 
 
 class GoogleOpenImageInstallation(DatasetInstaller):
@@ -385,9 +379,6 @@ class GoogleOpenImageInstallation(DatasetInstaller):
                     print('a chunk of 100,000 images from google open image is added to images dataset')
         print(missed_labeles)
         return all_images
-
-    def get_conceptnet_id(self, label):
-        return "/c/en/" + label.lower().replace(" ", "_")
 
 
 class Installer:
