@@ -1,15 +1,13 @@
 """querying the graph
 """
-import os
-import click
-import sqlite3
-import json
-import pandas as pd
-from tqdm import tqdm
 import itertools
-import time
-import copy
-import shutil
+import logging
+import os
+import pandas as pd
+import sqlite3
+
+log = logging.getLogger(__name__)
+
 
 TABLE_COLUMNS = {
     'nodes': ['id', 'uri'],
@@ -90,7 +88,7 @@ def query_conceptnet(output_path, concept_syn, database_path, n=2):
     adj_list = []
 
     for i in range(n):
-        print("Hop ", i)
+        log.info("Hop %d", i)
         times = []
         new_nodes = set()
         for batch_nodes in chunks(hops[i], 5000):
@@ -171,4 +169,4 @@ def query_conceptnet(output_path, concept_syn, database_path, n=2):
     df = pd.DataFrame(replaced_edges, columns=['start_id', 'end_id', 'relation_id', 'weight'])
     df.to_csv(edge_file, index=False)
 
-    print('done!')
+    log.info('done!')
