@@ -271,7 +271,7 @@ class NearestProtoModule(nn.Module):
 class PrototypeModule(Module):
     def __init__(self, task, auto_meta_param=False):
         super().__init__(task)
-        episodes = 5 if not os.environ.get("CI") else 5
+        episodes = 20 if not os.environ.get("CI") else 5
         self.taglets = [PrototypeTaglet(task, train_shot=5, train_way=10,
                                                             query=15,
                                                             episodes=episodes,
@@ -314,6 +314,8 @@ class PrototypeTaglet(Taglet):
         self.val_labels = None
 
         self.auto_meta_param = auto_meta_param
+
+        self.num_epochs = 5
 
     def set_train_shot(self, shot):
         self.train_shot = shot
