@@ -6,6 +6,8 @@ from ..create.create_scads import add_conceptnet
 from ..create.add_datasets import add_dataset
 import requests
 import time
+import json
+import logging
 
 
 class DatasetInstaller:
@@ -114,6 +116,8 @@ class ImageNetInstallation(DatasetInstaller):
         size = "full"
         modes = ['train', 'test']
         synset_to_labels_endpoint = "http://www.image-net.org/api/text/wordnet.synset.getwords?wnid="
+        with open('/home/ubuntu/top/wnids_to_concept.json') as json_file:
+            synset_to_node_id = json.load(json_file)
         synset_to_labels = {}
         label_to_node_id = {}
 
@@ -169,7 +173,19 @@ class ImageNetInstallation(DatasetInstaller):
                         session.commit()
                         all_images = []
                         image_counter = 0
-                        print('a chunk of 100,000 images from imagenet is added to images dataset')
+                        logging.info('a chunk of 100,000 images from imagenet is added to images dataset')
+
+                img = Image(dataset_id=dataset.id,
+                            node_id=synset_to_node_id[synset],
+                            path=os.path.join(mode_dir, image))
+                all_images.append(img)
+                image_counter += 1
+                if image_counter % 100000 == 0:
+                    session.add_all(all_images)
+                    session.commit()
+                    all_images = []
+                    image_counter = 0
+                    logging.info('a chunk of 100,000 images from imagenet is added to images dataset')
         print(missed_labeles)
         return all_images
 
