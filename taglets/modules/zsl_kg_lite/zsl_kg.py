@@ -16,7 +16,6 @@ import torch.nn.functional as F
 import torchvision.models as models
 from torch.utils.data import DataLoader
 
-from tqdm import tqdm
 from .class_encoders.transformer_model import TransformerConv
 from .utils.core import save_model, l2_loss, set_seed, \
     convert_index_to_int, mask_l2_loss
@@ -157,7 +156,7 @@ class ZSLKGTaglet(Taglet):
 
         return model
 
-    def train(self, train_data_loader, val_data_loader, use_gpu):        
+    def train(self, train_data_loader, val_data_loader):
         # setup test graph (this will be used later)
         self.setup_test_graph()
 
@@ -239,14 +238,14 @@ class ZSLKGTaglet(Taglet):
 
         return model
     
-    def _predict(self, dataset, use_gpu=False):
+    def _predict(self, dataset):
         predictions = []
         loader = DataLoader(dataset=dataset, batch_size=self.batch_size,
                     shuffle=False)
         
         with torch.no_grad():
             for data in loader:
-                if use_gpu:
+                if self.use_gpu:
                     data = data.cuda()
 
                 logits = self.model(data)
@@ -274,9 +273,9 @@ class ZSLKGTaglet(Taglet):
 
         return gnn
 
-    def execute(self, unlabeled_data_loader, use_gpu):
+    def execute(self, unlabeled_data_loader):
         # checking if gpu needs to be used
-        if use_gpu:
+        if self.use_gpu:
             device = torch.device('cuda:0')
         else:
             device = torch.device('cpu')
@@ -334,12 +333,11 @@ class ZSLKGTaglet(Taglet):
             class_rep = gnn_model(conceptnet_idx)
 
         # instantiating the model
-        self.model = ZeroShot(class_rep, resnet, use_gpu)
+        self.model = ZeroShot(class_rep, resnet, self.use_gpu)
 
         #
         log.debug('predicting')
-        predictions = self._predict(unlabeled_data_loader, 
-                                    use_gpu)
+        predictions = self._predict(unlabeled_data_loader)
 
         return predictions
 
@@ -354,6 +352,7 @@ class ZeroShot(nn.Module):
     def forward(self, data):
         feat = self.resnet(data) # (batch_size, d)
         ones = torch.ones(len(feat)).view(-1, 1)
+        # TODO: Fix this for multi-gpu
         if self.use_gpu:
             ones = ones.cuda()
     

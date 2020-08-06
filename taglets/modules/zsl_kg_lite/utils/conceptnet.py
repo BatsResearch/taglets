@@ -5,7 +5,6 @@ import click
 import sqlite3
 import json
 import pandas as pd
-from tqdm import tqdm
 import itertools
 import time
 import copy

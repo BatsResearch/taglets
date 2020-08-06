@@ -16,6 +16,9 @@ log = logging.getLogger(__name__)
 class Trainable:
     """
     A class with a trainable model.
+
+    Anything that might run on a GPU and/or with multiprocessing should inherit
+    from this class.
     """
 
     def __init__(self, task):
@@ -33,7 +36,18 @@ class Trainable:
         self.batch_size = 32
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
-        self.n_proc = 1
+
+        # Configures GPU and multiprocessing
+        n_gpu = torch.cuda.device_count()
+        if n_gpu > 0:
+            self.use_gpu = True
+            self.n_proc = n_gpu
+        else:
+            self.use_gpu = False
+            self.n_proc = max(1, mp.cpu_count() - 1)
+
+        # Gradients are summed over workers, so need to scale the step size
+        self.lr = self.lr / self.n_proc
 
         self.model = task.get_initial_model()
 
@@ -48,7 +62,7 @@ class Trainable:
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
-    def train(self, train_data, val_data, use_gpu):
+    def train(self, train_data, val_data):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
         os.environ['MASTER_PORT'] = '8888'
 
@@ -57,7 +71,7 @@ class Trainable:
         ctx = mp.get_context('spawn')
         q = ctx.Queue()
         for i in range(self.n_proc):
-            args = (i, q, train_data, val_data, use_gpu, self.n_proc)
+            args = (i, q, train_data, val_data)
             p = ctx.Process(target=self._do_train, args=args)
             p.start()
             processes.append(p)
@@ -70,7 +84,7 @@ class Trainable:
         state_dict = pickle.loads(state_dict)
         self.model.load_state_dict(state_dict)
 
-    def predict(self, data, use_gpu):
+    def predict(self, data):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
         os.environ['MASTER_PORT'] = '8888'
 
@@ -80,7 +94,7 @@ class Trainable:
         ctx = mp.get_context('spawn')
         q = ctx.Queue()
         for i in range(self.n_proc):
-            args = (i, q, data, use_gpu, self.n_proc)
+            args = (i, q, data)
             p = ctx.Process(target=self._do_predict, args=args)
             p.start()
             processes.append(p)
@@ -114,15 +128,14 @@ class Trainable:
         else:
             return outputs
 
-    def evaluate(self, labeled_data, use_gpu):
+    def evaluate(self, labeled_data):
         """
         Evaluate on labeled data.
 
-        :param data_loader: A dataloader containing images and ground truth labels
-        :param use_gpu: Whether or not to use the GPU
+        :param labeled_data: A Dataset containing images and ground truth labels
         :return: accuracy
         """
-        outputs, labels = self.predict(labeled_data, use_gpu)
+        outputs, labels = self.predict(labeled_data)
         correct = (np.argmax(outputs, 1) == labels).sum()
         return correct / outputs.shape[0]
 
@@ -175,7 +188,7 @@ class Trainable:
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
 
-    def _do_train(self, rank, q, train_data, val_data, use_gpu, n_proc):
+    def _do_train(self, rank, q, train_data, val_data):
         """
         One worker for training.
 
@@ -184,20 +197,19 @@ class Trainable:
 
         :param train_data: A dataset containing training data
         :param val_data: A dataset containing validation data
-        :param use_gpu: Whether or not to use the GPU
         :return:
         """
         if rank == 0:
             log.info('Beginning training')
 
         # Initializes distributed backend
-        backend = 'nccl' if use_gpu else 'gloo'
+        backend = 'nccl' if self.use_gpu else 'gloo'
         dist.init_process_group(
-            backend=backend, init_method='env://', world_size=n_proc, rank=rank
+            backend=backend, init_method='env://', world_size=self.n_proc, rank=rank
         )
 
         # Configures model to be distributed
-        if use_gpu:
+        if self.use_gpu:
             self.model = self.model.cuda(rank)
             self.model = nn.parallel.DistributedDataParallel(
                 self.model, device_ids=[rank]
@@ -209,15 +221,14 @@ class Trainable:
             )
 
         # Creates distributed data loaders from datasets
-        train_sampler = self._get_train_sampler(train_data, n_proc=n_proc, rank=rank)
+        train_sampler = self._get_train_sampler(train_data, n_proc=self.n_proc, rank=rank)
         train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler)
 
         if val_data is None:
             val_data_loader = None
         else:
-            val_sampler = self._get_val_sampler(val_data, n_proc=n_proc, rank=rank)
+            val_sampler = self._get_val_sampler(val_data, n_proc=self.n_proc, rank=rank)
             val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler)
-
 
         # Initializes statistics containers (will only be filled by lead process)
         best_model_to_save = None
@@ -236,11 +247,11 @@ class Trainable:
             train_sampler.set_epoch(epoch)
 
             # Trains on training data
-            train_loss, train_acc = self._train_epoch(rank, train_data_loader, use_gpu)
+            train_loss, train_acc = self._train_epoch(rank, train_data_loader)
 
             # Evaluates on validation data
             if val_data_loader:
-                val_loss, val_acc = self._validate_epoch(rank, val_data_loader, use_gpu)
+                val_loss, val_acc = self._validate_epoch(rank, val_data_loader)
             else:
                 val_loss = 0
                 val_acc = 0
@@ -248,7 +259,7 @@ class Trainable:
             # Gathers results statistics to lead process
             summaries = [train_loss, train_acc, val_loss, val_acc]
             summaries = torch.tensor(summaries, requires_grad=False)
-            if use_gpu:
+            if self.use_gpu:
                 summaries = summaries.cuda(rank)
             else:
                 summaries = summaries.cpu()
@@ -284,7 +295,7 @@ class Trainable:
                 self.save_plot('loss', val_dic, self.save_dir)
                 val_dic = {'train': train_acc_list, 'validation': val_acc_list}
                 self.save_plot('accuracy', val_dic, self.save_dir)
-            if self.select_on_val and val_data_loader:
+            if self.select_on_val and best_model_to_save is not None:
                 self.model.module.load_state_dict(best_model_to_save)
 
             self.model.cpu()
@@ -292,7 +303,7 @@ class Trainable:
             state_dict = pickle.dumps(state_dict)
             q.put(state_dict)
 
-    def _train_epoch(self, rank, train_data_loader, use_gpu):
+    def _train_epoch(self, rank, train_data_loader):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data
@@ -305,7 +316,7 @@ class Trainable:
         for batch_idx, batch in enumerate(train_data_loader):
             inputs = batch[0]
             labels = batch[1]
-            if use_gpu:
+            if self.use_gpu:
                 inputs = inputs.cuda(rank)
                 labels = labels.cuda(rank)
 
@@ -327,7 +338,7 @@ class Trainable:
 
         return epoch_loss, epoch_acc
 
-    def _validate_epoch(self, rank, val_data_loader, use_gpu):
+    def _validate_epoch(self, rank, val_data_loader):
         """
         Validate for one epoch.
         :param val_data_loader: A dataloader containing validation data
@@ -340,7 +351,7 @@ class Trainable:
         for batch_idx, batch in enumerate(val_data_loader):
             inputs = batch[0]
             labels = batch[1]
-            if use_gpu:
+            if self.use_gpu:
                 inputs = inputs.cuda(rank)
                 labels = labels.cuda(rank)
             with torch.set_grad_enabled(False):
@@ -370,13 +381,7 @@ class Trainable:
         """
         return torch.sum(torch.max(outputs, 1)[1] == labels)
 
-    def _do_predict(self, rank, q, data, use_gpu, n_proc):
-        """
-        predict on test data.
-        :param data_loader: A dataloader containing images
-        :param use_gpu: Whether or not to use the GPU
-        :return: predictions
-        """
+    def _do_predict(self, rank, q, data):
         if rank == 0:
             log.info('Beginning prediction')
 
@@ -384,14 +389,14 @@ class Trainable:
         pred_classifier.eval()
 
         # Configures model for device
-        if use_gpu:
+        if self.use_gpu:
             pred_classifier = pred_classifier.cuda(rank)
         else:
             pred_classifier = pred_classifier.cpu()
 
         # Creates distributed data loader from dataset
         sampler = torch.utils.data.distributed.DistributedSampler(
-            data, num_replicas=n_proc, rank=rank, shuffle=False
+            data, num_replicas=self.n_proc, rank=rank, shuffle=False
         )
         data_loader = torch.utils.data.DataLoader(
             dataset=data, batch_size=self.batch_size, shuffle=False,
@@ -406,7 +411,7 @@ class Trainable:
             else:
                 inputs, targets = batch, None
 
-            if use_gpu:
+            if self.use_gpu:
                 inputs = inputs.cuda(rank)
 
             with torch.set_grad_enabled(False):

@@ -314,8 +314,8 @@ class JPLStorage:
 
 
 class JPLRunner:
-    def __init__(self, dataset_dir, task_ix, batch_size=32, num_workers=2,
-                 use_gpu=False, testing=False, data_type='sample'):
+    def __init__(self, dataset_dir, task_ix, batch_size=32,
+                 testing=False, data_type='sample'):
         self.dataset_dir = dataset_dir
         
         self.api = JPL()
@@ -328,11 +328,9 @@ class JPLRunner:
         self.initial_model = models.resnet18(pretrained=True)
         self.initial_model.fc = torch.nn.Identity()
         
-        self.use_gpu = use_gpu
         self.testing = testing
 
         self.batch_size = batch_size
-        self.num_workers = num_workers
 
     def get_jpl_information(self):
         jpl_task_names = self.api.get_available_tasks('image_classification')
@@ -435,11 +433,11 @@ class JPLRunner:
                     self.jpl_storage.whitelist,
                     '/data/datasets/scads.sqlite3')
         task.set_initial_model(self.initial_model)
-        controller = Controller(task, self.batch_size, self.num_workers, self.use_gpu)
+        controller = Controller(task, self.batch_size)
         end_model = controller.train_end_model()
 
         evaluation_dataset = self.jpl_storage.get_evaluation_dataset()
-        outputs = end_model.predict(evaluation_dataset, self.use_gpu)
+        outputs = end_model.predict(evaluation_dataset)
         predictions = np.argmax(outputs, 1)
         prediction_names = []
         for p in predictions:
@@ -450,7 +448,7 @@ class JPLRunner:
         self.submit_predictions(predictions_dict)
         
         if unlabeled_dataset is not None:
-            outputs = end_model.predict(unlabeled_dataset, self.use_gpu)
+            outputs = end_model.predict(unlabeled_dataset)
             confidences = np.max(outputs, 1)
             candidates = np.argsort(confidences)
             self.confidence_active_learning.set_candidates(candidates)
@@ -500,12 +498,10 @@ def main():
 
     parser.add_argument("--task_ix", type=int, default=0,
                         help="Index of image classification task; 0, 1, 2, etc.")
-    parser.add_argument("--use_gpu", type=int, default=1, help="whether to use gpu")
 
     args = parser.parse_args()
 
     dataset_dir = args.dataset_dir
-    use_gpu = bool(args.use_gpu)
 
     task_ix = args.task_ix
     logger = logging.getLogger()
@@ -515,7 +511,7 @@ def main():
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
     
-    runner = JPLRunner(dataset_dir, task_ix, use_gpu=use_gpu, testing=False)
+    runner = JPLRunner(dataset_dir, task_ix, testing=False)
     runner.run_checkpoints()
 
 

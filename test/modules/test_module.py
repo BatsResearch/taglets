@@ -135,14 +135,14 @@ class TestModule:
 
     def test_module(self):
         module = self._get_module(self.task)
-        module.train_taglets(self.train, self.val, False)
+        module.train_taglets(self.train, self.val)
         taglets = module.get_taglets()
         for taglet in taglets:
-            votes = taglet.execute(self.unlabeled, False)
+            votes = taglet.execute(self.unlabeled)
             self.assertEqual(len(votes), 15)
             for vote in votes:
                 self.assertTrue(vote in (0, 1, 2))
-            self.assertGreater(taglet.evaluate(self.test, False), 0.5)
+            self.assertGreater(taglet.evaluate(self.test), 0.5)
 
     def _get_module(self, task):
         """Constructs a Module with a given task for testing.
