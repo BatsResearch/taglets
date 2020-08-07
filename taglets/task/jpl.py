@@ -13,6 +13,7 @@ from ..data import CustomDataset
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
 from ..task import Task
 from ..controller import Controller
+from ..scads import Scads
 from .utils import labels_to_concept_ids
 import linecache
 
@@ -493,8 +494,13 @@ def main():
     parser = argparse.ArgumentParser(description="Run JPL task")
     parser.add_argument("--dataset_dir", dest="dataset_dir",
                         type=str,
-                        default="",
+                        default="/lwll/development",
                         help="The directory to all development datasets")
+
+    parser.add_argument("--scads_root_dir",
+                        type=str,
+                        default="/lwll/external",
+                        help="The directory to all external datasets")
 
     parser.add_argument("--task_ix", type=int, default=0,
                         help="Index of image classification task; 0, 1, 2, etc.")
@@ -502,6 +508,7 @@ def main():
     args = parser.parse_args()
 
     dataset_dir = args.dataset_dir
+    scads_root_dir = args.scads_root_dir
 
     task_ix = args.task_ix
     logger = logging.getLogger()
@@ -510,6 +517,8 @@ def main():
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
+
+    Scads.set_root_path(scads_root_dir)
     
     runner = JPLRunner(dataset_dir, task_ix, testing=False)
     runner.run_checkpoints()
