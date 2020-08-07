@@ -427,8 +427,6 @@ class PrototypeTaglet(Taglet):
                                                                                self.train_way,
                                                                                self.train_shot,
                                                                                self.query)
-                self.protonet.set_way(self.train_way)
-                self.protonet.set_shot(self.train_shot)
                 self.protonet.set_query(self.query)
             except ValueError:
                 self.protonet.set_label_abstaining(True)
