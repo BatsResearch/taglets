@@ -7,7 +7,7 @@ from ..create.add_datasets import add_dataset
 import requests
 import time
 import json
-from . wnids_to_concept import SYNSET_TO_CONCEPTNET_ID
+from .wnids_to_concept import SYNSET_TO_CONCEPTNET_ID
 
 
 class DatasetInstaller:
