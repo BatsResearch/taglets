@@ -315,7 +315,6 @@ class PrototypeTaglet(Taglet):
 
         self.auto_meta_param = auto_meta_param
 
-        self.num_epochs = 5
 
     def set_train_shot(self, shot):
         self.train_shot = shot

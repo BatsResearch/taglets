@@ -10,7 +10,7 @@ class TestPrototype(TestModule, unittest.TestCase):
         # lower meta-params to reduce train time
         for taglet in mod.taglets:
             taglet.set_train_shot(shot=1)
-            taglet.set_train_way(way=2)
+            taglet.set_train_way(way=3)
             taglet.set_query(query=2)
         return mod
 
