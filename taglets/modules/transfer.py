@@ -3,7 +3,7 @@ from torch.utils import data
 
 from .module import Module
 from ..pipeline import Taglet
-from ..scads.interface.scads import Scads
+from ..scads import Scads, ScadsEmbedding
 
 import os
 import torch
@@ -49,13 +49,16 @@ class TransferTaglet(Taglet):
     def _get_scads_data(self):
         root_path = Scads.get_root_path()
         Scads.open(self.task.scads_path)
+        ScadsEmbedding.load('predefined/numberbatch-en19.08.txt.gz')
         image_paths = []
         image_labels = []
         visited = set()
         for conceptnet_id in self.task.classes:
             target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
 
-            neighbors = [edge.get_end_node() for edge in target_node.get_neighbors()]
+            # neighbors = [edge.get_end_node() for edge in target_node.get_neighbors()]
+            neighbors = ScadsEmbedding.get_related_nodes(target_node)
+            
             # Add target node
             if target_node not in visited:
                 images = target_node.get_images_whitelist(self.task.whitelist)
