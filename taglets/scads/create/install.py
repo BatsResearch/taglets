@@ -7,7 +7,7 @@ from ..create.add_datasets import add_dataset
 import requests
 import time
 import json
-import logging
+from . wnids_to_concept import SYNSET_TO_CONCEPTNET_ID
 
 
 class DatasetInstaller:
@@ -15,7 +15,38 @@ class DatasetInstaller:
         raise NotImplementedError()
 
     def get_images(self, dataset, session, root):
-        raise NotImplementedError()
+        size = "full"
+        modes = ['train', 'test']
+        label_to_node_id = {}
+    
+        all_images = []
+        for mode in modes:
+            df_label = pd.read_feather(
+                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            df = pd.crosstab(df_label['id'], df_label['class'])
+            mode_dir = os.path.join(dataset.path, f'{dataset.path}_' + size, mode)
+            for image in os.listdir(os.path.join(root, mode_dir)):
+                if image.startswith('.'):
+                    continue
+                
+                label = df.loc[image].idxmax()
+                # Get node_id
+                if label in label_to_node_id:
+                    node_id = label_to_node_id[label]
+                else:
+                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                    node_id = node.id if node else None
+                    label_to_node_id[label] = node_id
+
+                # Scads is missing a missing conceptnet id
+                if not node_id:
+                    continue
+                
+                img = Image(dataset_id=dataset.id,
+                            node_id=node_id,
+                            path=os.path.join(mode_dir, image))
+                all_images.append(img)
+        return all_images
     
     def get_conceptnet_id(self, label):
         return "/c/en/" + label.lower().replace(" ", "_").replace("-", "_")
@@ -25,72 +56,10 @@ class CifarInstallation(DatasetInstaller):
     def get_name(self):
         return "CIFAR100"
 
-    def get_images(self, dataset, session, root):
-        size = "full"
-        modes = ['train', 'test']
-        label_to_node_id = {}
-
-        all_images = []
-        for mode in modes:
-            df_label = pd.read_feather(
-                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
-            df = pd.crosstab(df_label['id'], df_label['class'])
-            mode_dir = os.path.join(dataset.path, "cifar100_" + size, mode)
-            for image in os.listdir(os.path.join(root, mode_dir)):
-                if image.startswith('.'):
-                    continue
-                label = df.loc[image].idxmax()
-
-                # Get node_id
-                if label in label_to_node_id:
-                    node_id = label_to_node_id[label]
-                else:
-                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
-                    node_id = node.id if node else None
-                    label_to_node_id[label] = node_id
-                if not node_id:
-                    continue  # Scads is missing a missing conceptnet id
-                img = Image(dataset_id=dataset.id,
-                            node_id=node_id,
-                            path=os.path.join(mode_dir, image))
-                all_images.append(img)
-        return all_images
-
 
 class MnistInstallation(DatasetInstaller):
     def get_name(self):
         return "MNIST"
-
-    def get_images(self, dataset, session, root):
-        size = "full"
-        modes = ['train', 'test']
-        label_to_node_id = {}
-
-        all_images = []
-        for mode in modes:
-            df_label = pd.read_feather(
-                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
-            df = pd.crosstab(df_label['id'], df_label['class'])
-            mode_dir = os.path.join(dataset.path, "mnist_" + size, mode)
-            for image in os.listdir(os.path.join(root, mode_dir)):
-                if image.startswith('.'):
-                    continue
-                label = df.loc[image].idxmax()
-
-                # Get node_id
-                if label in label_to_node_id:
-                    node_id = label_to_node_id[label]
-                else:
-                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
-                    node_id = node.id if node else None
-                    label_to_node_id[label] = node_id
-                if not node_id:
-                    continue  # Scads is missing a missing conceptnet id
-                img = Image(dataset_id=dataset.id,
-                            node_id=node_id,
-                            path=os.path.join(mode_dir, image))
-                all_images.append(img)
-        return all_images
 
     def get_conceptnet_id(self, label):
         mnist_classes = {
@@ -116,8 +85,6 @@ class ImageNetInstallation(DatasetInstaller):
         size = "full"
         modes = ['train', 'test']
         synset_to_labels_endpoint = "http://www.image-net.org/api/text/wordnet.synset.getwords?wnid="
-        with open('/home/ubuntu/top/wnids_to_concept.json') as json_file:
-            synset_to_conceptnet_id = json.load(json_file)
         synset_to_labels = {}
         conceptnet_id_to_node_id = {}
 
@@ -138,7 +105,6 @@ class ImageNetInstallation(DatasetInstaller):
                 if synset in synset_to_labels:
                     labels = synset_to_labels[synset]
                 else:
-
                     try:
                         labels = requests.get(synset_to_labels_endpoint + synset)
                     except:
@@ -152,7 +118,7 @@ class ImageNetInstallation(DatasetInstaller):
                     synset_to_labels[synset] = labels
 
                 conceptnet_ids = [self.get_conceptnet_id(label) for label in labels]
-                conceptnet_ids.append(synset_to_conceptnet_id[synset])
+                conceptnet_ids.append(SYNSET_TO_CONCEPTNET_ID[synset])
                 conceptnet_ids = list(set(conceptnet_ids))
                 # Get nodes
                 for conceptnet_id in conceptnet_ids:
@@ -163,21 +129,15 @@ class ImageNetInstallation(DatasetInstaller):
                         node = session.query(Node).filter_by(conceptnet_id=conceptnet_id).first()
                         node_id = node.id if node else None
                         conceptnet_id_to_node_id[conceptnet_id] = node_id
+                    # Scads is missing a missing conceptnet id
                     if not node_id:
                         missed_labeles.add(conceptnet_id)
-                        continue  # Scads is missing a missing conceptnet id
+                        continue
                     img = Image(dataset_id=dataset.id,
                                 node_id=node_id,
                                 path=os.path.join(mode_dir, image))
                     all_images.append(img)
                     image_counter += 1
-                    if image_counter % 100000 == 0:
-                        session.add_all(all_images)
-                        session.commit()
-                        all_images = []
-                        image_counter = 0
-                        logging.info('a chunk of 100,000 images from imagenet is added to images dataset')
-        print(missed_labeles)
         return all_images
 
 
@@ -185,10 +145,8 @@ class COCO2014Installation(DatasetInstaller):
     def get_name(self):
         return "COCO2014"
 
-    def get_images(self, dataset, session, root):
-        size = "full"
-        modes = ['train', 'test']
-        class_to_label = {1: 'person', 2: 'bicycle', 3: 'car', 4: 'motorcycle', 5: 'airplane', 6: 'bus', 7: 'train',
+    def get_conceptnet_id(self, label):
+        label_to_label = {1: 'person', 2: 'bicycle', 3: 'car', 4: 'motorcycle', 5: 'airplane', 6: 'bus', 7: 'train',
                           8: 'truck', 9: 'boat', 10: 'traffic light', 11: 'fire hydrant', 12: '-', 13: 'stop sign',
                           14: 'parking meter', 15: 'bench', 16: 'bird', 17: 'cat', 18: 'dog', 19: 'horse', 20: 'sheep',
                           21: 'cow', 22: 'elephant', 23: 'bear', 24: 'zebra', 25: 'giraffe', 26: '-', 27: 'backpack',
@@ -203,33 +161,7 @@ class COCO2014Installation(DatasetInstaller):
                           78: 'microwave', 79: 'oven', 80: 'toaster', 81: 'sink', 82: 'refrigerator', 83: '-',
                           84: 'book', 85: 'clock', 86: 'vase', 87: 'scissors', 88: 'teddy bear', 89: 'hair drier',
                           90: 'toothbrush', 91: '-', 92: ''}
-        label_to_node_id = {}
-
-        all_images = []
-        for mode in modes:
-            df_label = pd.read_feather(
-                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
-            df = pd.crosstab(df_label['id'], df_label['class'])
-            mode_dir = os.path.join(dataset.path, "coco2014_" + size, mode)
-            for image in os.listdir(os.path.join(root, mode_dir)):
-                if image.startswith('.'):
-                    continue
-                label = class_to_label[df.loc[image].idxmax()]
-
-                # Get node_id
-                if label in label_to_node_id:
-                    node_id = label_to_node_id[label]
-                else:
-                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
-                    node_id = node.id if node else None
-                    label_to_node_id[label] = node_id
-                if not node_id:
-                    continue  # Scads is missing a missing conceptnet id
-                img = Image(dataset_id=dataset.id,
-                            node_id=node_id,
-                            path=os.path.join(mode_dir, image))
-                all_images.append(img)
-        return all_images
+        return "/c/en/" + label_to_label[label].lower().replace(" ", "_").replace("-", "_")
 
 
 class DomainNetInstallation(DatasetInstaller):
@@ -238,40 +170,6 @@ class DomainNetInstallation(DatasetInstaller):
 
     def get_name(self):
         return "DomainNet: " + self.domain
-
-    def get_images(self, dataset, session, root):
-        size = "full"
-        modes = ['train', 'test']
-        label_to_node_id = {}
-
-        all_images = []
-        missed_labels = set([])
-        for mode in modes:
-            df_label = pd.read_feather(
-                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
-            df = pd.crosstab(df_label['id'], df_label['class'])
-            mode_dir = os.path.join(dataset.path, dataset.path + "_" + size, mode)
-            for image in os.listdir(os.path.join(root, mode_dir)):
-                if image.startswith('.'):
-                    continue
-                label = df.loc[image].idxmax()
-
-                # Get node_id
-                if label in label_to_node_id:
-                    node_id = label_to_node_id[label]
-                else:
-                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
-                    node_id = node.id if node else None
-                    label_to_node_id[label] = node_id
-                if not node_id:
-                    missed_labels.add(label)
-                    continue  # Scads is missing a missing conceptnet id
-                img = Image(dataset_id=dataset.id,
-                            node_id=node_id,
-                            path=os.path.join(mode_dir, image))
-                all_images.append(img)
-        print(missed_labels)
-        return all_images
 
     def get_conceptnet_id(self, label):
         exceptions = {'paint_can': 'can_of_paint',
@@ -290,41 +188,6 @@ class VOC2009Installation(DatasetInstaller):
     def get_name(self):
         return "VOC2009"
 
-    def get_images(self, dataset, session, root):
-        size = "full"
-        modes = ['train', 'test']
-        label_to_node_id = {}
-
-        all_images = []
-        missed_labels = set([])
-        for mode in modes:
-            df_label = pd.read_feather(
-                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
-            df = pd.crosstab(df_label['id'], df_label['class'])
-            mode_dir = os.path.join(dataset.path, "voc2009_" + size, mode)
-            for image in os.listdir(os.path.join(root, mode_dir)):
-                if image.startswith('.'):
-                    continue
-                label = df.loc[image].idxmax()
-
-                # Get node_id
-                if label in label_to_node_id:
-                    node_id = label_to_node_id[label]
-                else:
-                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
-                    node_id = node.id if node else None
-                    label_to_node_id[label] = node_id
-                if not node_id:
-                    missed_labels.add(label)
-                    continue  # Scads is missing a missing conceptnet id
-                img = Image(dataset_id=dataset.id,
-                            node_id=node_id,
-                            path=os.path.join(mode_dir, image))
-                all_images.append(img)
-        print('missed_labels:')
-        print(missed_labels)
-        return all_images
-
     def get_conceptnet_id(self, label):
         exceptions = {'pottedplant': 'potted_plant',
                       'tvmonitor': 'tv_monitor',
@@ -337,48 +200,6 @@ class VOC2009Installation(DatasetInstaller):
 class GoogleOpenImageInstallation(DatasetInstaller):
     def get_name(self):
         return "GoogleOpenImage"
-
-    def get_images(self, dataset, session, root):
-        size = "full"
-        modes = ['train', 'test']
-        label_to_node_id = {}
-        missed_labeles = set([])
-        all_images = []
-        image_counter = 0
-        for mode in modes:
-            df_label = pd.read_feather(
-                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
-            df = pd.crosstab(df_label['id'], df_label['class'])
-            mode_dir = os.path.join(dataset.path, "google_open_image_" + size, mode)
-            for image in os.listdir(os.path.join(root, mode_dir)):
-                if image.startswith('.'):
-                    continue
-                label = df.loc[image].idxmax()
-
-                # Get node_id
-                if label in label_to_node_id:
-                    node_id = label_to_node_id[label]
-                else:
-                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
-                    node_id = node.id if node else None
-                    label_to_node_id[label] = node_id
-                if not node_id:
-                    missed_labeles.add(label)
-                    continue  # Scads is missing a missing conceptnet id
-                img = Image(dataset_id=dataset.id,
-                            node_id=node_id,
-                            path=os.path.join(mode_dir, image))
-                all_images.append(img)
-                image_counter += 1
-                if image_counter % 100000 == 0:
-                    print(image_counter)
-                    session.add_all(all_images)
-                    session.commit()
-                    all_images = []
-                    image_counter = 0
-                    print('a chunk of 100,000 images from google open image is added to images dataset')
-        print(missed_labeles)
-        return all_images
 
 
 class Installer:
