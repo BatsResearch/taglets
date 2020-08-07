@@ -104,19 +104,19 @@ class TestSCADS(unittest.TestCase):
         #                 in images)
 
 
-        node3 = Scads.get_node_by_conceptnet_id("/c/en/person")
-        self.assertTrue('GoogleOpenImage' in node3.get_datasets())
-        images = node3.get_images()
-        self.assertEqual(len(images), 1)
-        self.assertTrue('google_open_image/google_open_image_full/test/067e21aeda713b53.jpg'
-                        in images)
-
-        node4 = Scads.get_node_by_conceptnet_id("/c/en/doll")
-        self.assertEqual(node4.get_datasets(), ['GoogleOpenImage'])
-        images = node4.get_images()
-        self.assertEqual(len(images), 1)
-        self.assertTrue('google_open_image/google_open_image_full/train/0100de671be66c38.jpg'
-                        in images)
+        # node3 = Scads.get_node_by_conceptnet_id("/c/en/person")
+        # self.assertTrue('GoogleOpenImage' in node3.get_datasets())
+        # images = node3.get_images()
+        # self.assertEqual(len(images), 1)
+        # self.assertTrue('google_open_image/google_open_image_full/test/067e21aeda713b53.jpg'
+        #                 in images)
+        #
+        # node4 = Scads.get_node_by_conceptnet_id("/c/en/doll")
+        # self.assertEqual(node4.get_datasets(), ['GoogleOpenImage'])
+        # images = node4.get_images()
+        # self.assertEqual(len(images), 1)
+        # self.assertTrue('google_open_image/google_open_image_full/train/0100de671be66c38.jpg'
+        #                 in images)
 
 
 
