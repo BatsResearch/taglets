@@ -431,7 +431,7 @@ class JPLRunner:
                     unlabeled_dataset,
                     val_dataset,
                     self.jpl_storage.whitelist,
-                    '/data/datasets/scads.sqlite3')
+                    'predefined/scads.fall2020.sqlite3')
         task.set_initial_model(self.initial_model)
         controller = Controller(task, self.batch_size)
         end_model = controller.train_end_model()
