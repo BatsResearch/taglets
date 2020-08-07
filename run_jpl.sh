@@ -3,4 +3,4 @@
 # Increases open file limit for multiprocessing
 ulimit -n 65536
 export PYTHONPATH=".:$PYTHONPATH"
-python -m taglets.task.jpl --dataset_dir /lwll/development --task_ix 3
+python -m taglets.task.jpl --dataset_dir /lwll/development
