@@ -9,13 +9,12 @@ class Taglet(Trainable):
     """
     A trainable model that produces votes for unlabeled images
     """
-    def execute(self, unlabeled_data, use_gpu):
+    def execute(self, unlabeled_data):
         """
         Execute the Taglet on unlabeled images.
 
         :param unlabeled_data: A Dataset containing unlabeled data
-        :param use_gpu: Whether or not the use the GPU
         :return: A 1-d NumPy array of predicted labels
         """
-        outputs = self.predict(unlabeled_data, use_gpu)
+        outputs = self.predict(unlabeled_data)
         return np.argmax(outputs, 1)

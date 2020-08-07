@@ -206,13 +206,11 @@ def euclidean_metric(a, b):
 
 
 class NearestProtoModule(nn.Module):
-    def __init__(self, prototypes, n_classes, encoder, shot, way, query):
+    def __init__(self, prototypes, n_classes, encoder, query):
         super(NearestProtoModule, self).__init__()
         self.prototypes = prototypes
         self.n_classes = n_classes
         self.encoder = encoder
-        self.shot = shot
-        self.way = way
         self.query = query
         self.criterion = nn.CrossEntropyLoss()
         self.val = False
@@ -221,12 +219,6 @@ class NearestProtoModule(nn.Module):
     # abstain from all labeling
     def set_label_abstaining(self, abstain):
         self.abstain = abstain
-
-    def set_way(self, new_way):
-        self.way = new_way
-
-    def set_shot(self, new_shot):
-        self.shot = new_shot
 
     def set_query(self, new_query):
         self.query = new_query
@@ -253,19 +245,10 @@ class NearestProtoModule(nn.Module):
             return labels
 
     # hook for calculating forward
-    def _get_forward(self, x, way=None, shot=None, val=False):
-        if way is None:
-            way = self.way
-
-        if shot is None:
-            shot = self.shot
-
-        # way / shot stays constant while training
-        assert (self.shot == shot and self.way == way) or val
-
+    def _get_forward(self, x, way, shot, val=False):
         self.val = val
 
-        p = self.shot * self.way
+        p = shot * way
         encoding = self.forward(x)
         shot_proto = encoding[:p]
         query_proto = encoding[p:]
@@ -274,16 +257,12 @@ class NearestProtoModule(nn.Module):
         proto = shot_proto.reshape(shot, way, -1).mean(dim=0)
         return -euclidean_metric(query_proto, proto)
 
-    def get_forward_loss(self, x, use_gpu, way=None, shot=None, val=False):
-        if way is None:
-            way = self.way
-
-        if shot is None:
-            shot = self.shot
-
+    def get_forward_loss(self, x, rank, use_gpu, way, shot, val=False):
         label = torch.arange(way).repeat(self.query)
         if use_gpu:
-            label.cuda()
+            label.cuda(rank)
+        else:
+            label.cpu()
 
         logits = self._get_forward(x, way=way, shot=shot, val=val)
         return self.criterion(logits, label), count_acc(logits, label, use_gpu)
@@ -292,13 +271,12 @@ class NearestProtoModule(nn.Module):
 class PrototypeModule(Module):
     def __init__(self, task, auto_meta_param=False):
         super().__init__(task)
-        episodes = 20 if not os.environ.get("CI") else 20
+        episodes = 20 if not os.environ.get("CI") else 5
         self.taglets = [PrototypeTaglet(task, train_shot=5, train_way=10,
                                                             query=15,
                                                             episodes=episodes,
                                                             auto_meta_param=auto_meta_param,
                                                             use_scads=False)]
-
 
 class PrototypeTaglet(Taglet):
     def __init__(self, task, train_shot, train_way, query,
@@ -329,8 +307,6 @@ class PrototypeTaglet(Taglet):
         self.protonet = NearestProtoModule(self.prototypes,
                                         len(task.classes),
                                         encoder=self.model,
-                                        shot=self.train_shot,
-                                        way=self.train_way,
                                         query=self.query)
         self.use_scads = use_scads
 
@@ -338,6 +314,17 @@ class PrototypeTaglet(Taglet):
         self.val_labels = None
 
         self.auto_meta_param = auto_meta_param
+
+
+    def set_train_shot(self, shot):
+        self.train_shot = shot
+
+    def set_train_way(self, way):
+        self.train_way = way
+
+    def set_query(self, query):
+        self.query = query
+        self.protonet.set_query(self.query)
 
     @staticmethod
     def onn(i, prototypes):
@@ -378,21 +365,23 @@ class PrototypeTaglet(Taglet):
     def _get_pred_classifier(self):
         return self.protonet
 
-    def build_prototypes(self, infer_data, use_gpu):
+    def build_prototypes(self, infer_data, rank):
         self.protonet.eval()
 
         infer_dataloader = DataLoader(dataset=infer_data, batch_size=self.batch_size,
                                       num_workers=0, pin_memory=True)
-        if use_gpu and torch.cuda.is_available():
-            self.protonet.cuda()
+        if self.use_gpu:
+            self.protonet.cuda(rank)
+        else:
+            self.protonet.cpu()
 
         for data in infer_dataloader:
             with torch.set_grad_enabled(False):
                 image, label = data[0], data[1]
                 # Memorize
-                if use_gpu:
-                    image = image.cuda()
-                    label = label.cuda()
+                if self.use_gpu:
+                    image = image.cuda(rank)
+                    label = label.cuda(rank)
 
                 for img, lbl in zip(image, label):
                     proto = self.model(torch.unsqueeze(img, dim=0))
@@ -405,7 +394,7 @@ class PrototypeTaglet(Taglet):
         for key, values in self.prototypes.items():
             self.prototypes[key] = torch.stack(values).mean(dim=0)
 
-    def train(self, train_data, val_data, use_gpu):
+    def train(self, train_data, val_data):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
         os.environ['MASTER_PORT'] = '8888'
 
@@ -437,8 +426,6 @@ class PrototypeTaglet(Taglet):
                                                                                self.train_way,
                                                                                self.train_shot,
                                                                                self.query)
-                self.protonet.set_way(self.train_way)
-                self.protonet.set_shot(self.train_shot)
                 self.protonet.set_query(self.query)
             except ValueError:
                 self.protonet.set_label_abstaining(True)
@@ -459,19 +446,19 @@ class PrototypeTaglet(Taglet):
                                             way=self.val_way, query=self.query):
                 val_data = None
 
-        super().train(infer_data, val_data, use_gpu)
-        self.build_prototypes(infer_data, use_gpu=use_gpu)
+        super().train(infer_data, val_data)
+        # prototype construction done only on one process
+        self.build_prototypes(infer_data, rank=0)
 
-    def _train_epoch(self, rank, train_data_loader, use_gpu):
+    def _train_epoch(self, rank, train_data_loader):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data
-        :param cuda: Whether or not to use the GPU
         :return: None
         """
         self.protonet.train()
 
-        if use_gpu:
+        if self.use_gpu:
             self.protonet = self.protonet.cuda(rank)
         else:
             self.protonet = self.protonet.cpu()
@@ -482,13 +469,14 @@ class PrototypeTaglet(Taglet):
         for i, batch in enumerate(train_data_loader, 1):
             log.info('Train Episode: %d' % i)
             count += 1
-            if use_gpu:
+            if self.use_gpu:
                 data, _ = [x.cuda(rank) for x in batch]
             else:
                 data = batch[0]
 
             self.optimizer.zero_grad()
-            loss, acc = self.protonet.get_forward_loss(data, use_gpu)
+            loss, acc = self.protonet.get_forward_loss(data, rank, self.use_gpu, shot=self.train_shot,
+                                                       way=self.train_way)
             loss.backward()
             self.optimizer.step()
 
@@ -500,10 +488,10 @@ class PrototypeTaglet(Taglet):
         epoch_acc = running_acc / count if count > 0 else 0.0
         return epoch_loss, epoch_acc
 
-    def _validate_epoch(self, rank, val_data_loader, use_gpu):
+    def _validate_epoch(self, rank, val_data_loader):
         self.protonet.eval()
 
-        if use_gpu and torch.cuda.is_available():
+        if self.use_gpu:
             self.protonet = self.protonet.cuda(rank)
         else:
             self.protonet = self.protonet.cpu()
@@ -514,13 +502,14 @@ class PrototypeTaglet(Taglet):
         for i, batch in enumerate(val_data_loader, 1):
             log.info('Val Episode: %d' % i)
             count += 1
-            if use_gpu:
+            if self.use_gpu:
                 data, _ = [x.cuda(rank) for x in batch]
             else:
                 data = batch[0]
             with torch.set_grad_enabled(False):
                 loss, acc = self.protonet.get_forward_loss(data,
-                                                           use_gpu,
+                                                           rank,
+                                                           self.use_gpu,
                                                            way=self.val_way,
                                                            shot=self.val_shot,
                                                            val=True)
