@@ -82,26 +82,26 @@ class TestSCADS(unittest.TestCase):
         self.assertTrue('imagenet_1k/imagenet_1k_full/train/n15075141_53219.JPEG'
                         in images)
 
-        node2 = Scads.get_node_by_conceptnet_id("/c/en/bottle")
-        self.assertEqual(node2.get_datasets(), ['COCO2014'])
-        images = node2.get_images()
-        self.assertEqual(len(images), 1)
-        self.assertTrue('coco2014/coco2014_full/train/COCO_train2014_000000581674.jpg'
-                        in images)
-
-
-        node6 = Scads.get_node_by_conceptnet_id("/c/en/bird")
-        self.assertEqual(node6.get_datasets(), ['VOC2009'])
-        images = node6.get_images()
-        self.assertEqual(len(images), 1)
-        self.assertTrue('voc2009/voc2009_full/train/2008_007250.jpg'
-                        in images)
-        node5 = Scads.get_node_by_conceptnet_id("/c/en/tv_monitor")
-        self.assertEqual(node5.get_datasets(), ['VOC2009'])
-        images = node5.get_images()
-        self.assertEqual(len(images), 1)
-        self.assertTrue('voc2009/voc2009_full/test/2009_005240.jpg'
-                        in images)
+        # node2 = Scads.get_node_by_conceptnet_id("/c/en/bottle")
+        # self.assertEqual(node2.get_datasets(), ['COCO2014'])
+        # images = node2.get_images()
+        # self.assertEqual(len(images), 1)
+        # self.assertTrue('coco2014/coco2014_full/train/COCO_train2014_000000581674.jpg'
+        #                 in images)
+        #
+        #
+        # node6 = Scads.get_node_by_conceptnet_id("/c/en/bird")
+        # self.assertEqual(node6.get_datasets(), ['VOC2009'])
+        # images = node6.get_images()
+        # self.assertEqual(len(images), 1)
+        # self.assertTrue('voc2009/voc2009_full/train/2008_007250.jpg'
+        #                 in images)
+        # node5 = Scads.get_node_by_conceptnet_id("/c/en/tv_monitor")
+        # self.assertEqual(node5.get_datasets(), ['VOC2009'])
+        # images = node5.get_images()
+        # self.assertEqual(len(images), 1)
+        # self.assertTrue('voc2009/voc2009_full/test/2009_005240.jpg'
+        #                 in images)
 
 
         node3 = Scads.get_node_by_conceptnet_id("/c/en/person")
