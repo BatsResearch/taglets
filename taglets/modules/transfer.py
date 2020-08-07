@@ -64,7 +64,7 @@ class TransferTaglet(Taglet):
                     image_paths.extend(images)
                     image_labels.extend([len(visited) for _ in range(len(images))])
                     visited.add(target_node.get_conceptnet_id())
-                    log.info("Source class found: {}".format(target_node.get_conceptnet_id()))
+                    log.debug("Source class found: {}".format(target_node.get_conceptnet_id()))
 
             # Add neighbors
             for neighbor in neighbors:
@@ -77,7 +77,7 @@ class TransferTaglet(Taglet):
                     image_paths.extend(images)
                     image_labels.extend([len(visited) for _ in range(len(images))])
                     visited.add(neighbor.get_conceptnet_id())
-                    log.info("Source class found: {}".format(neighbor.get_conceptnet_id()))
+                    log.debug("Source class found: {}".format(neighbor.get_conceptnet_id()))
 
         Scads.close()
 
