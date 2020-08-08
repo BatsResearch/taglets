@@ -410,7 +410,7 @@ class PrototypeTaglet(Taglet):
 
     def train(self, train_data, val_data):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '9000'
+        os.environ['MASTER_PORT'] = '8888'
 
         if len(train_data) == 0:
             log.debug('train dataset is empty! abstaining from labeling.')
