@@ -75,7 +75,7 @@ class ScadsEmbedding:
         return normalized_vec
     
     @staticmethod
-    def get_related_nodes(node, limit=50, is_node=True):
+    def get_related_nodes(node, limit=20, is_node=True):
         """
         Get the related nodes based on the cosine similarity of their embeddings
 
@@ -101,7 +101,7 @@ class ScadsEmbedding:
                     related_node = Scads.get_node_by_conceptnet_id(concept)
                     related_nodes.append(related_node)
                 except:
-                    print(f'Concept {concept} not found in Scads')
+                    continue
             return related_nodes
         else:
             return similar_concepts
