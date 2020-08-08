@@ -527,4 +527,3 @@ class PrototypeTaglet(Taglet):
         epoch_loss = running_loss / count if count > 0 else 0.0
         epoch_acc = running_acc / count if count > 0 else 0.0
         return epoch_loss, epoch_acc
-
