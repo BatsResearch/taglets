@@ -79,7 +79,7 @@ class ImageNetInstallation(DatasetInstaller):
         return "ImageNet"
 
     def get_conceptnet_id(self, label):
-        return "/c/en/" + SYNSET_TO_CONCEPTNET_ID[label].lower().replace(" ", "_").replace("-", "_")
+        return SYNSET_TO_CONCEPTNET_ID[label]
 
 
 class COCO2014Installation(DatasetInstaller):
