@@ -58,7 +58,6 @@ class TransferTaglet(Taglet):
 
             # neighbors = [edge.get_end_node() for edge in target_node.get_neighbors()]
             neighbors = ScadsEmbedding.get_related_nodes(target_node)
-            
             # Add target node
             if target_node.get_conceptnet_id() not in visited:
                 images = target_node.get_images_whitelist(self.task.whitelist)
@@ -120,8 +119,11 @@ class TransferTaglet(Taglet):
         scads_train_data, scads_val_data, scads_num_classes = self._get_scads_data()
         log.info("Source classes found: {}".format(scads_num_classes))
 
+        orig_num_epochs = self.num_epochs
+        self.num_epochs = 5
         self._set_num_classes(scads_num_classes)
         super(TransferTaglet, self).train(scads_train_data, scads_val_data)
+        self.num_epochs = orig_num_epochs
 
         # TODO: Freeze layers
         orig_num_epochs = self.num_epochs
