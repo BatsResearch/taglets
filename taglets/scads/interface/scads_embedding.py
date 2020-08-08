@@ -75,7 +75,7 @@ class ScadsEmbedding:
         return normalized_vec
     
     @staticmethod
-    def get_related_nodes(node, limit=20, is_node=True):
+    def get_related_nodes(node, limit=50, is_node=True):
         """
         Get the related nodes based on the cosine similarity of their embeddings
 
