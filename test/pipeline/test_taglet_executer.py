@@ -1,45 +1,93 @@
-import unittest
 import numpy as np
-from taglets.modules import TransferModule
-from taglets.controller import Controller
+import os
+from taglets.modules import FineTuneModule
 from taglets.pipeline.taglet_executer import TagletExecutor
+from taglets.task import Task
+import torch
+from torch.utils.data import Dataset, Subset
+from torchvision import transforms
+from torchvision.datasets import MNIST
+from torchvision.models.resnet import ResNet, BasicBlock
+import unittest
+
+TEST_DATA = os.path.join(os.path.dirname(os.path.realpath(__file__)), "test_data/scads")
+DB_PATH = os.path.join(TEST_DATA, "test_scads.db")
+CONCEPTNET_PATH = os.path.join(TEST_DATA, "conceptnet")
+MNIST_PATH = "mnist"
+
+
+class HiddenLabelDataset(Dataset):
+    """
+    Wraps a labeled dataset so that it appears unlabeled
+    """
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def __getitem__(self, idx):
+        img, _ = self.dataset[idx]
+        return img
+
+    def __len__(self):
+        return len(self.dataset)
+
+
+class MnistResNet(ResNet):
+    """
+    A small ResNet for MNIST.
+    """
+    def __init__(self):
+        """
+        Create a new MnistResNet model.
+        """
+        super(MnistResNet, self).__init__(BasicBlock, [2, 2, 2, 2], num_classes=10)
+        self.conv1 = torch.nn.Conv2d(3, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+        self.fc = torch.nn.Identity()
 
 
 class TestTagletExecuter(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # Get Task
-        controller = Controller()
-        task = controller.get_task()[0]
-        task.unlabeled_image_path = "../sql_data/MNIST/train"
-        task.evaluation_image_path = "../sql_data/MNIST/test"
-        batch_size = 32
-        num_workers = 2
+        # Creates task
+        classes = ['/c/en/zero/n/wn/quantity',
+                   '/c/en/one/n/wn/quantity',
+                   '/c/en/two/n/wn/quantity',
+                   '/c/en/three/n/wn/quantity',
+                   '/c/en/four/n/wn/quantity',
+                   '/c/en/five/n/wn/quantity',
+                   '/c/en/six/n/wn/quantity',
+                   '/c/en/seven/n/wn/quantity',
+                   '/c/en/eight/n/wn/quantity',
+                   '/c/en/nine/n/wn/quantity']
+
+        preprocess = transforms.Compose(
+            [transforms.Grayscale(num_output_channels=3),
+             transforms.ToTensor()])
+
+        mnist = MNIST('.', train=True, transform=preprocess, download=True)
+        size = 5
+        labeled = Subset(mnist, [i for i in range(size)])
+        cls.unlabeled = HiddenLabelDataset(Subset(mnist, [i for i in range(size, 2 * size)]))
+        val = Subset(mnist, [i for i in range(2 * size, 3 * size)])
+        task = Task("mnist-test", classes, (28, 28), labeled, cls.unlabeled, val)
+        task.set_initial_model(MnistResNet())
 
         # Train and get Taglets
-        module = TransferModule(task)
-        train_data_loader, val_data_loader, train_image_names, train_image_labels = task.load_labeled_data(
-            batch_size,
-            num_workers)
-        module.train_taglets(train_data_loader, val_data_loader)
+        module = FineTuneModule(task)
+        module.train_taglets(labeled, val)
         cls.taglets = module.get_taglets()
 
         # Execute Taglets
         executor = TagletExecutor()
         executor.set_taglets(cls.taglets)
-        cls.unlabeled_data_loader = task.load_unlabeled_data(batch_size, num_workers)[0]
-        cls.label_matrix, cls.probabilities = executor.execute(cls.unlabeled_data_loader)
+        cls.label_matrix = executor.execute(cls.unlabeled)
 
-    def test_soft_label_shape(self):
-        self.assertTrue(self.label_matrix.shape[0] == len(self.unlabeled_data_loader.dataset))
+    def test_weak_label_shape(self):
+        self.assertTrue(self.label_matrix.shape[0] == len(self.unlabeled))
         self.assertTrue(self.label_matrix.shape[1] == len(self.taglets))
 
-    def test_probabilities_shape(self):
-        self.assertTrue(len(self.probabilities) == len(self.unlabeled_data_loader.dataset))
-
-    def test_soft_label_correctness(self):
-        taglet_output = self.taglets[0].execute(self.unlabeled_data_loader)
+    def test_weak_label_correctness(self):
+        taglet_output = self.taglets[0].execute(self.unlabeled)
         self.assertTrue(np.array_equal(taglet_output, self.label_matrix[:, 0]))
 
 

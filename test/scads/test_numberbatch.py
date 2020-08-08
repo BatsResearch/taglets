@@ -6,7 +6,7 @@ import numpy as np
 class TestScadsEmbedding(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        embedding_path = 'predefined/numberbatch-en-19.08.txt.gz'
+        embedding_path = 'predefined/embeddings/numberbatch-en19.08.txt.gz'
         ScadsEmbedding.load(embedding_path)
 
     def test_oov(self):
