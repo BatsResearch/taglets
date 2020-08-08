@@ -64,7 +64,7 @@ class Trainable:
 
     def train(self, train_data, val_data):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '8888'
+        os.environ['MASTER_PORT'] = '9000'
 
         # Launches workers and collects results from queue
         processes = []
@@ -86,7 +86,7 @@ class Trainable:
 
     def predict(self, data):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '8888'
+        os.environ['MASTER_PORT'] = '9000'
 
         # Launches workers and collects results from queue
         processes = []

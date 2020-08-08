@@ -18,3 +18,5 @@ wget -nc https://storage.googleapis.com/taglets-public/embeddings/numberbatch-en
 cd ../zsl_kg_lite
 wget -nc https://storage.googleapis.com/taglets-public/zsl_kg_lite/transformer.pt
 
+wget -nc https://storage.googleapis.com/taglets-public/protonet-trained.pth
+
