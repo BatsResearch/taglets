@@ -150,7 +150,7 @@ class Trainable:
     def _get_dataloader(self, data, sampler):
         return torch.utils.data.DataLoader(
             dataset=data, batch_size=self.batch_size, shuffle=False,
-            num_workers=0, pin_memory=True, sampler=sampler
+            num_workers=2, pin_memory=True, sampler=sampler
         )
 
     def _get_pred_classifier(self):
@@ -400,7 +400,7 @@ class Trainable:
         )
         data_loader = torch.utils.data.DataLoader(
             dataset=data, batch_size=self.batch_size, shuffle=False,
-            num_workers=0, pin_memory=True, sampler=sampler
+            num_workers=2, pin_memory=True, sampler=sampler
         )
 
         outputs = []
