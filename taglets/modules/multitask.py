@@ -6,6 +6,7 @@ from ..pipeline import Taglet
 from ..scads import Scads, ScadsEmbedding
 
 import os
+import random
 import torch
 import logging
 import copy
@@ -71,6 +72,9 @@ class MultiTaskTaglet(Taglet):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
+        self.img_per_related_class = 600
+        self.num_related_class = 5
+
     def transform_image(self):
         """
         Get the transform to be used on an image.
@@ -92,29 +96,36 @@ class MultiTaskTaglet(Taglet):
         image_paths = []
         image_labels = []
         visited = set()
-
+    
         def get_images(node):
             if node.get_conceptnet_id() not in visited:
+                visited.add(node.get_conceptnet_id())
                 images = node.get_images_whitelist(self.task.whitelist)
                 images = [os.path.join(root_path, image) for image in images]
-                if images:
+                if len(images) >= self.img_per_related_class:
+                    images = random.sample(images, self.img_per_related_class)
                     image_paths.extend(images)
                     image_labels.extend([len(visited) for _ in range(len(images))])
-                    visited.add(node.get_conceptnet_id())
                     log.debug("Source class found: {}".format(node.get_conceptnet_id()))
-
+                    return True
+            return False
+    
         for conceptnet_id in self.task.classes:
+            cur_related_class = 0
             target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
-    
-            # neighbors = [edge.get_end_node() for edge in target_node.get_neighbors()]
-            neighbors = ScadsEmbedding.get_related_nodes(target_node)
-    
-            # Add target node
-            get_images(target_node)
-    
-            # Add neighbors
-            for neighbor in neighbors:
-                get_images(neighbor)
+            if get_images(target_node):
+                cur_related_class += 1
+        
+            ct = 1
+            while cur_related_class < self.num_related_class:
+                # neighbors = [edge.get_end_node() for edge in target_node.get_neighbors()]
+                neighbors = ScadsEmbedding.get_related_nodes(target_node, 50 * ct)
+                for neighbor in neighbors:
+                    if get_images(neighbor):
+                        cur_related_class += 1
+                        if cur_related_class >= self.num_related_class:
+                            break
+                ct += 1
 
         Scads.close()
 
