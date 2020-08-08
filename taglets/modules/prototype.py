@@ -7,6 +7,7 @@ import torch.nn as nn
 import numpy as np
 
 from torch.utils.data import DataLoader, Sampler
+import torchvision.models as models
 
 log = logging.getLogger(__name__)
 
@@ -272,16 +273,16 @@ class PrototypeModule(Module):
     def __init__(self, task, auto_meta_param=False):
         super().__init__(task)
         episodes = 20 if not os.environ.get("CI") else 5
-        self.taglets = [PrototypeTaglet(task, train_shot=5, train_way=10,
+        self.taglets = [PrototypeTaglet(task, train_shot=5, train_way=5,
                                                             query=15,
                                                             episodes=episodes,
                                                             auto_meta_param=auto_meta_param,
                                                             use_scads=False)]
 
+
 class PrototypeTaglet(Taglet):
     def __init__(self, task, train_shot, train_way, query,
                  episodes, auto_meta_param, val_shot=None, val_way=None, use_scads=True):
-        super().__init__(task)
         self.name = 'prototype'
         self.episodes = episodes
         self.prototypes = {}
@@ -291,6 +292,11 @@ class PrototypeTaglet(Taglet):
         # ensure train_way is not more than num of classes in dataset
         self.train_way = min(len(task.classes), train_way)
         self.query = query
+
+        self.model = self._load_pretrained_model()
+
+        # wait to set up optimizer until pretrained model is loaded
+        super().__init__(task)
 
         if val_shot is None:
             self.val_shot = self.train_shot
@@ -314,7 +320,6 @@ class PrototypeTaglet(Taglet):
         self.val_labels = None
 
         self.auto_meta_param = auto_meta_param
-
 
     def set_train_shot(self, shot):
         self.train_shot = shot
@@ -343,6 +348,15 @@ class PrototypeTaglet(Taglet):
             lab = 0
         return lab
 
+    def _load_pretrained_model(self):
+        resnet_18 = models.resnet18(pretrained=False)
+        resnet_18.fc = nn.Identity()
+        # initially, load model onto cpu
+        state_dict = torch.load('predefined/protonet-trained.pth',
+                                map_location=torch.device('cpu'))
+        resnet_18.load_state_dict(state_dict)
+        return resnet_18
+
     def _get_train_sampler(self, data, n_proc, rank):
         return DistributedBatchCategoriesSampler(rank=rank,
                                                 labels=self.train_labels,
@@ -365,7 +379,7 @@ class PrototypeTaglet(Taglet):
     def _get_pred_classifier(self):
         return self.protonet
 
-    def build_prototypes(self, infer_data, rank):
+    def _build_prototypes(self, infer_data, rank):
         self.protonet.eval()
 
         infer_dataloader = DataLoader(dataset=infer_data, batch_size=self.batch_size,
@@ -403,14 +417,8 @@ class PrototypeTaglet(Taglet):
             self.protonet.set_label_abstaining(True)
             return
 
-        infer_data = None
-        if self.use_scads:
-            # merge val_data with train_data to form infer_data
-            # Imagenet 1K is used as a base dataset and partitioned in train / val
-            pass
-        else:
-            # use training data to build class prototypes
-            infer_data = train_data
+        # determines whether to train pretrained model further
+        train_model = True
 
         # validate that train / val datasets are sufficiently large given shot / way
         try:
@@ -426,29 +434,28 @@ class PrototypeTaglet(Taglet):
                                                                                self.train_way,
                                                                                self.train_shot,
                                                                                self.query)
+                self.protonet.set_way(self.train_way)
+                self.protonet.set_shot(self.train_shot)
                 self.protonet.set_query(self.query)
             except ValueError:
-                self.protonet.set_label_abstaining(True)
-                return
+                train_model = False
         elif not validate_few_shot_config('Train', train_label_distr, shot=self.train_shot,
-                                        way=self.train_way, query=self.query):
-            self.protonet.set_label_abstaining(True)
-            return
+                                          way=self.train_way, query=self.query):
+            train_model = False
 
-        if val_data is not None:
-            try:
-                self.val_labels = val_data.labels
-            except AttributeError:
-                self.val_labels = get_dataset_labels(val_data)
-            val_label_distr = get_label_distr(self.val_labels)
+        if train_model:
+            if val_data is not None:
+                try:
+                    self.val_labels = val_data.labels
+                except AttributeError:
+                    self.val_labels = get_dataset_labels(val_data)
+                val_label_distr = get_label_distr(self.val_labels)
 
-            if not validate_few_shot_config('Val', val_label_distr, shot=self.val_shot,
-                                            way=self.val_way, query=self.query):
-                val_data = None
-
-        super().train(infer_data, val_data)
-        # prototype construction done only on one process
-        self.build_prototypes(infer_data, rank=0)
+                if not validate_few_shot_config('Val', val_label_distr, shot=self.val_shot,
+                                                way=self.val_way, query=self.query):
+                    val_data = None
+            super().train(train_data, val_data)
+        self._build_prototypes(train_data, rank=0)
 
     def _train_epoch(self, rank, train_data_loader):
         """
@@ -520,4 +527,3 @@ class PrototypeTaglet(Taglet):
         epoch_loss = running_loss / count if count > 0 else 0.0
         epoch_acc = running_acc / count if count > 0 else 0.0
         return epoch_loss, epoch_acc
-
