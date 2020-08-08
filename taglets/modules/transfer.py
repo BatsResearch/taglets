@@ -60,7 +60,7 @@ class TransferTaglet(Taglet):
             neighbors = ScadsEmbedding.get_related_nodes(target_node)
             
             # Add target node
-            if target_node not in visited:
+            if target_node.get_conceptnet_id() not in visited:
                 images = target_node.get_images_whitelist(self.task.whitelist)
                 images = [os.path.join(root_path, image) for image in images]
                 if images:
