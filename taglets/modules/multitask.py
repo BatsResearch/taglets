@@ -75,7 +75,7 @@ class MultiTaskTaglet(Taglet):
         data_std = [0.229, 0.224, 0.225]
 
         return transforms.Compose([
-            transforms.Resize(self.task.input_shape),
+            transforms.RandomRotation(45),
             transforms.RandomCrop(self.task.input_shape),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
