@@ -62,7 +62,7 @@ class TransferTaglet(Taglet):
         def get_images(node, label):
             if node.get_conceptnet_id() not in visited:
                 visited.add(node.get_conceptnet_id())
-                images = node.get_images_whitelist()
+                images = node.get_images_whitelist(self.task.whitelist)
                 if len(images) < self.img_per_related_class:
                     return False
                 images = random.sample(images, self.img_per_related_class)
@@ -108,7 +108,7 @@ class TransferTaglet(Taglet):
         train_dataset = data.Subset(train_val_data, train_idx)
         val_dataset = data.Subset(train_val_data, valid_idx)
 
-        return train_dataset, val_dataset, len(visited)
+        return train_dataset, val_dataset, all_related_class
 
     def _set_num_classes(self, num_classes):
         m = torch.nn.Sequential(*list(self.model.children())[:-1])

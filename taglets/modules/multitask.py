@@ -100,7 +100,7 @@ class MultiTaskTaglet(Taglet):
         def get_images(node, label):
             if node.get_conceptnet_id() not in visited:
                 visited.add(node.get_conceptnet_id())
-                images = node.get_images_whitelist()
+                images = node.get_images_whitelist(self.task.whitelist)
                 if len(images) < self.img_per_related_class:
                     return False
                 images = random.sample(images, self.img_per_related_class)
