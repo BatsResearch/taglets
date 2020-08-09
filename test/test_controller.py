@@ -85,7 +85,7 @@ class TestController(unittest.TestCase):
         # Evaluates end model
         mnist_test = MNIST('.', train=False, transform=preprocess, download=True)
         mnist_test = Subset(mnist_test, [i for i in range(1000)])
-        self.assertGreater(end_model.evaluate(mnist_test), .9)
+        self.assertGreater(end_model.evaluate(mnist_test), .85)
 
     def test_mnist_with_scads(self):
         # Creates task
