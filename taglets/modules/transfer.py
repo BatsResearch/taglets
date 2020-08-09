@@ -57,7 +57,7 @@ class TransferTaglet(Taglet):
 
             neighbors = [edge.get_end_node() for edge in target_node.get_neighbors()]
             # Add target node
-            if target_node not in visited:
+            if target_node.get_conceptnet_id() not in visited:
                 images = target_node.get_images_whitelist(self.task.whitelist)
                 images = [os.path.join(root_path, image) for image in images]
                 if images:

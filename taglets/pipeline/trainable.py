@@ -45,6 +45,7 @@ class Trainable:
         else:
             self.use_gpu = False
             self.n_proc = max(1, mp.cpu_count() - 1)
+        self.num_workers = min(max(0, mp.cpu_count() // self.n_proc - 1), 2)
 
         # Gradients are summed over workers, so need to scale the step size
         self.lr = self.lr / self.n_proc
@@ -150,7 +151,7 @@ class Trainable:
     def _get_dataloader(self, data, sampler):
         return torch.utils.data.DataLoader(
             dataset=data, batch_size=self.batch_size, shuffle=False,
-            num_workers=0, pin_memory=True, sampler=sampler
+            num_workers=self.num_workers, pin_memory=True, sampler=sampler
         )
 
     def _get_pred_classifier(self):
@@ -313,7 +314,7 @@ class Trainable:
         self.model.train()
         running_loss = 0
         running_acc = 0
-        for batch_idx, batch in enumerate(train_data_loader):
+        for batch in train_data_loader:
             inputs = batch[0]
             labels = batch[1]
             if self.use_gpu:
@@ -348,7 +349,7 @@ class Trainable:
         self.model.eval()
         running_loss = 0
         running_acc = 0
-        for batch_idx, batch in enumerate(val_data_loader):
+        for batch in val_data_loader:
             inputs = batch[0]
             labels = batch[1]
             if self.use_gpu:
