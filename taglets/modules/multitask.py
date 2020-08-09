@@ -96,18 +96,19 @@ class MultiTaskTaglet(Taglet):
         image_paths = []
         image_labels = []
         visited = set()
-    
+
         def get_images(node):
             if node.get_conceptnet_id() not in visited:
                 visited.add(node.get_conceptnet_id())
                 images = node.get_images_whitelist(self.task.whitelist)
+                if len(images) < self.img_per_related_class:
+                    return False
+                images = random.sample(images, self.img_per_related_class)
                 images = [os.path.join(root_path, image) for image in images]
-                if len(images) >= self.img_per_related_class:
-                    images = random.sample(images, self.img_per_related_class)
-                    image_paths.extend(images)
-                    image_labels.extend([len(visited) for _ in range(len(images))])
-                    log.debug("Source class found: {}".format(node.get_conceptnet_id()))
-                    return True
+                image_paths.extend(images)
+                image_labels.extend([len(visited) for _ in range(len(images))])
+                log.debug("Source class found: {}".format(node.get_conceptnet_id()))
+                return True
             return False
 
         for conceptnet_id in self.task.classes:
