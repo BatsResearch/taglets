@@ -109,23 +109,19 @@ class MultiTaskTaglet(Taglet):
                     log.debug("Source class found: {}".format(node.get_conceptnet_id()))
                     return True
             return False
-    
+
         for conceptnet_id in self.task.classes:
             cur_related_class = 0
             target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
             if get_images(target_node):
                 cur_related_class += 1
-        
-            ct = 1
-            while cur_related_class < self.num_related_class:
-                # neighbors = [edge.get_end_node() for edge in target_node.get_neighbors()]
-                neighbors = ScadsEmbedding.get_related_nodes(target_node, 50 * ct)
-                for neighbor in neighbors:
-                    if get_images(neighbor):
-                        cur_related_class += 1
-                        if cur_related_class >= self.num_related_class:
-                            break
-                ct += 1
+    
+            neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
+            for neighbor in neighbors:
+                if get_images(neighbor):
+                    cur_related_class += 1
+                    if cur_related_class >= self.num_related_class:
+                        break
 
         Scads.close()
 
