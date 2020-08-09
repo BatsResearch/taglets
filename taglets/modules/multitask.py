@@ -67,6 +67,7 @@ class MultiTaskTaglet(Taglet):
         self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
+        self.source_data = None
 
     def transform_image(self):
         """
@@ -129,12 +130,12 @@ class MultiTaskTaglet(Taglet):
 
     def train(self, train_data, val_data):
         # Get Scads data and set up model
-        scads_train_data, scads_num_classes = self._get_scads_data()
-        log.info("Source classes found: {}".format(scads_num_classes))
-        log.info("Number of source training images: {}".format(len(scads_train_data)))
+        self.source_data, num_classes = self._get_scads_data()
+        log.info("Source classes found: {}".format(num_classes))
+        log.info("Number of source training images: {}".format(len(self.source_data)))
 
         self.model = MultiTaskModel(self.model, len(self.task.classes),
-                                    scads_num_classes, self.task.input_shape)
+                                    num_classes, self.task.input_shape)
 
         super(MultiTaskTaglet, self).train(train_data, val_data)
 
@@ -142,8 +143,8 @@ class MultiTaskTaglet(Taglet):
         # batch_size = min(len(train_data) // num_batches, 256)
         old_batch_size = self.batch_size
         self.batch_size = 128
-        source_sampler = self._get_train_sampler(train_data, n_proc=self.n_proc, rank=rank)
-        self.source_data_loader = self._get_dataloader(data=train_data, sampler=source_sampler)
+        source_sampler = self._get_train_sampler(self.source_data, n_proc=self.n_proc, rank=rank)
+        self.source_data_loader = self._get_dataloader(data=self.source_data, sampler=source_sampler)
         self.batch_size = old_batch_size
 
         super(MultiTaskTaglet, self)._do_train(rank, q, train_data, val_data)
