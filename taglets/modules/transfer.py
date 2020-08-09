@@ -59,30 +59,33 @@ class TransferTaglet(Taglet):
         image_labels = []
         visited = set()
 
-        def get_images(node):
+        def get_images(node, label):
             if node.get_conceptnet_id() not in visited:
                 visited.add(node.get_conceptnet_id())
-                images = node.get_images_whitelist(self.task.whitelist)
+                images = node.get_images_whitelist()
                 if len(images) < self.img_per_related_class:
                     return False
                 images = random.sample(images, self.img_per_related_class)
                 images = [os.path.join(root_path, image) for image in images]
                 image_paths.extend(images)
-                image_labels.extend([len(visited) for _ in range(len(images))])
+                image_labels.extend([label] * len(images))
                 log.debug("Source class found: {}".format(node.get_conceptnet_id()))
                 return True
             return False
 
+        all_related_class = 0
         for conceptnet_id in self.task.classes:
             cur_related_class = 0
             target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
-            if get_images(target_node):
+            if get_images(target_node, all_related_class):
                 cur_related_class += 1
-
-            neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
+                all_related_class += 1
+    
+            neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 20)
             for neighbor in neighbors:
-                if get_images(neighbor):
+                if get_images(neighbor, all_related_class):
                     cur_related_class += 1
+                    all_related_class += 1
                     if cur_related_class >= self.num_related_class:
                         break
 
