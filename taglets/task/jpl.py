@@ -220,15 +220,15 @@ class JPLStorage:
         """
         data_mean = [0.485, 0.456, 0.406]
         data_std = [0.229, 0.224, 0.225]
-        image_size = 224;
+
         return transforms.Compose([
-            transforms.Resize((image_size, image_size)),
-            transforms.RandomCrop(image_size),
+            transforms.RandomRotation(45),
+            transforms.RandomResizedCrop(224),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean=data_mean, std=data_std)
         ])
-    
+
     def get_labeled_images_list(self):
         """get list of image names and labels"""
         # Elaheh: changed the following line
@@ -238,7 +238,7 @@ class JPLStorage:
         # image_labels = sorted(image_labels)
 
         return image_names, image_labels
-    
+
     def get_unlabeled_image_names(self):
         """return list of name of unlabeled images"""
         labeled_image_names = [img_name for label, img_name in self.labeled_images]
@@ -247,7 +247,7 @@ class JPLStorage:
             if img not in labeled_image_names:
                 unlabeled_image_names.append(img)
         return unlabeled_image_names
-    
+
     def get_evaluation_image_names(self):
         evaluation_image_names = []
         for img in os.listdir(self.evaluation_image_path):
@@ -282,7 +282,7 @@ class JPLStorage:
         else:
             train_dataset = train_val_data
             val_dataset = None
-    
+
         return train_dataset, val_dataset
 
     def get_unlabeled_dataset(self):
@@ -291,7 +291,7 @@ class JPLStorage:
         :return: A data loader containing unlabeled data
         """
         transform = self.transform_image()
-    
+
         image_names = self.get_unlabeled_image_names()
         image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
         if len(image_paths) == 0:
@@ -299,7 +299,7 @@ class JPLStorage:
         else:
             return CustomDataset(image_paths,
                                  transform=transform)
-    
+
     def get_evaluation_dataset(self):
         """
         Get a data loader from evaluation/test data.
@@ -316,10 +316,10 @@ class JPLStorage:
 
 
 class JPLRunner:
-    def __init__(self, dataset_dir, task_ix, batch_size=32, num_workers=2,
-                 use_gpu=False, testing=False, data_type='sample'):
+    def __init__(self, dataset_dir, task_ix, batch_size=32,
+                 testing=False, data_type='sample'):
         self.dataset_dir = dataset_dir
-        
+
         self.api = JPL()
         self.api.data_type = data_type
         self.task_ix = task_ix
@@ -329,12 +329,10 @@ class JPLRunner:
 
         self.initial_model = models.resnet18(pretrained=True)
         self.initial_model.fc = torch.nn.Identity()
-        
-        self.use_gpu = use_gpu
+
         self.testing = testing
 
         self.batch_size = batch_size
-        self.num_workers = num_workers
 
     def get_jpl_information(self):
         jpl_task_names = self.api.get_available_tasks('image_classification')
@@ -397,17 +395,17 @@ class JPLRunner:
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
             self.run_one_checkpoint("Base", i)
-    
+
     def run_checkpoints_adapt(self):
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
             self.run_one_checkpoint("Adapt", i)
-    
+
     def run_one_checkpoint(self, phase, checkpoint_num):
         log.info('------------------------------------------------------------')
         log.info('--------------------{} Checkpoint: {}'.format(phase, checkpoint_num)+'---------------------')
         log.info('------------------------------------------------------------')
-        
+
         start_time = time.time()
 
         available_budget = self.get_available_budget()
@@ -437,11 +435,11 @@ class JPLRunner:
                     self.jpl_storage.whitelist,
                     '/data/datasets/scads.sqlite3')
         task.set_initial_model(self.initial_model)
-        controller = Controller(task, self.batch_size, self.num_workers, self.use_gpu)
+        controller = Controller(task, self.batch_size)
         end_model = controller.train_end_model()
 
         evaluation_dataset = self.jpl_storage.get_evaluation_dataset()
-        outputs = end_model.predict(evaluation_dataset, self.use_gpu)
+        outputs = end_model.predict(evaluation_dataset)
         predictions = np.argmax(outputs, 1)
         prediction_names = []
         for p in predictions:
@@ -450,16 +448,16 @@ class JPLRunner:
         predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(), 'class': prediction_names}
 
         self.submit_predictions(predictions_dict)
-        
+
         if unlabeled_dataset is not None:
-            outputs = end_model.predict(unlabeled_dataset, self.use_gpu)
+            outputs = end_model.predict(unlabeled_dataset)
             confidences = np.max(outputs, 1)
             candidates = np.argsort(confidences)
             self.confidence_active_learning.set_candidates(candidates)
-        
+
         # update initial model
         self.initial_model = end_model.model[0]
-        
+
         log.info('{} Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                checkpoint_num,
                                                                time.strftime("%H:%M:%S",
@@ -502,12 +500,10 @@ def main():
 
     parser.add_argument("--task_ix", type=int, default=0,
                         help="Index of image classification task; 0, 1, 2, etc.")
-    parser.add_argument("--use_gpu", type=int, default=1, help="whether to use gpu")
 
     args = parser.parse_args()
 
     dataset_dir = args.dataset_dir
-    use_gpu = bool(args.use_gpu)
 
     task_ix = args.task_ix
     logger = logging.getLogger()
@@ -516,8 +512,8 @@ def main():
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
-    
-    runner = JPLRunner(dataset_dir, task_ix, use_gpu=use_gpu, testing=False)
+
+    runner = JPLRunner(dataset_dir, task_ix, testing=False)
     runner.run_checkpoints()
 
 
