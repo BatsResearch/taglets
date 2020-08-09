@@ -1,12 +1,14 @@
 import os
 import json
-import click
+import logging
 import pandas as pd 
 import random
 from collections import Counter
 from taglets.modules.zsl_kg_lite.utils import core
 
 random.seed(0)
+
+log = logging.getLogger(__name__)
 
 def random_walk(adj_lists, current_node, current_list, k):
     """The function computes the random walk over the graph
@@ -46,21 +48,22 @@ def graph_random_walk(graph_path, k, n, seed=0):
     # set seed value
     random.seed(seed)
 
-    print("creating loading adj lists")
+    log.info("creating loading adj lists")
     en_nodes_path = os.path.join(graph_path, 'en_nodes.csv')
     en_nodes = pd.read_csv(en_nodes_path)
-    adj_rel_lists = json.load(open(os.path.join(graph_path, 'union_adj_rel_lists.json')))
+    with open(os.path.join(graph_path, 'union_adj_rel_lists.json')) as f:
+        adj_rel_lists = json.load(f)
     
     rw_adj_lists = {}
-    print("running random walks")
+    log.info("running random walks")
     rw_adj_lists = _run_random_walk(en_nodes, adj_rel_lists, k, n)
 
     # save the results
-    print("saving the random walk results")
+    log.info("saving the random walk results")
     with open(os.path.join(graph_path, 'rw_adj_rel_lists.json'), "w+") as fp:
         json.dump(rw_adj_lists, fp)
 
-    print('done!')
+    log.info('done!')
 
 
 def _run_random_walk(en_nodes, adj_rel_lists, k, n):
@@ -73,7 +76,7 @@ def _run_random_walk(en_nodes, adj_rel_lists, k, n):
             continue
 
         if (index+1) % 10000 == 0:
-            print(f'{index+1}/{len(en_nodes)}')
+            log.info(f'{index+1}/{len(en_nodes)}')
 
         for i in range(n):
             transitions += random_walk(adj_rel_lists, index, [], k)

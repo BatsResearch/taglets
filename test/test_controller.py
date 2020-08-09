@@ -79,13 +79,13 @@ class TestController(unittest.TestCase):
         task.set_initial_model(MnistResNet())
 
         # Executes task
-        controller = Controller(task, use_gpu=False)
+        controller = Controller(task)
         end_model = controller.train_end_model()
 
         # Evaluates end model
         mnist_test = MNIST('.', train=False, transform=preprocess, download=True)
         mnist_test = Subset(mnist_test, [i for i in range(1000)])
-        self.assertGreater(end_model.evaluate(mnist_test, use_gpu=False), .9)
+        self.assertGreater(end_model.evaluate(mnist_test), .85)
 
     def test_mnist_with_scads(self):
         # Creates task
@@ -116,13 +116,13 @@ class TestController(unittest.TestCase):
         Scads.set_root_path(TEST_DATA)
 
         # Executes task
-        controller = Controller(task, use_gpu=False)
+        controller = Controller(task)
         end_model = controller.train_end_model()
 
         # Evaluates end model
         mnist_test = MNIST('.', train=False, transform=preprocess, download=True)
         mnist_test = Subset(mnist_test, [i for i in range(1000)])
-        self.assertGreater(end_model.evaluate(mnist_test, use_gpu=False), .9)
+        self.assertGreater(end_model.evaluate(mnist_test), .9)
 
     @classmethod
     def tearDownClass(cls):

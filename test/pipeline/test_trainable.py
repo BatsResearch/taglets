@@ -73,12 +73,12 @@ class TestTrainable(unittest.TestCase):
         )
         trainable.n_proc = 1
         trainable.num_epochs = 1
-        trainable.train(labeled, val, use_gpu=False)
+        trainable.train(labeled, val)
 
         # Checks that single and multiprocess both match a serial implementation
-        p1 = trainable.predict(unlabeled, use_gpu=False)
+        p1 = trainable.predict(unlabeled)
         trainable.n_proc = 2
-        p2 = trainable.predict(unlabeled, use_gpu=False)
+        p2 = trainable.predict(unlabeled)
         p3 = serial_predict(trainable.model, unlabeled)
 
         self.assertLess((abs(p1 - p2)).sum(), 1e-3)

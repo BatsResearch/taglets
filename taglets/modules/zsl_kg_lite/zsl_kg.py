@@ -1,23 +1,19 @@
 from ..module import Module
 from ...pipeline import Taglet
-from ...scads.interface.scads import Scads
 
+import copy
 import os
-import tempfile
 import random
 import json
 import logging
 
 import torch
 import torch.nn as nn
-import numpy as np
-import torchvision.transforms as transforms
 import torch.nn.functional as F
 import torchvision.models as models
 
-from tqdm import tqdm
 from .class_encoders.transformer_model import TransformerConv
-from .utils.core import save_model, l2_loss, set_seed, \
+from .utils.core import save_model, l2_loss, \
     convert_index_to_int, mask_l2_loss
 from .imagenet_syns import IMAGENET_SYNS
 from .id_to_concept import IDX_TO_CONCEPT_IMGNET
@@ -77,9 +73,9 @@ class ZSLKGTaglet(Taglet):
             ]
         }
 
-        # using tempfile to create directories
-        self.imagenet_graph_path = tempfile.mkdtemp()
-        self.test_graph_path = tempfile.mkdtemp()
+        self.test_graph_path = 'trained_models/zsl_kg_lite'
+        if not os.path.exists(self.test_graph_path):
+            os.makedirs(self.test_graph_path)
         self.pretrained_model_path = 'predefined/zsl_kg_lite/transformer.pt'
         self.glove_path = 'predefined/embeddings/glove.840B.300d.txt'
 
@@ -88,8 +84,8 @@ class ZSLKGTaglet(Taglet):
         idx_to_concept = {}
         # TODO: get the synonyms
         for i, label in enumerate(self.task.classes):
-            syns['/c/en/'+label] = ['/c/en/'+label+'/n']
-            idx_to_concept[i] = '/c/en/'+label
+            syns[label] = [label+'/n']
+            idx_to_concept[i] = label
         
         self.graph_setup(syns,
                          self.test_graph_path,
@@ -98,8 +94,6 @@ class ZSLKGTaglet(Taglet):
                          idx_to_concept)
 
     def setup_imagenet_graph(self):
-        syns = IMAGENET_SYNS
-
         self.graph_setup(IMAGENET_SYNS,
                          self.imagenet_graph_path,
                          self.task.scads_path,
@@ -143,25 +137,96 @@ class ZSLKGTaglet(Taglet):
     def setup_gnn(self, graph_path, device):
         # load graph
         adj_lists_path = os.path.join(graph_path, 'rw_adj_rel_lists.json')
-        adj_lists = json.load(open(adj_lists_path))
+        with open(adj_lists_path) as f:
+            adj_lists = json.load(f)
         adj_lists = convert_index_to_int(adj_lists)
 
         # load embs
         concept_path = os.path.join(graph_path, 'concepts.pt')
         init_feats = torch.load(concept_path)
 
-        model = self._get_model(init_feats, adj_lists, device, self.options)
+        model = self._get_model(init_feats, adj_lists, device)
 
         return model
 
-    def train(self, train_data_loader, val_data_loader, use_gpu):        
+    def train(self, train_data_loader, val_data_loader):
         # setup test graph (this will be used later)
         self.setup_test_graph()
 
-    def _get_model(self, init_feats, adj_lists, device, options):
+        # checking if gpu can be used
+        if self.use_gpu:
+            device = torch.device('cuda:0')
+        else:
+            device = torch.device('cpu')
+
+        ###
+        # Assuming there is no need for the imagenet graph,
+        # the code will load the weights and initialize the
+        # model with random init vectors and then load the
+        # imagenet weights. These vectors will be replaced
+        # in the self._swtich_graph function with the correct
+        # vectors
+        ###
+
+        log.debug('loading trained model parameters for the gnn')
+        # imagenet model params
+        imagenet_params = torch.load(self.pretrained_model_path,
+                                     map_location='cpu')
+
+        # get the size of the init features for imagenet
+        # this will be replaced later
+        num_feat = imagenet_params['init_feat.weight'].size(0)
+        rand_feat = torch.randn(num_feat, 300, device=device)
+
+        # load the test random walked graph
+        adj_lists_path = os.path.join(self.test_graph_path,
+                                      'rw_adj_rel_lists.json')
+        with open(adj_lists_path) as f:
+            adj_lists = json.load(f)
+        adj_lists = convert_index_to_int(adj_lists)
+
+        log.debug('creating the transformer model')
+        gnn_model = self._get_model(rand_feat, adj_lists, device)
+
+        log.debug('loading imagenet parameters into the model')
+        gnn_model.load_state_dict(imagenet_params)
+
+        log.debug('change graph and conceptnet embs')
+        gnn_model = self._switch_graph(gnn_model, self.test_graph_path)
+
+        log.debug('loading pretrained resnet')
+        resnet = ResNet()
+        resnet.to(device)
+        resnet.eval()
+
+        gnn_model.to(device)
+        gnn_model.eval()
+        log.info('loading mapping files for the conceptnet word ids')
+        mapping_path = os.path.join(self.test_graph_path,
+                                    'mapping.json')
+        with open(mapping_path) as f:
+            mapping = json.load(f)
+        conceptnet_idx = torch.tensor([mapping[str(idx)] for idx in range(len(mapping))]).to(device)
+
+        log.debug('generating class representation')
+        with torch.set_grad_enabled(False):
+            class_rep = gnn_model(conceptnet_idx)
+
+        # Instantiating the model
+        output_shape = self._get_model_output_shape(self.task.input_shape, resnet)
+        fc = nn.Linear(output_shape, len(self.task.classes))
+        fc.weight = nn.Parameter(copy.deepcopy(class_rep[:, :output_shape]), False)
+        fc.bias = nn.Parameter(copy.deepcopy(class_rep[:, -1]), False)
+        self.model = nn.Sequential(resnet, fc)
+
+    def _get_model(self, init_feats, adj_lists, device):
         return TransformerConv(init_feats, adj_lists, device, self.options)
 
     def _train(self, fc_vectors, device):
+        """
+        This method is for (pre) training the concept encoder. It doesn't need to
+        be called during normal TAGLETS execution.
+        """
         
         log.debug("fc id to graph id mapping")
         mapping_path = os.path.join(self.imagenet_graph_path, 'mapping.json')
@@ -236,31 +301,12 @@ class ZSLKGTaglet(Taglet):
 
         return model
     
-    def _predict(self, loader, resnet, class_rep, use_gpu=False):
-        predictions = []
-        with torch.no_grad():
-            for data in loader:
-                if use_gpu:
-                    data = data.cuda()
-
-                feat = resnet(data) # (batch_size, d)
-                ones = torch.ones(len(feat)).view(-1, 1)
-                if use_gpu:
-                    ones = ones.cuda()
-                feat = torch.cat([feat, ones], dim=1)
-
-                logits = torch.matmul(feat, class_rep.t())
-
-                pred = torch.argmax(logits, dim=1)
-                predictions.extend([p.cpu().numpy().tolist() for p in pred])
-
-        return predictions
-    
     def _switch_graph(self, gnn, graph_path):
         
         # load the graph
         adj_lists_path = os.path.join(graph_path, 'rw_adj_rel_lists.json')
-        adj_lists = json.load(open(adj_lists_path))
+        with open(adj_lists_path) as f:
+            adj_lists = json.load(f)
         adj_lists = convert_index_to_int(adj_lists)
 
         # load embs
@@ -273,70 +319,3 @@ class ZSLKGTaglet(Taglet):
         gnn.gnn_modules[1].adj_lists = adj_lists
 
         return gnn
-
-    def execute(self, unlabeled_data_loader, use_gpu):
-        # checking if gpu needs to be used
-        if use_gpu:
-            device = torch.device('cuda:0')
-        else:
-            device = torch.device('cpu')
-
-        ###
-        # Assuming there is no need for the imagenet graph, 
-        # the code will load the weights and initialize the 
-        # model with random init vectors and then load the 
-        # imagenet weights. These vectors will be replaced
-        # in the self._swtich_graph function with the correct
-        # vectors
-        ###
-
-        log.debug('loading trained model parameters for the gnn')
-        # imagenet model params
-        imagenet_params = torch.load(self.pretrained_model_path, 
-                                     map_location='cpu')
-
-        # get the size of the init features for imagenet 
-        # this will be replaced later
-        num_feat = imagenet_params['init_feat.weight'].size(0)
-        rand_feat = torch.randn(num_feat, 300, device=device)
-
-        # load the test random walked graph
-        adj_lists_path = os.path.join(self.test_graph_path, 
-                                      'rw_adj_rel_lists.json')
-        adj_lists = json.load(open(adj_lists_path))
-        adj_lists = convert_index_to_int(adj_lists)
-        
-        log.debug('creating the transformer model')
-        self.model = self._get_model(rand_feat, adj_lists, 
-                                     device, self.options)
-
-        log.debug('loading imagenet parameters into the model')
-        self.model.load_state_dict(imagenet_params)
-
-        log.debug('change graph and conceptnet embs')
-        self.model = self._switch_graph(self.model, self.test_graph_path)
-
-        log.debug('loading pretrained resnet')
-        resnet = ResNet()
-        resnet.to(device)
-        resnet.eval()
-        
-        self.model.to(device)
-        self.model.eval()
-        print('loading mapping files for the conceptnet word ids')
-        mapping_path = os.path.join(self.test_graph_path,
-                                    'mapping.json')
-        mapping = json.load(open(mapping_path))
-        conceptnet_idx = torch.tensor([mapping[str(idx)] for idx in range(len(mapping))]).to(device)
-
-        log.debug('generating class representation')
-        class_rep = self.model(conceptnet_idx)
-
-        #
-        log.debug('predicting')
-        predictions = self._predict(unlabeled_data_loader, 
-                                    resnet, class_rep, 
-                                    use_gpu)
-
-        return predictions
-
