@@ -4,9 +4,6 @@ import pandas as pd
 from ..create.scads_classes import Node, Image
 from ..create.create_scads import add_conceptnet
 from ..create.add_datasets import add_dataset
-import requests
-import time
-import json
 from .wnids_to_concept import SYNSET_TO_CONCEPTNET_ID
 
 
@@ -81,64 +78,8 @@ class ImageNetInstallation(DatasetInstaller):
     def get_name(self):
         return "ImageNet"
 
-    def get_images(self, dataset, session, root):
-        size = "full"
-        modes = ['train', 'test']
-        synset_to_labels_endpoint = "http://www.image-net.org/api/text/wordnet.synset.getwords?wnid="
-        synset_to_labels = {}
-        conceptnet_id_to_node_id = {}
-
-        all_images = []
-        image_counter = 0
-        missed_labeles = set([])
-        for mode in modes:
-            df_label = pd.read_feather(
-                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
-            df = pd.crosstab(df_label['id'], df_label['class'])
-            mode_dir = os.path.join(dataset.path, "imagenet_1k_" + size, mode)
-            for image in os.listdir(os.path.join(root, mode_dir)):
-                if image.startswith('.'):
-                    continue
-
-                # Get labels
-                synset = df.loc[image].idxmax()
-                if synset in synset_to_labels:
-                    labels = synset_to_labels[synset]
-                else:
-                    try:
-                        labels = requests.get(synset_to_labels_endpoint + synset)
-                    except:
-                        print("Connection refused by the server..")
-                        print("Let me sleep for 60 seconds")
-                        print("ZZzzzz...")
-                        time.sleep(60)
-                        print("Was a nice sleep, now let me continue...")
-                        continue
-                    labels = list(filter(lambda x: x, labels.text.split("\n")))
-                    synset_to_labels[synset] = labels
-
-                conceptnet_ids = [self.get_conceptnet_id(label) for label in labels]
-                conceptnet_ids.append(SYNSET_TO_CONCEPTNET_ID[synset])
-                conceptnet_ids = list(set(conceptnet_ids))
-                # Get nodes
-                for conceptnet_id in conceptnet_ids:
-                    # Get node_id
-                    if conceptnet_id in conceptnet_id_to_node_id:
-                        node_id = conceptnet_id_to_node_id[conceptnet_id]
-                    else:
-                        node = session.query(Node).filter_by(conceptnet_id=conceptnet_id).first()
-                        node_id = node.id if node else None
-                        conceptnet_id_to_node_id[conceptnet_id] = node_id
-                    # Scads is missing a missing conceptnet id
-                    if not node_id:
-                        missed_labeles.add(conceptnet_id)
-                        continue
-                    img = Image(dataset_id=dataset.id,
-                                node_id=node_id,
-                                path=os.path.join(mode_dir, image))
-                    all_images.append(img)
-                    image_counter += 1
-        return all_images
+    def get_conceptnet_id(self, label):
+        return SYNSET_TO_CONCEPTNET_ID[label]
 
 
 class COCO2014Installation(DatasetInstaller):
