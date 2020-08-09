@@ -24,15 +24,17 @@ class MultiTaskModel(nn.Module):
         self.fc_target = torch.nn.Linear(output_shape, self.num_target)
         self.fc_source = torch.nn.Linear(output_shape, self.num_source)
 
-    def forward(self, x):
-        x = self.base(x)
+    def forward(self, target_inputs, source_inputs=None):
+        x = self.base(target_inputs)
         x = torch.flatten(x, 1)
-        return self.fc_target(x)
-
-    def forward_source(self, x):
-        x = self.base(x)
-        x = torch.flatten(x, 1)
-        return self.fc_source(x)
+        target_outputs = self.fc_target(x)
+        if source_inputs is None:
+            return target_outputs
+        else:
+            x = self.base(source_inputs)
+            x = torch.flatten(x, 1)
+            source_outputs = self.fc_source(x)
+            return target_outputs, source_outputs
 
     def _get_model_output_shape(self, in_size, mod):
         """
@@ -76,7 +78,7 @@ class MultiTaskTaglet(Taglet):
 
         return transforms.Compose([
             transforms.RandomRotation(45),
-            transforms.RandomCrop(self.task.input_shape),
+            transforms.RandomResizedCrop(self.task.input_shape),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean=data_mean, std=data_std)
@@ -161,12 +163,12 @@ class MultiTaskTaglet(Taglet):
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
-                source_outputs = self.model.forward_source(source_inputs)
+                outputs = self.model(target_inputs, source_inputs)
+                target_outputs, source_outputs = outputs
                 source_loss = self.criterion(source_outputs, source_labels)
-                target_outputs = self.model(target_inputs)
                 target_loss = self.criterion(target_outputs, target_labels)
-
                 loss = source_loss + target_loss
+
                 loss.backward()
                 self.optimizer.step()
 
