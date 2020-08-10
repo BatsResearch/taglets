@@ -41,7 +41,9 @@ class TransferTaglet(Taglet):
         data_std = [0.229, 0.224, 0.225]
 
         return transforms.Compose([
-            transforms.Resize(self.task.input_shape),
+            transforms.RandomRotation(45),
+            transforms.RandomResizedCrop(self.task.input_shape),
+            transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean=data_mean, std=data_std)
         ])
