@@ -119,7 +119,7 @@ class Image(Base):
     __tablename__ = 'images'
     id = Column(Integer, primary_key=True, autoincrement=True)
     dataset_id = Column(Integer, ForeignKey('datasets.id'))
-    node_id = Column(Integer, ForeignKey('nodes.id'))
+    node_id = Column(Integer, ForeignKey('nodes.id'), index=True)
     path = Column(String)
     
     dataset = relationship("Dataset", back_populates="images")
