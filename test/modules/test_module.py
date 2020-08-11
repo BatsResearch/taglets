@@ -4,6 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from taglets.task import Task
 from taglets.scads import Scads
 from taglets.scads.create.scads_classes import Node, Edge, Relation, Dataset, Image, Base
+import torch
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
 
@@ -132,6 +133,8 @@ class TestModule:
                          (224, 224), self.train, self.unlabeled, self.val,
                          scads_path=DB_PATH)
         Scads.set_root_path(TEST_DATA)
+
+        torch.manual_seed(0)
 
     def test_module(self):
         module = self._get_module(self.task)
