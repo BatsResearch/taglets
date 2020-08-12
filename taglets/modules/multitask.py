@@ -92,7 +92,7 @@ class MultiTaskTaglet(Taglet):
     def _get_scads_data(self):
         root_path = Scads.get_root_path()
         Scads.open(self.task.scads_path)
-        ScadsEmbedding.load('predefined/numberbatch-en19.08.txt.gz')
+        ScadsEmbedding.load('predefined/embeddings/numberbatch-en19.08.txt.gz')
         image_paths = []
         image_labels = []
         visited = set()
