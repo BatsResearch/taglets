@@ -29,21 +29,32 @@ class ScadsNode:
         Get all paths to images for this concept.
         :return: List of paths to images for this concept
         """
-        locations = []
-        for image in self.node.images:
-            locations.append(image.path)
-        return locations
+        q = "SELECT images.path from images " \
+            "JOIN nodes ON images.node_id = nodes.id " \
+            "JOIN datasets ON images.dataset_id = datasets.id " \
+            "WHERE nodes.id = " + str(self.node.id) + ";"
+
+        results = self.session.connection().execute(q)
+        return [x[0] for x in results]
 
     def get_images_whitelist(self, whitelist):
         """
         Get all paths to the white list images for this concept .
         :return: List of paths to images for this concept
         """
-        locations = []
-        for image in self.node.images:
-            if whitelist is None or image.dataset.path in whitelist:
-                locations.append(image.path)
-        return locations
+        if whitelist is not None and len(whitelist) > 0:
+            q = "SELECT images.path from images " \
+                "JOIN nodes ON images.node_id = nodes.id " \
+                "JOIN datasets ON images.dataset_id = datasets.id " \
+                "WHERE nodes.id = " + str(self.node.id) \
+                + " AND (datasets.path = '" + whitelist[0] + "'"
+            for path in whitelist[1:]:
+                q += " OR datasets.path = '" + path + "'"
+            q += ");"
+            results = self.session.connection().execute(q)
+            return [x[0] for x in results]
+        else:
+            return self.get_images()
 
     def get_neighbors(self):
         """

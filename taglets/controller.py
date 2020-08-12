@@ -2,7 +2,6 @@ from .data import SoftLabelDataset
 from .modules import FineTuneModule, PrototypeModule, TransferModule, MultiTaskModule
 from .pipeline import EndModel, TagletExecutor
 
-import labelmodels
 import logging
 import sys
 import numpy as np
@@ -67,18 +66,8 @@ class Controller:
             # Executes taglets
             log.info("Executing taglets")
             vote_matrix = taglet_executor.execute(unlabeled)
-            # plus 1 because labelmodel 1-based indexing (0 is for restraining from voting)
-            # vote_matrix += 1
 
             log.info("Finished executing taglets")
-    
-            # # Learns label model
-            # labelmodel = self._train_label_model(vote_matrix)
-            #
-            # # Computes label distribution
-            # log.info("Getting label distribution")
-            # weak_labels = labelmodel.get_label_distribution(vote_matrix)
-            # log.info("Finished getting label distribution")
 
             weak_labels = self._get_majority(vote_matrix)
             
@@ -100,14 +89,6 @@ class Controller:
         if self.task.scads_path is not None:
             return [PrototypeModule(task=self.task), TransferModule(task=self.task), FineTuneModule(task=self.task)]
         return [FineTuneModule(task=self.task), PrototypeModule(task=self.task)]
-
-    def _train_label_model(self, vote_matrix):
-        log.info("Training label model")
-        labelmodel = labelmodels.NaiveBayes(
-            num_classes=len(self.task.classes), num_lfs=vote_matrix.shape[1])
-        labelmodel.estimate_label_model(vote_matrix)
-        log.info("Finished training label model")
-        return labelmodel
 
     def _combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
         labeled = DataLoader(labeled_dataset, batch_size=1, shuffle=False)
