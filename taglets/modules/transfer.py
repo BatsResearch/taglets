@@ -11,6 +11,7 @@ import torch
 import logging
 import numpy as np
 import torchvision.transforms as transforms
+import torch.nn as nn
 
 log = logging.getLogger(__name__)
 
@@ -26,13 +27,15 @@ class TransferModule(Module):
 
 
 class TransferTaglet(Taglet):
-    def __init__(self, task):
+    def __init__(self, task, freeze=False, is_norm=False):
         super().__init__(task)
         self.name = 'transfer'
         self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
             
+        self.freeze = freeze
+        self.is_norm = is_norm
         self.img_per_related_class = 600
         self.num_related_class = 5
 
@@ -51,7 +54,6 @@ class TransferTaglet(Taglet):
             transforms.ToTensor(),
             transforms.Normalize(mean=data_mean, std=data_std)
         ])
-
 
     def _get_scads_data(self):
         root_path = Scads.get_root_path()
@@ -115,7 +117,7 @@ class TransferTaglet(Taglet):
     def _set_num_classes(self, num_classes):
         m = torch.nn.Sequential(*list(self.model.children())[:-1])
         output_shape = self._get_model_output_shape(self.task.input_shape, m)
-        self.model.fc = torch.nn.Linear(output_shape, num_classes)
+        self.model.fc = NormLinear(torch.nn.Linear(output_shape, num_classes), self.is_norm)
 
         params_to_update = []
         for param in self.model.parameters():
@@ -135,11 +137,36 @@ class TransferTaglet(Taglet):
         super(TransferTaglet, self).train(scads_train_data, scads_val_data)
         self.num_epochs = orig_num_epochs
 
-        # TODO: Freeze layers
+        # Freeze layers
+        if self.freeze:
+            for param in self.model.parameters():
+                param.requires_grad = False
+
         orig_num_epochs = self.num_epochs
         self.num_epochs = 5
         self._set_num_classes(len(self.task.classes))
         super(TransferTaglet, self).train(train_data, val_data)
         self.num_epochs = orig_num_epochs
 
+        # Unfreeze layers
+        if self.freeze:
+            for param in self.model.parameters():
+                param.requires_grad = True
+
+def normalize(x):
+    norm = x.pow(2).sum(1, keepdim=True).pow(1. / 2)
+    out = x.div(norm)
+    return out
+
+class NormLinear(nn.Module):
+    def __init__(self, model, is_norm):
+        super().__init__()
+        self.model = model
+        self.is_norm = is_norm
+
+    def forward(self, x):
+        if self.is_norm:
+            x = normalize(x)
+        x = self.model(x)
+        return x
 
