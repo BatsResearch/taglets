@@ -85,7 +85,7 @@ class TransferTaglet(Taglet):
                 cur_related_class += 1
                 all_related_class += 1
     
-            neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 20)
+            neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 200)
             for neighbor in neighbors:
                 if get_images(neighbor, all_related_class):
                     cur_related_class += 1
