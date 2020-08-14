@@ -206,6 +206,15 @@ def euclidean_metric(a, b):
     return ((a - b) ** 2).sum(dim=2)
 
 
+def dict_to_device(d, device):
+    for k, v in d.items():
+        if device == 'cpu':
+            d[k] = v.cpu()
+        else:
+            d[k] = v.to(device)
+    return d
+
+
 class NearestProtoModule(nn.Module):
     def __init__(self, prototypes, n_classes, encoder, query, use_gpu):
         super(NearestProtoModule, self).__init__()
@@ -243,9 +252,9 @@ class NearestProtoModule(nn.Module):
                 return labels
 
             if self.use_gpu:
-                self.prototypes = self.prototypes.to(x.device)
+                self.prototypes = dict_to_device(self.prototypes, x.device)
             else:
-                self.prototypes = self.prototypes.cpu()
+                self.prototypes = dict_to_device(self.prototypes, 'cpu')
 
             for i in range(batch_size):
                 label = PrototypeTaglet.onn(embeddings[i], prototypes=self.prototypes)
