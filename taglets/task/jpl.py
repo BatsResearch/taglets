@@ -317,8 +317,7 @@ class JPLStorage:
 
 
 class JPLRunner:
-    def __init__(self, dataset_dir, task_ix, batch_size=32,
-                 testing=False, data_type='sample'):
+    def __init__(self, dataset_dir, task_ix, testing=False, data_type='sample'):
         self.dataset_dir = dataset_dir
 
         self.api = JPL()
@@ -332,8 +331,6 @@ class JPLRunner:
         self.initial_model.fc = torch.nn.Identity()
 
         self.testing = testing
-
-        self.batch_size = batch_size
 
     def get_jpl_information(self):
         jpl_task_names = self.api.get_available_tasks('image_classification')
@@ -436,7 +433,7 @@ class JPLRunner:
                     self.jpl_storage.whitelist,
                     'predefined/scads.fall2020.sqlite3')
         task.set_initial_model(self.initial_model)
-        controller = Controller(task, self.batch_size)
+        controller = Controller(task)
         end_model = controller.train_end_model()
 
         evaluation_dataset = self.jpl_storage.get_evaluation_dataset()

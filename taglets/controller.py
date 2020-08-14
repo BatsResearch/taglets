@@ -31,10 +31,9 @@ class Controller:
     """
     Manages training and execution of taglets, as well as training EndModels
     """
-    def __init__(self, task, batch_size=32):
+    def __init__(self, task):
         self.task = task
         self.end_model = None
-        self.batch_size = batch_size
 
     def train_end_model(self):
         """
