@@ -7,9 +7,12 @@ from taglets.scads.create.scads_classes import Node, Edge, Relation, Dataset, Im
 import torch
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
+import numpy as np
+import pandas as pd
 
 TEST_DATA = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../test_data/modules")
 DB_PATH = os.path.join(TEST_DATA, "test_module.db")
+EMBEDDING_PATH = os.path.join(TEST_DATA, "test_embedding.h5")
 
 
 class HiddenLabelDataset(Dataset):
@@ -117,6 +120,19 @@ class TestModule:
 
         # Commits data
         session.commit()
+        
+        # Build ScadsEmbedding File
+        embeddings = {
+            '/c/en/airplane': np.asarray([1.0, 0.0, 0.0]),
+            '/c/en/propeller_plane': np.asarray([0.9701425 , 0.0, 0.24253563]),
+            '/c/en/cat': np.asarray([0.0, 1.0, 0.0]),
+            '/c/en/lion': np.asarray([0.0, 0.9701425, 0.24253563]),
+            '/c/en/dog': np.asarray([0.0, 0.0, 1.0]),
+            '/c/en/wolf': np.asarray([0.24253563, 0.0, 0.9701425])
+        }
+        df = pd.from_dict(embeddings)
+        df.to_hdf(EMBEDDING_PATH, key='mat', mode='w')
+        
 
     def setUp(self):
         preprocess = transforms.Compose(
@@ -131,7 +147,7 @@ class TestModule:
 
         self.task = Task("test_module", ["/c/en/airplane", "/c/en/cat", "/c/en/dog"],
                          (224, 224), self.train, self.unlabeled, self.val,
-                         scads_path=DB_PATH)
+                         scads_path=DB_PATH, scads_embedding_path=EMBEDDING_PATH)
         Scads.set_root_path(TEST_DATA)
 
         torch.manual_seed(0)
