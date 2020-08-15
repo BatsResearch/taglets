@@ -14,6 +14,7 @@ class ScadsEmbedding:
     small_frame = None
     k = None
     small_k = None
+    path = ''
 
     @staticmethod
     def load(path_to_embeddings):
@@ -23,7 +24,7 @@ class ScadsEmbedding:
         :param path_to_embeddings: path to the file containing the embeddings
         :return:
         """
-        if ScadsEmbedding.frame is None:
+        if ScadsEmbedding.frame is None and ScadsEmbedding.path != os.path.abspath(path_to_embeddings):
             if path_to_embeddings.endswith('.h5'):
                 df = pd.read_hdf(path_to_embeddings, 'mat', encoding='utf-8')
             else:
@@ -50,7 +51,8 @@ class ScadsEmbedding:
     
                 if not df.index.is_monotonic_increasing:
                     df = df.sort_index()
-            
+
+            ScadsEmbedding.path = os.path.abspath(path_to_embeddings)
             ScadsEmbedding.k = df.shape[1]
             ScadsEmbedding.small_k = 100
             ScadsEmbedding.frame = df
