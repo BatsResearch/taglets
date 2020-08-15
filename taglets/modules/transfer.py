@@ -36,7 +36,7 @@ class TransferTaglet(Taglet):
             
         self.freeze = freeze
         self.is_norm = is_norm
-        self.img_per_related_class = 600
+        self.img_per_related_class = 600 if not os.environ.get("CI") else 3
         self.num_related_class = 5
 
     def transform_image(self):
@@ -85,7 +85,7 @@ class TransferTaglet(Taglet):
                 cur_related_class += 1
                 all_related_class += 1
     
-            neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 200)
+            neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
             for neighbor in neighbors:
                 if get_images(neighbor, all_related_class):
                     cur_related_class += 1
