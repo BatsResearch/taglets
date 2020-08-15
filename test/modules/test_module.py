@@ -130,7 +130,7 @@ class TestModule:
             '/c/en/dog': np.asarray([0.0, 0.0, 1.0]),
             '/c/en/wolf': np.asarray([0.24253563, 0.0, 0.9701425])
         }
-        df = pd.from_dict(embeddings)
+        df = pd.DataFrame.from_dict(embeddings)
         df.to_hdf(EMBEDDING_PATH, key='mat', mode='w')
         
 
