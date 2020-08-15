@@ -277,9 +277,9 @@ class NearestProtoModule(nn.Module):
     def get_forward_loss(self, x, rank, way, shot, val=False):
         label = torch.arange(way).repeat(self.query)
         if self.use_gpu:
-            label.cuda(rank)
+            label = label.cuda(rank)
         else:
-            label.cpu()
+            label = label.cpu()
 
         logits = self._get_forward(x, way=way, shot=shot, val=val)
         return self.criterion(logits, label), count_acc(logits, label, self.use_gpu)
