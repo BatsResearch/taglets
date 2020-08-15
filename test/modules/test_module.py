@@ -122,15 +122,21 @@ class TestModule:
         session.commit()
         
         # Build ScadsEmbedding File
-        embeddings = {
-            '/c/en/airplane': np.asarray([1.0, 0.0, 0.0]),
-            '/c/en/propeller_plane': np.asarray([0.9701425 , 0.0, 0.24253563]),
-            '/c/en/cat': np.asarray([0.0, 1.0, 0.0]),
-            '/c/en/lion': np.asarray([0.0, 0.9701425, 0.24253563]),
-            '/c/en/dog': np.asarray([0.0, 0.0, 1.0]),
-            '/c/en/wolf': np.asarray([0.24253563, 0.0, 0.9701425])
-        }
-        df = pd.DataFrame.from_dict(embeddings)
+        arr = np.asarray([
+            [1.0, 0.0, 0.0],
+            [0.9701425, 0.0, 0.24253563],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.9701425, 0.24253563],
+            [0.0, 0.0, 1.0],
+            [0.24253563, 0.0, 0.9701425]
+        ])
+        label_list = ['/c/en/airplane',
+                      '/c/en/propeller_plane',
+                      '/c/en/cat',
+                      '/c/en/lion',
+                      '/c/en/dog',
+                      '/c/en/wolf']
+        df = pd.DataFrame(arr, index=label_list, dtype='f')
         df.to_hdf(EMBEDDING_PATH, key='mat', mode='w')
         
 
