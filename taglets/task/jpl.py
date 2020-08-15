@@ -223,8 +223,7 @@ class JPLStorage:
         data_std = [0.229, 0.224, 0.225]
 
         return transforms.Compose([
-            transforms.RandomRotation(45),
-            transforms.RandomResizedCrop(224),
+            transforms.Resize(224),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean=data_mean, std=data_std)
