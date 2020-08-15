@@ -391,12 +391,31 @@ class JPLRunner:
     def run_checkpoints_base(self):
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
-            self.run_one_checkpoint("Base", i)
+            if i > 8:
+                self.run_random_checkpoint("Base", i)
+            else:
+                self.run_one_checkpoint("Base", i)
 
     def run_checkpoints_adapt(self):
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
-            self.run_one_checkpoint("Adapt", i)
+            self.run_random_checkpoint("Adapt", i)
+
+    def run_random_checkpoint(self, phase, checkpoint_num):
+        available_budget = self.get_available_budget()
+        if checkpoint_num == 0:
+            self.jpl_storage.labeled_images = self.api.get_initial_seed_labels()
+        elif checkpoint_num == 1:
+            self.jpl_storage.add_labeled_images(self.api.get_secondary_seed_labels())
+    
+        unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names()
+        log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
+        if checkpoint_num > 2:  # Elaheh: maybe we could get rid of random active learning?!
+            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
+            self.request_labels(candidates)
+        predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(),
+                            'class': [self.jpl_storage.classes[0]] * len(self.jpl_storage.get_evaluation_image_names())}
+        self.submit_predictions(predictions_dict)
 
     def run_one_checkpoint(self, phase, checkpoint_num):
         log.info('------------------------------------------------------------')
