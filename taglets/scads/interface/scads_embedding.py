@@ -24,7 +24,7 @@ class ScadsEmbedding:
         :param path_to_embeddings: path to the file containing the embeddings
         :return:
         """
-        if ScadsEmbedding.frame is None and ScadsEmbedding.path != os.path.abspath(path_to_embeddings):
+        if ScadsEmbedding.path != os.path.abspath(path_to_embeddings):
             if path_to_embeddings.endswith('.h5'):
                 df = pd.read_hdf(path_to_embeddings, 'mat', encoding='utf-8')
             else:
