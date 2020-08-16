@@ -63,31 +63,31 @@ class TestController(unittest.TestCase):
             l[i] = 1.0
             arr.append(l)
         arr = np.asarray(arr)
-        label_list = ['/c/en/zero/n/wn/quantity',
-                      '/c/en/one/n/wn/quantity',
-                      '/c/en/two/n/wn/quantity',
-                      '/c/en/three/n/wn/quantity',
-                      '/c/en/four/n/wn/quantity',
-                      '/c/en/five/n/wn/quantity',
-                      '/c/en/six/n/wn/quantity',
-                      '/c/en/seven/n/wn/quantity',
-                      '/c/en/eight/n/wn/quantity',
-                      '/c/en/nine/n/wn/quantity']
+        label_list = ['/c/en/zero',
+                      '/c/en/one',
+                      '/c/en/two',
+                      '/c/en/three',
+                      '/c/en/four',
+                      '/c/en/five',
+                      '/c/en/six',
+                      '/c/en/seven',
+                      '/c/en/eight',
+                      '/c/en/nine']
         df = pd.DataFrame(arr, index=label_list, dtype='f')
         df.to_hdf(EMBEDDING_PATH, key='mat', mode='w')
 
     def test_mnist(self):
         # Creates task
-        classes = ['/c/en/zero/n/wn/quantity',
-                   '/c/en/one/n/wn/quantity',
-                   '/c/en/two/n/wn/quantity',
-                   '/c/en/three/n/wn/quantity',
-                   '/c/en/four/n/wn/quantity',
-                   '/c/en/five/n/wn/quantity',
-                   '/c/en/six/n/wn/quantity',
-                   '/c/en/seven/n/wn/quantity',
-                   '/c/en/eight/n/wn/quantity',
-                   '/c/en/nine/n/wn/quantity']
+        classes = ['/c/en/zero',
+                   '/c/en/one',
+                   '/c/en/two',
+                   '/c/en/three',
+                   '/c/en/four',
+                   '/c/en/five',
+                   '/c/en/six',
+                   '/c/en/seven',
+                   '/c/en/eight',
+                   '/c/en/nine']
 
         preprocess = transforms.Compose(
             [transforms.Grayscale(num_output_channels=3),
@@ -112,16 +112,16 @@ class TestController(unittest.TestCase):
 
     def test_mnist_with_scads(self):
         # Creates task
-        classes = ['/c/en/zero/n/wn/quantity',
-                   '/c/en/one/n/wn/quantity',
-                   '/c/en/two/n/wn/quantity',
-                   '/c/en/three/n/wn/quantity',
-                   '/c/en/four/n/wn/quantity',
-                   '/c/en/five/n/wn/quantity',
-                   '/c/en/six/n/wn/quantity',
-                   '/c/en/seven/n/wn/quantity',
-                   '/c/en/eight/n/wn/quantity',
-                   '/c/en/nine/n/wn/quantity']
+        classes = ['/c/en/zero',
+                   '/c/en/one',
+                   '/c/en/two',
+                   '/c/en/three',
+                   '/c/en/four',
+                   '/c/en/five',
+                   '/c/en/six',
+                   '/c/en/seven',
+                   '/c/en/eight',
+                   '/c/en/nine']
 
         preprocess = transforms.Compose(
             [transforms.Grayscale(num_output_channels=3),

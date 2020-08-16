@@ -60,16 +60,16 @@ class MnistInstallation(DatasetInstaller):
 
     def get_conceptnet_id(self, label):
         mnist_classes = {
-            '0': '/c/en/zero/n/wn/quantity',
-            '1': '/c/en/one/n/wn/quantity',
-            '2': '/c/en/two/n/wn/quantity',
-            '3': '/c/en/three/n/wn/quantity',
-            '4': '/c/en/four/n/wn/quantity',
-            '5': '/c/en/five/n/wn/quantity',
-            '6': '/c/en/six/n/wn/quantity',
-            '7': '/c/en/seven/n/wn/quantity',
-            '8': '/c/en/eight/n/wn/quantity',
-            '9': '/c/en/nine/n/wn/quantity',
+            '0': '/c/en/zero',
+            '1': '/c/en/one',
+            '2': '/c/en/two',
+            '3': '/c/en/three',
+            '4': '/c/en/four',
+            '5': '/c/en/five',
+            '6': '/c/en/six',
+            '7': '/c/en/seven',
+            '8': '/c/en/eight',
+            '9': '/c/en/nine',
         }
         return mnist_classes[label]
 
