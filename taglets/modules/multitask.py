@@ -202,6 +202,3 @@ class MultiTaskTaglet(Taglet):
         epoch_acc = running_acc.item() / total_len
 
         return epoch_loss, epoch_acc
-
-
-#CHECK PREDICTION
