@@ -14,6 +14,7 @@ labelers called _taglets_, and then combine their outputs to train an end model.
 2. An internet connection is required
 to download predefined data and pretrained models.
 3. External datasets provided by JPL at `/lwll/external`
+4. Need to change the maximum file descriptors (/proc/sys/fs/file-max) to 1,000,000
 
 ## Installation
 In the top level directory, run

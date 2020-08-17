@@ -1,9 +1,10 @@
 from .module import Module
 from ..data.custom_dataset import CustomDataset
 from ..pipeline import Taglet
-from ..scads.interface.scads import Scads
+from ..scads import Scads, ScadsEmbedding
 
 import os
+import random
 import torch
 import logging
 import numpy as np
@@ -69,6 +70,9 @@ class MultiTaskTaglet(Taglet):
             os.makedirs(self.save_dir)
         self.source_data = None
 
+        self.img_per_related_class = 600 if not os.environ.get("CI") else 1
+        self.num_related_class = 5
+
     def transform_image(self):
         """
         Get the transform to be used on an image.
@@ -78,8 +82,7 @@ class MultiTaskTaglet(Taglet):
         data_std = [0.229, 0.224, 0.225]
 
         return transforms.Compose([
-            transforms.RandomRotation(45),
-            transforms.RandomResizedCrop(self.task.input_shape),
+            transforms.Resize(self.task.input_shape),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean=data_mean, std=data_std)
@@ -88,36 +91,40 @@ class MultiTaskTaglet(Taglet):
     def _get_scads_data(self):
         root_path = Scads.get_root_path()
         Scads.open(self.task.scads_path)
+        ScadsEmbedding.load(self.task.scads_embedding_path)
         image_paths = []
         image_labels = []
         visited = set()
+
+        def get_images(node, label):
+            if node.get_conceptnet_id() not in visited:
+                visited.add(node.get_conceptnet_id())
+                images = node.get_images_whitelist(self.task.whitelist)
+                if len(images) < self.img_per_related_class:
+                    return False
+                images = random.sample(images, self.img_per_related_class)
+                images = [os.path.join(root_path, image) for image in images]
+                image_paths.extend(images)
+                image_labels.extend([label] * len(images))
+                log.debug("Source class found: {}".format(node.get_conceptnet_id()))
+                return True
+            return False
+
+        all_related_class = 0
         for conceptnet_id in self.task.classes:
+            cur_related_class = 0
             target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
-
-            neighbors = [edge.get_end_node() for edge in target_node.get_neighbors()]
-            # Add target node
-            if target_node.get_conceptnet_id() not in visited:
-                images = target_node.get_images_whitelist(self.task.whitelist)
-                # images = target_node.get_images()
-                images = [os.path.join(root_path, image) for image in images]
-                if images:
-                    image_paths.extend(images)
-                    image_labels.extend([len(visited) for _ in range(len(images))])
-                    visited.add(target_node.get_conceptnet_id())
-                    log.info("Source class found: {}".format(target_node.get_conceptnet_id()))
-
-            # Add neighbors
+            if get_images(target_node, all_related_class):
+                cur_related_class += 1
+                all_related_class += 1
+    
+            neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
             for neighbor in neighbors:
-                if neighbor.get_conceptnet_id() in visited:
-                    continue
-                # images = neighbor.get_images()
-                images = neighbor.get_images_whitelist(self.task.whitelist)
-                images = [os.path.join(root_path, image) for image in images]
-                if images:
-                    image_paths.extend(images)
-                    image_labels.extend([len(visited) for _ in range(len(images))])
-                    visited.add(neighbor.get_conceptnet_id())
-                    log.info("Source class found: {}".format(neighbor.get_conceptnet_id()))
+                if get_images(neighbor, all_related_class):
+                    cur_related_class += 1
+                    all_related_class += 1
+                    if cur_related_class >= self.num_related_class:
+                        break
 
         Scads.close()
 
@@ -126,7 +133,7 @@ class MultiTaskTaglet(Taglet):
                                    labels=image_labels,
                                    transform=transform)
 
-        return train_data, len(visited)
+        return train_data, all_related_class
 
     def train(self, train_data, val_data):
         # Get Scads data and set up model

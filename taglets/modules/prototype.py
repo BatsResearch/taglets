@@ -206,8 +206,17 @@ def euclidean_metric(a, b):
     return ((a - b) ** 2).sum(dim=2)
 
 
+def dict_to_device(d, device):
+    for k, v in d.items():
+        if device == 'cpu':
+            d[k] = v.cpu()
+        else:
+            d[k] = v.to(device)
+    return d
+
+
 class NearestProtoModule(nn.Module):
-    def __init__(self, prototypes, n_classes, encoder, query):
+    def __init__(self, prototypes, n_classes, encoder, query, use_gpu):
         super(NearestProtoModule, self).__init__()
         self.prototypes = prototypes
         self.n_classes = n_classes
@@ -216,6 +225,7 @@ class NearestProtoModule(nn.Module):
         self.criterion = nn.CrossEntropyLoss()
         self.val = False
         self.abstain = False
+        self.use_gpu = use_gpu
 
     # abstain from all labeling
     def set_label_abstaining(self, abstain):
@@ -240,6 +250,12 @@ class NearestProtoModule(nn.Module):
             labels = torch.zeros((batch_size, self.n_classes))
             if self.abstain:
                 return labels
+
+            if self.use_gpu:
+                self.prototypes = dict_to_device(self.prototypes, x.device)
+            else:
+                self.prototypes = dict_to_device(self.prototypes, 'cpu')
+
             for i in range(batch_size):
                 label = PrototypeTaglet.onn(embeddings[i], prototypes=self.prototypes)
                 labels[i, label] = 1
@@ -258,15 +274,15 @@ class NearestProtoModule(nn.Module):
         proto = shot_proto.reshape(shot, way, -1).mean(dim=0)
         return -euclidean_metric(query_proto, proto)
 
-    def get_forward_loss(self, x, rank, use_gpu, way, shot, val=False):
+    def get_forward_loss(self, x, rank, way, shot, val=False):
         label = torch.arange(way).repeat(self.query)
-        if use_gpu:
-            label.cuda(rank)
+        if self.use_gpu:
+            label = label.cuda(rank)
         else:
-            label.cpu()
+            label = label.cpu()
 
         logits = self._get_forward(x, way=way, shot=shot, val=val)
-        return self.criterion(logits, label), count_acc(logits, label, use_gpu)
+        return self.criterion(logits, label), count_acc(logits, label, self.use_gpu)
 
 
 class PrototypeModule(Module):
@@ -313,7 +329,8 @@ class PrototypeTaglet(Taglet):
         self.protonet = NearestProtoModule(self.prototypes,
                                         len(task.classes),
                                         encoder=self.model,
-                                        query=self.query)
+                                        query=self.query,
+                                        use_gpu=self.use_gpu)
         self.use_scads = use_scads
 
         self.train_labels = None
@@ -482,7 +499,7 @@ class PrototypeTaglet(Taglet):
                 data = batch[0]
 
             self.optimizer.zero_grad()
-            loss, acc = self.protonet.get_forward_loss(data, rank, self.use_gpu, shot=self.train_shot,
+            loss, acc = self.protonet.get_forward_loss(data, rank, shot=self.train_shot,
                                                        way=self.train_way)
             loss.backward()
             self.optimizer.step()
@@ -516,7 +533,6 @@ class PrototypeTaglet(Taglet):
             with torch.set_grad_enabled(False):
                 loss, acc = self.protonet.get_forward_loss(data,
                                                            rank,
-                                                           self.use_gpu,
                                                            way=self.val_way,
                                                            shot=self.val_shot,
                                                            val=True)

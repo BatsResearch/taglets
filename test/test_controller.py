@@ -4,6 +4,8 @@ from taglets.scads.create.install import Installer, MnistInstallation
 from taglets.task import Task
 
 import os
+import numpy as np
+import pandas as pd
 import torch
 from torch.utils.data import Dataset, Subset
 from torchvision import transforms
@@ -13,6 +15,7 @@ import unittest
 
 TEST_DATA = os.path.join(os.path.dirname(os.path.realpath(__file__)), "test_data/scads")
 DB_PATH = os.path.join(TEST_DATA, "test_scads.db")
+EMBEDDING_PATH = os.path.join(TEST_DATA, "test_embedding.h5")
 CONCEPTNET_PATH = os.path.join(TEST_DATA, "conceptnet")
 MNIST_PATH = "mnist"
 
@@ -53,18 +56,38 @@ class TestController(unittest.TestCase):
         installer.install_conceptnet(CONCEPTNET_PATH)
         installer.install_dataset(TEST_DATA, MNIST_PATH, MnistInstallation())
 
+        # Build ScadsEmbedding File
+        arr = []
+        for i in range(10):
+            l = [0.0] * 10
+            l[i] = 1.0
+            arr.append(l)
+        arr = np.asarray(arr)
+        label_list = ['/c/en/zero',
+                      '/c/en/one',
+                      '/c/en/two',
+                      '/c/en/three',
+                      '/c/en/four',
+                      '/c/en/five',
+                      '/c/en/six',
+                      '/c/en/seven',
+                      '/c/en/eight',
+                      '/c/en/nine']
+        df = pd.DataFrame(arr, index=label_list, dtype='f')
+        df.to_hdf(EMBEDDING_PATH, key='mat', mode='w')
+
     def test_mnist(self):
         # Creates task
-        classes = ['/c/en/zero/n/wn/quantity',
-                   '/c/en/one/n/wn/quantity',
-                   '/c/en/two/n/wn/quantity',
-                   '/c/en/three/n/wn/quantity',
-                   '/c/en/four/n/wn/quantity',
-                   '/c/en/five/n/wn/quantity',
-                   '/c/en/six/n/wn/quantity',
-                   '/c/en/seven/n/wn/quantity',
-                   '/c/en/eight/n/wn/quantity',
-                   '/c/en/nine/n/wn/quantity']
+        classes = ['/c/en/zero',
+                   '/c/en/one',
+                   '/c/en/two',
+                   '/c/en/three',
+                   '/c/en/four',
+                   '/c/en/five',
+                   '/c/en/six',
+                   '/c/en/seven',
+                   '/c/en/eight',
+                   '/c/en/nine']
 
         preprocess = transforms.Compose(
             [transforms.Grayscale(num_output_channels=3),
@@ -89,16 +112,16 @@ class TestController(unittest.TestCase):
 
     def test_mnist_with_scads(self):
         # Creates task
-        classes = ['/c/en/zero/n/wn/quantity',
-                   '/c/en/one/n/wn/quantity',
-                   '/c/en/two/n/wn/quantity',
-                   '/c/en/three/n/wn/quantity',
-                   '/c/en/four/n/wn/quantity',
-                   '/c/en/five/n/wn/quantity',
-                   '/c/en/six/n/wn/quantity',
-                   '/c/en/seven/n/wn/quantity',
-                   '/c/en/eight/n/wn/quantity',
-                   '/c/en/nine/n/wn/quantity']
+        classes = ['/c/en/zero',
+                   '/c/en/one',
+                   '/c/en/two',
+                   '/c/en/three',
+                   '/c/en/four',
+                   '/c/en/five',
+                   '/c/en/six',
+                   '/c/en/seven',
+                   '/c/en/eight',
+                   '/c/en/nine']
 
         preprocess = transforms.Compose(
             [transforms.Grayscale(num_output_channels=3),
@@ -110,7 +133,8 @@ class TestController(unittest.TestCase):
         unlabeled = HiddenLabelDataset(Subset(mnist, [i for i in range(size, 2 * size)]))
         val = Subset(mnist, [i for i in range(2 * size, 3 * size)])
         task = Task(
-            "mnist-test", classes, (28, 28), labeled, unlabeled, val, scads_path=DB_PATH
+            "mnist-test", classes, (28, 28), labeled, unlabeled, val, scads_path=DB_PATH,
+            scads_embedding_path=EMBEDDING_PATH
         )
         task.set_initial_model(MnistResNet())
         Scads.set_root_path(TEST_DATA)

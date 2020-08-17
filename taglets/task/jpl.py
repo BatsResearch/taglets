@@ -13,6 +13,7 @@ from ..data import CustomDataset
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
 from ..task import Task
 from ..controller import Controller
+from ..scads import Scads
 from .utils import labels_to_concept_ids
 import linecache
 
@@ -222,8 +223,7 @@ class JPLStorage:
         data_std = [0.229, 0.224, 0.225]
 
         return transforms.Compose([
-            transforms.RandomRotation(45),
-            transforms.RandomResizedCrop(224),
+            transforms.Resize(224),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean=data_mean, std=data_std)
@@ -316,8 +316,7 @@ class JPLStorage:
 
 
 class JPLRunner:
-    def __init__(self, dataset_dir, task_ix, batch_size=32,
-                 testing=False, data_type='sample'):
+    def __init__(self, dataset_dir, task_ix, testing=False, data_type='sample'):
         self.dataset_dir = dataset_dir
 
         self.api = JPL()
@@ -331,8 +330,6 @@ class JPLRunner:
         self.initial_model.fc = torch.nn.Identity()
 
         self.testing = testing
-
-        self.batch_size = batch_size
 
     def get_jpl_information(self):
         jpl_task_names = self.api.get_available_tasks('image_classification')
@@ -433,9 +430,10 @@ class JPLRunner:
                     unlabeled_dataset,
                     val_dataset,
                     self.jpl_storage.whitelist,
-                    '/data/datasets/scads.sqlite3')
+                    'predefined/scads.fall2020.sqlite3',
+                    'predefined/embeddings/numberbatch-en19.08.txt.gz')
         task.set_initial_model(self.initial_model)
-        controller = Controller(task, self.batch_size)
+        controller = Controller(task)
         end_model = controller.train_end_model()
 
         evaluation_dataset = self.jpl_storage.get_evaluation_dataset()
@@ -495,8 +493,13 @@ def main():
     parser = argparse.ArgumentParser(description="Run JPL task")
     parser.add_argument("--dataset_dir", dest="dataset_dir",
                         type=str,
-                        default="",
+                        default="/lwll/development",
                         help="The directory to all development datasets")
+
+    parser.add_argument("--scads_root_dir",
+                        type=str,
+                        default="/lwll/external",
+                        help="The directory to all external datasets")
 
     parser.add_argument("--task_ix", type=int, default=0,
                         help="Index of image classification task; 0, 1, 2, etc.")
@@ -504,6 +507,7 @@ def main():
     args = parser.parse_args()
 
     dataset_dir = args.dataset_dir
+    scads_root_dir = args.scads_root_dir
 
     task_ix = args.task_ix
     logger = logging.getLogger()
@@ -513,6 +517,8 @@ def main():
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
 
+    Scads.set_root_path(scads_root_dir)
+    
     runner = JPLRunner(dataset_dir, task_ix, testing=False)
     runner.run_checkpoints()
 

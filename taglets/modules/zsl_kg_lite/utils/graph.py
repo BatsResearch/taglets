@@ -20,8 +20,8 @@ log = logging.getLogger(__name__)
 
 
 def post_process_graph(graph_path):
-    """The function post processes the graph after extraction. 
-    The post processing involves removing non-english nodes in 
+    """The function post processes the graph after extraction.
+    The post processing involves removing non-english nodes in
     graph, mapping the edge ids to node ids.
 
     Args:
@@ -63,18 +63,18 @@ def post_process_graph(graph_path):
     log.info("saving en nodes ...")
     en_nodes_path = os.path.join(graph_path, 'en_nodes.csv')
     en_nodes.to_csv(en_nodes_path, index=False)
-    
+
     log.info("saving mapped edges ...")
     mapped_edge_file = os.path.join(graph_path, 'en_mapped_edges.csv')
     mapped_edges = pd.DataFrame(mapped_edges, columns=['start_id', 'end_id', 'relation_id', 'weight'])
     mapped_edges.to_csv(mapped_edge_file, index=False)
-    
+
     log.info('done!')
 
 
 def compute_union_graph(graph_path):
     """The function is used to compute the union graph. The union
-    graph is the union of the concept with the nodes of its 
+    graph is the union of the concept with the nodes of its
     synonyms.
 
     Args:
@@ -88,7 +88,7 @@ def compute_union_graph(graph_path):
     idx_to_node = dict(en_nodes['uri'])
     node_to_idx = dict([(node, idx) for idx, node in idx_to_node.items()])
 
-    # 
+    #
     log.info("load syns for the nodes")
     syns_path = os.path.join(graph_path, 'syns.json')
     with open(syns_path) as f:
@@ -106,8 +106,8 @@ def compute_union_graph(graph_path):
         for syn in syns:
             if syn in node_to_idx:
                 syns_id[node_to_idx[syn]] = replaced_id
-    
-    # replace all the syn edges in key edges 
+
+    # replace all the syn edges in key edges
     en_edges = pd.read_csv(os.path.join(graph_path, "en_mapped_edges.csv"))
 
     only_en_edges = en_edges[['start_id', 'end_id']]
@@ -129,7 +129,7 @@ def compute_union_graph(graph_path):
     opp_union_edges[['start_id', 'end_id']] = union_edges[['end_id', 'start_id']]
     concat_union_edges = pd.concat((union_edges, opp_union_edges), ignore_index=True)
 
-    union_adj_rel_lists = concat_union_edges[['start_id', 
+    union_adj_rel_lists = concat_union_edges[['start_id',
                                               'end_id',
                                               'relation_id']].set_index('start_id').apply(tuple, 1)\
              .groupby(level=0).agg(lambda x: set(x.values))\
@@ -138,7 +138,7 @@ def compute_union_graph(graph_path):
                                           'end_id']].set_index('start_id').apply(tuple, 1)\
             .groupby(level=0).agg(lambda x: set(x.values))\
              .to_dict()
-    
+
     new_adj_lists = {}
     for node, adj in union_adj_lists.items():
         new_adj_lists[node] = list(itertools.chain.from_iterable(adj))
@@ -150,7 +150,13 @@ def compute_union_graph(graph_path):
     new_adj_lists = {}
     for node, adj in union_adj_rel_lists.items():
         new_adj_lists[node] = list(adj)
-    
+
+    # add self loop to nodes that are concepts
+    for key, syns in syns_dict.items():
+        if node_to_idx[key] not in new_adj_lists:
+            new_adj_lists[node_to_idx[key]] = [[node_to_idx[key], 50]]
+
+
     with open(os.path.join(graph_path, 'union_adj_rel_lists.json'), 'w+') as fp:
         json.dump(new_adj_lists, fp)
 
@@ -170,21 +176,21 @@ def compute_mapping(id_to_concept, graph_path):
     mapping = {}
     for _id, concept in id_to_concept.items():
         mapping[_id] = node_uri_to_idx[concept]
-    
+
     log.info('saving id to concept')
     with open(os.path.join(graph_path, 'id_to_concept.json'), 'w+') as fp:
         json.dump(id_to_concept, fp)
-    
+
     log.info('saving mapping')
     with open(os.path.join(graph_path, 'mapping.json'), 'w+') as fp:
         json.dump(mapping, fp)
-    
+
     log.info('done!')
 
 
 def compute_embeddings(graph_path, glove_path):
     """The function is used to compute the initial node embeddings
-    for all the nodes in the graph. 
+    for all the nodes in the graph.
 
     Args:
         graph_path (str): path to the conceptnet subgraph directory
@@ -204,8 +210,8 @@ def compute_embeddings(graph_path, glove_path):
         all_concepts.append(concept_words)
         for w in concept_words:
             words.add(w)
-    
-    # 
+
+    #
     word_to_idx = dict([(word, idx+1) for idx, word in enumerate(words)])
     word_to_idx["<PAD>"] = 0
     idx_to_word = dict([(idx, word) for word, idx in word_to_idx.items()])
@@ -213,14 +219,14 @@ def compute_embeddings(graph_path, glove_path):
     # load glove 840
     log.info("loading glove from file")
     glove = load_embeddings(glove_path)
-    
+
     # get the word embedding
     embedding_matrix = torch.zeros(len(word_to_idx), 300)
     for idx, word in idx_to_word.items():
         if word in glove:
             embedding_matrix[idx] = torch.Tensor(glove[word])
-    
-    # 
+
+    #
     log.info("padding concepts")
     max_length = max([len(concept_words) for concept_words in all_concepts])
     padded_concepts = []
@@ -228,7 +234,7 @@ def compute_embeddings(graph_path, glove_path):
         concept_idx = [word_to_idx[word] for word in concept_words]
         concept_idx += [0] * (max_length - len(concept_idx))
         padded_concepts.append(concept_idx)
-    
+
     # add the word embeddings of indivual words
     log.info("adding the word embeddings and l2 norm-> conceptnet embeddings")
     concept_embs = torch.zeros((0, 300))

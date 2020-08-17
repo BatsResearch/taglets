@@ -14,6 +14,7 @@ class ScadsEmbedding:
     small_frame = None
     k = None
     small_k = None
+    path = ''
 
     @staticmethod
     def load(path_to_embeddings):
@@ -23,7 +24,7 @@ class ScadsEmbedding:
         :param path_to_embeddings: path to the file containing the embeddings
         :return:
         """
-        if ScadsEmbedding.frame is None:
+        if ScadsEmbedding.path != os.path.abspath(path_to_embeddings):
             if path_to_embeddings.endswith('.h5'):
                 df = pd.read_hdf(path_to_embeddings, 'mat', encoding='utf-8')
             else:
@@ -50,7 +51,8 @@ class ScadsEmbedding:
     
                 if not df.index.is_monotonic_increasing:
                     df = df.sort_index()
-            
+
+            ScadsEmbedding.path = os.path.abspath(path_to_embeddings)
             ScadsEmbedding.k = df.shape[1]
             ScadsEmbedding.small_k = 100
             ScadsEmbedding.frame = df
@@ -101,7 +103,7 @@ class ScadsEmbedding:
                     related_node = Scads.get_node_by_conceptnet_id(concept)
                     related_nodes.append(related_node)
                 except:
-                    print(f'Concept {concept} not found in Scads')
+                    continue
             return related_nodes
         else:
             return similar_concepts
@@ -212,12 +214,12 @@ if __name__ == '__main__':
 
     st = time.time()
     print('Start loading database')
-    Scads.open('predefined/scads.sqlite3')
+    Scads.open('predefined/scads.fall2020.sqlite3')
     print(f'End loading database: {(time.time() - st) / 60} mins')
     
     st = time.time()
     print('Start loading embedding')
-    ScadsEmbedding.load('predefined/embeddings/numberbatch-en-19.08.txt.gz')
+    ScadsEmbedding.load('predefined/embeddings/numberbatch-en19.08.txt.gz')
     print(f'End loading embedding: {(time.time()-st) / 60} mins')
     
     node = Scads.get_node_by_conceptnet_id('/c/en/dog')

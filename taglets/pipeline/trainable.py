@@ -33,7 +33,7 @@ class Trainable:
         self.criterion = torch.nn.CrossEntropyLoss()
         self.seed = 0
         self.num_epochs = 50 if not os.environ.get("CI") else 5
-        self.batch_size = 32
+        self.batch_size = 128
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
 
@@ -401,7 +401,7 @@ class Trainable:
         )
         data_loader = torch.utils.data.DataLoader(
             dataset=data, batch_size=self.batch_size, shuffle=False,
-            num_workers=0, pin_memory=True, sampler=sampler
+            num_workers=self.num_workers, pin_memory=True, sampler=sampler
         )
 
         outputs = []
