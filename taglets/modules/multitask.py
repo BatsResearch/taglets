@@ -24,7 +24,7 @@ class MultiTaskModel(nn.Module):
         output_shape = self._get_model_output_shape(input_shape, self.base)
         self.fc_target = torch.nn.Linear(output_shape, self.num_target)
         self.fc_source = torch.nn.Linear(output_shape, self.num_source)
-        self.model.fc = self.fc_source
+        self.model.fc = self.fc_target
 
     def forward(self, target_inputs, source_inputs=None):
         x = self.base(target_inputs)
