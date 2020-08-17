@@ -92,8 +92,7 @@ class Controller:
                     FineTuneModule(task=self.task),
                     ZSLKGModule(task=self.task)]
         return [FineTuneModule(task=self.task),
-                PrototypeModule(task=self.task),
-                ZSLKGModule(task=self.task)]
+                PrototypeModule(task=self.task)]
 
     def _combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
         labeled = DataLoader(labeled_dataset, batch_size=1, shuffle=False)

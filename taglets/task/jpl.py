@@ -473,7 +473,7 @@ class JPLRunner:
             self.confidence_active_learning.set_candidates(candidates)
 
         # update initial model
-        self.initial_model = end_model.model[0]
+        self.initial_model = end_model.model
 
         log.info('{} Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                checkpoint_num,

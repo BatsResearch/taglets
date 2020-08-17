@@ -42,9 +42,9 @@ class TestSCADS(unittest.TestCase):
             Scads.get_node_by_conceptnet_id("/c/test/test")
 
     def test_valid_node1(self):
-        node = Scads.get_node_by_conceptnet_id("/c/en/one/n/wn/quantity")
+        node = Scads.get_node_by_conceptnet_id("/c/en/one")
         self.assertEqual(node.node.id, 1)
-        self.assertEqual(node.get_conceptnet_id(), "/c/en/one/n/wn/quantity")
+        self.assertEqual(node.get_conceptnet_id(), "/c/en/one")
 
         self.assertEqual(node.get_datasets(), ['MNIST'])
 
@@ -138,7 +138,7 @@ class TestSCADS(unittest.TestCase):
 
 
     def test_undirected_relation(self):
-        node = Scads.get_node_by_conceptnet_id("/c/en/zero/n/wn/quantity")
+        node = Scads.get_node_by_conceptnet_id("/c/en/zero")
         edges = node.get_neighbors()
         edges.sort(key=lambda x: x.get_relationship())
         edge = edges[0]
@@ -148,7 +148,7 @@ class TestSCADS(unittest.TestCase):
         self.assertIsNotNone(edge.get_end_node())
 
     def test_directed_relation(self):
-        node = Scads.get_node_by_conceptnet_id("/c/en/zero/n/wn/quantity")
+        node = Scads.get_node_by_conceptnet_id("/c/en/zero")
         edges = node.get_neighbors()
         edges.sort(key=lambda x: x.get_relationship())
         edge = edges[1]
@@ -158,7 +158,7 @@ class TestSCADS(unittest.TestCase):
         self.assertIsNotNone(edge.get_end_node())
 
     def test_neighbors(self):
-        node = Scads.get_node_by_conceptnet_id("/c/en/zero/n/wn/quantity")
+        node = Scads.get_node_by_conceptnet_id("/c/en/zero")
         edges = node.get_neighbors()
         edges.sort(key=lambda x: x.get_relationship())
 
@@ -173,7 +173,7 @@ class TestSCADS(unittest.TestCase):
         self.assertEqual(len(neighbor2.get_images()), 0)
 
     def test_weights(self):
-        node = Scads.get_node_by_conceptnet_id("/c/en/zero/n/wn/quantity")
+        node = Scads.get_node_by_conceptnet_id("/c/en/zero")
         edges = node.get_neighbors()
         edges.sort(key=lambda x: x.get_relationship())
         self.assertEqual(edges[0].get_weight(), 2.5)
