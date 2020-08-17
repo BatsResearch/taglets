@@ -124,14 +124,14 @@ class TransferTaglet(Taglet):
                 params_to_update.append(param)
         self._params_to_update = params_to_update
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.1)
+        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
     def train(self, train_data, val_data):
         scads_train_data, scads_val_data, scads_num_classes = self._get_scads_data()
         log.info("Source classes found: {}".format(scads_num_classes))
 
         orig_num_epochs = self.num_epochs
-        self.num_epochs = 5
+        self.num_epochs = 10 if not os.environ.get("CI") else 5
         self._set_num_classes(scads_num_classes)
         super(TransferTaglet, self).train(scads_train_data, scads_val_data)
         self.num_epochs = orig_num_epochs
@@ -142,7 +142,7 @@ class TransferTaglet(Taglet):
                 param.requires_grad = False
 
         orig_num_epochs = self.num_epochs
-        self.num_epochs = 5
+        self.num_epochs = 25 if not os.environ.get("CI") else 5
         self._set_num_classes(len(self.task.classes))
         super(TransferTaglet, self).train(train_data, val_data)
         self.num_epochs = orig_num_epochs

@@ -21,9 +21,10 @@ class MultiTaskModel(nn.Module):
         self.num_target= num_target
         self.num_source = num_source
         self.base = nn.Sequential(*list(self.model.children())[:-1])
-        output_shape = self._get_model_output_shape(input_shape, self.model)
+        output_shape = self._get_model_output_shape(input_shape, self.base)
         self.fc_target = torch.nn.Linear(output_shape, self.num_target)
         self.fc_source = torch.nn.Linear(output_shape, self.num_source)
+        self.model.fc = self.fc_source
 
     def forward(self, target_inputs, source_inputs=None):
         x = self.base(target_inputs)
@@ -64,7 +65,7 @@ class MultiTaskTaglet(Taglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'multitask'
-        self.num_epochs = 5
+        self.num_epochs = 50 if not os.environ.get("CI") else 5
         self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
@@ -144,6 +145,14 @@ class MultiTaskTaglet(Taglet):
         self.model = MultiTaskModel(self.model, len(self.task.classes),
                                     num_classes, self.task.input_shape)
 
+        params_to_update = []
+        for param in self.model.parameters():
+            if param.requires_grad:
+                params_to_update.append(param)
+        self._params_to_update = params_to_update
+        self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
+        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+        
         super(MultiTaskTaglet, self).train(train_data, val_data)
 
     def _do_train(self, rank, q, train_data, val_data):
