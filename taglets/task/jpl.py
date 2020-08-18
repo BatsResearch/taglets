@@ -214,20 +214,27 @@ class JPLStorage:
                                                   os.path.basename(dataset_dir) + "_" + data_type,
                                                   "test")
 
-    def transform_image(self):
+    def transform_image(self, train=True):
         """
         Get the transform to be used on an image.
         :return: A transform
         """
         data_mean = [0.485, 0.456, 0.406]
         data_std = [0.229, 0.224, 0.225]
-
-        return transforms.Compose([
-            transforms.Resize(224),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=data_mean, std=data_std)
-        ])
+    
+        if train:
+            return transforms.Compose([
+                transforms.RandomResizedCrop(224),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=data_mean, std=data_std)
+            ])
+        else:
+            return transforms.Compose([
+                transforms.Resize(224),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=data_mean, std=data_std)
+            ])
 
     def get_labeled_images_list(self):
         """get list of image names and labels"""
@@ -259,38 +266,45 @@ class JPLStorage:
         Get training, validation, and testing data loaders from labeled data.
         :return: Training, validation, and testing data loaders
         """
-        transform = self.transform_image()
         image_names, image_labels = self.get_labeled_images_list()
         image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
-        train_val_data = CustomDataset(image_paths,
-                                       labels=image_labels,
-                                       label_map=self.label_map,
-                                       transform=transform)
+        image_paths = np.asarray(image_paths)
+        image_labels = np.asarray(image_labels)
+        
 
         if checkpoint_num >= 2:
             # 80% for training, 20% for validation
             train_percent = 0.8
-            num_data = len(train_val_data)
+            num_data = len(image_paths)
             indices = list(range(num_data))
             train_split = int(np.floor(train_percent * num_data))
             np.random.shuffle(indices)
             train_idx = indices[:train_split]
-            valid_idx = indices[train_split:]
+            val_idx = indices[train_split:]
 
-            train_dataset = data.Subset(train_val_data, train_idx)
-            val_dataset = data.Subset(train_val_data, valid_idx)
+            train_dataset = CustomDataset(image_paths[train_idx],
+                                          labels=image_labels[train_idx],
+                                          label_map=self.label_map,
+                                          transform=self.transform_image(train=True))
+            val_dataset = CustomDataset(image_paths[val_idx],
+                                        labels=image_labels[val_idx],
+                                        label_map=self.label_map,
+                                        transform=self.transform_image(train=False))
         else:
-            train_dataset = train_val_data
+            train_dataset = CustomDataset(image_paths,
+                                          labels=image_labels,
+                                          label_map=self.label_map,
+                                          transform=self.transform_image(train=True))
             val_dataset = None
 
         return train_dataset, val_dataset
 
-    def get_unlabeled_dataset(self):
+    def get_unlabeled_dataset(self, train=True):
         """
         Get a data loader from unlabeled data.
         :return: A data loader containing unlabeled data
         """
-        transform = self.transform_image()
+        transform = self.transform_image(train=train)
 
         image_names = self.get_unlabeled_image_names()
         image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
@@ -305,7 +319,7 @@ class JPLStorage:
         Get a data loader from evaluation/test data.
         :return: A data loader containing unlabeled data
         """
-        transform = self.transform_image()
+        transform = self.transform_image(train=False)
 
         evaluation_image_names = []
         for img in os.listdir(self.evaluation_image_path):
@@ -441,16 +455,18 @@ class JPLRunner:
             self.request_labels(candidates)
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num)
-        unlabeled_dataset = self.jpl_storage.get_unlabeled_dataset()
+        unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True)
+        unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False)
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),
                     (224, 224),
                     labeled_dataset,
-                    unlabeled_dataset,
+                    unlabeled_train_dataset,
                     val_dataset,
                     self.jpl_storage.whitelist,
                     'predefined/scads.fall2020.sqlite3',
-                    'predefined/embeddings/numberbatch-en19.08.txt.gz')
+                    'predefined/embeddings/numberbatch-en19.08.txt.gz',
+                    unlabeled_test_data=unlabeled_test_dataset)
         task.set_initial_model(self.initial_model)
         controller = Controller(task)
         end_model = controller.train_end_model()
@@ -466,8 +482,8 @@ class JPLRunner:
 
         self.submit_predictions(predictions_dict)
 
-        if unlabeled_dataset is not None:
-            outputs = end_model.predict(unlabeled_dataset)
+        if unlabeled_test_dataset is not None:
+            outputs = end_model.predict(unlabeled_test_dataset)
             confidences = np.max(outputs, 1)
             candidates = np.argsort(confidences)
             self.confidence_active_learning.set_candidates(candidates)

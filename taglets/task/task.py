@@ -8,7 +8,7 @@ class Task:
     A class defining an image classification task
     """
     def __init__(self, name, classes, input_shape, labeled_train_data, unlabeled_train_data, validation_data,
-                 whitelist=None, scads_path=None, scads_embedding_path=None):
+                 whitelist=None, scads_path=None, scads_embedding_path=None, unlabeled_test_data=None):
         """
         Create a new Task
 
@@ -27,6 +27,7 @@ class Task:
         self.validation_data = validation_data
         self.scads_path = scads_path
         self.scads_embedding_path = scads_embedding_path
+        self.unlabeled_test_data = unlabeled_test_data
 
         self.initial = models.resnet18(pretrained=True)
         self.initial.fc = torch.nn.Identity()
@@ -35,8 +36,11 @@ class Task:
     def get_labeled_train_data(self):
         return self.labeled_train_data
 
-    def get_unlabeled_train_data(self):
-        return self.unlabeled_train_data
+    def get_unlabeled_data(self, train=True):
+        if self.unlabeled_test_data is not None and not train:
+            return self.unlabeled_test_data
+        else:
+            return self.unlabeled_train_data
 
     def get_validation_data(self):
         return self.validation_data
