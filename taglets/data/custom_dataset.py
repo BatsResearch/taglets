@@ -27,7 +27,7 @@ class CustomDataset(Dataset):
         if self.transform is not None:
             img = self.transform(img)
 
-        if self.labels:
+        if self.labels is not None:
             if self.label_map is not None:
                 label = torch.tensor(self.label_map[(self.labels[index])])
             else:
