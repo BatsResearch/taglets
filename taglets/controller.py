@@ -58,7 +58,7 @@ class Controller:
             # Collects all taglets
             taglets = []
             for module in modules:
-                taglets.extend(module.get_taglets())
+                taglets.extend(module.get_valid_taglets())
             taglet_executor = TagletExecutor()
             taglet_executor.set_taglets(taglets)
     

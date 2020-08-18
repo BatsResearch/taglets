@@ -83,7 +83,7 @@ class MultiTaskTaglet(Taglet):
         
         if train:
             return transforms.Compose([
-                transforms.RandomResizedCrop(self.task.input_shape),
+                transforms.RandomResizedCrop(self.task.input_shape, scale=(0.8, 1.0)),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=data_mean, std=data_std)
@@ -147,6 +147,10 @@ class MultiTaskTaglet(Taglet):
         self.source_data, num_classes = self._get_scads_data()
         log.info("Source classes found: {}".format(num_classes))
         log.info("Number of source training images: {}".format(len(self.source_data)))
+        
+        if num_classes == 0:
+            self.valid = False
+            return
 
         self.model = MultiTaskModel(self.model, len(self.task.classes),
                                     num_classes, self.task.input_shape)
