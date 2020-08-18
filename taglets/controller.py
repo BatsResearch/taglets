@@ -42,7 +42,7 @@ class Controller:
         """
         # Gets datasets
         labeled = self.task.get_labeled_train_data()
-        unlabeled = self.task.get_unlabeled_train_data()
+        unlabeled = self.task.get_unlabeled_data(False)
         val = self.task.get_validation_data()
 
         unlabeled_images_labels = []
@@ -77,7 +77,7 @@ class Controller:
         log.info("Training end model")
 
         end_model_train_data = self._combine_soft_labels(unlabeled_images_labels,
-                                                         self.task.get_unlabeled_train_data(),
+                                                         self.task.get_unlabeled_data(True),
                                                          self.task.get_labeled_train_data())
         self.end_model = EndModel(self.task)
         self.end_model.train(end_model_train_data, val)

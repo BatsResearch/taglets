@@ -39,20 +39,27 @@ class TransferTaglet(Taglet):
         self.img_per_related_class = 600 if not os.environ.get("CI") else 1
         self.num_related_class = 5
 
-    def transform_image(self):
+    def transform_image(self, train=True):
         """
         Get the transform to be used on an image.
         :return: A transform
         """
         data_mean = [0.485, 0.456, 0.406]
         data_std = [0.229, 0.224, 0.225]
-
-        return transforms.Compose([
-            transforms.Resize(self.task.input_shape),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=data_mean, std=data_std)
-        ])
+    
+        if train:
+            return transforms.Compose([
+                transforms.RandomResizedCrop(self.task.input_shape),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=data_mean, std=data_std)
+            ])
+        else:
+            return transforms.Compose([
+                transforms.Resize(self.task.input_shape),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=data_mean, std=data_std)
+            ])
 
     def _get_scads_data(self):
         root_path = Scads.get_root_path()
@@ -94,7 +101,7 @@ class TransferTaglet(Taglet):
 
         Scads.close()
 
-        transform = self.transform_image()
+        transform = self.transform_image(train=True)
         train_val_data = CustomDataset(image_paths,
                                        labels=image_labels,
                                        transform=transform)
