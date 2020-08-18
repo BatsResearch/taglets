@@ -72,8 +72,6 @@ class MultiTaskTaglet(Taglet):
 
         self.img_per_related_class = 600 if not os.environ.get("CI") else 1
         self.num_related_class = 5
-        
-        self.valid = True
 
     def transform_image(self, train=True):
         """
