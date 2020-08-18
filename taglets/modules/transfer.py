@@ -51,7 +51,7 @@ class TransferTaglet(Taglet):
     
         if train:
             return transforms.Compose([
-                transforms.RandomResizedCrop(self.task.input_shape),
+                transforms.RandomResizedCrop(self.task.input_shape, scale=(0.8, 1.0)),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=data_mean, std=data_std)
