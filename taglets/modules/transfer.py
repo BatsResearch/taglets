@@ -39,6 +39,8 @@ class TransferTaglet(Taglet):
         self.img_per_related_class = 600 if not os.environ.get("CI") else 1
         self.num_related_class = 5
 
+        self.valid = True
+
     def transform_image(self, train=True):
         """
         Get the transform to be used on an image.
@@ -136,6 +138,10 @@ class TransferTaglet(Taglet):
     def train(self, train_data, val_data):
         scads_train_data, scads_val_data, scads_num_classes = self._get_scads_data()
         log.info("Source classes found: {}".format(scads_num_classes))
+        
+        if scads_num_classes == 0:
+            self.valid = False
+            return
 
         orig_num_epochs = self.num_epochs
         self.num_epochs = 10 if not os.environ.get("CI") else 5

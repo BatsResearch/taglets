@@ -72,6 +72,8 @@ class MultiTaskTaglet(Taglet):
 
         self.img_per_related_class = 600 if not os.environ.get("CI") else 1
         self.num_related_class = 5
+        
+        self.valid = True
 
     def transform_image(self, train=True):
         """
@@ -147,6 +149,10 @@ class MultiTaskTaglet(Taglet):
         self.source_data, num_classes = self._get_scads_data()
         log.info("Source classes found: {}".format(num_classes))
         log.info("Number of source training images: {}".format(len(self.source_data)))
+        
+        if num_classes == 0:
+            self.valid = False
+            return
 
         self.model = MultiTaskModel(self.model, len(self.task.classes),
                                     num_classes, self.task.input_shape)
