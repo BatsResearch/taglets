@@ -224,7 +224,7 @@ class JPLStorage:
     
         if train:
             return transforms.Compose([
-                transforms.RandomResizedCrop(224),
+                transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=data_mean, std=data_std)

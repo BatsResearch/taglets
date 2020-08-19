@@ -19,6 +19,17 @@ class Module:
         """
         for taglet in self.taglets:
             taglet.train(train_data, val_data)
+            
+    def get_valid_taglets(self):
+        """
+        Return the module's taglets.
+        :return: A list of taglets
+        """
+        valid_taglets = []
+        for taglet in self.taglets:
+            if taglet.valid:
+                valid_taglets.append(taglet)
+        return valid_taglets
 
     def get_taglets(self):
         """

@@ -49,7 +49,7 @@ class TransferTaglet(Taglet):
     
         if train:
             return transforms.Compose([
-                transforms.RandomResizedCrop(self.task.input_shape),
+                transforms.RandomResizedCrop(self.task.input_shape, scale=(0.8, 1.0)),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=data_mean, std=data_std)
@@ -136,6 +136,10 @@ class TransferTaglet(Taglet):
     def train(self, train_data, val_data):
         scads_train_data, scads_val_data, scads_num_classes = self._get_scads_data()
         log.info("Source classes found: {}".format(scads_num_classes))
+        
+        if scads_num_classes == 0:
+            self.valid = False
+            return
 
         orig_num_epochs = self.num_epochs
         self.num_epochs = 10 if not os.environ.get("CI") else 5
