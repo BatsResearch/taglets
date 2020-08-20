@@ -33,7 +33,7 @@ class JPL:
         self.secret = 'a5aed2a8-db80-4b22-bf72-11f2d0765572'
         self.url = 'https://api-staging.lollllz.com'
         self.session_token = ''
-        self.data_type = 'sample'   # Sample or full
+        self.data_type = 'full'   # Sample or full
 
     def get_available_tasks(self, problem_type):
         """
@@ -330,7 +330,7 @@ class JPLStorage:
 
 
 class JPLRunner:
-    def __init__(self, dataset_dir, task_ix, testing=False, data_type='sample'):
+    def __init__(self, dataset_dir, task_ix, testing=False, data_type='full'):
         self.dataset_dir = dataset_dir
 
         self.api = JPL()
