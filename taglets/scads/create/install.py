@@ -141,7 +141,7 @@ class ImageNetInstallation(ImageClassificationInstaller):
         return SYNSET_TO_CONCEPTNET_ID[label]
 
 
-class COCO2014Installation(DatasetInstaller):
+class COCO2014Installation(ObjectDetectionInstaller):
     def get_name(self):
         return "COCO2014"
 
