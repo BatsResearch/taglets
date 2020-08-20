@@ -5,7 +5,10 @@ from ..create.scads_classes import Node, Image
 from ..create.create_scads import add_conceptnet
 from ..create.add_datasets import add_dataset
 from .wnids_to_concept import SYNSET_TO_CONCEPTNET_ID
-
+from PIL import Image as PIL_Image
+import time
+import imagesize
+import logging
 
 class DatasetInstaller:
     def get_name(self):
@@ -15,7 +18,7 @@ class DatasetInstaller:
         size = "full"
         modes = ['train', 'test']
         label_to_node_id = {}
-    
+
         all_images = []
         for mode in modes:
             df_label = pd.read_feather(
@@ -86,6 +89,77 @@ class COCO2014Installation(DatasetInstaller):
     def get_name(self):
         return "COCO2014"
 
+
+
+    def get_images(self, dataset, session, root):
+        size = "full"
+        modes = ['train', 'test']
+        label_to_node_id = {}
+    
+        all_images = []
+        t1 = time.time()
+        for mode in modes:
+            df_label = pd.read_feather(
+                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            df = pd.crosstab(df_label['id'], df_label['class'])
+            mode_dir = os.path.join(dataset.path, f'{dataset.path}_' + size, mode)
+            for image in os.listdir(os.path.join(root, mode_dir)):
+                if image.startswith('.'):
+                    continue
+               
+                #img = PIL_Image.open(os.path.join(root, mode_dir)+'/'+image) 
+                width, height = imagesize.get(os.path.join(root, mode_dir)+'/'+image)
+                #width, height= img.size 
+                img_size = width * height 
+                labels = df_label.loc[df_label['id'] == image]['class'].values 
+                bbxez = df_label.loc[df_label['id'] == image]['bbox'].values 
+                max_area = 0 
+                for bbx, lbl in zip(bbxez,labels): 
+                    bbx = bbx.split(',') 
+                    x_min = float(bbx[0].strip()) 
+                    y_min = float(bbx[1].strip()) 
+                    x_max = float(bbx[2].strip()) 
+                    y_max = float(bbx[3].strip()) 
+                    w = x_max - x_min 
+                    h = y_max - y_min 
+                    if h<0 or w<0: 
+                        print(image) 
+                        print(bbx) 
+                        continue 
+                    #assert w>0 
+                    #assert h>0 
+                    area = w * h 
+                    if area > max_area: 
+                        max_area = area 
+                        selected_label = lbl 
+                assert max_area >0 
+                if max_area <= img_size * .2:
+                    print('.....small bbox')
+                    continue 
+ 
+                label = selected_label 
+                #label = df.loc[image].idxmax()
+                # Get node_id
+                if label in label_to_node_id:
+                    node_id = label_to_node_id[label]
+                else:
+                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                    node_id = node.id if node else None
+                    label_to_node_id[label] = node_id
+
+                # Scads is missing a missing conceptnet id
+                if not node_id:
+                    continue
+                
+                img = Image(dataset_id=dataset.id,
+                            node_id=node_id,
+                            path=os.path.join(mode_dir, image))
+                all_images.append(img)
+        t2 = time.time()
+        print('total time...'+str(t2 - t1))
+        return all_images
+
+
     def get_conceptnet_id(self, label):
         label_to_label = {1: 'person', 2: 'bicycle', 3: 'car', 4: 'motorcycle', 5: 'airplane', 6: 'bus', 7: 'train',
                           8: 'truck', 9: 'boat', 10: 'traffic light', 11: 'fire hydrant', 12: '-', 13: 'stop sign',
@@ -129,6 +203,70 @@ class VOC2009Installation(DatasetInstaller):
     def get_name(self):
         return "VOC2009"
 
+
+    def get_images(self, dataset, session, root):
+        size = "full"
+        modes = ['train', 'test']
+        label_to_node_id = {}
+    
+        all_images = []
+        for mode in modes:
+            df_label = pd.read_feather(
+                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            df = pd.crosstab(df_label['id'], df_label['class'])
+            mode_dir = os.path.join(dataset.path, f'{dataset.path}_' + size, mode)
+            for image in os.listdir(os.path.join(root, mode_dir)):
+                if image.startswith('.'):
+                    continue
+               
+                img = PIL_Image.open(os.path.join(root, mode_dir)+'/'+image) 
+                width, height= img.size 
+                img_size = width * height 
+                labels = df_label.loc[df_label['id'] == image]['class'].values 
+                bbxez = df_label.loc[df_label['id'] == image]['bbox'].values 
+                max_area = 0 
+                for bbx, lbl in zip(bbxez,labels): 
+                    bbx = bbx.split(',') 
+                    x_min = float(bbx[0].strip()) 
+                    y_min = float(bbx[1].strip()) 
+                    x_max = float(bbx[2].strip()) 
+                    y_max = float(bbx[3].strip()) 
+                    w = x_max - x_min 
+                    h = y_max - y_min 
+                    if h<0 or w<0: 
+                        print(image) 
+                        print(bbx) 
+                        continue 
+                    #assert w>0 
+                    #assert h>0 
+                    area = w * h 
+                    if area > max_area: 
+                        max_area = area 
+                        selected_label = lbl 
+                assert max_area >0 
+                if max_area <= img_size * .25: 
+                    continue 
+ 
+                label = selected_label 
+                #label = df.loc[image].idxmax()
+                # Get node_id
+                if label in label_to_node_id:
+                    node_id = label_to_node_id[label]
+                else:
+                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                    node_id = node.id if node else None
+                    label_to_node_id[label] = node_id
+
+                # Scads is missing a missing conceptnet id
+                if not node_id:
+                    continue
+                
+                img = Image(dataset_id=dataset.id,
+                            node_id=node_id,
+                            path=os.path.join(mode_dir, image))
+                all_images.append(img)
+        return all_images
+
     def get_conceptnet_id(self, label):
         exceptions = {'pottedplant': 'potted_plant',
                       'tvmonitor': 'tv_monitor',
@@ -142,6 +280,92 @@ class GoogleOpenImageInstallation(DatasetInstaller):
     def get_name(self):
         return "GoogleOpenImage"
 
+    def get_images(self, dataset, session, root):
+        logging.info('inside get images')
+        size = "full"
+        modes = ['train', 'test']
+        label_to_node_id = {}
+    
+        missed_labeles=set([]) 
+        all_images = []
+        image_counter = 0
+        t1 = time.time()
+        logging.info('before mode')
+        for mode in modes:
+            logging.info('inside for mode')
+            df_label = pd.read_feather(
+                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            logging.info('after reading labels mode')
+            df = pd.crosstab(df_label['id'], df_label['class'])
+            logging.info('df created')
+            mode_dir = os.path.join(dataset.path, f'{dataset.path}_' + size, mode)
+            logging.info('after mode dir')
+            for image in os.listdir(os.path.join(root, mode_dir)):
+                if image.startswith('.'):
+                    continue
+                #img = PIL_Image.open(os.path.join(root, mode_dir)+'/'+image) 
+                width, height = imagesize.get(os.path.join(root, mode_dir)+'/'+image)
+                #width, height= img.size 
+                img_size = width * height 
+                labels = df_label.loc[df_label['id'] == image]['class'].values 
+                bbxez = df_label.loc[df_label['id'] == image]['bbox'].values 
+                max_area = 0 
+                for bbx, lbl in zip(bbxez,labels): 
+                    bbx = bbx.split(',') 
+                    x_min = float(bbx[0].strip()) 
+                    y_min = float(bbx[1].strip()) 
+                    x_max = float(bbx[2].strip()) 
+                    y_max = float(bbx[3].strip()) 
+                    w = x_max - x_min 
+                    h = y_max - y_min 
+                    if h<0 or w<0: 
+                        logging.info('---------')
+                        logging.info('negative....'+str(h)+str(w))
+                        logging.info('image: '+str(image))
+                        continue 
+                    area = w * h 
+                    if area > max_area: 
+                        max_area = area 
+                        selected_label = lbl 
+                assert max_area >0 
+                if max_area <=0:
+                    logging.info('max_area negative: '+str(max_area))
+                    logging.info('image: '+str(image))
+                if max_area <= img_size * .2:
+                    continue 
+ 
+                label = selected_label 
+                #label = df.loc[image].idxmax()
+                # Get node_id
+                if label in label_to_node_id:
+                    node_id = label_to_node_id[label]
+                else:
+                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                    node_id = node.id if node else None
+                    label_to_node_id[label] = node_id
+
+                # Scads is missing a missing conceptnet id
+                if not node_id:
+                    logging.info('missed label: '+ str(label))
+                    missed_labeles.add(label) 
+                    continue
+                img = Image(dataset_id=dataset.id,
+                            node_id=node_id,
+                            path=os.path.join(mode_dir, image))
+                all_images.append(img)
+                image_counter += 1
+                logging.info(image_counter)
+                if image_counter % 1000 == 0:
+                    logging.info(image_counter)
+                    session.add_all(all_images)
+                    session.commit()
+                    all_images = []
+                    image_counter = 0
+                    logging.info('a chunkc of 1000 images from google open image is added')
+        t2 = time.time()
+        logging.info('total time...'+str(t2 - t1))
+        logging.info(missed_labeles)
+        return all_images
 
 class Installer:
     def __init__(self, path_to_database):
