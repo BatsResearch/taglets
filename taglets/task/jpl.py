@@ -490,6 +490,7 @@ class JPLRunner:
 
         # update initial model
         self.initial_model = end_model.model
+        self.initial_model.fc = torch.nn.Identity()
 
         log.info('{} Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                checkpoint_num,
