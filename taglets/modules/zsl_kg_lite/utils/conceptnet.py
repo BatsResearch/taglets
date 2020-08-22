@@ -91,7 +91,7 @@ def query_conceptnet(output_path, concept_syn, database_path, n=2):
         log.info("Hop %d", i)
         times = []
         new_nodes = set()
-        for batch_nodes in chunks(hops[i], 5000):
+        for batch_nodes in chunks(hops[i], 500):
             for x in ['start_node', 'end_node']:
                 query_string = "select start_node, end_node, relation_type, weight from edges where"        
                 for node_id in batch_nodes:
