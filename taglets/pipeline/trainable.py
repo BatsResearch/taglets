@@ -74,7 +74,7 @@ class Trainable:
         
         # Launches workers and collects results from queue
         processes = []
-        ctx = mp.get_context('forkserver')
+        ctx = mp.get_context('spawn')
         q = ctx.Queue()
         for i in range(self.n_proc):
             args = (i, q, train_data, val_data)
