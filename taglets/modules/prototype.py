@@ -125,7 +125,8 @@ def get_label_distr_stats(distr):
 def get_dataset_labels(dataset):
     labels = []
     log.warning('Manually getting dataset labels. This might cause a Memory Overflow.')
-    for _, label in dataset:
+    for i in range(len(dataset)):
+        _, label = dataset[i]
         labels.append(label)
     return labels
 
@@ -438,10 +439,7 @@ class PrototypeTaglet(Taglet):
         train_model = True
 
         # validate that train / val datasets are sufficiently large given shot / way
-        try:
-            self.train_labels = train_data.labels
-        except AttributeError:
-            self.train_labels = get_dataset_labels(train_data)
+        self.train_labels = get_dataset_labels(train_data)
         train_label_distr = get_label_distr(self.train_labels)
 
         if self.auto_meta_param:
@@ -462,10 +460,7 @@ class PrototypeTaglet(Taglet):
 
         if train_model:
             if val_data is not None:
-                try:
-                    self.val_labels = val_data.labels
-                except AttributeError:
-                    self.val_labels = get_dataset_labels(val_data)
+                self.val_labels = get_dataset_labels(val_data)
                 val_label_distr = get_label_distr(self.val_labels)
 
                 if not validate_few_shot_config('Val', val_label_distr, shot=self.val_shot,
