@@ -506,32 +506,29 @@ class JPLRunner:
             log.info("Phase: %s", session_status['pair_stage'])
 
 
-def launch_system(dataset_dir, task_ix):
-
-    runner = JPLRunner(dataset_dir, task_ix, testing=False)
-    print('Ran JPLRunner\n')
-    #runner = JPLRunner(dataset_dir, task_ix, use_gpu=use_gpu, testing=False)
-    runner.run_checkpoints()
+def launch_system(dataset_dir, dataset_type):
+    for i in range(4):
+        runner = JPLRunner(dataset_dir, i, testing=False,data_type=dataset_type)
+        print('Ran JPLRunner\n')
+        #runner = JPLRunner(dataset_dir, task_ix, use_gpu=use_gpu, testing=False)
+        runner.run_checkpoints()
 
 @click.command(options_metavar='<options>')
 @click.argument('dataset_dir',envvar='LWLL_TA1_DATA_PATH',type=click.Path(exists=True), metavar='<dataset_dir>')
-@click.option('--problem_task', 'problem_task',
-              envvar='LWLL_TA1_PROB_TASK',
-              default='3')
-def ext_launch(dataset_dir: str, problem_task: str) -> None:
+@click.option('--dataset-type', 'dataset_type',
+              type=click.Choice(['sample','full','all'],
+              case_sensitive=False),
+              envvar='LWLL_TA1_DATASET_TYPE',
+              default='full'
+              )
 
-    print('test1\n')
+def ext_launch(dataset_dir: str, dataset_type: str) -> None:
+
     logger = logging.getLogger()
     logger.level = logging.INFO
     stream_handler = logging.StreamHandler(sys.stdout)
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
-    print('test_2\n')
 
-    problem_task = int(problem_task)
-
-    print('This is problem_task: ', problem_task)
-    print('This is dataset_dir: ', dataset_dir)
-
-    launch_system(dataset_dir, problem_task)
+    launch_system(dataset_dir, dataset_type)
