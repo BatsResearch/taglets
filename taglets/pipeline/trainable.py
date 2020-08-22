@@ -36,9 +36,12 @@ class Trainable:
         self.batch_size = 128
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
+        
 
         # Configures GPU and multiprocessing
         n_gpu = torch.cuda.device_count()
+
+        
         if n_gpu > 0:
             self.use_gpu = True
             self.n_proc = n_gpu
@@ -49,7 +52,7 @@ class Trainable:
 
         # Gradients are summed over workers, so need to scale the step size
         self.lr = self.lr / self.n_proc
-
+        
         self.model = task.get_initial_model()
 
         self._init_random(self.seed)
@@ -68,10 +71,10 @@ class Trainable:
     def train(self, train_data, val_data):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
         os.environ['MASTER_PORT'] = '8888'
-
+        
         # Launches workers and collects results from queue
         processes = []
-        ctx = mp.get_context('spawn')
+        ctx = mp.get_context('forkserver')
         q = ctx.Queue()
         for i in range(self.n_proc):
             args = (i, q, train_data, val_data)
@@ -83,6 +86,7 @@ class Trainable:
 
         for p in processes:
             p.join()
+
 
         state_dict = pickle.loads(state_dict)
         self.model.load_state_dict(state_dict)

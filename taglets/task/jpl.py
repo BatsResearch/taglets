@@ -16,6 +16,7 @@ from ..controller import Controller
 from ..scads import Scads
 from .utils import labels_to_concept_ids
 import linecache
+import click
 
 
 log = logging.getLogger(__name__)
@@ -445,8 +446,8 @@ class JPLRunner:
                     unlabeled_train_dataset,
                     val_dataset,
                     self.jpl_storage.whitelist,
-                    'predefined/scads.fall2020.sqlite3',
-                    'predefined/embeddings/numberbatch-en19.08.txt.gz',
+                    None,
+                    '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz',
                     unlabeled_test_data=unlabeled_test_dataset)
         task.set_initial_model(self.initial_model)
         controller = Controller(task)
@@ -505,39 +506,32 @@ class JPLRunner:
             log.info("Phase: %s", session_status['pair_stage'])
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Run JPL task")
-    parser.add_argument("--dataset_dir", dest="dataset_dir",
-                        type=str,
-                        default="/lwll/development",
-                        help="The directory to all development datasets")
+def launch_system(dataset_dir, task_ix):
 
-    parser.add_argument("--scads_root_dir",
-                        type=str,
-                        default="/lwll/external",
-                        help="The directory to all external datasets")
+    runner = JPLRunner(dataset_dir, task_ix, testing=False)
+    print('Ran JPLRunner\n')
+    #runner = JPLRunner(dataset_dir, task_ix, use_gpu=use_gpu, testing=False)
+    runner.run_checkpoints()
 
-    parser.add_argument("--task_ix", type=int, default=0,
-                        help="Index of image classification task; 0, 1, 2, etc.")
+@click.command(options_metavar='<options>')
+@click.argument('dataset_dir',envvar='LWLL_TA1_DATA_PATH',type=click.Path(exists=True), metavar='<dataset_dir>')
+@click.option('--problem_task', 'problem_task',
+              envvar='LWLL_TA1_PROB_TASK',
+              default='3')
+def ext_launch(dataset_dir: str, problem_task: str) -> None:
 
-    args = parser.parse_args()
-
-    dataset_dir = args.dataset_dir
-    scads_root_dir = args.scads_root_dir
-
-    task_ix = args.task_ix
+    print('test1\n')
     logger = logging.getLogger()
     logger.level = logging.INFO
     stream_handler = logging.StreamHandler(sys.stdout)
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
+    print('test_2\n')
 
-    Scads.set_root_path(scads_root_dir)
-    
-    runner = JPLRunner(dataset_dir, task_ix, testing=False)
-    runner.run_checkpoints()
+    problem_task = int(problem_task)
 
+    print('This is problem_task: ', problem_task)
+    print('This is dataset_dir: ', dataset_dir)
 
-if __name__ == "__main__":
-    main()
+    launch_system(dataset_dir, problem_task)
