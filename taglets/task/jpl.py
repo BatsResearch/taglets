@@ -386,21 +386,8 @@ class JPLRunner:
         self.jpl_storage.set_image_path(phase_dataset_dir, self.api.data_type)
 
     def run_checkpoints(self):
-        try:
-            self.run_checkpoints_base()
-            self.run_checkpoints_adapt()
-        except Exception as ex:
-            exc_type, exc_obj, tb = sys.exc_info()
-            f = tb.tb_frame
-            lineno = tb.tb_lineno
-            filename = f.f_code.co_filename
-            linecache.checkcache(filename)
-            line = linecache.getline(filename, lineno, f.f_globals)
-            self.api.deactivate_session(self.api.session_token)
-
-            logging.info('exception has occured during joint trianing:')
-            logging.info(ex)
-            logging.info('EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj))
+        self.run_checkpoints_base()
+        self.run_checkpoints_adapt()
 
     def run_checkpoints_base(self):
         self.update_jpl_information()
@@ -416,17 +403,9 @@ class JPLRunner:
             self.run_random_checkpoint("Adapt", i)
 
     def run_random_checkpoint(self, phase, checkpoint_num):
-        available_budget = self.get_available_budget()
-        if checkpoint_num == 0:
-            self.jpl_storage.labeled_images = self.api.get_initial_seed_labels()
-        elif checkpoint_num == 1:
-            self.jpl_storage.add_labeled_images(self.api.get_secondary_seed_labels())
-    
-        unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names()
-        log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
-        if checkpoint_num > 2:  # Elaheh: maybe we could get rid of random active learning?!
-            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
-            self.request_labels(candidates)
+        log.info('------------------------------------------------------------')
+        log.info('--------------------{} Checkpoint: {}'.format(phase, checkpoint_num) + '---------------------')
+        log.info('------------------------------------------------------------')
         predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(),
                             'class': [self.jpl_storage.classes[0]] * len(self.jpl_storage.get_evaluation_image_names())}
         self.submit_predictions(predictions_dict)
@@ -449,7 +428,6 @@ class JPLRunner:
         if checkpoint_num == 2:  # Elaheh: maybe we could get rid of random active learning?!
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
             self.request_labels(candidates)
-
         elif checkpoint_num > 2:
             candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
             self.request_labels(candidates)
