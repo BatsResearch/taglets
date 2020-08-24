@@ -420,14 +420,13 @@ class JPLRunner:
         elif checkpoint_num > 2:
             candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
             self.request_labels(candidates)
-            new_candidates = list(range(len(self.jpl_storage.get_unlabeled_image_names())))
-            import random
-            random.shuffle(new_candidates)
-            self.confidence_active_learning.set_candidates(new_candidates)
-        
         predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(),
                             'class': [self.jpl_storage.classes[0]] * len(self.jpl_storage.get_evaluation_image_names())}
         self.submit_predictions(predictions_dict)
+        new_candidates = list(range(len(self.jpl_storage.get_unlabeled_image_names())))
+        import random
+        random.shuffle(new_candidates)
+        self.confidence_active_learning.set_candidates(new_candidates)
 
     def run_one_checkpoint(self, phase, checkpoint_num):
         log.info('------------------------------------------------------------')
