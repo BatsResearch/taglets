@@ -286,7 +286,6 @@ class JPLStorage:
         image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
         image_paths = np.asarray(image_paths)
         image_labels = np.asarray(image_labels)
-        
 
         if checkpoint_num >= 2:
             # 80% for training, 20% for validation
@@ -347,7 +346,7 @@ class JPLStorage:
 
 class JPLRunner:
     def __init__(self, dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
-                 testing = False):
+                 testing=False):
         self.dataset_dir = dataset_dir
         self.problem_type = problem_type
         self.api = JPL(api_url, team_secret, gov_team_secret, dataset_type)
@@ -422,6 +421,7 @@ class JPLRunner:
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
             self.run_one_checkpoint("Base", i)
+            
     def run_checkpoints_adapt(self):
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
@@ -523,7 +523,7 @@ class JPLRunner:
 
 def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret):
     if problem_task == 'all':
-        jpl = JPL(api_url, team_secret, dataset_type)
+        jpl = JPL(api_url, team_secret, dataset_type, gov_team_secret)
         problem_task_list = jpl.get_available_tasks(problem_type)
         for task in problem_task_list:
             runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, task, team_secret, gov_team_secret,
