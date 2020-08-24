@@ -522,7 +522,6 @@ class JPLRunner:
 
 
 def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret):
-    dataset_dir = os.path.join(dataset_dir, 'evaluation')
     if problem_task == 'all':
         jpl = JPL(api_url, team_secret, dataset_type)
         problem_task_list = jpl.get_available_tasks(problem_type)
