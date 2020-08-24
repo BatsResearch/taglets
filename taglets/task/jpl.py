@@ -523,7 +523,7 @@ class JPLRunner:
 
 def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret):
     if problem_task == 'all':
-        jpl = JPL(api_url, team_secret, dataset_type, gov_team_secret)
+        jpl = JPL(api_url, team_secret, gov_team_secret, dataset_type)
         problem_task_list = jpl.get_available_tasks(problem_type)
         for task in problem_task_list:
             runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, task, team_secret, gov_team_secret,
