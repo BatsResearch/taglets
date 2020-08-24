@@ -9,21 +9,19 @@ image classification problem in which there is not enough labeled data.
 Based on the amount of labeled data, we call appropriate modules, create weak
 labelers called _taglets_, and then combine their outputs to train an end model.
 
-## Prerequisites
-1. Python 3.7 with `pip` installed in a *nix environment.
-2. An internet connection is required
-to download predefined data and pretrained models.
-3. External datasets provided by JPL at `/lwll/external`
-4. Need to change the maximum file descriptors (/proc/sys/fs/file-max) to 1,000,000
-
-## Installation
+## Building a docker image
 In the top level directory, run
 ```
-./setup.sh
+docker build --tag brown_taglets:1.0 .
 ```
 
 ## Running the evaluation
-To run the Fall 2020 LwLL evaluation, run 
+To start a container, run 
 ```
-./run_jpl.sh
+docker run --rm -v /lwll:/lwll --gpus all --shm-size 64G --ulimit nofile=1000000:1000000 brown_taglets:1.0
 ```
+Note that "--shm-size 64G" and "--ulimit nofile=1000000:1000000" are crucial for our system to work.
+
+## Important Notes
+- For the dry run, our system currently works only when LWLL_TA1_GPUS = 'all'. 
+We will make sure to fix it to work with a list of GPU ids before the actual evaluation.
