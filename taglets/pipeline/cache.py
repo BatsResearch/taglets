@@ -14,7 +14,7 @@ class Cache:
     @staticmethod
     def get(key, classes):
         if key in Cache.CACHE:
-            saved_classes, data = Cache.CACHE
+            saved_classes, data = Cache.CACHE[key]
             if saved_classes == classes:
                 log.info("Cache hit")
                 return data
