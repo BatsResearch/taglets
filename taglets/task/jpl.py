@@ -504,14 +504,15 @@ class JPLRunner:
         if 'pair_stage' in session_status:
             log.info("Phase: %s", session_status['pair_stage'])
 
-def workflow(dataset_type,problem_type,dataset_dir,api_url,problem_task,gpu_list,run_time,team_secret,gov_team_secret):
+def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, gpu_list, run_time,team_secret,
+             gov_team_secret):
     if problem_task == 'all':
         for i in range(3):
-            runner = JPLRunner(dataset_dir, problem_type, api_url,i,team_secret, dataset_type,testing=False)
-            print('Ran JPLRunner\n')
+            runner = JPLRunner(dataset_dir, problem_type, api_url, i, team_secret, dataset_type, testing=False)
             runner.run_checkpoints()
     else:
-        runner = JPLRunner(dataset_dir, problem_type, api_url, problem_task, team_secret, dataset_type,testing=False)
+        runner = JPLRunner(dataset_dir, problem_type, api_url, problem_task, team_secret, dataset_type, testing=False)
+        runner.run_checkpoints()
 
 
 def launch_system(dataset_type: str,
