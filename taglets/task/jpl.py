@@ -24,12 +24,13 @@ class JPL:
     """
     A class to interact with JPL-like APIs.
     """
-    def __init__(self, api_url, team_secret, dataset_type):
+    def __init__(self, api_url, team_secret, gov_team_secret, dataset_type):
         """
         Create a new JPL object.
         """
 
-        self.secret = team_secret #'a5aed2a8-db80-4b22-bf72-11f2d0765572'
+        self.team_secret = team_secret #'a5aed2a8-db80-4b22-bf72-11f2d0765572'
+        self.gov_team_secret = gov_team_secret
         self.url = api_url #'https://api-staging.lollllz.com'
         self.session_token = ''
         self.data_type = dataset_type #'sample'   # Sample or full
@@ -39,7 +40,8 @@ class JPL:
         Get all available tasks.
         :return: A list of tasks (problems)
         """
-        headers = {'user_secret': self.secret}
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret}
         r = requests.get(self.url + "/list_tasks", headers=headers)
         task_list = r.json()['tasks']
 
@@ -57,7 +59,8 @@ class JPL:
         :param task_name: The name of the task (problem)
         :return: The task metadata
         """
-        headers = {'user_secret': self.secret}
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret}
         r = requests.get(self.url + "/task_metadata/" + task_name, headers=headers)
         return r.json()['task_metadata']
 
@@ -67,7 +70,8 @@ class JPL:
         :param task_name: The name of the task (problem
         :return: None
         """
-        headers = {'user_secret': self.secret}
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret}
         # r = requests.get(self.url + "/auth/get_session_token/" + self.data_type + "/" + task_name, headers=headers)
         r = requests.post(self.url + "/auth/create_session",
                           json={'session_name': 'testing', 'data_type': self.data_type, 'task_id': task_name},
@@ -81,7 +85,9 @@ class JPL:
         Get the session status.
         :return: The session status
         """
-        headers = {'user_secret': self.secret, 'session_token': self.session_token}
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret,
+                   'session_token': self.session_token}
         r = requests.get(self.url + "/session_status", headers=headers)
         if 'Session_Status' in r.json():
             return r.json()['Session_Status']
@@ -93,7 +99,9 @@ class JPL:
         Get seed labels.
         :return: A list of lists with name and label e.g., ['2', '1.png'], ['7', '2.png'], etc.
         """
-        headers = {'user_secret': self.secret, 'session_token': self.session_token}
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret,
+                   'session_token': self.session_token}
         r = requests.get(self.url + "/seed_labels", headers=headers)
         labels = r.json()['Labels']
         seed_labels = []
@@ -104,7 +112,9 @@ class JPL:
         return seed_labels
 
     def get_secondary_seed_labels(self):
-        headers = {'user_secret': self.secret, 'session_token': self.session_token}
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret,
+                   'session_token': self.session_token}
         r = requests.get(self.url + "/secondary_seed_labels", headers=headers)
         labels = r.json()['Labels']
         secondary_seed_labels = []
@@ -114,7 +124,9 @@ class JPL:
 
     def deactivate_session(self, deactivate_session):
 
-        headers_active_session = {'user_secret': self.secret, 'session_token': self.session_token}
+        headers_active_session = {'user_secret': self.team_secret,
+                                  'govteam_secret': self.gov_team_secret,
+                                  'session_token': self.session_token}
 
         r = requests.post(self.url + "/deactivate_session",
                           json={'session_token': deactivate_session},
@@ -139,7 +151,9 @@ class JPL:
         For example:
          [['7','56392.png'], ['8','3211.png'], ['4','19952.png']]
         """
-        headers = {'user_secret': self.secret, 'session_token': self.session_token}
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret,
+                   'session_token': self.session_token}
         r = requests.post(self.url + "/query_labels", json=query, headers=headers)
         labels_dic = r.json()['Labels']
         labels_list = [(d['class'], d['id']) for d in labels_dic]
@@ -156,13 +170,16 @@ class JPL:
         :return: The session status after submitting prediction
         """
 
-        headers = {'user_secret': self.secret, 'session_token': self.session_token}
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret,
+                   'session_token': self.session_token}
         r = requests.post(self.url + "/submit_predictions", json={'predictions': predictions}, headers=headers)
         return r.json()
 
     def deactivate_all_sessions(self):
 
-        headers_session = {'user_secret': self.secret}
+        headers_session = {'user_secret': self.team_secret,
+                           'govteam_secret': self.gov_team_secret}
         r = requests.get(self.url + "/list_active_sessions", headers=headers_session)
         active_sessions = r.json()['active_sessions']
         for session_token in active_sessions:
@@ -329,10 +346,11 @@ class JPLStorage:
 
 
 class JPLRunner:
-    def __init__(self, dataset_dir, problem_type, api_url, problem_task, team_secret, dataset_type, testing = False):
+    def __init__(self, dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
+                 testing = False):
         self.dataset_dir = dataset_dir
         self.problem_type = problem_type
-        self.api = JPL(api_url, team_secret, dataset_type)
+        self.api = JPL(api_url, team_secret, gov_team_secret, dataset_type)
         self.api.data_type = dataset_type
         self.problem_task = problem_task
         self.jpl_storage, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_jpl_information()
@@ -502,17 +520,19 @@ class JPLRunner:
         if 'pair_stage' in session_status:
             log.info("Phase: %s", session_status['pair_stage'])
 
-def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, gpu_list, run_time, team_secret,
-             gov_team_secret):
+
+def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret):
     dataset_dir = os.path.join(dataset_dir, 'evaluation')
     if problem_task == 'all':
         jpl = JPL(api_url, team_secret, dataset_type)
         problem_task_list = jpl.get_available_tasks(problem_type)
         for task in problem_task_list:
-            runner = JPLRunner(dataset_dir, problem_type, api_url, task, team_secret, dataset_type, testing=False)
+            runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, task, team_secret, gov_team_secret,
+                               testing=False)
             runner.run_checkpoints()
     else:
-        runner = JPLRunner(dataset_dir, problem_type, api_url, problem_task, team_secret, dataset_type, testing=False)
+        runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
+                           testing=False)
         runner.run_checkpoints()
 
 
@@ -551,8 +571,7 @@ def main():
     if not Path(dataset_dir).exists():
         raise Exception('`dataset_dir` does not exist..')
 
-    workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, gpu_list, run_time, team_secret,
-             gov_team_secret)
+    workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret)
 
 
 if __name__ == "__main__":
