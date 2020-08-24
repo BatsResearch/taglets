@@ -1,4 +1,3 @@
-import argparse
 import logging
 import sys
 import time
@@ -8,17 +7,14 @@ import numpy as np
 import torch
 import torchvision.models as models
 import torchvision.transforms as transforms
-from torch.utils import data
 from ..data import CustomDataset
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
 from ..task import Task
 from ..controller import Controller
-from ..scads import Scads
 from .utils import labels_to_concept_ids
 import linecache
 import click
 from pathlib import Path
-
 
 
 log = logging.getLogger(__name__)
@@ -473,9 +469,8 @@ class JPLRunner:
                     unlabeled_train_dataset,
                     val_dataset,
                     self.jpl_storage.whitelist,
-               #     None,
-                       '/tmp/predefined/scads.fall2020.sqlite3',
-                        '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz',
+                    '/tmp/predefined/scads.fall2020.sqlite3',
+                    '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz',
                     unlabeled_test_data=unlabeled_test_dataset)
         task.set_initial_model(self.initial_model)
         controller = Controller(task)
@@ -542,15 +537,6 @@ def workflow(dataset_type,problem_type,dataset_dir,api_url,problem_task,gpu_list
             runner.run_checkpoints()
     else:
         runner = JPLRunner(dataset_dir, problem_type, api_url, problem_task, team_secret, dataset_type,testing=False)
-
-<<<<<<< HEAD
-=======
-def launch_system(dataset_dir, dataset_type):
-    for i in range(3):
-        runner = JPLRunner(dataset_dir, i, testing=False,data_type=dataset_type)
->>>>>>> f8593959debb90fbfa11273f906f8ec3f35bff78
-        print('Ran JPLRunner\n')
-        runner.run_checkpoints()
 
 
 def launch_system(dataset_type: str,
