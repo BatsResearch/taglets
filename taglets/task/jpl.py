@@ -333,10 +333,12 @@ class JPLStorage:
 
 
 class JPLRunner:
-    def __init__(self, dataset_dir, problem_type, api_url, problem_task, team_secret, testing=False, data_type=dataset_type):
+
+
+    def __init__(self, dataset_dir, problem_type, api_url, problem_task, team_secret, dataset_type, testing = False):
         self.dataset_dir = dataset_dir
         self.api = JPL(api_url, team_secret, dataset_type)
-        self.api.data_type = data_type
+        self.api.data_type = dataset_type
         self.task_ix = problem_task
         self.jpl_storage, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_jpl_information(problem_type)
         self.random_active_learning = RandomActiveLearning()
@@ -510,11 +512,11 @@ class JPLRunner:
 def workflow(dataset_type,problem_type,dataset_dir,api_url,problem_task,gpu_list,run_time,team_secret,gov_team_secret):
     if problem_task == 'all':
         for i in range(3):
-            runner = JPLRunner(dataset_dir, problem_type, api_url,i,team_secret, testing=False,data_type=dataset_type)
+            runner = JPLRunner(dataset_dir, problem_type, api_url,i,team_secret, dataset_type,testing=False)
             print('Ran JPLRunner\n')
             runner.run_checkpoints()
     else:
-        runner = JPLRunner(dataset_dir, problem_type, api_url, problem_task, team_secret, testing=False, data_type=dataset_type)
+        runner = JPLRunner(dataset_dir, problem_type, api_url, problem_task, team_secret, dataset_type,testing=False)
 
         print('Ran JPLRunner\n')
         runner.run_checkpoints()
