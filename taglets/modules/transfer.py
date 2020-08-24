@@ -1,5 +1,4 @@
-from taglets.data.custom_dataset import CustomDataset
-
+from ..data.custom_dataset import CustomDataset
 from .module import Module
 from ..pipeline import Cache, Taglet
 from ..scads import Scads, ScadsEmbedding
@@ -11,6 +10,7 @@ import logging
 import numpy as np
 import torchvision.transforms as transforms
 import torch.nn as nn
+from torch.utils.data import Subset
 
 log = logging.getLogger(__name__)
 
@@ -120,8 +120,8 @@ class TransferTaglet(Taglet):
         train_idx = indices[:train_split]
         valid_idx = indices[train_split:]
 
-        train_dataset = data.Subset(train_val_data, train_idx)
-        val_dataset = data.Subset(train_val_data, valid_idx)
+        train_dataset = Subset(train_val_data, train_idx)
+        val_dataset = Subset(train_val_data, valid_idx)
 
         return train_dataset, val_dataset, all_related_class
 
