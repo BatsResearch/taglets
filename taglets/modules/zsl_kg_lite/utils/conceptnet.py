@@ -114,7 +114,7 @@ def query_conceptnet(output_path, concept_syn, database_path, n=2):
     all_concepts = list(set((itertools.chain.from_iterable(hops))))
     nodes = []
     i =0
-    for batch_concepts in chunks(all_concepts, 5000):
+    for batch_concepts in chunks(all_concepts, 500):
         i += 1 
         query_string = 'select * from nodes where'
         for c in batch_concepts:

@@ -14,7 +14,8 @@ class Scads:
     A class providing connection to Structured Collections of Annotated Data Sets (SCADS).
     """
     session = None
-    root_path = './'
+    #root_path = './'
+    root_path = '/lwll/external/'
 
     @staticmethod
     def set_root_path(root_path):
