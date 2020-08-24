@@ -544,7 +544,7 @@ def main():
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
     
-    dataset_type = os.environ.get('LWLL_TA1_DATA_PATH')
+    dataset_type = os.environ.get('LWLL_TA1_DATASET_TYPE')
     problem_type = os.environ.get('LWLL_TA1_PROB_TYPE')
     dataset_dir = os.environ.get('LWLL_TA1_DATA_PATH')
     api_url = os.environ.get('LWLL_TA1_API_ENDPOINT')
