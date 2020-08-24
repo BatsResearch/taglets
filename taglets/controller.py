@@ -91,7 +91,6 @@ class Controller:
                     TransferModule(task=self.task),
                     FineTuneModule(task=self.task),
                     ZSLKGModule(task=self.task)]
-
         return [FineTuneModule(task=self.task),
                 PrototypeModule(task=self.task)]
 
