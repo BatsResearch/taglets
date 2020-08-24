@@ -64,7 +64,7 @@ class MultiTaskTaglet(Taglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'multitask'
-        self.num_epochs = 50 if not os.environ.get("CI") else 5
+        self.num_epochs = 5 if not os.environ.get("CI") else 5
         self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)

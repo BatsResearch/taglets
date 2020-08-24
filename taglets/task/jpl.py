@@ -386,6 +386,31 @@ class JPLRunner:
         phase_dataset_dir = os.path.join(self.dataset_dir, current_dataset['name'])
         self.jpl_storage.set_image_path(phase_dataset_dir, self.api.data_type)
 
+    def run_random_checkpoint(self, phase, checkpoint_num):
+        log.info('------------------------------------------------------------')
+        log.info('--------------------{} Checkpoint: {}'.format(phase, checkpoint_num) + '---------------------')
+        log.info('------------------------------------------------------------')
+        available_budget = self.get_available_budget()
+        if checkpoint_num == 0:
+            self.jpl_storage.labeled_images = self.api.get_initial_seed_labels()
+        elif checkpoint_num == 1:
+            self.jpl_storage.add_labeled_images(self.api.get_secondary_seed_labels())
+        unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names()
+        log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
+        if checkpoint_num == 2:  # Elaheh: maybe we could get rid of random active learning?!
+            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
+            self.request_labels(candidates)
+        elif checkpoint_num > 2:
+            candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
+            self.request_labels(candidates)
+            new_candidates = list(range(len(self.jpl_storage.get_unlabeled_image_names())))
+            import random
+            random.shuffle(new_candidates)
+            self.confidence_active_learning.set_candidates(new_candidates)
+        predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(),
+                            'class': [self.jpl_storage.classes[0]] * len(self.jpl_storage.get_evaluation_image_names())}
+        self.submit_predictions(predictions_dict)
+
     def run_checkpoints(self):
         try:
             self.run_checkpoints_base()
@@ -407,7 +432,6 @@ class JPLRunner:
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
             self.run_one_checkpoint("Base", i)
-
     def run_checkpoints_adapt(self):
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
@@ -446,8 +470,9 @@ class JPLRunner:
                     unlabeled_train_dataset,
                     val_dataset,
                     self.jpl_storage.whitelist,
-                    None,
-                    '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz',
+               #     None,
+                       '/tmp/predefined/scads.fall2020.sqlite3',
+                        '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz',
                     unlabeled_test_data=unlabeled_test_dataset)
         task.set_initial_model(self.initial_model)
         controller = Controller(task)
@@ -508,7 +533,7 @@ class JPLRunner:
 
 
 def launch_system(dataset_dir, dataset_type):
-    for i in range(4):
+    for i in range(3):
         runner = JPLRunner(dataset_dir, i, testing=False,data_type=dataset_type)
         print('Ran JPLRunner\n')
         #runner = JPLRunner(dataset_dir, task_ix, use_gpu=use_gpu, testing=False)
