@@ -38,7 +38,7 @@ class Trainable:
         self.save_dir = None
 
         # Configures GPU and multiprocessing
-        n_gpu = torch.cuda.device_count()
+        n_gpu = Trainable._get_num_gpus()
         if n_gpu > 0:
             self.use_gpu = True
             self.n_proc = n_gpu
@@ -191,6 +191,34 @@ class Trainable:
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
 
+    @staticmethod
+    def _get_num_gpus():
+        gpu_list = os.getenv("LWLL_TA1_GPUS")
+        if gpu_list is not None and gpu_list != "all":
+            gpu_list = [int(x) for x in gpu_list.split(" ")]
+            return len(gpu_list)
+        else:
+            return torch.cuda.device_count()
+
+    @staticmethod
+    def _get_gpu_id(rank):
+        """
+        Gets the assigned GPU id based on worker's rank.
+
+        Checks environment variable LWLL_TA1_GPUS to determine the GPU. If the
+        variable is not set or is "all", then the GPU id is the rank. Otherwise,
+        it is the GPU id in the rank position.
+
+        :param rank: worker's rank
+        :return: integer id of GPU to use
+        """
+        gpu_list = os.getenv("LWLL_TA1_GPUS")
+        if gpu_list is not None and gpu_list != "all":
+            gpu_list = [int(x) for x in gpu_list.split(" ")]
+            return gpu_list[rank]
+        else:
+            return rank
+
     def _do_train(self, rank, q, train_data, val_data):
         """
         One worker for training.
@@ -213,9 +241,10 @@ class Trainable:
 
         # Configures model to be distributed
         if self.use_gpu:
-            self.model = self.model.cuda(rank)
+            device_id = Trainable._get_gpu_id(rank)
+            self.model = self.model.cuda(device_id)
             self.model = nn.parallel.DistributedDataParallel(
-                self.model, device_ids=[rank]
+                self.model, device_ids=[device_id]
             )
         else:
             self.model = self.model.cpu()
@@ -263,7 +292,7 @@ class Trainable:
             summaries = [train_loss, train_acc, val_loss, val_acc]
             summaries = torch.tensor(summaries, requires_grad=False)
             if self.use_gpu:
-                summaries = summaries.cuda(rank)
+                summaries = summaries.cuda(Trainable._get_gpu_id(rank))
             else:
                 summaries = summaries.cpu()
             dist.reduce(summaries, 0, op=dist.ReduceOp.SUM)
@@ -325,8 +354,8 @@ class Trainable:
             inputs = batch[0]
             labels = batch[1]
             if self.use_gpu:
-                inputs = inputs.cuda(rank)
-                labels = labels.cuda(rank)
+                inputs = inputs.cuda(Trainable._get_gpu_id(rank))
+                labels = labels.cuda(Trainable._get_gpu_id(rank))
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
@@ -360,8 +389,8 @@ class Trainable:
             inputs = batch[0]
             labels = batch[1]
             if self.use_gpu:
-                inputs = inputs.cuda(rank)
-                labels = labels.cuda(rank)
+                inputs = inputs.cuda(Trainable._get_gpu_id(rank))
+                labels = labels.cuda(Trainable._get_gpu_id(rank))
             with torch.set_grad_enabled(False):
                 outputs = self.model(inputs)
                 loss = torch.nn.functional.cross_entropy(outputs, labels)
@@ -398,7 +427,7 @@ class Trainable:
 
         # Configures model for device
         if self.use_gpu:
-            pred_classifier = pred_classifier.cuda(rank)
+            pred_classifier = pred_classifier.cuda(Trainable._get_gpu_id(rank))
         else:
             pred_classifier = pred_classifier.cpu()
 
@@ -420,7 +449,7 @@ class Trainable:
                 inputs, targets = batch, None
 
             if self.use_gpu:
-                inputs = inputs.cuda(rank)
+                inputs = inputs.cuda(Trainable._get_gpu_id(rank))
 
             with torch.set_grad_enabled(False):
                 output = pred_classifier(inputs)

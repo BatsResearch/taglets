@@ -1,5 +1,5 @@
 from .module import Module
-from ..pipeline import Taglet
+from ..pipeline import Taglet, Trainable
 import os
 import logging
 import torch
@@ -278,7 +278,7 @@ class NearestProtoModule(nn.Module):
     def get_forward_loss(self, x, rank, way, shot, val=False):
         label = torch.arange(way).repeat(self.query)
         if self.use_gpu:
-            label = label.cuda(rank)
+            label = label.cuda(Trainable._get_gpu_id(rank))
         else:
             label = label.cpu()
 
@@ -403,7 +403,7 @@ class PrototypeTaglet(Taglet):
         infer_dataloader = DataLoader(dataset=infer_data, batch_size=self.batch_size,
                                       num_workers=0, pin_memory=True)
         if self.use_gpu:
-            self.protonet.cuda(rank)
+            self.protonet.cuda(Trainable._get_gpu_id(rank))
         else:
             self.protonet.cpu()
 
@@ -412,8 +412,8 @@ class PrototypeTaglet(Taglet):
                 image, label = data[0], data[1]
                 # Memorize
                 if self.use_gpu:
-                    image = image.cuda(rank)
-                    label = label.cuda(rank)
+                    image = image.cuda(Trainable._get_gpu_id(rank))
+                    label = label.cuda(Trainable._get_gpu_id(rank))
 
                 for img, lbl in zip(image, label):
                     proto = self.model(torch.unsqueeze(img, dim=0))
@@ -478,7 +478,7 @@ class PrototypeTaglet(Taglet):
         self.protonet.train()
 
         if self.use_gpu:
-            self.protonet = self.protonet.cuda(rank)
+            self.protonet = self.protonet.cuda(Trainable._get_gpu_id(rank))
         else:
             self.protonet = self.protonet.cpu()
 
@@ -489,7 +489,7 @@ class PrototypeTaglet(Taglet):
             log.info('Train Episode: %d' % i)
             count += 1
             if self.use_gpu:
-                data, _ = [x.cuda(rank) for x in batch]
+                data, _ = [x.cuda(Trainable._get_gpu_id(rank)) for x in batch]
             else:
                 data = batch[0]
 
@@ -522,7 +522,7 @@ class PrototypeTaglet(Taglet):
             log.info('Val Episode: %d' % i)
             count += 1
             if self.use_gpu:
-                data, _ = [x.cuda(rank) for x in batch]
+                data, _ = [x.cuda(Trainable._get_gpu_id(rank)) for x in batch]
             else:
                 data = batch[0]
             with torch.set_grad_enabled(False):

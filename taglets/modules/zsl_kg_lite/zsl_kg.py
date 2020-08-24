@@ -1,5 +1,5 @@
 from ..module import Module
-from ...pipeline import Taglet
+from ...pipeline import Taglet, Trainable
 
 import copy
 import os
@@ -155,7 +155,7 @@ class ZSLKGTaglet(Taglet):
 
         # checking if gpu can be used
         if self.use_gpu:
-            device = torch.device('cuda:0')
+            device = torch.device('cuda:' + str(Trainable._get_gpu_id(0)))
         else:
             device = torch.device('cpu')
 

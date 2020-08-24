@@ -1,6 +1,6 @@
 from .module import Module
 from ..data.custom_dataset import CustomDataset
-from ..pipeline import Taglet
+from ..pipeline import Taglet, Trainable
 from ..scads import Scads, ScadsEmbedding
 
 import os
@@ -183,10 +183,10 @@ class MultiTaskTaglet(Taglet):
             source_inputs, source_labels = source_batch
             target_inputs, target_labels = target_batch
             if self.use_gpu:
-                source_inputs = source_inputs.cuda(rank)
-                source_labels = source_labels.cuda(rank)
-                target_inputs = target_inputs.cuda(rank)
-                target_labels = target_labels.cuda(rank)
+                source_inputs = source_inputs.cuda(Trainable._get_gpu_id(rank))
+                source_labels = source_labels.cuda(Trainable._get_gpu_id(rank))
+                target_inputs = target_inputs.cuda(Trainable._get_gpu_id(rank))
+                target_labels = target_labels.cuda(Trainable._get_gpu_id(rank))
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
