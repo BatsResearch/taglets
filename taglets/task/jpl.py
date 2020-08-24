@@ -17,6 +17,8 @@ from ..scads import Scads
 from .utils import labels_to_concept_ids
 import linecache
 import click
+from pathlib import Path
+
 
 
 log = logging.getLogger(__name__)
@@ -26,15 +28,15 @@ class JPL:
     """
     A class to interact with JPL-like APIs.
     """
-    def __init__(self):
+    def __init__(self, api_url, team_secret, dataset_type):
         """
         Create a new JPL object.
         """
 
-        self.secret = 'a5aed2a8-db80-4b22-bf72-11f2d0765572'
-        self.url = 'https://api-staging.lollllz.com'
+        self.secret = team_secret #'a5aed2a8-db80-4b22-bf72-11f2d0765572'
+        self.url = api_url #'https://api-staging.lollllz.com'
         self.session_token = ''
-        self.data_type = 'sample'   # Sample or full
+        self.data_type = dataset_type #'sample'   # Sample or full
 
     def get_available_tasks(self, problem_type):
         """
@@ -331,13 +333,12 @@ class JPLStorage:
 
 
 class JPLRunner:
-    def __init__(self, dataset_dir, task_ix, testing=False, data_type='sample'):
+    def __init__(self, dataset_dir, problem_type, api_url, problem_task, team_secret, testing=False, data_type=dataset_type):
         self.dataset_dir = dataset_dir
-
-        self.api = JPL()
+        self.api = JPL(api_url, team_secret, dataset_type)
         self.api.data_type = data_type
-        self.task_ix = task_ix
-        self.jpl_storage, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_jpl_information()
+        self.task_ix = problem_task
+        self.jpl_storage, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_jpl_information(problem_type)
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
 
@@ -346,8 +347,8 @@ class JPLRunner:
 
         self.testing = testing
 
-    def get_jpl_information(self):
-        jpl_task_names = self.api.get_available_tasks('image_classification')
+    def get_jpl_information(self,problem_type):
+        jpl_task_names = self.api.get_available_tasks(problem_type)
         # Elaheh: (need change in eval) choose image classification task you would like. Now there are four tasks
         image_classification_task = jpl_task_names[self.task_ix]
         jpl_task_name = image_classification_task
@@ -506,24 +507,99 @@ class JPLRunner:
         if 'pair_stage' in session_status:
             log.info("Phase: %s", session_status['pair_stage'])
 
+def workflow(dataset_type,problem_type,dataset_dir,api_url,problem_task,gpu_list,run_time,team_secret,gov_team_secret):
+    if problem_task == 'all':
+        for i in range(3):
+            runner = JPLRunner(dataset_dir, problem_type, api_url,i,team_secret, testing=False,data_type=dataset_type)
+            print('Ran JPLRunner\n')
+            runner.run_checkpoints()
+    else:
+        runner = JPLRunner(dataset_dir, problem_type, api_url, problem_task, team_secret, testing=False, data_type=dataset_type)
 
-def launch_system(dataset_dir, dataset_type):
-    for i in range(4):
-        runner = JPLRunner(dataset_dir, i, testing=False,data_type=dataset_type)
         print('Ran JPLRunner\n')
-        #runner = JPLRunner(dataset_dir, task_ix, use_gpu=use_gpu, testing=False)
         runner.run_checkpoints()
 
+
+def launch_system(dataset_type: str,
+                  problem_type: str,
+                  dataset_dir: str,
+                  api_url: str,
+                  problem_task: str,
+                  gpu_list: str,
+                  run_time: float,
+                  team_secret: str,
+                  gov_team_secret: str,
+                  ) -> None:
+    valid_dataset_types = ['sample', 'full', 'all']
+    if dataset_type not in valid_dataset_types:
+        raise Exception(f'Invalid `dataset_type`, expected one of {valid_dataset_types}')
+
+    # check gpus are all
+    if gpu_list != 'all':
+        raise Exception(f'all gpus are required')
+
+    # Check problem type is valid
+    valid_problem_types = ['image_classification', 'object_detection', 'machine_translation', 'all']
+    if problem_type not in valid_problem_types:
+        raise Exception(f'Invalid `problem_type`, expected one of {valid_problem_types}')
+
+    # Check dataset directory exists
+    if not Path(dataset_dir).exists():
+        raise Exception('`dataset_dir` does not exist..')
+    workflow(dataset_type,problem_type,dataset_dir,api_url,problem_task,gpu_list,run_time,team_secret,gov_team_secret)
+
 @click.command(options_metavar='<options>')
-@click.argument('dataset_dir',envvar='LWLL_TA1_DATA_PATH',type=click.Path(exists=True), metavar='<dataset_dir>')
+@click.argument('dataset_dir',
+              envvar='LWLL_TA1_DATA_PATH',
+              type=click.Path(exists=True),
+              metavar='<dataset_dir>'
+              )
+@click.argument('team_secret',
+              envvar='LWLL_TA1_TEAM_SECRET',
+              metavar='<team_secret>'
+              )
+@click.option('--gov-team-secret', 'gov_team_secret',
+              envvar='LWLL_TA1_GOVTEAM_SECRET',
+              metavar='<gov_team_secret>'
+              )
+@click.option('-a', '--api-endpoint', 'api_url',
+              envvar='LWLL_TA1_API_ENDPOINT',
+              default='https://api-dev.lollllz.com/'
+              )
+@click.option('--problem-type', 'problem_type',
+              type=click.Choice(['image_classification', 'object_detection',
+                                 'machine_translation', 'all'],
+              case_sensitive=False),
+              envvar='LWLL_TA1_PROB_TYPE',
+              default='image_classification'
+              )
+@click.option('--problem_task', 'problem_task',
+              envvar='LWLL_TA1_PROB_TASK',
+              default='all')
 @click.option('--dataset-type', 'dataset_type',
               type=click.Choice(['sample','full','all'],
               case_sensitive=False),
               envvar='LWLL_TA1_DATASET_TYPE',
               default='full'
               )
+@click.option('--duration', 'run_time',
+              type=click.FLOAT,
+              envvar='LWLL_TA1_HOURS',
+              default=0.0833) #defaults to 5 min
+@click.option('--gpus', 'gpu_list',
+              envvar='LWLL_TA1_GPUS',
+              default='none')
 
-def ext_launch(dataset_dir: str, dataset_type: str) -> None:
+def ext_launch(dataset_type: str,
+               problem_type: str,
+               dataset_dir: str,
+               api_url: str,
+               problem_task: str,
+               gpu_list: str,
+               run_time: float,
+               team_secret: str,
+               gov_team_secret: str,
+               ) -> None:
 
     logger = logging.getLogger()
     logger.level = logging.INFO
@@ -532,4 +608,6 @@ def ext_launch(dataset_dir: str, dataset_type: str) -> None:
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
 
-    launch_system(dataset_dir, dataset_type)
+    launch_system(dataset_type, problem_type, dataset_dir, api_url, problem_task,
+                  gpu_list, run_time, team_secret, gov_team_secret)
+
