@@ -165,8 +165,7 @@ class MultiTaskTaglet(Taglet):
         
         super(MultiTaskTaglet, self).train(train_data, val_data)
 
-    @staticmethod
-    def _do_train(rank, self, train_data, val_data):
+    def _do_train(self, rank, q, train_data, val_data):
         # batch_size = min(len(train_data) // num_batches, 256)
         old_batch_size = self.batch_size
         self.batch_size = 128
@@ -174,7 +173,7 @@ class MultiTaskTaglet(Taglet):
         self.source_data_loader = self._get_dataloader(data=self.source_data, sampler=source_sampler)
         self.batch_size = old_batch_size
 
-        super(MultiTaskTaglet, self)._do_train(rank, self, train_data, val_data)
+        super(MultiTaskTaglet, self)._do_train(rank, q, train_data, val_data)
 
     def _train_epoch(self, rank, train_data_loader):
         self.model.train()

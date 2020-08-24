@@ -21,8 +21,6 @@ class Trainable:
     from this class.
     """
 
-    TEMP_MODEL_FILE = "temp_model.pt"
-
     def __init__(self, task):
         """
         Create a new Trainable.
@@ -70,11 +68,24 @@ class Trainable:
     def train(self, train_data, val_data):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
         os.environ['MASTER_PORT'] = '8888'
-        args = (self, train_data, val_data)
-        mp.spawn(self._do_train, args, nprocs=self.n_proc)
-        with open(self.TEMP_MODEL_FILE, 'rb') as f:
-            state_dict = pickle.load(f)
-            self.model.load_state_dict(state_dict)
+
+        # Launches workers and collects results from queue
+        processes = []
+        ctx = mp.get_context('spawn')
+        q = ctx.Queue()
+        for i in range(self.n_proc):
+            args = (i, q, train_data, val_data)
+            p = ctx.Process(target=self._do_train, args=args)
+            p.start()
+            processes.append(p)
+
+        state_dict = q.get()
+
+        for p in processes:
+            p.join()
+
+        state_dict = pickle.loads(state_dict)
+        self.model.load_state_dict(state_dict)
 
     def predict(self, data):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
@@ -180,8 +191,7 @@ class Trainable:
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
 
-    @staticmethod
-    def _do_train(rank, self, train_data, val_data):
+    def _do_train(self, rank, q, train_data, val_data):
         """
         One worker for training.
 
@@ -293,8 +303,8 @@ class Trainable:
 
             self.model.cpu()
             state_dict = self.model.module.state_dict()
-            with open(self.TEMP_MODEL_FILE, 'wb') as f:
-                pickle.dump(state_dict, f)
+            state_dict = pickle.dumps(state_dict)
+            q.put(state_dict)
 
     def _train_epoch(self, rank, train_data_loader):
         """
