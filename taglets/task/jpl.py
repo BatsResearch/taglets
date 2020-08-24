@@ -516,16 +516,24 @@ def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, gpu
         runner.run_checkpoints()
 
 
-def launch_system(dataset_type: str,
-                  problem_type: str,
-                  dataset_dir: str,
-                  api_url: str,
-                  problem_task: str,
-                  gpu_list: str,
-                  run_time: float,
-                  team_secret: str,
-                  gov_team_secret: str,
-                  ) -> None:
+def main():
+    logger = logging.getLogger()
+    logger.level = logging.INFO
+    stream_handler = logging.StreamHandler(sys.stdout)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+    
+    dataset_type = os.environ.get('LWLL_TA1_DATA_PATH')
+    problem_type = os.environ.get('LWLL_TA1_PROB_TYPE')
+    dataset_dir = os.environ.get('LWLL_TA1_DATA_PATH')
+    api_url = os.environ.get('LWLL_TA1_API_ENDPOINT')
+    problem_task = os.environ.get('LWLL_TA1_PROB_TASK')
+    gpu_list = os.environ.get('LWLL_TA1_GPUS')
+    run_time = os.environ.get('LWLL_TA1_HOURS')
+    team_secret = os.environ.get('LWLL_TA1_TEAM_SECRET')
+    gov_team_secret = os.environ.get('LWLL_TA1_GOVTEAM_SECRET')
+    
     valid_dataset_types = ['sample', 'full', 'all']
     if dataset_type not in valid_dataset_types:
         raise Exception(f'Invalid `dataset_type`, expected one of {valid_dataset_types}')
@@ -542,68 +550,10 @@ def launch_system(dataset_type: str,
     # Check dataset directory exists
     if not Path(dataset_dir).exists():
         raise Exception('`dataset_dir` does not exist..')
-    workflow(dataset_type,problem_type,dataset_dir,api_url,problem_task,gpu_list,run_time,team_secret,gov_team_secret)
 
-@click.command(options_metavar='<options>')
-@click.argument('dataset_dir',
-              envvar='LWLL_TA1_DATA_PATH',
-              type=click.Path(exists=True),
-              metavar='<dataset_dir>'
-              )
-@click.argument('team_secret',
-              envvar='LWLL_TA1_TEAM_SECRET',
-              metavar='<team_secret>'
-              )
-@click.option('--gov-team-secret', 'gov_team_secret',
-              envvar='LWLL_TA1_GOVTEAM_SECRET',
-              metavar='<gov_team_secret>'
-              )
-@click.option('-a', '--api-endpoint', 'api_url',
-              envvar='LWLL_TA1_API_ENDPOINT',
-              default='https://api-dev.lollllz.com/'
-              )
-@click.option('--problem-type', 'problem_type',
-              type=click.Choice(['image_classification', 'object_detection',
-                                 'machine_translation', 'all'],
-              case_sensitive=False),
-              envvar='LWLL_TA1_PROB_TYPE',
-              default='image_classification'
-              )
-@click.option('--problem_task', 'problem_task',
-              envvar='LWLL_TA1_PROB_TASK',
-              default='all')
-@click.option('--dataset-type', 'dataset_type',
-              type=click.Choice(['sample','full','all'],
-              case_sensitive=False),
-              envvar='LWLL_TA1_DATASET_TYPE',
-              default='full'
-              )
-@click.option('--duration', 'run_time',
-              type=click.FLOAT,
-              envvar='LWLL_TA1_HOURS',
-              default=0.0833) #defaults to 5 min
-@click.option('--gpus', 'gpu_list',
-              envvar='LWLL_TA1_GPUS',
-              default='none')
+    workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, gpu_list, run_time, team_secret,
+             gov_team_secret)
 
-def ext_launch(dataset_type: str,
-               problem_type: str,
-               dataset_dir: str,
-               api_url: str,
-               problem_task: str,
-               gpu_list: str,
-               run_time: float,
-               team_secret: str,
-               gov_team_secret: str,
-               ) -> None:
 
-    logger = logging.getLogger()
-    logger.level = logging.INFO
-    stream_handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
-
-    launch_system(dataset_type, problem_type, dataset_dir, api_url, problem_task,
-                  gpu_list, run_time, team_secret, gov_team_secret)
-
+if __name__ == "__main__":
+    main()
