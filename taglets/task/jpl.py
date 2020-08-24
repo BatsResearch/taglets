@@ -329,14 +329,13 @@ class JPLStorage:
 
 
 class JPLRunner:
-
-
     def __init__(self, dataset_dir, problem_type, api_url, problem_task, team_secret, dataset_type, testing = False):
         self.dataset_dir = dataset_dir
+        self.problem_type = problem_type
         self.api = JPL(api_url, team_secret, dataset_type)
         self.api.data_type = dataset_type
-        self.task_ix = problem_task
-        self.jpl_storage, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_jpl_information(problem_type)
+        self.problem_task = problem_task
+        self.jpl_storage, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_jpl_information()
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
 
@@ -345,10 +344,9 @@ class JPLRunner:
 
         self.testing = testing
 
-    def get_jpl_information(self,problem_type):
-        jpl_task_names = self.api.get_available_tasks(problem_type)
+    def get_jpl_information(self):
         # Elaheh: (need change in eval) choose image classification task you would like. Now there are four tasks
-        image_classification_task = jpl_task_names[self.task_ix]
+        image_classification_task = self.problem_task
         jpl_task_name = image_classification_task
         self.api.create_session(jpl_task_name)
         jpl_task_metadata = self.api.get_task_metadata(jpl_task_name)
@@ -504,11 +502,13 @@ class JPLRunner:
         if 'pair_stage' in session_status:
             log.info("Phase: %s", session_status['pair_stage'])
 
-def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, gpu_list, run_time,team_secret,
+def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, gpu_list, run_time, team_secret,
              gov_team_secret):
     if problem_task == 'all':
-        for i in range(3):
-            runner = JPLRunner(dataset_dir, problem_type, api_url, i, team_secret, dataset_type, testing=False)
+        jpl = JPL(api_url, team_secret, dataset_type)
+        problem_task_list = jpl.get_available_tasks(problem_type)
+        for task in problem_task_list:
+            runner = JPLRunner(dataset_dir, problem_type, api_url, task, team_secret, dataset_type, testing=False)
             runner.run_checkpoints()
     else:
         runner = JPLRunner(dataset_dir, problem_type, api_url, problem_task, team_secret, dataset_type, testing=False)
