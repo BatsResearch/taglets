@@ -503,8 +503,8 @@ class PrototypeTaglet(Taglet):
             running_acc += acc
             log.info("avg train episode loss: %f" % (loss.item() / self.query))
             log.info("train episode accuracy: %f%s" % (acc * 100.0, "%"))
-        epoch_loss = running_loss / count if count > 0 else 0.0
-        epoch_acc = running_acc / count if count > 0 else 0.0
+        epoch_loss = running_loss / (count * self.n_proc) if count > 0 else 0.0
+        epoch_acc = running_acc / (count * self.n_proc) if count > 0 else 0.0
         return epoch_loss, epoch_acc
 
     def _validate_epoch(self, rank, val_data_loader):
@@ -535,6 +535,6 @@ class PrototypeTaglet(Taglet):
             running_acc += acc
             log.info("avg val episode loss: %f" % (loss.item() / self.query))
             log.info("val episode accuracy: %f%s" % (acc * 100.0, "%"))
-        epoch_loss = running_loss / count if count > 0 else 0.0
-        epoch_acc = running_acc / count if count > 0 else 0.0
+        epoch_loss = running_loss / (count * self.n_proc) if count > 0 else 0.0
+        epoch_acc = running_acc / (count * self.n_proc) if count > 0 else 0.0
         return epoch_loss, epoch_acc
