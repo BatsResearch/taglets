@@ -7,6 +7,7 @@ import sys
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, ConcatDataset
+import traceback
 
 ####################################################################
 # We configure logging in the main class of the application so that
@@ -47,18 +48,25 @@ class Controller:
 
         unlabeled_images_labels = []
         if unlabeled is not None:
-            # Initializes taglet-creating modules
+            # Creates taglets
             modules = self._get_taglets_modules()
-
-            for module in modules:
-                log.info("Training %s module", module.__class__.__name__)
-                module.train_taglets(labeled, val)
-                log.info("Finished training %s module", module.__class__.__name__)
-    
-            # Collects all taglets
             taglets = []
-            for module in modules:
-                taglets.extend(module.get_valid_taglets())
+            for cls in modules:
+                try:
+                    log.info("Initializing %s module", cls.__name__)
+                    module = cls(task=self.task)
+                    log.info("Training %s module", cls.__name__)
+                    module.train_taglets(labeled, val)
+                    log.info("Finished training %s module", cls.__name__)
+
+                    # Collects taglets
+                    taglets.extend(module.get_valid_taglets())
+                except Exception:
+                    log.error("Exception raised in %s module", cls.__name__)
+                    for line in traceback.format_exc().splitlines():
+                        log.error(line)
+                    log.error("Continuing execution")
+    
             taglet_executor = TagletExecutor()
             taglet_executor.set_taglets(taglets)
     
@@ -86,13 +94,13 @@ class Controller:
 
     def _get_taglets_modules(self):
         if self.task.scads_path is not None:
-            return [PrototypeModule(task=self.task),
-                    MultiTaskModule(task=self.task),
-                    TransferModule(task=self.task),
-                    FineTuneModule(task=self.task),
-                    ZSLKGModule(task=self.task)]
-        return [FineTuneModule(task=self.task),
-                PrototypeModule(task=self.task)]
+            return [PrototypeModule,
+                    MultiTaskModule,
+                    TransferModule,
+                    FineTuneModule,
+                    ZSLKGModule]
+        return [FineTuneModule,
+                PrototypeModule]
 
     def _combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
         labeled = DataLoader(labeled_dataset, batch_size=1, shuffle=False)

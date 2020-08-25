@@ -1,4 +1,5 @@
 from taglets.controller import Controller
+from taglets.modules.module import Module
 from taglets.scads import Scads
 from taglets.scads.create.install import Installer, MnistInstallation
 from taglets.task import Task
@@ -47,6 +48,21 @@ class MnistResNet(ResNet):
         self.conv1 = torch.nn.Conv2d(3, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
         self.fc = torch.nn.Identity()
 
+class BadModule1(Module):
+    def __init__(self, task):
+        super(BadModule1, self).__init__(task)
+        raise Exception("Deliberate error.")
+
+class BadModule2(Module):
+    def train_taglets(self, _, _):
+        raise Exception("Deliberate error.")
+
+class UnreliableController(Controller):
+    def _get_taglets_modules(self):
+        modules = super(UnreliableController, self)._get_taglets_modules()
+        modules.append(BadModule1)
+        modules.append(BadModule2)
+        return modules
 
 class TestController(unittest.TestCase):
     @classmethod
@@ -102,7 +118,7 @@ class TestController(unittest.TestCase):
         task.set_initial_model(MnistResNet())
 
         # Executes task
-        controller = Controller(task)
+        controller = UnreliableController(task)
         end_model = controller.train_end_model()
 
         # Evaluates end model
