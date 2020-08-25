@@ -321,7 +321,8 @@ class PrototypeTaglet(Taglet):
         if val_way is None:
             self.val_way = self.train_way
 
-        self.save_dir = os.path.join('trained_models', self.name)
+        self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
+        #self.save_dir = os.path.join('/lwll/extra', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
