@@ -511,7 +511,7 @@ class PrototypeTaglet(Taglet):
         self.protonet.eval()
 
         if self.use_gpu:
-            self.protonet = self.protonet.cuda(rank)
+            self.protonet = self.protonet.cuda(Trainable._get_gpu_id(rank))
         else:
             self.protonet = self.protonet.cpu()
 

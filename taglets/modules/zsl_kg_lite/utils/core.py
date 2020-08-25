@@ -1,13 +1,9 @@
-
-import os
-import re
-import random
-
-import torch
-import torch.nn.functional as F
+from ....pipeline import Trainable
 import numpy as np
+import os
+import random
 import scipy.sparse as sp
-import pandas as pd
+import torch
 
 
 def pad_tensor(adj_nodes_list, mask=False):
@@ -177,7 +173,7 @@ def l2_loss(a, b):
 
 def get_device():
     if torch.cuda.is_available():
-        device = torch.device("cuda:0")
+        device = torch.device("cuda:" + str(Trainable._get_gpu_id(0)))
         cuda_device = 0
     else:
         device = torch.device('cpu')
