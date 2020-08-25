@@ -1,3 +1,4 @@
+from .cache import Cache
 from .end_model import EndModel
 from .taglet import Taglet
 from .taglet_executer import TagletExecutor
