@@ -29,8 +29,10 @@ class TransferTaglet(Taglet):
     def __init__(self, task, freeze=False, is_norm=False):
         super().__init__(task)
         self.name = 'transfer'
-        self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
-        #self.save_dir = os.path.join('/lwll/extra', self.name)
+        if os.getenv("LWLL_TA1_PROB_TASK") is not None:
+            self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
+        else:
+            self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
             
