@@ -48,14 +48,17 @@ class MnistResNet(ResNet):
         self.conv1 = torch.nn.Conv2d(3, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
         self.fc = torch.nn.Identity()
 
+
 class BadModule1(Module):
     def __init__(self, task):
         super(BadModule1, self).__init__(task)
         raise Exception("Deliberate error.")
 
+
 class BadModule2(Module):
-    def train_taglets(self, _, _):
+    def train_taglets(self, train_data, val_data):
         raise Exception("Deliberate error.")
+
 
 class UnreliableController(Controller):
     def _get_taglets_modules(self):
