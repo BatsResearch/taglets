@@ -188,7 +188,6 @@ class Trainable:
         """
         random.seed(seed)
         np.random.seed(seed)
-        torch.manual_seed(seed)
 
     @staticmethod
     def _get_num_gpus():
