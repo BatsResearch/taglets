@@ -12,7 +12,7 @@ class EndModel(Trainable):
         output_shape = self._get_model_output_shape(self.task.input_shape, m)
         self.model.fc = torch.nn.Sequential(torch.nn.Dropout(0.2),
                                             torch.nn.Linear(output_shape, len(self.task.classes)))
-        self.save_dir = os.path.join('trained_models', self.name)
+        self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
         self.criterion = self.soft_cross_entropy

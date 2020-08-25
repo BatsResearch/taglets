@@ -40,13 +40,20 @@ COPY . /tmp
 RUN cd /tmp && pip install .
 RUN cd /tmp && ./setup.sh
 
-#RUN useradd --create-home appuser
-#WORKDIR /home/appuser
-#USER appuser
+
+#RUN addgroup --gid 1000 tagletuser
+#RUN adduser --disabled-password --gecos '' --uid 1000 --gid 1000 tagletuser
+RUN useradd --create-home tagletuser
+USER tagletuser
+#WORKDIR /home/tagletuser
+
 WORKDIR /tmp
+
 
 #RUN echo ${LWLL_SECRET}
 
 #ENTRYPOINT["taglets.task.jpl.ext_launch"]
 CMD ["taglets"]
 #CMD ["python","-m","taglets.task.jpl"]
+
+

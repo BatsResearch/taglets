@@ -73,7 +73,9 @@ class ZSLKGTaglet(Taglet):
             ]
         }
 
-        self.test_graph_path = 'trained_models/zsl_kg_lite'
+        #self.test_graph_path = os.getcwd()+ '/trained_models/zsl_kg_lite'
+        self.test_graph_path = os.path.join('/home/tagletuser/trained_models','zsl_kg_lite')
+        #self.test_graph_path = os.path.join('/lwll/extra','zsl_kg_lite')
         if not os.path.exists(self.test_graph_path):
             os.makedirs(self.test_graph_path)
         self.pretrained_model_path = 'predefined/zsl_kg_lite/transformer.pt'

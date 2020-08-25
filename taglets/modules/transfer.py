@@ -30,7 +30,8 @@ class TransferTaglet(Taglet):
     def __init__(self, task, freeze=False, is_norm=False):
         super().__init__(task)
         self.name = 'transfer'
-        self.save_dir = os.path.join('trained_models', self.name)
+        self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
+        #self.save_dir = os.path.join('/lwll/extra', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
             
@@ -153,7 +154,7 @@ class TransferTaglet(Taglet):
                 param.requires_grad = False
 
         orig_num_epochs = self.num_epochs
-        self.num_epochs = 5 if not os.environ.get("CI") else 5
+        self.num_epochs = 25 if not os.environ.get("CI") else 5
         self._set_num_classes(len(self.task.classes))
         super(TransferTaglet, self).train(train_data, val_data)
         self.num_epochs = orig_num_epochs
