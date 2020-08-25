@@ -67,6 +67,7 @@ class UnreliableController(Controller):
         modules.append(BadModule2)
         return modules
 
+
 class TestController(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

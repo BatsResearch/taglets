@@ -73,10 +73,17 @@ class Controller:
             # Executes taglets
             log.info("Executing taglets")
             vote_matrix = taglet_executor.execute(unlabeled)
-
             log.info("Finished executing taglets")
 
-            weak_labels = self._get_majority(vote_matrix)
+            # Combines taglets' votes into soft labels
+            if val is not None and len(val) >= len(self.task.classes) * 10:
+                # Weight votes using development set
+                weights = [taglet.evaluate(val) for taglet in taglets]
+            else:
+                # Weight all votes equally
+                weights = [1.0] * len(taglets)
+
+            weak_labels = self._get_weighted_dist(vote_matrix, weights)
             
             for label in weak_labels:
                 unlabeled_images_labels.append(torch.FloatTensor(label))
@@ -117,12 +124,13 @@ class Controller:
 
         return end_model_train_data
 
-    def _get_majority(self, vote_matrix):
+    def _get_weighted_dist(self, vote_matrix, weights):
         weak_labels = []
-        for vote in vote_matrix:
-            counts = np.bincount(vote)
-            majority_vote = np.argmax(counts)
-            weak_labels.append(self._to_soft_one_hot(majority_vote))
+        for row in vote_matrix:
+            weak_label = np.zeros((len(self.task.classes),))
+            for i in range(len(row)):
+                weak_label[row[i]] += weights[i]
+            weak_labels.append(weak_label / weak_label.sum())
         return weak_labels
 
     def _to_soft_one_hot(self, l):
