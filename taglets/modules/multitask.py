@@ -65,7 +65,10 @@ class MultiTaskTaglet(Taglet):
         super().__init__(task)
         self.name = 'multitask'
         self.num_epochs = 50 if not os.environ.get("CI") else 5
-        self.save_dir = os.path.join('trained_models', self.name)
+        if os.getenv("LWLL_TA1_PROB_TASK") is not None:
+            self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
+        else:
+            self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
         self.source_data = None

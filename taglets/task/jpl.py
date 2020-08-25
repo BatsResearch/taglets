@@ -3,7 +3,6 @@ gpu_list = os.getenv("LWLL_TA1_GPUS")
 if gpu_list is not None and gpu_list != "all":
     gpu_list = [x for x in gpu_list.split(" ")]
     os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(gpu_list)
-import argparse
 import logging
 import sys
 import time
@@ -12,14 +11,13 @@ import numpy as np
 import torch
 import torchvision.models as models
 import torchvision.transforms as transforms
-from torch.utils import data
 from ..data import CustomDataset
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
 from ..task import Task
 from ..controller import Controller
-from ..scads import Scads
 from .utils import labels_to_concept_ids
 import linecache
+from pathlib import Path
 
 
 log = logging.getLogger(__name__)
@@ -29,22 +27,24 @@ class JPL:
     """
     A class to interact with JPL-like APIs.
     """
-    def __init__(self):
+    def __init__(self, api_url, team_secret, gov_team_secret, dataset_type):
         """
         Create a new JPL object.
         """
 
-        self.secret = 'a5aed2a8-db80-4b22-bf72-11f2d0765572'
-        self.url = 'https://api-staging.lollllz.com'
+        self.team_secret = team_secret #'a5aed2a8-db80-4b22-bf72-11f2d0765572'
+        self.gov_team_secret = gov_team_secret
+        self.url = api_url #'https://api-staging.lollllz.com'
         self.session_token = ''
-        self.data_type = 'sample'   # Sample or full
+        self.data_type = dataset_type #'sample'   # Sample or full
 
     def get_available_tasks(self, problem_type):
         """
         Get all available tasks.
         :return: A list of tasks (problems)
         """
-        headers = {'user_secret': self.secret}
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret}
         r = requests.get(self.url + "/list_tasks", headers=headers)
         task_list = r.json()['tasks']
 
@@ -62,7 +62,8 @@ class JPL:
         :param task_name: The name of the task (problem)
         :return: The task metadata
         """
-        headers = {'user_secret': self.secret}
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret}
         r = requests.get(self.url + "/task_metadata/" + task_name, headers=headers)
         return r.json()['task_metadata']
 
@@ -72,7 +73,8 @@ class JPL:
         :param task_name: The name of the task (problem
         :return: None
         """
-        headers = {'user_secret': self.secret}
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret}
         # r = requests.get(self.url + "/auth/get_session_token/" + self.data_type + "/" + task_name, headers=headers)
         r = requests.post(self.url + "/auth/create_session",
                           json={'session_name': 'testing', 'data_type': self.data_type, 'task_id': task_name},
@@ -86,7 +88,9 @@ class JPL:
         Get the session status.
         :return: The session status
         """
-        headers = {'user_secret': self.secret, 'session_token': self.session_token}
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret,
+                   'session_token': self.session_token}
         r = requests.get(self.url + "/session_status", headers=headers)
         if 'Session_Status' in r.json():
             return r.json()['Session_Status']
@@ -98,7 +102,9 @@ class JPL:
         Get seed labels.
         :return: A list of lists with name and label e.g., ['2', '1.png'], ['7', '2.png'], etc.
         """
-        headers = {'user_secret': self.secret, 'session_token': self.session_token}
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret,
+                   'session_token': self.session_token}
         r = requests.get(self.url + "/seed_labels", headers=headers)
         labels = r.json()['Labels']
         seed_labels = []
@@ -109,7 +115,9 @@ class JPL:
         return seed_labels
 
     def get_secondary_seed_labels(self):
-        headers = {'user_secret': self.secret, 'session_token': self.session_token}
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret,
+                   'session_token': self.session_token}
         r = requests.get(self.url + "/secondary_seed_labels", headers=headers)
         labels = r.json()['Labels']
         secondary_seed_labels = []
@@ -119,7 +127,9 @@ class JPL:
 
     def deactivate_session(self, deactivate_session):
 
-        headers_active_session = {'user_secret': self.secret, 'session_token': self.session_token}
+        headers_active_session = {'user_secret': self.team_secret,
+                                  'govteam_secret': self.gov_team_secret,
+                                  'session_token': self.session_token}
 
         r = requests.post(self.url + "/deactivate_session",
                           json={'session_token': deactivate_session},
@@ -144,7 +154,9 @@ class JPL:
         For example:
          [['7','56392.png'], ['8','3211.png'], ['4','19952.png']]
         """
-        headers = {'user_secret': self.secret, 'session_token': self.session_token}
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret,
+                   'session_token': self.session_token}
         r = requests.post(self.url + "/query_labels", json=query, headers=headers)
         labels_dic = r.json()['Labels']
         labels_list = [(d['class'], d['id']) for d in labels_dic]
@@ -161,13 +173,16 @@ class JPL:
         :return: The session status after submitting prediction
         """
 
-        headers = {'user_secret': self.secret, 'session_token': self.session_token}
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret,
+                   'session_token': self.session_token}
         r = requests.post(self.url + "/submit_predictions", json={'predictions': predictions}, headers=headers)
         return r.json()
 
     def deactivate_all_sessions(self):
 
-        headers_session = {'user_secret': self.secret}
+        headers_session = {'user_secret': self.team_secret,
+                           'govteam_secret': self.gov_team_secret}
         r = requests.get(self.url + "/list_active_sessions", headers=headers_session)
         active_sessions = r.json()['active_sessions']
         for session_token in active_sessions:
@@ -274,7 +289,6 @@ class JPLStorage:
         image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
         image_paths = np.asarray(image_paths)
         image_labels = np.asarray(image_labels)
-        
 
         if checkpoint_num >= 2:
             # 80% for training, 20% for validation
@@ -334,12 +348,13 @@ class JPLStorage:
 
 
 class JPLRunner:
-    def __init__(self, dataset_dir, task_ix, testing=False, data_type='sample'):
+    def __init__(self, dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
+                 testing=False):
         self.dataset_dir = dataset_dir
-
-        self.api = JPL()
-        self.api.data_type = data_type
-        self.task_ix = task_ix
+        self.problem_type = problem_type
+        self.api = JPL(api_url, team_secret, gov_team_secret, dataset_type)
+        self.api.data_type = dataset_type
+        self.problem_task = problem_task
         self.jpl_storage, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_jpl_information()
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
@@ -350,9 +365,8 @@ class JPLRunner:
         self.testing = testing
 
     def get_jpl_information(self):
-        jpl_task_names = self.api.get_available_tasks('image_classification')
         # Elaheh: (need change in eval) choose image classification task you would like. Now there are four tasks
-        image_classification_task = jpl_task_names[self.task_ix]
+        image_classification_task = self.problem_task
         jpl_task_name = image_classification_task
         self.api.create_session(jpl_task_name)
         jpl_task_metadata = self.api.get_task_metadata(jpl_task_name)
@@ -390,10 +404,10 @@ class JPLRunner:
         self.jpl_storage.set_image_path(phase_dataset_dir, self.api.data_type)
 
     def run_checkpoints(self):
-        try:
+        #try:
             self.run_checkpoints_base()
             self.run_checkpoints_adapt()
-        except Exception as ex:
+        #except Exception as ex:
             exc_type, exc_obj, tb = sys.exc_info()
             f = tb.tb_frame
             lineno = tb.tb_lineno
@@ -410,7 +424,7 @@ class JPLRunner:
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
             self.run_one_checkpoint("Base", i)
-
+            
     def run_checkpoints_adapt(self):
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
@@ -449,8 +463,8 @@ class JPLRunner:
                     unlabeled_train_dataset,
                     val_dataset,
                     self.jpl_storage.whitelist,
-                    'predefined/scads.fall2020.sqlite3',
-                    'predefined/embeddings/numberbatch-en19.08.txt.gz',
+                    '/tmp/predefined/scads.fall2020.sqlite3',
+                    '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz',
                     unlabeled_test_data=unlabeled_test_dataset)
         task.set_initial_model(self.initial_model)
         controller = Controller(task)
@@ -510,38 +524,56 @@ class JPLRunner:
             log.info("Phase: %s", session_status['pair_stage'])
 
 
+def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret):
+    if problem_task == 'all':
+        jpl = JPL(api_url, team_secret, gov_team_secret, dataset_type)
+        problem_task_list = jpl.get_available_tasks(problem_type)
+        for task in problem_task_list:
+            runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, task, team_secret, gov_team_secret,
+                               testing=False)
+            runner.run_checkpoints()
+    else:
+        runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
+                           testing=False)
+        runner.run_checkpoints()
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Run JPL task")
-    parser.add_argument("--dataset_dir", dest="dataset_dir",
-                        type=str,
-                        default="/lwll/development",
-                        help="The directory to all development datasets")
-
-    parser.add_argument("--scads_root_dir",
-                        type=str,
-                        default="/lwll/external",
-                        help="The directory to all external datasets")
-
-    parser.add_argument("--task_ix", type=int, default=0,
-                        help="Index of image classification task; 0, 1, 2, etc.")
-
-    args = parser.parse_args()
-
-    dataset_dir = args.dataset_dir
-    scads_root_dir = args.scads_root_dir
-
-    task_ix = args.task_ix
     logger = logging.getLogger()
     logger.level = logging.INFO
     stream_handler = logging.StreamHandler(sys.stdout)
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
-
-    Scads.set_root_path(scads_root_dir)
     
-    runner = JPLRunner(dataset_dir, task_ix, testing=False)
-    runner.run_checkpoints()
+    dataset_type = os.environ.get('LWLL_TA1_DATASET_TYPE')
+    problem_type = os.environ.get('LWLL_TA1_PROB_TYPE')
+    dataset_dir = os.environ.get('LWLL_TA1_DATA_PATH')
+    api_url = os.environ.get('LWLL_TA1_API_ENDPOINT')
+    problem_task = os.environ.get('LWLL_TA1_PROB_TASK')
+    gpu_list = os.environ.get('LWLL_TA1_GPUS')
+    run_time = os.environ.get('LWLL_TA1_HOURS')
+    team_secret = os.environ.get('LWLL_TA1_TEAM_SECRET')
+    gov_team_secret = os.environ.get('LWLL_TA1_GOVTEAM_SECRET')
+    
+    valid_dataset_types = ['sample', 'full', 'all']
+    if dataset_type not in valid_dataset_types:
+        raise Exception(f'Invalid `dataset_type`, expected one of {valid_dataset_types}')
+
+    # check gpus are all
+    if gpu_list != 'all':
+        raise Exception(f'all gpus are required')
+
+    # Check problem type is valid
+    valid_problem_types = ['image_classification', 'object_detection', 'machine_translation', 'all']
+    if problem_type not in valid_problem_types:
+        raise Exception(f'Invalid `problem_type`, expected one of {valid_problem_types}')
+
+    # Check dataset directory exists
+    if not Path(dataset_dir).exists():
+        raise Exception('`dataset_dir` does not exist..')
+
+    workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret)
 
 
 if __name__ == "__main__":

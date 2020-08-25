@@ -7,4 +7,6 @@ setup(
     dependency_links=[
         'git+https://github.com/BatsResearch/labelmodels.git'
     ],
+    entry_points={"console_scripts": ["taglets = taglets.task.jpl:main"]},
+
 )

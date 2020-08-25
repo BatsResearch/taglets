@@ -5,17 +5,26 @@ from ..create.scads_classes import Node, Image
 from ..create.create_scads import add_conceptnet
 from ..create.add_datasets import add_dataset
 from .wnids_to_concept import SYNSET_TO_CONCEPTNET_ID
-
+import imagesize
+import numpy as np
 
 class DatasetInstaller:
     def get_name(self):
         raise NotImplementedError()
 
     def get_images(self, dataset, session, root):
+        raise NotImplementedError()
+    
+    def get_conceptnet_id(self, label):
+        return "/c/en/" + label.lower().replace(" ", "_").replace("-", "_")
+
+
+class ImageClassificationInstaller(DatasetInstaller):
+    def get_images(self, dataset, session, root):
         size = "full"
         modes = ['train', 'test']
         label_to_node_id = {}
-    
+        
         all_images = []
         for mode in modes:
             df_label = pd.read_feather(
@@ -34,7 +43,7 @@ class DatasetInstaller:
                     node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
                     node_id = node.id if node else None
                     label_to_node_id[label] = node_id
-
+                
                 # Scads is missing a missing conceptnet id
                 if not node_id:
                     continue
@@ -45,16 +54,66 @@ class DatasetInstaller:
                 all_images.append(img)
         return all_images
     
-    def get_conceptnet_id(self, label):
-        return "/c/en/" + label.lower().replace(" ", "_").replace("-", "_")
+    
+class ObjectDetectionInstaller(DatasetInstaller):
+    def get_images(self, dataset, session, root):
+        size = "full"
+        modes = ['train', 'test']
+        label_to_node_id = {}
+        
+        all_images = []
+        for mode in modes:
+            df_label = pd.read_feather(
+                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            bbox = list(df_label.loc[:, 'bbox'].copy())
+            for i in range(len(bbox)):
+                bbx = bbox[i].split(',')
+                x_min = float(bbx[0].strip())
+                y_min = float(bbx[1].strip())
+                x_max = float(bbx[2].strip())
+                y_max = float(bbx[3].strip())
+                w = x_max - x_min
+                h = y_max - y_min
+                area = w * h
+                bbox[i] = area
+            df_label.loc[:, 'bbox'] = bbox
+            pt = df_label.pivot_table(index='id', columns='class', values='bbox', aggfunc=np.max)
+            mode_dir = os.path.join(dataset.path, f'{dataset.path}_' + size, mode)
+            for image in os.listdir(os.path.join(root, mode_dir)):
+                if image.startswith('.'):
+                    continue
+                
+                width, height = imagesize.get(os.path.join(root, mode_dir) + '/' + image)
+                img_size = width * height
+                label = pt.loc[image].dropna().idxmax()
+                bbox_area = pt.loc[image, label]
+                if bbox_area <= img_size * .2:
+                    continue
+                # Get node_id
+                if label in label_to_node_id:
+                    node_id = label_to_node_id[label]
+                else:
+                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                    node_id = node.id if node else None
+                    label_to_node_id[label] = node_id
+                
+                # Scads is missing a missing conceptnet id
+                if not node_id:
+                    continue
+                
+                img = Image(dataset_id=dataset.id,
+                            node_id=node_id,
+                            path=os.path.join(mode_dir, image))
+                all_images.append(img)
+        return all_images
 
 
-class CifarInstallation(DatasetInstaller):
+class CifarInstallation(ImageClassificationInstaller):
     def get_name(self):
         return "CIFAR100"
 
 
-class MnistInstallation(DatasetInstaller):
+class MnistInstallation(ImageClassificationInstaller):
     def get_name(self):
         return "MNIST"
 
@@ -74,7 +133,7 @@ class MnistInstallation(DatasetInstaller):
         return mnist_classes[label]
 
 
-class ImageNetInstallation(DatasetInstaller):
+class ImageNetInstallation(ImageClassificationInstaller):
     def get_name(self):
         return "ImageNet"
 
@@ -82,7 +141,7 @@ class ImageNetInstallation(DatasetInstaller):
         return SYNSET_TO_CONCEPTNET_ID[label]
 
 
-class COCO2014Installation(DatasetInstaller):
+class COCO2014Installation(ObjectDetectionInstaller):
     def get_name(self):
         return "COCO2014"
 
@@ -105,7 +164,7 @@ class COCO2014Installation(DatasetInstaller):
         return "/c/en/" + label_to_label[label].lower().replace(" ", "_").replace("-", "_")
 
 
-class DomainNetInstallation(DatasetInstaller):
+class DomainNetInstallation(ImageClassificationInstaller):
     def __init__(self, domain_name):
         self.domain = domain_name
 
@@ -125,7 +184,7 @@ class DomainNetInstallation(DatasetInstaller):
         return "/c/en/" + label.lower().replace(" ", "_").replace("-", "_")
 
 
-class VOC2009Installation(DatasetInstaller):
+class VOC2009Installation(ObjectDetectionInstaller):
     def get_name(self):
         return "VOC2009"
 
@@ -138,7 +197,7 @@ class VOC2009Installation(DatasetInstaller):
         return "/c/en/" + label.lower().replace(" ", "_").replace("-", "_")
 
 
-class GoogleOpenImageInstallation(DatasetInstaller):
+class GoogleOpenImageInstallation(ObjectDetectionInstaller):
     def get_name(self):
         return "GoogleOpenImage"
 
