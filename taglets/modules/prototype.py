@@ -486,7 +486,7 @@ class PrototypeTaglet(Taglet):
         running_acc = 0.0
         count = 0
         for i, batch in enumerate(train_data_loader, 1):
-            log.info('Train Episode: %d' % i)
+            log.debug('Train Episode: %d' % i)
             count += 1
             if self.use_gpu:
                 data, _ = [x.cuda(rank) for x in batch]
@@ -501,10 +501,10 @@ class PrototypeTaglet(Taglet):
 
             running_loss += loss.item()
             running_acc += acc
-            log.info("avg train episode loss: %f" % (loss.item() / self.query))
-            log.info("train episode accuracy: %f%s" % (acc * 100.0, "%"))
-        epoch_loss = running_loss / count if count > 0 else 0.0
-        epoch_acc = running_acc / count if count > 0 else 0.0
+            log.debug("avg train episode loss: %f" % (loss.item() / self.query))
+            log.debug("train episode accuracy: %f%s" % (acc * 100.0, "%"))
+        epoch_loss = running_loss / (count * self.n_proc) if count > 0 else 0.0
+        epoch_acc = running_acc / (count * self.n_proc) if count > 0 else 0.0
         return epoch_loss, epoch_acc
 
     def _validate_epoch(self, rank, val_data_loader):
@@ -519,7 +519,7 @@ class PrototypeTaglet(Taglet):
         running_acc = 0.0
         count = 0
         for i, batch in enumerate(val_data_loader, 1):
-            log.info('Val Episode: %d' % i)
+            log.debug('Val Episode: %d' % i)
             count += 1
             if self.use_gpu:
                 data, _ = [x.cuda(rank) for x in batch]
@@ -533,8 +533,8 @@ class PrototypeTaglet(Taglet):
                                                            val=True)
             running_loss += loss.item()
             running_acc += acc
-            log.info("avg val episode loss: %f" % (loss.item() / self.query))
-            log.info("val episode accuracy: %f%s" % (acc * 100.0, "%"))
-        epoch_loss = running_loss / count if count > 0 else 0.0
-        epoch_acc = running_acc / count if count > 0 else 0.0
+            log.debug("avg val episode loss: %f" % (loss.item() / self.query))
+            log.debug("val episode accuracy: %f%s" % (acc * 100.0, "%"))
+        epoch_loss = running_loss / (count * self.n_proc) if count > 0 else 0.0
+        epoch_acc = running_acc / (count * self.n_proc) if count > 0 else 0.0
         return epoch_loss, epoch_acc
