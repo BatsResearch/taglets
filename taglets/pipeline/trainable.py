@@ -306,6 +306,11 @@ class Trainable:
             state_dict = pickle.dumps(state_dict)
             q.put(state_dict)
 
+        # Use a barrier to keep all workers alive until they all finish,
+        # due to shared CUDA tensors. See
+        # https://pytorch.org/docs/stable/multiprocessing.html#multiprocessing-cuda-sharing-details
+        dist.barrier()
+
     def _train_epoch(self, rank, train_data_loader):
         """
         Train for one epoch.

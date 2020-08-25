@@ -1,5 +1,5 @@
 from ..module import Module
-from ...pipeline import Taglet
+from ...pipeline import Cache, Taglet
 
 import copy
 import os
@@ -152,73 +152,80 @@ class ZSLKGTaglet(Taglet):
         return model
 
     def train(self, train_data_loader, val_data_loader):
-        # setup test graph (this will be used later)
-        self.setup_test_graph()
-
-        # checking if gpu can be used
-        if self.use_gpu:
-            device = torch.device('cuda:0')
-        else:
-            device = torch.device('cpu')
-
-        ###
-        # Assuming there is no need for the imagenet graph,
-        # the code will load the weights and initialize the
-        # model with random init vectors and then load the
-        # imagenet weights. These vectors will be replaced
-        # in the self._swtich_graph function with the correct
-        # vectors
-        ###
-
-        log.debug('loading trained model parameters for the gnn')
-        # imagenet model params
-        imagenet_params = torch.load(self.pretrained_model_path,
-                                     map_location='cpu')
-
-        # get the size of the init features for imagenet
-        # this will be replaced later
-        num_feat = imagenet_params['init_feat.weight'].size(0)
-        rand_feat = torch.randn(num_feat, 300, device=device)
-
-        # load the test random walked graph
-        adj_lists_path = os.path.join(self.test_graph_path,
-                                      'rw_adj_rel_lists.json')
-        with open(adj_lists_path) as f:
-            adj_lists = json.load(f)
-        adj_lists = convert_index_to_int(adj_lists)
-
-        log.debug('creating the transformer model')
-        gnn_model = self._get_model(rand_feat, adj_lists, device)
-
-        log.debug('loading imagenet parameters into the model')
-        gnn_model.load_state_dict(imagenet_params)
-
-        log.debug('change graph and conceptnet embs')
-        gnn_model = self._switch_graph(gnn_model, self.test_graph_path)
-
         log.debug('loading pretrained resnet')
         resnet = ResNet()
-        resnet.to(device)
         resnet.eval()
 
-        gnn_model.to(device)
-        gnn_model.eval()
-        log.info('loading mapping files for the conceptnet word ids')
-        mapping_path = os.path.join(self.test_graph_path,
-                                    'mapping.json')
-        with open(mapping_path) as f:
-            mapping = json.load(f)
-        conceptnet_idx = torch.tensor([mapping[str(idx)] for idx in range(len(mapping))]).to(device)
+        data = Cache.get("zsl_kg", self.task.classes)
+        if data is not None:
+            weights, biases = data
+        else:
+            # setup test graph (this will be used later)
+            self.setup_test_graph()
 
-        log.debug('generating class representation')
-        with torch.set_grad_enabled(False):
-            class_rep = gnn_model(conceptnet_idx)
+            # checking if gpu can be used
+            if self.use_gpu:
+                device = torch.device('cuda:0')
+            else:
+                device = torch.device('cpu')
+
+            ###
+            # Assuming there is no need for the imagenet graph,
+            # the code will load the weights and initialize the
+            # model with random init vectors and then load the
+            # imagenet weights. These vectors will be replaced
+            # in the self._swtich_graph function with the correct
+            # vectors
+            ###
+
+            log.debug('loading trained model parameters for the gnn')
+            # imagenet model params
+            imagenet_params = torch.load(self.pretrained_model_path,
+                                         map_location='cpu')
+
+            # get the size of the init features for imagenet
+            # this will be replaced later
+            num_feat = imagenet_params['init_feat.weight'].size(0)
+            rand_feat = torch.randn(num_feat, 300, device=device)
+
+            # load the test random walked graph
+            adj_lists_path = os.path.join(self.test_graph_path,
+                                          'rw_adj_rel_lists.json')
+            with open(adj_lists_path) as f:
+                adj_lists = json.load(f)
+            adj_lists = convert_index_to_int(adj_lists)
+
+            log.debug('creating the transformer model')
+            gnn_model = self._get_model(rand_feat, adj_lists, device)
+
+            log.debug('loading imagenet parameters into the model')
+            gnn_model.load_state_dict(imagenet_params)
+
+            log.debug('change graph and conceptnet embs')
+            gnn_model = self._switch_graph(gnn_model, self.test_graph_path)
+
+            gnn_model.to(device)
+            gnn_model.eval()
+            log.info('loading mapping files for the conceptnet word ids')
+            mapping_path = os.path.join(self.test_graph_path,
+                                        'mapping.json')
+            with open(mapping_path) as f:
+                mapping = json.load(f)
+            conceptnet_idx = torch.tensor([mapping[str(idx)] for idx in range(len(mapping))]).to(device)
+
+            log.debug('generating class representation')
+            with torch.set_grad_enabled(False):
+                class_rep = gnn_model(conceptnet_idx)
+
+            output_shape = self._get_model_output_shape(self.task.input_shape, resnet)
+            weights = copy.deepcopy(class_rep[:, :output_shape])
+            biases = copy.deepcopy(class_rep[:, -1])
+            Cache.set("zsl_kg", self.task.classes, (weights, biases))
 
         # Instantiating the model
-        output_shape = self._get_model_output_shape(self.task.input_shape, resnet)
-        fc = nn.Linear(output_shape, len(self.task.classes))
-        fc.weight = nn.Parameter(copy.deepcopy(class_rep[:, :output_shape]), False)
-        fc.bias = nn.Parameter(copy.deepcopy(class_rep[:, -1]), False)
+        fc = nn.Linear(weights.shape[0], weights.shape[1])
+        fc.weight = nn.Parameter(copy.deepcopy(weights), False)
+        fc.bias = nn.Parameter(copy.deepcopy(biases), False)
         self.model = nn.Sequential(resnet, fc)
 
     def _get_model(self, init_feats, adj_lists, device):

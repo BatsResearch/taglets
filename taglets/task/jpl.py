@@ -1,8 +1,12 @@
+import os
+gpu_list = os.getenv("LWLL_TA1_GPUS")
+if gpu_list is not None and gpu_list != "all":
+    gpu_list = [x for x in gpu_list.split(" ")]
+    os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(gpu_list)
 import logging
 import sys
 import time
 import requests
-import os
 import numpy as np
 import torch
 import torchvision.models as models
@@ -13,7 +17,6 @@ from ..task import Task
 from ..controller import Controller
 from .utils import labels_to_concept_ids
 import linecache
-import click
 from pathlib import Path
 
 
@@ -240,14 +243,14 @@ class JPLStorage:
     
         if train:
             return transforms.Compose([
-                transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
+                transforms.RandomResizedCrop((224, 224), scale=(0.8, 1.0)),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=data_mean, std=data_std)
             ])
         else:
             return transforms.Compose([
-                transforms.Resize(224),
+                transforms.Resize((224, 224)),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=data_mean, std=data_std)
             ])
