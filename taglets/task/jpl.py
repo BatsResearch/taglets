@@ -1,9 +1,13 @@
+import os
+gpu_list = os.getenv("LWLL_TA1_GPUS")
+if gpu_list is not None and gpu_list != "all":
+    gpu_list = [x for x in gpu_list.split(" ")]
+    os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(gpu_list)
 import argparse
 import logging
 import sys
 import time
 import requests
-import os
 import numpy as np
 import torch
 import torchvision.models as models
