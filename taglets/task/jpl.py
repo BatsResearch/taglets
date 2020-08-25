@@ -404,10 +404,10 @@ class JPLRunner:
         self.jpl_storage.set_image_path(phase_dataset_dir, self.api.data_type)
 
     def run_checkpoints(self):
-        #try:
+        try:
             self.run_checkpoints_base()
             self.run_checkpoints_adapt()
-        #except Exception as ex:
+        except Exception as ex:
             exc_type, exc_obj, tb = sys.exc_info()
             f = tb.tb_frame
             lineno = tb.tb_lineno
