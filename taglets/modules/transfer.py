@@ -73,38 +73,42 @@ class TransferTaglet(Taglet):
             ScadsEmbedding.load(self.task.scads_embedding_path)
             image_paths = []
             image_labels = []
-            visited = set()
-
-            def get_images(node, label):
+            visited = {}
+        
+            def get_images(node):
                 if node.get_conceptnet_id() not in visited:
-                    visited.add(node.get_conceptnet_id())
                     images = node.get_images_whitelist(self.task.whitelist)
                     if len(images) < self.img_per_related_class:
-                        return False
-                    images = random.sample(images, self.img_per_related_class)
-                    images = [os.path.join(root_path, image) for image in images]
-                    image_paths.extend(images)
-                    image_labels.extend([label] * len(images))
-                    log.debug("Source class found: {}".format(node.get_conceptnet_id()))
-                    return True
-                return False
-
-            all_related_class = 0
+                        visited[node.get_conceptnet_id()] = False
+                    else:
+                        images = random.sample(images, self.img_per_related_class)
+                        images = [os.path.join(root_path, image) for image in images]
+                        image_paths.extend(images)
+                        if len(image_labels) == 0:
+                            label = 0
+                        else:
+                            label = image_labels[-1] + 1
+                        image_labels.extend([label] * len(images))
+                        log.debug("Source class found: {}".format(node.get_conceptnet_id()))
+                        visited[node.get_conceptnet_id()] = True
+                return visited[node.get_conceptnet_id()]
+        
             for conceptnet_id in self.task.classes:
                 cur_related_class = 0
                 target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
-                if get_images(target_node, all_related_class):
+                if get_images(target_node):
                     cur_related_class += 1
-                    all_related_class += 1
-
+            
                 neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
                 for neighbor in neighbors:
-                    if get_images(neighbor, all_related_class):
+                    if get_images(neighbor):
                         cur_related_class += 1
-                        all_related_class += 1
                         if cur_related_class >= self.num_related_class:
                             break
-
+            if len(image_labels) == 0:
+                all_related_class = 0
+            else:
+                all_related_class = image_labels[-1] + 1
             Scads.close()
             Cache.set('scads', self.task.classes,
                       (image_paths, image_labels, all_related_class))
