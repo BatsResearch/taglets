@@ -179,7 +179,10 @@ class MultiTaskTaglet(Taglet):
         self.source_data_loader = self._get_dataloader(data=self.source_data, sampler=source_sampler)
         self.batch_size = old_batch_size
 
+        old_batch_size = self.batch_size
+        self.batch_size = 8
         super(MultiTaskTaglet, self)._do_train(rank, q, train_data, val_data)
+        self.batch_size = old_batch_size
 
     def _train_epoch(self, rank, train_data_loader):
         self.model.train()
