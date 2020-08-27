@@ -10,7 +10,7 @@ class EndModel(Trainable):
         self.name = 'end model'
         m = torch.nn.Sequential(*list(self.model.children())[:-1])
         output_shape = self._get_model_output_shape(self.task.input_shape, m)
-        self.model.fc = torch.nn.Sequential(torch.nn.Dropout(0.5),
+        self.model.fc = torch.nn.Sequential(torch.nn.Dropout(0.3),
                                             torch.nn.Linear(output_shape, len(self.task.classes)))
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
