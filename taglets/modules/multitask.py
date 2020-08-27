@@ -177,13 +177,13 @@ class MultiTaskTaglet(Taglet):
     def _do_train(self, rank, q, train_data, val_data):
         # batch_size = min(len(train_data) // num_batches, 256)
         old_batch_size = self.batch_size
-        self.batch_size = 128
+        self.batch_size = 256
         source_sampler = self._get_train_sampler(self.source_data, n_proc=self.n_proc, rank=rank)
         self.source_data_loader = self._get_dataloader(data=self.source_data, sampler=source_sampler)
         self.batch_size = old_batch_size
 
         old_batch_size = self.batch_size
-        self.batch_size = 8
+        self.batch_size = 16
         super(MultiTaskTaglet, self)._do_train(rank, q, train_data, val_data)
         self.batch_size = old_batch_size
 
