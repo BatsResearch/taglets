@@ -10,7 +10,7 @@ class EndModel(Trainable):
         self.name = 'end model'
         m = torch.nn.Sequential(*list(self.model.children())[:-1])
         output_shape = self._get_model_output_shape(self.task.input_shape, m)
-        self.model.fc = torch.nn.Sequential(torch.nn.Dropout(0.2),
+        self.model.fc = torch.nn.Sequential(torch.nn.Dropout(0.3),
                                             torch.nn.Linear(output_shape, len(self.task.classes)))
         self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):
