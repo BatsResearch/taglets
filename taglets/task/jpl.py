@@ -20,6 +20,7 @@ from ..controller import Controller
 from ..scads import Scads
 from .utils import labels_to_concept_ids
 import linecache
+import pickle
 
 
 log = logging.getLogger(__name__)
@@ -348,6 +349,7 @@ class JPLRunner:
         self.initial_model.fc = torch.nn.Identity()
 
         self.testing = testing
+        self.ta2 = {}
 
     def get_jpl_information(self):
         jpl_task_names = self.api.get_available_tasks('image_classification')
@@ -396,41 +398,12 @@ class JPLRunner:
     def run_checkpoints_base(self):
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
-            if i > 8:
-                self.run_random_checkpoint("Base", i)
-            else:
-                self.run_one_checkpoint("Base", i)
+            self.run_one_checkpoint("Base", i)
 
     def run_checkpoints_adapt(self):
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
-            self.run_random_checkpoint("Adapt", i)
-
-    def run_random_checkpoint(self, phase, checkpoint_num):
-        log.info('------------------------------------------------------------')
-        log.info('--------------------{} Checkpoint: {}'.format(phase, checkpoint_num) + '---------------------')
-        log.info('------------------------------------------------------------')
-        available_budget = self.get_available_budget()
-        if checkpoint_num == 0:
-            self.jpl_storage.labeled_images = self.api.get_initial_seed_labels()
-        elif checkpoint_num == 1:
-            self.jpl_storage.add_labeled_images(self.api.get_secondary_seed_labels())
-    
-        unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names()
-        log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
-        if checkpoint_num == 2:  # Elaheh: maybe we could get rid of random active learning?!
-            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
-            self.request_labels(candidates)
-        elif checkpoint_num > 2:
-            candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
-            self.request_labels(candidates)
-        predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(),
-                            'class': [self.jpl_storage.classes[0]] * len(self.jpl_storage.get_evaluation_image_names())}
-        self.submit_predictions(predictions_dict)
-        new_candidates = list(range(len(self.jpl_storage.get_unlabeled_image_names())))
-        import random
-        random.shuffle(new_candidates)
-        self.confidence_active_learning.set_candidates(new_candidates)
+            self.run_one_checkpoint("Adapt", i)
 
     def run_one_checkpoint(self, phase, checkpoint_num):
         log.info('------------------------------------------------------------')
@@ -447,11 +420,8 @@ class JPLRunner:
 
         unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names()
         log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
-        if checkpoint_num == 2:  # Elaheh: maybe we could get rid of random active learning?!
+        if checkpoint_num >= 2:  # Elaheh: maybe we could get rid of random active learning?!
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
-            self.request_labels(candidates)
-        elif checkpoint_num > 2:
-            candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
             self.request_labels(candidates)
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num)
@@ -469,33 +439,25 @@ class JPLRunner:
                     unlabeled_test_data=unlabeled_test_dataset)
         task.set_initial_model(self.initial_model)
         controller = Controller(task)
-        end_model = controller.train_end_model()
+        vote_matrix = controller.train_end_model()
 
-        evaluation_dataset = self.jpl_storage.get_evaluation_dataset()
-        outputs = end_model.predict(evaluation_dataset)
-        predictions = np.argmax(outputs, 1)
-        prediction_names = []
-        for p in predictions:
-            prediction_names.append([k for k, v in self.jpl_storage.label_map.items() if v == p][0])
-
-        predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(), 'class': prediction_names}
-
+        predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(),
+                            'class': [self.jpl_storage.classes[0]] * len(self.jpl_storage.get_evaluation_image_names())}
         self.submit_predictions(predictions_dict)
-
-        if unlabeled_test_dataset is not None:
-            outputs = end_model.predict(unlabeled_test_dataset)
-            confidences = np.max(outputs, 1)
-            candidates = np.argsort(confidences)
-            self.confidence_active_learning.set_candidates(candidates)
-
-        # update initial model
-        self.initial_model = end_model.model
-        self.initial_model.fc = torch.nn.Identity()
 
         log.info('{} Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                checkpoint_num,
                                                                time.strftime("%H:%M:%S",
                                                                              time.gmtime(time.time()-start_time))))
+
+        image_names, image_labels = self.jpl_storage.get_labeled_images_list()
+        checkpoint_dict = {'labeled_images_names': image_names,
+                           'labeled_images_labels': image_labels,
+                           'unlabeled_images_names': self.jpl_storage.get_unlabeled_image_names(),
+                           'unlabeled_images_votes': vote_matrix}
+        self.ta2[f'{phase} {checkpoint_num}'] = checkpoint_dict
+        with open('ta2.pkl', 'wb') as f:
+            pickle.dump(self.ta2, f)
 
     def get_available_budget(self):
         session_status = self.api.get_session_status()

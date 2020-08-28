@@ -75,29 +75,9 @@ class Controller:
             vote_matrix = taglet_executor.execute(unlabeled)
             log.info("Finished executing taglets")
 
-            # Combines taglets' votes into soft labels
-            if val is not None and len(val) >= len(self.task.classes) * 10:
-                # Weight votes using development set
-                weights = [taglet.evaluate(val) for taglet in taglets]
-            else:
-                # Weight all votes equally
-                weights = [1.0] * len(taglets)
+            return vote_matrix
 
-            weak_labels = self._get_weighted_dist(vote_matrix, weights)
-            
-            for label in weak_labels:
-                unlabeled_images_labels.append(torch.FloatTensor(label))
-
-        # Trains end model
-        log.info("Training end model")
-
-        end_model_train_data = self._combine_soft_labels(unlabeled_images_labels,
-                                                         self.task.get_unlabeled_data(True),
-                                                         self.task.get_labeled_train_data())
-        self.end_model = EndModel(self.task)
-        self.end_model.train(end_model_train_data, val)
-        log.info("Finished training end model")
-        return self.end_model
+        return None
 
     def _get_taglets_modules(self):
         if self.task.scads_path is not None:
