@@ -425,18 +425,18 @@ class JPLRunner:
             self.request_labels(candidates)
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num)
-        unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True)
-        unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False)
+        eval_train_dataset = self.jpl_storage.get_evaluation_dataset()
+        eval_test_dataset = self.jpl_storage.get_evaluation_dataset()
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),
                     (224, 224),
                     labeled_dataset,
-                    unlabeled_train_dataset,
+                    eval_train_dataset,
                     val_dataset,
                     self.jpl_storage.whitelist,
                     'predefined/scads.fall2020.sqlite3',
                     'predefined/embeddings/numberbatch-en19.08.txt.gz',
-                    unlabeled_test_data=unlabeled_test_dataset)
+                    unlabeled_test_data=eval_test_dataset)
         task.set_initial_model(self.initial_model)
         controller = Controller(task)
         vote_matrix = controller.train_end_model()
@@ -450,13 +450,10 @@ class JPLRunner:
                                                                time.strftime("%H:%M:%S",
                                                                              time.gmtime(time.time()-start_time))))
 
-        image_names, image_labels = self.jpl_storage.get_labeled_images_list()
-        checkpoint_dict = {'labeled_images_names': image_names,
-                           'labeled_images_labels': image_labels,
-                           'unlabeled_images_names': self.jpl_storage.get_unlabeled_image_names(),
+        checkpoint_dict = {'unlabeled_images_names': self.jpl_storage.get_evaluation_image_names(),
                            'unlabeled_images_votes': vote_matrix}
         self.ta2[f'{phase} {checkpoint_num}'] = checkpoint_dict
-        with open('ta2.pkl', 'wb') as f:
+        with open('ta2_test_votes.pkl', 'wb') as f:
             pickle.dump(self.ta2, f)
 
     def get_available_budget(self):
