@@ -183,7 +183,7 @@ class Trainable:
                 log.debug("Deep copying new best model." +
                           "(validation of {:.4f}%, over {:.4f}%)".format(
                               val_acc * 100, best_val_acc * 100))
-                best_model_to_save = copy.deepcopy(self.model.module.state_dict())
+                best_model_to_save = copy.deepcopy(self.model.state_dict())
                 best_val_acc = val_acc
                 if self.save_dir:
                     torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
@@ -198,7 +198,7 @@ class Trainable:
             val_dic = {'train': train_acc_list, 'validation': val_acc_list}
             self.save_plot('accuracy', val_dic, self.save_dir)
         if self.select_on_val and best_model_to_save is not None:
-            self.model.module.load_state_dict(best_model_to_save)
+            self.model.load_state_dict(best_model_to_save)
 
         self.model.cpu()
 
