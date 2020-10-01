@@ -237,7 +237,7 @@ class Trainable:
 
         return epoch_loss, epoch_acc
 
-    def _validate_epoch(self, rank, val_data_loader):
+    def _validate_epoch(self, val_data_loader):
         """
         Validate for one epoch.
         :param val_data_loader: A dataloader containing validation data
@@ -251,8 +251,8 @@ class Trainable:
             inputs = batch[0]
             labels = batch[1]
             if self.use_gpu:
-                inputs = inputs.cuda(rank)
-                labels = labels.cuda(rank)
+                inputs = inputs.cuda()
+                labels = labels.cuda()
             with torch.set_grad_enabled(False):
                 outputs = self.model(inputs)
                 loss = torch.nn.functional.cross_entropy(outputs, labels)
