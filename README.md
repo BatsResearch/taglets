@@ -18,6 +18,6 @@ docker build --tag brown_taglets:1.0 .
 ## Running the Evaluation
 To start a container, run
 ```
-docker run --rm --env-file env.list -v /lwll:/lwll:delegated --gpus all --shm-size 64G --ulimit nofile=1000000:1000000 brown_taglets:1.0
+docker run --rm --env-file env.list -v /lwll:/lwll:delegated --gpus all --shm-size 256G --ulimit nofile=1000000:1000000 brown_taglets:1.0
 ```
-**Note:** "--shm-size 64G" and "--ulimit nofile=1000000:1000000" are crucial for our system to work.
+**Note:** "--shm-size 256G" and "--ulimit nofile=1000000:1000000" are crucial for our system to work.

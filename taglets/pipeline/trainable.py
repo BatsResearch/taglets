@@ -41,10 +41,10 @@ class Trainable:
         n_gpu = torch.cuda.device_count()
         if n_gpu > 0:
             self.use_gpu = True
-            self.n_proc = n_gpu
+            self.n_proc = 1
         else:
             self.use_gpu = False
-            self.n_proc = max(1, mp.cpu_count() - 1)
+            self.n_proc = 1
         self.num_workers = min(max(0, mp.cpu_count() // self.n_proc - 1), 2)
 
         # Gradients are summed over workers, so need to scale the step size
@@ -66,70 +66,10 @@ class Trainable:
         self.valid = True
 
     def train(self, train_data, val_data):
-        os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '8888'
-
-        # Launches workers and collects results from queue
-        processes = []
-        ctx = mp.get_context('spawn')
-        q = ctx.Queue()
-        for i in range(self.n_proc):
-            args = (i, q, train_data, val_data)
-            p = ctx.Process(target=self._do_train, args=args)
-            p.start()
-            processes.append(p)
-
-        state_dict = q.get()
-
-        for p in processes:
-            p.join()
-
-        state_dict = pickle.loads(state_dict)
-        self.model.load_state_dict(state_dict)
+        self._do_train(train_data, val_data)
 
     def predict(self, data):
-        os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '8888'
-
-        # Launches workers and collects results from queue
-        processes = []
-        results = []
-        ctx = mp.get_context('spawn')
-        q = ctx.Queue()
-        for i in range(self.n_proc):
-            args = (i, q, data)
-            p = ctx.Process(target=self._do_predict, args=args)
-            p.start()
-            processes.append(p)
-        for _ in processes:
-            results.append(q.get())
-        for p in processes:
-            p.join()
-
-        # Collates results so output order matches input order
-        # Results are either (rank, outputs) or (rank, outputs, label)
-        #
-        # Remember to only return the first len(data) results, since the
-        # distributed data sampler adds extra copies to make each worker the same
-        outputs = np.ndarray((len(data), results[0][1].shape[1]), dtype=np.float32)
-        if len(results[0]) > 2:
-            labels = np.ndarray((len(data),), dtype=np.int32)
-        else:
-            labels = None
-
-        # Sorts results in rank order
-        results.sort(key=lambda x: x[0])
-
-        # Collects the results
-        for i in range(len(data)):
-            outputs[i] = results[i % len(results)][1][i // len(results), :]
-            if labels is not None:
-                labels[i] = results[i % len(results)][2][i // len(results)]
-
-        if labels is not None:
-            return outputs, labels
-        else:
-            return outputs
+        return self._do_predict(data)
 
     def evaluate(self, labeled_data):
         """
@@ -142,18 +82,10 @@ class Trainable:
         correct = (np.argmax(outputs, 1) == labels).sum()
         return correct / outputs.shape[0]
 
-    def _get_train_sampler(self, data, n_proc, rank):
-        return torch.utils.data.distributed.DistributedSampler(data,
-                                                               num_replicas=n_proc,
-                                                               rank=rank)
-
-    def _get_val_sampler(self, data, n_proc, rank):
-        return self._get_train_sampler(data, n_proc, rank)
-
-    def _get_dataloader(self, data, sampler):
+    def _get_dataloader(self, data, shuffle):
         return torch.utils.data.DataLoader(
-            dataset=data, batch_size=self.batch_size, shuffle=False,
-            num_workers=self.num_workers, pin_memory=True, sampler=sampler
+            dataset=data, batch_size=self.batch_size, shuffle=shuffle,
+            num_workers=self.num_workers, pin_memory=True
         )
 
     def _get_pred_classifier(self):
@@ -191,7 +123,7 @@ class Trainable:
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
 
-    def _do_train(self, rank, q, train_data, val_data):
+    def _do_train(self, train_data, val_data):
         """
         One worker for training.
 
@@ -202,36 +134,20 @@ class Trainable:
         :param val_data: A dataset containing validation data
         :return:
         """
-        if rank == 0:
-            log.info('Beginning training')
-
-        # Initializes distributed backend
-        backend = 'nccl' if self.use_gpu else 'gloo'
-        dist.init_process_group(
-            backend=backend, init_method='env://', world_size=self.n_proc, rank=rank
-        )
+        log.info('Beginning training')
 
         # Configures model to be distributed
         if self.use_gpu:
-            self.model = self.model.cuda(rank)
-            self.model = nn.parallel.DistributedDataParallel(
-                self.model, device_ids=[rank]
-            )
+            self.model = self.model.cuda()
         else:
             self.model = self.model.cpu()
-            self.model = nn.parallel.DistributedDataParallel(
-                self.model, device_ids=None
-            )
 
-        # Creates distributed data loaders from datasets
-        train_sampler = self._get_train_sampler(train_data, n_proc=self.n_proc, rank=rank)
-        train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler)
+        train_data_loader = self._get_dataloader(train_data, True)
 
         if val_data is None:
             val_data_loader = None
         else:
-            val_sampler = self._get_val_sampler(val_data, n_proc=self.n_proc, rank=rank)
-            val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler)
+            val_data_loader = self._get_dataloader(val_data, False)
 
         # Initializes statistics containers (will only be filled by lead process)
         best_model_to_save = None
@@ -243,75 +159,50 @@ class Trainable:
 
         # Iterates over epochs
         for epoch in range(self.num_epochs):
-            if rank == 0:
-                log.info("Epoch {}: ".format(epoch + 1))
-
-            # this is necessary for shuffle to work
-            train_sampler.set_epoch(epoch)
+            log.info("Epoch {}: ".format(epoch + 1))
 
             # Trains on training data
-            train_loss, train_acc = self._train_epoch(rank, train_data_loader)
+            train_loss, train_acc = self._train_epoch(train_data_loader)
 
             # Evaluates on validation data
             if val_data_loader:
-                val_loss, val_acc = self._validate_epoch(rank, val_data_loader)
+                val_loss, val_acc = self._validate_epoch(val_data_loader)
             else:
                 val_loss = 0
                 val_acc = 0
 
-            # Gathers results statistics to lead process
-            summaries = [train_loss, train_acc, val_loss, val_acc]
-            summaries = torch.tensor(summaries, requires_grad=False)
-            if self.use_gpu:
-                summaries = summaries.cuda(rank)
-            else:
-                summaries = summaries.cpu()
-            dist.reduce(summaries, 0, op=dist.ReduceOp.SUM)
-            train_loss, train_acc, val_loss, val_acc = summaries
-
-            # Processes results if lead process
-            if rank == 0:
-                log.info('Train loss: {:.4f}'.format(train_loss))
-                log.info('Train acc: {:.4f}%'.format(train_acc * 100))
-                train_loss_list.append(train_loss)
-                train_acc_list.append(train_acc)
-                log.info('Validation loss: {:.4f}'.format(val_loss))
-                log.info('Validation acc: {:.4f}%'.format(val_acc * 100))
-                val_loss_list.append(val_loss)
-                val_acc_list.append(val_acc)
-                if val_acc > best_val_acc:
-                    log.debug("Deep copying new best model." +
-                              "(validation of {:.4f}%, over {:.4f}%)".format(
-                                  val_acc * 100, best_val_acc * 100))
-                    best_model_to_save = copy.deepcopy(self.model.module.state_dict())
-                    best_val_acc = val_acc
-                    if self.save_dir:
-                        torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
+            log.info('Train loss: {:.4f}'.format(train_loss))
+            log.info('Train acc: {:.4f}%'.format(train_acc * 100))
+            train_loss_list.append(train_loss)
+            train_acc_list.append(train_acc)
+            log.info('Validation loss: {:.4f}'.format(val_loss))
+            log.info('Validation acc: {:.4f}%'.format(val_acc * 100))
+            val_loss_list.append(val_loss)
+            val_acc_list.append(val_acc)
+            if val_acc > best_val_acc:
+                log.debug("Deep copying new best model." +
+                          "(validation of {:.4f}%, over {:.4f}%)".format(
+                              val_acc * 100, best_val_acc * 100))
+                best_model_to_save = copy.deepcopy(self.model.state_dict())
+                best_val_acc = val_acc
+                if self.save_dir:
+                    torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
             if self.lr_scheduler:
                 self.lr_scheduler.step()
 
         # Lead process saves plots and returns best model
-        if rank == 0:
-            if self.save_dir:
-                val_dic = {'train': train_loss_list, 'validation': val_loss_list}
-                self.save_plot('loss', val_dic, self.save_dir)
-                val_dic = {'train': train_acc_list, 'validation': val_acc_list}
-                self.save_plot('accuracy', val_dic, self.save_dir)
-            if self.select_on_val and best_model_to_save is not None:
-                self.model.module.load_state_dict(best_model_to_save)
+        if self.save_dir:
+            val_dic = {'train': train_loss_list, 'validation': val_loss_list}
+            self.save_plot('loss', val_dic, self.save_dir)
+            val_dic = {'train': train_acc_list, 'validation': val_acc_list}
+            self.save_plot('accuracy', val_dic, self.save_dir)
+        if self.select_on_val and best_model_to_save is not None:
+            self.model.load_state_dict(best_model_to_save)
 
-            self.model.cpu()
-            state_dict = self.model.module.state_dict()
-            state_dict = pickle.dumps(state_dict)
-            q.put(state_dict)
+        self.model.cpu()
 
-        # Use a barrier to keep all workers alive until they all finish,
-        # due to shared CUDA tensors. See
-        # https://pytorch.org/docs/stable/multiprocessing.html#multiprocessing-cuda-sharing-details
-        dist.barrier()
-
-    def _train_epoch(self, rank, train_data_loader):
+    def _train_epoch(self, train_data_loader):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data
@@ -325,8 +216,8 @@ class Trainable:
             inputs = batch[0]
             labels = batch[1]
             if self.use_gpu:
-                inputs = inputs.cuda(rank)
-                labels = labels.cuda(rank)
+                inputs = inputs.cuda()
+                labels = labels.cuda()
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
@@ -346,7 +237,7 @@ class Trainable:
 
         return epoch_loss, epoch_acc
 
-    def _validate_epoch(self, rank, val_data_loader):
+    def _validate_epoch(self, val_data_loader):
         """
         Validate for one epoch.
         :param val_data_loader: A dataloader containing validation data
@@ -360,8 +251,8 @@ class Trainable:
             inputs = batch[0]
             labels = batch[1]
             if self.use_gpu:
-                inputs = inputs.cuda(rank)
-                labels = labels.cuda(rank)
+                inputs = inputs.cuda()
+                labels = labels.cuda()
             with torch.set_grad_enabled(False):
                 outputs = self.model(inputs)
                 loss = torch.nn.functional.cross_entropy(outputs, labels)
@@ -389,26 +280,21 @@ class Trainable:
         """
         return torch.sum(torch.max(outputs, 1)[1] == labels)
 
-    def _do_predict(self, rank, q, data):
-        if rank == 0:
-            log.info('Beginning prediction')
+    def _do_predict(self, data):
+        log.info('Beginning prediction')
 
         pred_classifier = self._get_pred_classifier()
         pred_classifier.eval()
 
         # Configures model for device
         if self.use_gpu:
-            pred_classifier = pred_classifier.cuda(rank)
+            pred_classifier = pred_classifier.cuda()
         else:
             pred_classifier = pred_classifier.cpu()
 
-        # Creates distributed data loader from dataset
-        sampler = torch.utils.data.distributed.DistributedSampler(
-            data, num_replicas=self.n_proc, rank=rank, shuffle=False
-        )
         data_loader = torch.utils.data.DataLoader(
             dataset=data, batch_size=self.batch_size, shuffle=False,
-            num_workers=self.num_workers, pin_memory=True, sampler=sampler
+            num_workers=self.num_workers, pin_memory=True
         )
 
         outputs = []
@@ -420,7 +306,7 @@ class Trainable:
                 inputs, targets = batch, None
 
             if self.use_gpu:
-                inputs = inputs.cuda(rank)
+                inputs = inputs.cuda()
 
             with torch.set_grad_enabled(False):
                 output = pred_classifier(inputs)
@@ -432,13 +318,12 @@ class Trainable:
         if len(labels) > 0:
             labels = torch.cat(labels).cpu().detach().numpy()
 
-        if rank == 0:
-            log.info('Finished prediction')
+        log.info('Finished prediction')
 
         if len(labels) > 0:
-            q.put((rank, outputs, labels))
+            return outputs, labels
         else:
-            q.put((rank, outputs))
+            return outputs
 
     @staticmethod
     def _get_model_output_shape(in_size, mod):
