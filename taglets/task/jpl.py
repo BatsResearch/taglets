@@ -359,7 +359,7 @@ class JPLRunner:
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
 
-        self.initial_model = models.resnet18(pretrained=True)
+        self.initial_model = models.resnet50(pretrained=True)
         self.initial_model.fc = torch.nn.Identity()
 
         self.testing = testing
@@ -488,8 +488,9 @@ class JPLRunner:
             self.confidence_active_learning.set_candidates(candidates)
 
         # update initial model
-        self.initial_model = end_model.model
-        self.initial_model.fc = torch.nn.Identity()
+        if checkpoint_num == 7:
+            self.initial_model = end_model.model
+            self.initial_model.fc = torch.nn.Identity()
 
         log.info('{} Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                checkpoint_num,
