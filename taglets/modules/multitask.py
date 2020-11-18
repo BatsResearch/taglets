@@ -174,19 +174,20 @@ class MultiTaskTaglet(Taglet):
         
         super(MultiTaskTaglet, self).train(train_data, val_data)
 
-    def _do_train(self, train_data, val_data):
+    def _do_train(self, rank, q, train_data, val_data):
         # batch_size = min(len(train_data) // num_batches, 256)
         old_batch_size = self.batch_size
         self.batch_size = 256 if not os.environ.get("CI") else 32
-        self.source_data_loader = self._get_dataloader(self.source_data, True)
+        source_sampler = self._get_train_sampler(self.source_data, n_proc=self.n_proc, rank=rank)
+        self.source_data_loader = self._get_dataloader(data=self.source_data, sampler=source_sampler)
         self.batch_size = old_batch_size
 
         old_batch_size = self.batch_size
         self.batch_size = 16
-        super(MultiTaskTaglet, self)._do_train(train_data, val_data)
+        super(MultiTaskTaglet, self)._do_train(rank, q, train_data, val_data)
         self.batch_size = old_batch_size
 
-    def _train_epoch(self, train_data_loader):
+    def _train_epoch(self, rank, train_data_loader):
         self.model.train()
         running_loss = 0
         running_acc = 0
@@ -194,10 +195,10 @@ class MultiTaskTaglet(Taglet):
             source_inputs, source_labels = source_batch
             target_inputs, target_labels = target_batch
             if self.use_gpu:
-                source_inputs = source_inputs.cuda()
-                source_labels = source_labels.cuda()
-                target_inputs = target_inputs.cuda()
-                target_labels = target_labels.cuda()
+                source_inputs = source_inputs.cuda(rank)
+                source_labels = source_labels.cuda(rank)
+                target_inputs = target_inputs.cuda(rank)
+                target_labels = target_labels.cuda(rank)
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
