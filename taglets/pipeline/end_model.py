@@ -2,7 +2,6 @@ from .taglet import Trainable
 
 import os
 import torch
-import numpy as np
 
 
 class EndModel(Trainable):
@@ -20,6 +19,7 @@ class EndModel(Trainable):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
         self.criterion = self.soft_cross_entropy
+        self.gold_label_weight = 1.0
         self.weak_label_weight = 0.5
 
     def soft_cross_entropy(self, outputs, target, using_gold_labels):
@@ -28,7 +28,10 @@ class EndModel(Trainable):
         logs = torch.nn.LogSoftmax(dim=1)
         return torch.mean(
             torch.sum(-target * logs(outputs), 1) *
-            np.where(using_gold_labels, 1, self.weak_label_weight)
+            torch.where(
+                using_gold_labels,
+                torch.tensor(self.gold_label_weight),
+                torch.tensor(self.weak_label_weight))
         )
 
     @staticmethod
