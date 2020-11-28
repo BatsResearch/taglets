@@ -44,25 +44,25 @@ class SoftLabelDataset(Dataset):
     """
     A custom dataset used to create dataloaders.
     """
-    def __init__(self, dataset, labels, remove_old_labels=False):
+    def __init__(self, dataset, labels, using_gold_labels=False):
         """
         Create a new SoftLabelDataset.
         :param dataset: A PyTorch dataset
         :param labels: A list of labels
-        :param remove_old_labels: A boolean indicating whether to the dataset returns labels that we do not use
+        :param using_gold_labels: A boolean indicating whether to the dataset returns labels that we do not use
         """
         self.dataset = dataset
         self.labels = labels
-        self.remove_old_labels = remove_old_labels
+        self.using_gold_labels = using_gold_labels
 
     def __getitem__(self, index):
         data = self.dataset[index]
         label = self.labels[index]
         
-        if self.remove_old_labels:
+        if self.using_gold_labels:
             data = data[0]
             
-        return data, label
+        return data, label, self.using_gold_labels
 
     def __len__(self):
         return len(self.dataset)

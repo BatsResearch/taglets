@@ -115,11 +115,11 @@ class Controller:
         for _, image_labels in labeled:
             soft_labels_labeled_images.append(torch.FloatTensor(self._to_soft_one_hot(int(image_labels[0]))))
 
-        new_labeled_dataset = SoftLabelDataset(labeled_dataset, soft_labels_labeled_images, remove_old_labels=True)
+        new_labeled_dataset = SoftLabelDataset(labeled_dataset, soft_labels_labeled_images, using_gold_labels=True)
         if unlabeled_dataset is None:
             end_model_train_data = new_labeled_dataset
         else:
-            new_unlabeled_dataset = SoftLabelDataset(unlabeled_dataset, weak_labels, remove_old_labels=False)
+            new_unlabeled_dataset = SoftLabelDataset(unlabeled_dataset, weak_labels, using_gold_labels=False)
             end_model_train_data = ConcatDataset([new_labeled_dataset, new_unlabeled_dataset])
 
         return end_model_train_data
