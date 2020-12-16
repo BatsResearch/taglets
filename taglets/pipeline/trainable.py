@@ -65,7 +65,7 @@ class Trainable:
 
         self.valid = True
 
-    def train(self, train_data, val_data):
+    def train(self, train_data, val_data, unlabeled_data=None):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
         os.environ['MASTER_PORT'] = '8888'
 
@@ -150,9 +150,9 @@ class Trainable:
     def _get_val_sampler(self, data, n_proc, rank):
         return self._get_train_sampler(data, n_proc, rank)
 
-    def _get_dataloader(self, data, sampler):
+    def _get_dataloader(self, data, sampler, batch_size):
         return torch.utils.data.DataLoader(
-            dataset=data, batch_size=self.batch_size, shuffle=False,
+            dataset=data, batch_size=batch_size, shuffle=False,
             num_workers=self.num_workers, pin_memory=True, sampler=sampler
         )
 
@@ -191,7 +191,7 @@ class Trainable:
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
 
-    def _do_train(self, rank, q, train_data, val_data):
+    def _do_train(self, rank, q, train_data, val_data, unlabeled_data=None):
         """
         One worker for training.
 
@@ -200,6 +200,7 @@ class Trainable:
 
         :param train_data: A dataset containing training data
         :param val_data: A dataset containing validation data
+        :param unlabeled_data: A dataset containing unlabeled data
         :return:
         """
         if rank == 0:
@@ -225,7 +226,13 @@ class Trainable:
 
         # Creates distributed data loaders from datasets
         train_sampler = self._get_train_sampler(train_data, n_proc=self.n_proc, rank=rank)
-        train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler)
+        train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler, batch_size=self.batch_size)
+
+        unlabeled_data_loader = None
+        if unlabeled_data:
+            unlabeled_sampler = self._get_train_sampler(unlabeled_data, n_proc=self.n_proc, rank=rank)
+            unlabeled_data_loader = self._get_dataloader(data=unlabeled_data, sampler=unlabeled_sampler,
+                                                                              batch_size=self.unlabeled_batch_size)
 
         if val_data is None:
             val_data_loader = None
@@ -250,7 +257,7 @@ class Trainable:
             train_sampler.set_epoch(epoch)
 
             # Trains on training data
-            train_loss, train_acc = self._train_epoch(rank, train_data_loader)
+            train_loss, train_acc = self._train_epoch(rank, train_data_loader, unlabeled_data_loader)
 
             # Evaluates on validation data
             if val_data_loader:
@@ -311,7 +318,7 @@ class Trainable:
         # https://pytorch.org/docs/stable/multiprocessing.html#multiprocessing-cuda-sharing-details
         dist.barrier()
 
-    def _train_epoch(self, rank, train_data_loader):
+    def _train_epoch(self, rank, train_data_loader, unlabeled_data_loader=None):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data

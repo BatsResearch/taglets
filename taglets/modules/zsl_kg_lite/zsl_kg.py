@@ -152,7 +152,7 @@ class ZSLKGTaglet(Taglet):
 
         return model
 
-    def train(self, train_data_loader, val_data_loader):
+    def train(self, train_data_loader, val_data_loader, unlabeled_data=None):
         log.debug('loading pretrained resnet')
         resnet = ResNet()
         resnet.eval()

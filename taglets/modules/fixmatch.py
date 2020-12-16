@@ -1,7 +1,5 @@
 from .module import Module
-from ..data.custom_dataset import CustomDataset
 from ..pipeline import Cache, Taglet
-from ..scads import Scads, ScadsEmbedding
 
 import os
 import random
@@ -196,14 +194,13 @@ class AugmentationType(enum.Enum):
     RandAugment = 0,
     CTAugment = 1
 
+
 class FixMatchModule(Module):
     def __init__(self, task):
         super().__init__(task)
-        episodes = 20 if not os.environ.get("CI") else 5
         self.taglets = [FixMatchTaglet(task, verbose=True)]
 
 
-# TODO: implement AMP if performance is too poor.
 class FixMatchTaglet(Taglet):
     def __init__(self, task, conf_thresh=0.95, lambda_u=1,
                                     nesterov=True,
@@ -211,7 +208,6 @@ class FixMatchTaglet(Taglet):
                                     weight_decay=5e-4,
                                     temp=1,
                                     aug_type=AugmentationType.RandAugment,
-                                    use_amp=False,
                                     verbose=False):
         self.conf_thresh = conf_thresh
         self.lambda_u = lambda_u
@@ -220,7 +216,6 @@ class FixMatchTaglet(Taglet):
         self.weight_decay = weight_decay
         self.temp = temp
         self.aug_type = aug_type
-        self.use_amp = use_amp
 
         if verbose:
             log.info('Initializing FixMatch with hyperparameters:')
@@ -229,11 +224,21 @@ class FixMatchTaglet(Taglet):
             log.info("unlabeled loss weight (lambda u): %.4f", self.lambda_u)
             log.info('temperature: %.4f', self.temp)
             log.info('augmentation type: ' + str(self.aug_type))
-            log.info('use mixed precision: ' + str(self.use_amp))
 
         if aug_type is AugmentationType.CTAugment:
             log.warning('CTAugment has not been implemented yet. Defaulting to RandAugment.')
             self.aug_type = AugmentationType.RandAugment
 
+        self.name = 'fixmatch'
+
         super().__init__(task)
+
+
+    def _do_train(self, rank, q, train_data, val_data, unlabeled_data=None):
+        pass
+
+    def _train_epoch(self, rank, train_data_loader, unlabeled_data_loader=None):
+        pass
+
+    def _train
 
