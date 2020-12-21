@@ -345,7 +345,7 @@ class JPLRunner:
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
 
-        self.initial_model = models.resnet18(pretrained=True)
+        self.initial_model = models.resnet50(pretrained=True)
         self.initial_model.fc = torch.nn.Identity()
 
         self.testing = testing
