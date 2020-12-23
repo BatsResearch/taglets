@@ -43,7 +43,6 @@ class Controller:
         """
         # Gets datasets
         labeled = self.task.get_labeled_train_data()
-        unlabeled = self.task.get_unlabeled_data(False)
         val = self.task.get_validation_data()
 
         unlabeled_images_labels = []
@@ -72,10 +71,11 @@ class Controller:
     
             # Executes taglets
             log.info("Executing taglets")
-            vote_matrix = taglet_executor.execute(unlabeled)
+            vote_matrix1 = taglet_executor.execute(self.task.get_unlabeled_data(True))
+            vote_matrix2 = taglet_executor.execute(self.task.get_unlabeled_data(False))
             log.info("Finished executing taglets")
 
-            return vote_matrix
+            return vote_matrix1, vote_matrix2
 
         return None
 

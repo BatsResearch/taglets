@@ -259,6 +259,13 @@ class JPLStorage:
             if img not in labeled_image_names:
                 unlabeled_image_names.append(img)
         return unlabeled_image_names
+    
+    def get_train_image_names(self):
+        """return list of name of unlabeled images"""
+        train_image_names = []
+        for img in os.listdir(self.unlabeled_image_path):
+            train_image_names.append(img)
+        return train_image_names
 
     def get_evaluation_image_names(self):
         evaluation_image_names = []
@@ -318,6 +325,18 @@ class JPLStorage:
         else:
             return CustomDataset(image_paths,
                                  transform=transform)
+        
+    def get_train_dataset(self):
+        """
+        Get a data loader from unlabeled data.
+        :return: A data loader containing unlabeled data
+        """
+        transform = self.transform_image(train=False)
+
+        image_names = self.get_train_image_names()
+        image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
+        return CustomDataset(image_paths,
+                             transform=transform)
 
     def get_evaluation_dataset(self):
         """
@@ -425,21 +444,21 @@ class JPLRunner:
             self.request_labels(candidates)
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num)
-        eval_train_dataset = self.jpl_storage.get_evaluation_dataset()
-        eval_test_dataset = self.jpl_storage.get_evaluation_dataset()
+        train_dataset = self.jpl_storage.get_train_dataset()
+        eval_dataset = self.jpl_storage.get_evaluation_dataset()
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),
                     (224, 224),
                     labeled_dataset,
-                    eval_train_dataset,
+                    train_dataset,
                     val_dataset,
                     self.jpl_storage.whitelist,
                     'predefined/scads.fall2020.sqlite3',
                     'predefined/embeddings/numberbatch-en19.08.txt.gz',
-                    unlabeled_test_data=eval_test_dataset)
+                    unlabeled_test_data=eval_dataset)
         task.set_initial_model(self.initial_model)
         controller = Controller(task)
-        vote_matrix = controller.train_end_model()
+        vote_matrix1, vote_matrix2 = controller.train_end_model()
 
         predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(),
                             'class': [self.jpl_storage.classes[0]] * len(self.jpl_storage.get_evaluation_image_names())}
@@ -450,8 +469,14 @@ class JPLRunner:
                                                                time.strftime("%H:%M:%S",
                                                                              time.gmtime(time.time()-start_time))))
 
-        checkpoint_dict = {'unlabeled_images_names': self.jpl_storage.get_evaluation_image_names(),
-                           'unlabeled_images_votes': vote_matrix}
+        labeled_train_image_names, _ = self.jpl_storage.get_labeled_images_list()
+        unlabeled_train_image_names, _ = self.jpl_storage.get_unlabeled_image_names()
+        checkpoint_dict = {'train_images_names': self.jpl_storage.get_train_image_names(),
+                           'train_images_votes': vote_matrix1,
+                           'labeld_train_image_names': labeled_train_image_names,
+                           'unlabeled_train_image_names': unlabeled_train_image_names,
+                           'test_images_names': self.jpl_storage.get_evaluation_image_names(),
+                           'test_images_votes': vote_matrix2}
         self.ta2[f'{phase} {checkpoint_num}'] = checkpoint_dict
         with open('ta2_test_votes.pkl', 'wb') as f:
             pickle.dump(self.ta2, f)
