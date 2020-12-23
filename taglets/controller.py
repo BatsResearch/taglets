@@ -45,39 +45,35 @@ class Controller:
         labeled = self.task.get_labeled_train_data()
         val = self.task.get_validation_data()
 
-        unlabeled_images_labels = []
-        if unlabeled is not None:
-            # Creates taglets
-            modules = self._get_taglets_modules()
-            taglets = []
-            for cls in modules:
-                try:
-                    log.info("Initializing %s module", cls.__name__)
-                    module = cls(task=self.task)
-                    log.info("Training %s module", cls.__name__)
-                    module.train_taglets(labeled, val)
-                    log.info("Finished training %s module", cls.__name__)
+        # Creates taglets
+        modules = self._get_taglets_modules()
+        taglets = []
+        for cls in modules:
+            try:
+                log.info("Initializing %s module", cls.__name__)
+                module = cls(task=self.task)
+                log.info("Training %s module", cls.__name__)
+                module.train_taglets(labeled, val)
+                log.info("Finished training %s module", cls.__name__)
 
-                    # Collects taglets
-                    taglets.extend(module.get_valid_taglets())
-                except Exception:
-                    log.error("Exception raised in %s module", cls.__name__)
-                    for line in traceback.format_exc().splitlines():
-                        log.error(line)
-                    log.error("Continuing execution")
-    
-            taglet_executor = TagletExecutor()
-            taglet_executor.set_taglets(taglets)
-    
-            # Executes taglets
-            log.info("Executing taglets")
-            vote_matrix1 = taglet_executor.execute(self.task.get_unlabeled_data(True))
-            vote_matrix2 = taglet_executor.execute(self.task.get_unlabeled_data(False))
-            log.info("Finished executing taglets")
+                # Collects taglets
+                taglets.extend(module.get_valid_taglets())
+            except Exception:
+                log.error("Exception raised in %s module", cls.__name__)
+                for line in traceback.format_exc().splitlines():
+                    log.error(line)
+                log.error("Continuing execution")
 
-            return vote_matrix1, vote_matrix2
+        taglet_executor = TagletExecutor()
+        taglet_executor.set_taglets(taglets)
 
-        return None
+        # Executes taglets
+        log.info("Executing taglets")
+        vote_matrix1 = taglet_executor.execute(self.task.get_unlabeled_data(True))
+        vote_matrix2 = taglet_executor.execute(self.task.get_unlabeled_data(False))
+        log.info("Finished executing taglets")
+
+        return vote_matrix1, vote_matrix2
 
     def _get_taglets_modules(self):
         if self.task.scads_path is not None:
