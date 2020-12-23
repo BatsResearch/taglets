@@ -478,7 +478,7 @@ class JPLRunner:
                            'test_images_names': self.jpl_storage.get_evaluation_image_names(),
                            'test_images_votes': vote_matrix2}
         self.ta2[f'{phase} {checkpoint_num}'] = checkpoint_dict
-        with open('ta2_test_votes.pkl', 'wb') as f:
+        with open('ta2_votes.pkl', 'wb') as f:
             pickle.dump(self.ta2, f)
 
     def get_available_budget(self):
