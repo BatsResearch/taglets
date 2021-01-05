@@ -470,10 +470,10 @@ class JPLRunner:
                                                                              time.gmtime(time.time()-start_time))))
 
         labeled_train_image_names, _ = self.jpl_storage.get_labeled_images_list()
-        unlabeled_train_image_names, _ = self.jpl_storage.get_unlabeled_image_names()
+        unlabeled_train_image_names = self.jpl_storage.get_unlabeled_image_names()
         checkpoint_dict = {'train_images_names': self.jpl_storage.get_train_image_names(),
                            'train_images_votes': vote_matrix1,
-                           'labeld_train_image_names': labeled_train_image_names,
+                           'labeled_train_image_names': labeled_train_image_names,
                            'unlabeled_train_image_names': unlabeled_train_image_names,
                            'test_images_names': self.jpl_storage.get_evaluation_image_names(),
                            'test_images_votes': vote_matrix2}
