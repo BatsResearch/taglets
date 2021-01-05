@@ -1,5 +1,5 @@
 from .data import SoftLabelDataset
-from .modules import FineTuneModule, PrototypeModule, TransferModule, MultiTaskModule, ZSLKGModule
+from .modules import FineTuneModule, PrototypeModule, TransferModule, MultiTaskModule, ZSLKGModule, DannModule
 from .pipeline import EndModel, TagletExecutor
 
 import logging
@@ -101,7 +101,8 @@ class Controller:
 
     def _get_taglets_modules(self):
         if self.task.scads_path is not None:
-            return [MultiTaskModule,
+            return [DannModule,
+                    MultiTaskModule,
                     ZSLKGModule,
                     TransferModule,
                     FineTuneModule,

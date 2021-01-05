@@ -64,6 +64,7 @@ class Trainable:
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
         self.valid = True
+        self.training_first_stage = True
 
     def train(self, train_data, val_data):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
