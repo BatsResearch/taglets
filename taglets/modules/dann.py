@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 class GradientReversalLayer(autograd.Function):
 
     @staticmethod
-    def forward(ctx, x, alpha):
+    def forward(ctx, x, alpha=1.0):
         ctx.alpha = alpha
         return x
 
@@ -83,7 +83,6 @@ class DannTaglet(Taglet):
 
         self.img_per_related_class = 600 if not os.environ.get("CI") else 1
         self.num_related_class = 5
-        self.domain_lr = 1.0
 
     def transform_image(self, train=True):
         """
