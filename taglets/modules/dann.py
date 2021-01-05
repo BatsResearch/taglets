@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 class GradientReversalLayer(autograd.Function):
 
     @staticmethod
-    def forward(ctx, x, alpha=1.0):
+    def forward(ctx, x, alpha):
         ctx.alpha = alpha
         return x
 
@@ -37,7 +37,7 @@ class DannModel(nn.Module):
         self.fc_class = torch.nn.Linear(output_shape, self.num_classes)
         self.fc_domain = torch.nn.Linear(output_shape, 2)
 
-    def forward(self, x, alpha, include_domain=False):
+    def forward(self, x, alpha=1.0, include_domain=False):
         x = self.base(x)
         if not include_domain:
             return self.fc_class(x)
