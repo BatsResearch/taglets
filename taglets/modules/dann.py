@@ -220,8 +220,8 @@ class DannTaglet(Taglet):
                 source_classes, source_domains = self.model(source_inputs, include_domain=True)
                 _, target_domains = self.model(target_inputs, include_domain=True)
                 class_loss = self.criterion(source_classes, source_labels)
-                source_domain_loss = self.criterion(source_domains, torch.zeros(len(source_domains)))
-                target_domain_loss = self.criterion(target_domains, torch.ones(len(target_domains)))
+                source_domain_loss = self.criterion(source_domains, torch.zeros(len(source_domains), dtype=torch.long))
+                target_domain_loss = self.criterion(target_domains, torch.ones(len(target_domains), dtype=torch.long))
                 loss = class_loss + source_domain_loss + target_domain_loss
                 loss.backward()
                 self.optimizer.step()
