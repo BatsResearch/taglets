@@ -39,6 +39,7 @@ class DannModel(nn.Module):
 
     def forward(self, x, alpha=1.0, include_domain=False):
         x = self.base(x)
+        x = torch.flatten(x, 1)
         if not include_domain:
             return self.fc_class(x)
         reverse_x = GradientReversalLayer.apply(x, alpha)
