@@ -393,10 +393,8 @@ class PrototypeTaglet(Taglet):
                                                 n_per=self.val_shot + self.query)
 
     def _get_dataloader(self, data, sampler, batch_size=None):
-        if batch_size is None:
-            batch_size = self.batch_size
         return torch.utils.data.DataLoader(
-            dataset=data, batch_size=batch_size, batch_sampler=sampler,
+            dataset=data,  batch_sampler=sampler,
             num_workers=0, pin_memory=True)
 
     def _get_pred_classifier(self):
