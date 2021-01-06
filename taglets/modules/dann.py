@@ -20,7 +20,7 @@ class GradientReversalLayer(autograd.Function):
     @staticmethod
     def forward(ctx, x, alpha):
         ctx.alpha = alpha
-        return x.clone()
+        return x
 
     @staticmethod
     def backward(ctx, grad_output):
@@ -33,9 +33,9 @@ class DannModel(nn.Module):
         self.model = model
         self.num_classes = num_classes
         self.base = nn.Sequential(*list(self.model.children())[:-1])
-        output_shape = self._get_model_output_shape(input_shape, self.base)
-        self.fc_class = torch.nn.Linear(output_shape, self.num_classes)
-        self.fc_domain = torch.nn.Linear(output_shape, 2)
+        self.output_shape = self._get_model_output_shape(input_shape, self.base)
+        self.fc_class = torch.nn.Linear(self.output_shape, self.num_classes)
+        self.fc_domain = torch.nn.Linear(self.output_shape, 2)
 
     def forward(self, x, alpha=1.0, include_domain=False):
         x = self.base(x)
@@ -56,6 +56,10 @@ class DannModel(nn.Module):
         mod = mod.cpu()
         f = mod(torch.rand(2, 3, *in_size))
         return int(np.prod(f.size()[1:]))
+
+    def _prepare_finetune(self, num_classes):
+        self.num_classes = num_classes
+        self.fc_class = torch.nn.Linear(self.output_shape, self.num_classes)
 
 
 class DannModule(Module):
@@ -84,6 +88,7 @@ class DannTaglet(Taglet):
 
         self.img_per_related_class = 600 if not os.environ.get("CI") else 1
         self.num_related_class = 5
+        self.training_first_stage = True
 
     def transform_image(self, train=True):
         """
@@ -182,6 +187,7 @@ class DannTaglet(Taglet):
 
         super(DannTaglet, self).train(train_data, val_data)
         self.training_first_stage = False
+        self.model._prepare_finetune(len(self.task.classes))
         super(DannTaglet, self).train(train_data, val_data)
 
     def _do_train(self, rank, q, train_data, val_data):
@@ -199,9 +205,8 @@ class DannTaglet(Taglet):
 
     def _train_epoch(self, rank, train_data_loader):
         if self.training_first_stage:
-            self._adapt(rank, train_data_loader)
-        else:
-            self._finetune(rank, train_data_loader)
+            return self._adapt(rank, train_data_loader)
+        return self._finetune(rank, train_data_loader)
 
     def _adapt(self, rank, train_data_loader):
         self.model.train()
@@ -210,19 +215,24 @@ class DannTaglet(Taglet):
         for source_batch, target_batch in zip(self.source_data_loader, train_data_loader):
             source_inputs, source_labels = source_batch
             target_inputs, _ = target_batch
+            zeros = torch.zeros(len(source_inputs), dtype=torch.long)
+            ones = torch.zeros(len(target_inputs), dtype=torch.long)
             if self.use_gpu:
                 source_inputs = source_inputs.cuda(rank)
                 source_labels = source_labels.cuda(rank)
                 target_inputs = target_inputs.cuda(rank)
+                zeros = zeros.cuda(rank)
+                ones = ones.cuda(rank)
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
                 source_classes, source_domains = self.model(source_inputs, include_domain=True)
                 _, target_domains = self.model(target_inputs, include_domain=True)
                 class_loss = self.criterion(source_classes, source_labels)
-                source_domain_loss = self.criterion(source_domains, torch.zeros(len(source_domains), dtype=torch.long))
-                target_domain_loss = self.criterion(target_domains, torch.ones(len(target_domains), dtype=torch.long))
+                source_domain_loss = self.criterion(source_domains, zeros)
+                target_domain_loss = self.criterion(target_domains, ones)
                 loss = class_loss + source_domain_loss + target_domain_loss
+
                 loss.backward()
                 self.optimizer.step()
 

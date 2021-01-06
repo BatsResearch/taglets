@@ -64,7 +64,6 @@ class Trainable:
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
         self.valid = True
-        self.training_first_stage = True
 
     def train(self, train_data, val_data):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
@@ -216,12 +215,12 @@ class Trainable:
         if self.use_gpu:
             self.model = self.model.cuda(rank)
             self.model = nn.parallel.DistributedDataParallel(
-                self.model, device_ids=[rank]
+                self.model, device_ids=[rank], broadcast_buffers=False
             )
         else:
             self.model = self.model.cpu()
             self.model = nn.parallel.DistributedDataParallel(
-                self.model, device_ids=None
+                self.model, device_ids=None, broadcast_buffers=False
             )
 
         # Creates distributed data loaders from datasets
