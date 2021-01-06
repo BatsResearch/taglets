@@ -24,7 +24,7 @@ class GradientReversalLayer(autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        return grad_output.neg() * ctx.alpha
+        return grad_output.neg() * ctx.alpha, None
 
 
 class DannModel(nn.Module):
