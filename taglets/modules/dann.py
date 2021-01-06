@@ -36,13 +36,19 @@ class DannModel(nn.Module):
         self.fc_target = torch.nn.Linear(output_shape, num_target)
         self.fc_domain = torch.nn.Linear(output_shape, 2)
 
-    def forward(self, x, alpha=1.0, include_domain=False):
-        x = self.base(x)
+    def forward(self, target_input, alpha=1.0, source_inputs=None):
+        x = self.base(target_input)
         x = torch.flatten(x, 1)
-        if not include_domain:
+        if source_inputs is None:
             return self.fc_target(x)
         reverse_x = GradientReversalLayer.apply(x, alpha)
-        return self.fc_source(x), self.fc_domain(reverse_x)
+        target = (self.fc_target(x), self.fc_domain(reverse_x))
+
+        x = self.base(source_inputs)
+        x = torch.flatten(x, 1)
+        reverse_x = GradientReversalLayer.apply(x, alpha)
+        source = (self.fc_source(x), self.fc_domain(reverse_x))
+        return target, source
 
     def _get_model_output_shape(self, in_size, mod):
         """
@@ -221,8 +227,7 @@ class DannTaglet(Taglet):
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
-                source_classes, source_domains = self.model(source_inputs, include_domain=True)
-                target_classes, target_domains = self.model(target_inputs, include_domain=True)
+                (target_classes, target_domains), (source_classes, source_domains) = self.model(target_inputs, source_inputs=source_inputs)
                 source_class_loss = self.criterion(source_classes, source_labels)
                 target_class_loss = self.criterion(target_classes, target_labels)
                 source_domain_loss = self.criterion(source_domains, zeros)
