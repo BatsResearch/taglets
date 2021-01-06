@@ -19,7 +19,7 @@ class Module:
         :return: None
         """
         for taglet in self.taglets:
-            taglet.trai n(train_data, val_data, unlabeled_data)
+            taglet.train(train_data, val_data, unlabeled_data)
             
     def get_valid_taglets(self):
         """

@@ -25,11 +25,17 @@ class HiddenLabelDataset(Dataset):
     """
     Wraps a labeled dataset so that it appears unlabeled
     """
-    def __init__(self, dataset):
+    def __init__(self, dataset, transform=None):
         self.dataset = dataset
+        self.transform = transform
 
     def __getitem__(self, idx):
-        img, _ = self.dataset[idx]
+        self.dataset.transform = None
+        img, _ = self.default_transform[idx]
+
+        if self.transform is not None:
+            img = self.transform(img)
+        self.dataset.transform = self.default_transform
         return img
 
     def __len__(self):
@@ -114,6 +120,7 @@ class TestController(unittest.TestCase):
              transforms.ToTensor()])
 
         mnist = MNIST('.', train=True, transform=preprocess, download=True)
+        mnist_unlabeled = MNIST()
         size = int(len(mnist) / 50)
         labeled = Subset(mnist, [i for i in range(size)])
         unlabeled = HiddenLabelDataset(Subset(mnist, [i for i in range(size, 2 * size)]))

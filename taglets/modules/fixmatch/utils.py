@@ -1,23 +1,17 @@
-from .module import Module
-from ..pipeline import Cache, Taglet
-
-import os
-import random
-import torch
 import logging
-import numpy as np
-import torchvision.transforms as transforms
-import torch.nn as nn
-import enum
+import random
 
+import numpy as np
 import PIL
 import PIL.ImageOps
 import PIL.ImageEnhance
 import PIL.ImageDraw
 from PIL import Image
 
-log = logging.getLogger(__name__)
+from torchvision import datasets
+from torchvision import transforms
 
+logger = logging.getLogger(__name__)
 PARAMETER_MAX = 10
 
 
@@ -186,59 +180,30 @@ class RandAugment(object):
             v = np.random.randint(1, self.m)
             if random.random() < 0.5:
                 img = op(img, v=v, max_v=max_v, bias=bias)
+
         img = cutout_abs(img, int(32*0.5))
         return img
 
 
-class AugmentationType(enum.Enum):
-    RandAugment = 0,
-    CTAugment = 1
+class TransformFixMatch(object):
+    def __init__(self, mean, std, input_shape):
+        assert len(input_shape) == 2
+        self.weak = transforms.Compose([
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomCrop(size=input_shape,
+                                  padding=int(input_shape[0]*0.125),
+                                  padding_mode='reflect')])
+        self.strong = transforms.Compose([
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomCrop(size=input_shape,
+                                  padding=int(input_shape[0]*0.125),
+                                  padding_mode='reflect'),
+            RandAugment(n=2, m=10)])
+        self.normalize = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std)])
 
-
-class FixMatchModule(Module):
-    def __init__(self, task):
-        super().__init__(task)
-        self.taglets = [FixMatchTaglet(task, verbose=True)]
-
-
-class FixMatchTaglet(Taglet):
-    def __init__(self, task, conf_thresh=0.95, lambda_u=1,
-                                    nesterov=True,
-                                    mu=7,
-                                    weight_decay=5e-4,
-                                    temp=1,
-                                    aug_type=AugmentationType.RandAugment,
-                                    verbose=False):
-        self.conf_thresh = conf_thresh
-        self.lambda_u = lambda_u
-        self.nesterov = nesterov
-        self.mu = mu
-        self.weight_decay = weight_decay
-        self.temp = temp
-        self.aug_type = aug_type
-
-        if verbose:
-            log.info('Initializing FixMatch with hyperparameters:')
-            log.info('confidence threshold: %.4f', self.conf_thresh)
-            log.info('nesterov: ' + str(self.nesterov))
-            log.info("unlabeled loss weight (lambda u): %.4f", self.lambda_u)
-            log.info('temperature: %.4f', self.temp)
-            log.info('augmentation type: ' + str(self.aug_type))
-
-        if aug_type is AugmentationType.CTAugment:
-            log.warning('CTAugment has not been implemented yet. Defaulting to RandAugment.')
-            self.aug_type = AugmentationType.RandAugment
-
-        self.name = 'fixmatch'
-
-        super().__init__(task)
-
-
-    def _do_train(self, rank, q, train_data, val_data, unlabeled_data=None):
-        pass
-
-    def _train_epoch(self, rank, train_data_loader, unlabeled_data_loader=None):
-        pass
-
-    def _train
-
+    def __call__(self, x):
+        weak = self.weak(x)
+        strong = self.strong(x)
+        return self.normalize(weak), self.normalize(strong)

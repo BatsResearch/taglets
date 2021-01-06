@@ -179,7 +179,8 @@ class MultiTaskTaglet(Taglet):
         old_batch_size = self.batch_size
         self.batch_size = 256 if not os.environ.get("CI") else 32
         source_sampler = self._get_train_sampler(self.source_data, n_proc=self.n_proc, rank=rank)
-        self.source_data_loader = self._get_dataloader(data=self.source_data, sampler=source_sampler)
+        self.source_data_loader = self._get_dataloader(data=self.source_data, sampler=source_sampler,
+                                                                              batch_size=self.batch_size)
         self.batch_size = old_batch_size
 
         old_batch_size = self.batch_size

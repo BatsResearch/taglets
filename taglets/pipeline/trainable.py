@@ -9,6 +9,7 @@ import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 import torch.nn as nn
+import math
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ class Trainable:
         self.seed = 0
         self.num_epochs = 30 if not os.environ.get("CI") else 5
         self.batch_size = 256 if not os.environ.get("CI") else 32
+        self.unlabeled_batch_size = 0
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
 
@@ -74,7 +76,7 @@ class Trainable:
         ctx = mp.get_context('spawn')
         q = ctx.Queue()
         for i in range(self.n_proc):
-            args = (i, q, train_data, val_data)
+            args = (i, q, train_data, val_data, unlabeled_data)
             p = ctx.Process(target=self._do_train, args=args)
             p.start()
             processes.append(p)
@@ -228,17 +230,11 @@ class Trainable:
         train_sampler = self._get_train_sampler(train_data, n_proc=self.n_proc, rank=rank)
         train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler, batch_size=self.batch_size)
 
-        unlabeled_data_loader = None
-        if unlabeled_data:
-            unlabeled_sampler = self._get_train_sampler(unlabeled_data, n_proc=self.n_proc, rank=rank)
-            unlabeled_data_loader = self._get_dataloader(data=unlabeled_data, sampler=unlabeled_sampler,
-                                                                              batch_size=self.unlabeled_batch_size)
-
         if val_data is None:
             val_data_loader = None
         else:
             val_sampler = self._get_val_sampler(val_data, n_proc=self.n_proc, rank=rank)
-            val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler)
+            val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler, batch_size=self.batch_size)
 
         # Initializes statistics containers (will only be filled by lead process)
         best_model_to_save = None
@@ -257,7 +253,7 @@ class Trainable:
             train_sampler.set_epoch(epoch)
 
             # Trains on training data
-            train_loss, train_acc = self._train_epoch(rank, train_data_loader, unlabeled_data_loader)
+            train_loss, train_acc = self._train_epoch(rank, train_data_loader, None)
 
             # Evaluates on validation data
             if val_data_loader:
