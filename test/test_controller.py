@@ -31,7 +31,7 @@ class HiddenLabelDataset(Dataset):
 
     def __getitem__(self, idx):
         img, _ = self.dataset[idx]
-        # TODO: replace with something cleaner
+        # TODO: replace with something clearner
         return img, img if self.dup else img
 
     def __len__(self):
@@ -116,7 +116,6 @@ class TestController(unittest.TestCase):
              transforms.ToTensor()])
 
         mnist = MNIST('.', train=True, transform=preprocess, download=True)
-        mnist_unlabeled = MNIST()
         size = int(len(mnist) / 50)
         labeled = Subset(mnist, [i for i in range(size)])
         unlabeled = HiddenLabelDataset(Subset(mnist, [i for i in range(size, 2 * size)]))
