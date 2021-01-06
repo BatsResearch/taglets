@@ -20,7 +20,7 @@ class GradientReversalLayer(autograd.Function):
     @staticmethod
     def forward(ctx, x, alpha):
         ctx.alpha = alpha
-        return x
+        return x.clone()
 
     @staticmethod
     def backward(ctx, grad_output):
