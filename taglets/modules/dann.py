@@ -208,24 +208,26 @@ class DannTaglet(Taglet):
         running_acc = 0
         for source_batch, target_batch in zip(self.source_data_loader, train_data_loader):
             source_inputs, source_labels = source_batch
-            target_inputs, _ = target_batch
+            target_inputs, target_labels = target_batch
             zeros = torch.zeros(len(source_inputs), dtype=torch.long)
             ones = torch.zeros(len(target_inputs), dtype=torch.long)
             if self.use_gpu:
                 source_inputs = source_inputs.cuda(rank)
                 source_labels = source_labels.cuda(rank)
                 target_inputs = target_inputs.cuda(rank)
+                target_labels = target_labels.cuda(rank)
                 zeros = zeros.cuda(rank)
                 ones = ones.cuda(rank)
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
                 source_classes, source_domains = self.model(source_inputs, include_domain=True)
-                _, target_domains = self.model(target_inputs, include_domain=True)
+                target_classes, target_domains = self.model(target_inputs, include_domain=True)
                 source_class_loss = self.criterion(source_classes, source_labels)
+                target_class_loss = self.criterion(target_classes, target_labels)
                 source_domain_loss = self.criterion(source_domains, zeros)
                 target_domain_loss = self.criterion(target_domains, ones)
-                loss = source_class_loss + source_domain_loss + target_domain_loss
+                loss = source_class_loss + target_class_loss + source_domain_loss + target_domain_loss
 
                 loss.backward()
                 self.optimizer.step()
