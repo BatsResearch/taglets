@@ -25,18 +25,14 @@ class HiddenLabelDataset(Dataset):
     """
     Wraps a labeled dataset so that it appears unlabeled
     """
-    def __init__(self, dataset, transform=None):
+    def __init__(self, dataset, dup=False):
         self.dataset = dataset
-        self.transform = transform
+        self.dup = dup
 
     def __getitem__(self, idx):
-        self.dataset.transform = None
-        img, _ = self.default_transform[idx]
-
-        if self.transform is not None:
-            img = self.transform(img)
-        self.dataset.transform = self.default_transform
-        return img
+        img, _ = self.dataset[idx]
+        # TODO: replace with something cleaner
+        return img, img if self.dup else img
 
     def __len__(self):
         return len(self.dataset)

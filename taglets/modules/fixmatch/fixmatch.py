@@ -1,25 +1,29 @@
 from taglets.modules.module import Module
-from taglets.pipeline import Cache, Taglet
-
+from taglets.pipeline import Taglet
 from .utils import TransformFixMatch
-
 from copy import deepcopy
+from enum import Enum
 
-import os
-import random
+import math
+import pickle
+
+
 import torch
 import logging
-import numpy as np
-import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.distributed as dist
 import torch.nn.functional as F
-import math
-import pickle
+
 
 log = logging.getLogger(__name__)
 
 
+class Optimizer(Enum):
+    SGD = 1
+    ADAM = 2
+
+
+# support for exponential moving average
 class ModelEMA(object):
     def __init__(self, model, decay):
         self.ema = deepcopy(model)
@@ -64,24 +68,7 @@ def get_cosine_schedule_with_warmup(optimizer,
         no_progress = float(current_step - num_warmup_steps) / \
             float(max(1, num_training_steps - num_warmup_steps))
         return max(0., math.cos(math.pi * num_cycles * no_progress))
-
     return torch.optim.lr_scheduler.LambdaLR(optimizer, _lr_lambda, last_epoch)
-
-
-def interleave(x, size):
-    s = list(x.shape)
-    print(s)
-    print([-1, size] + s[1:])
-    print(x.reshape([-1, size] + s[1:]).shape)
-    print(x.reshape([-1, size] + s[1:]).transpose(0, 1).shape)
-    print(x.reshape([-1, size] + s[1:]).transpose(0, 1).reshape([-1] + s[1:]).shape)
-    exit(1)
-    return x.reshape([-1, size] + s[1:]).transpose(0, 1).reshape([-1] + s[1:])
-
-
-def de_interleave(x, size):
-    s = list(x.shape)
-    return x.reshape([size, -1] + s[1:]).transpose(0, 1).reshape([-1] + s[1:])
 
 
 class FixMatchModule(Module):
@@ -100,6 +87,7 @@ class FixMatchTaglet(Taglet):
                              temp=0.95,
                              use_ema=False,
                              ema_decay=0.999,
+                             optimizer=Optimizer.ADAM,
                              verbose=False):
         self.name = 'fixmatch'
 
@@ -108,7 +96,7 @@ class FixMatchTaglet(Taglet):
         self.lambda_u = lambda_u
         self.nesterov = nesterov
 
-        self.lr = 1e-3
+        #self.lr = 1e-3
         self.mu = mu
         self.weight_decay = weight_decay
 
@@ -133,9 +121,12 @@ class FixMatchTaglet(Taglet):
         if self.unlabeled_batch_size == 0:
             raise ValueError("unlabeled dataset is too small for FixMatch.")
 
-        # according to paper, Adam results in poor performance compared to SGD
-        # On basic tests, however, ordinary SGD appears to perform worse?
-        #self.optimizer = torch.optim.SGD(self._params_to_update, lr=self.lr, momentum=0.9, nesterov=self.nesterov)
+        # according to paper, SGD results in better performance than ADAM
+        self.opt_type = optimizer
+        if self.opt_type == Optimizer.SGD:
+            self.optimizer = torch.optim.SGD(self._params_to_update, lr=self.lr,
+                                                                     momentum=0.9,
+                                                                     nesterov=self.nesterov)
 
     def _do_train(self, rank, q, train_data, val_data, unlabeled_data=None):
         """
@@ -170,9 +161,9 @@ class FixMatchTaglet(Taglet):
             )
             if self.use_ema:
                 self.ema_model.ema = self.ema_model.ema.cuda(rank)
-            #    self.ema_model.ema = nn.parallel.DistributedDataParallel(
-            #        self.ema_model.ema, device_ids=[rank]
-            #)
+                self.ema_model.ema = nn.parallel.DistributedDataParallel(
+                    self.ema_model.ema, device_ids=[rank]
+            )
         else:
             self.model = self.model.cpu()
             self.model = nn.parallel.DistributedDataParallel(
@@ -181,14 +172,16 @@ class FixMatchTaglet(Taglet):
 
             if self.use_ema:
                 self.ema_model.ema = self.ema_model.ema.cpu()
-                #self.ema_model.ema = nn.parallel.DistributedDataParallel(
-                #    self.ema_model.ema, device_ids=None
-                #)
+                self.ema_model.ema = nn.parallel.DistributedDataParallel(
+                    self.ema_model.ema, device_ids=None
+                )
 
         # Creates distributed data loaders from datasets
         train_sampler = self._get_train_sampler(train_data, n_proc=self.n_proc, rank=rank)
-        train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler, batch_size=self.batch_size)
+        train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler,
+                                                                  batch_size=self.batch_size)
 
+        # batch size can't be larger than number of examples
         self.unlabeled_batch_size = min(self.unlabeled_batch_size, len(unlabeled_data))
         unlabeled_sampler = self._get_train_sampler(unlabeled_data, n_proc=self.n_proc, rank=rank)
 
@@ -196,18 +189,25 @@ class FixMatchTaglet(Taglet):
         unlabeled_data.transform = TransformFixMatch(mean=[0.485, 0.456, 0.406],
                                                      std=[0.229, 0.224, 0.225],
                                                      input_shape=self.task.input_shape)
-        unlabeled_data_loader = self._get_dataloader(data=unlabeled_data, sampler=unlabeled_sampler,
-                                                                          batch_size=self.unlabeled_batch_size)
+        unlabeled_data_loader = self._get_dataloader(data=unlabeled_data,
+                                                     sampler=unlabeled_sampler,
+                                                     batch_size=self.unlabeled_batch_size)
 
         if self.steps_per_epoch == -1:
             self.steps_per_epoch = max(len(unlabeled_data_loader), len(unlabeled_data_loader))
-        #self.lr_scheduler = get_cosine_schedule_with_warmup(self.optimizer, 0, self.steps_per_epoch * self.num_epochs)
+
+        if self.opt_type == Optimizer.SGD:
+            total_steps = self.steps_per_epoch * self.num_epochs
+            self.lr_scheduler = get_cosine_schedule_with_warmup(self.optimizer,
+                                                                num_warmup_steps=0,
+                                                                num_training_steps=total_steps)
 
         if val_data is None:
             val_data_loader = None
         else:
             val_sampler = self._get_val_sampler(val_data, n_proc=self.n_proc, rank=rank)
-            val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler, batch_size=self.batch_size)
+            val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler,
+                                                                  batch_size=self.batch_size)
 
         # Initializes statistics containers (will only be filled by lead process)
         best_model_to_save = None
@@ -264,7 +264,7 @@ class FixMatchTaglet(Taglet):
                     if self.save_dir:
                         torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
-            if self.lr_scheduler:
+            if self.opt_type == Optimizer.ADAM:
                 self.lr_scheduler.step()
 
         # Lead process saves plots and returns best model
@@ -301,44 +301,43 @@ class FixMatchTaglet(Taglet):
         for i in range(len(train_data_loader)):
             try:
                 inputs_x, targets_x = next(labeled_iter)
-            except:
+            except StopIteration:
                 labeled_iter = iter(train_data_loader)
                 inputs_x, targets_x = next(labeled_iter)
 
             try:
+                # u_w = weak aug examples; u_s = strong aug examples
                 (inputs_u_w, inputs_u_s) = next(unlabeled_iter)
-            except:
+            except StopIteration:
                 unlabeled_iter = iter(unlabeled_data_loader)
                 (inputs_u_w, inputs_u_s) = next(unlabeled_iter)
 
             batch_size = inputs_x.shape[0]
             inputs = torch.cat((inputs_x, inputs_u_w, inputs_u_s))
-            #inputs = interleave(
-            #    torch.cat((inputs_x, inputs_u_w, inputs_u_s)), 2 * self.mu + 1)
             inputs = inputs.cuda(rank) if self.use_gpu else inputs.cpu()
             targets_x = targets_x.cuda(rank) if self.use_gpu else targets_x.cpu()
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
                 logits = self.model(inputs)
-                #logits = de_interleave(logits, 2 * self.mu + 1)
                 logits_x = logits[:batch_size]
                 logits_u_w, logits_u_s = logits[batch_size:].chunk(2)
                 del logits
 
-                Lx = F.cross_entropy(logits_x, targets_x, reduction='mean')
+                lx = F.cross_entropy(logits_x, targets_x, reduction='mean')
 
                 pseudo_label = torch.softmax(logits_u_w.detach() / self.temp, dim=-1)
                 max_probs, targets_u = torch.max(pseudo_label, dim=-1)
+                # binary mask to ignore unconfident psudolabels
                 mask = max_probs.ge(self.conf_thresh).float()
 
-                Lu = (F.cross_entropy(logits_u_s, targets_u, reduction='none') * mask).mean()
-
-                loss = Lx + self.lambda_u * Lu
+                lu = (F.cross_entropy(logits_u_s, targets_u, reduction='none') * mask).mean()
+                loss = lx + self.lambda_u * lu
                 loss.backward()
                 self.optimizer.step()
 
-            #self.lr_scheduler.step()
+            if self.opt_type == Optimizer.SGD:
+                self.lr_scheduler.step()
             if self.use_ema:
                 self.ema_model.update(self.model)
 
