@@ -36,6 +36,8 @@ class Trainable:
         self.batch_size = 256 if not os.environ.get("CI") else 32
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
+        # for extra flexibility
+        self.unlabeled_batch_size = self.batch_size
 
         # Configures GPU and multiprocessing
         n_gpu = torch.cuda.device_count()
@@ -65,7 +67,7 @@ class Trainable:
 
         self.valid = True
 
-    def train(self, train_data, val_data):
+    def train(self, train_data, val_data, unlabeled_data=None):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
         os.environ['MASTER_PORT'] = '8888'
 
@@ -74,7 +76,7 @@ class Trainable:
         ctx = mp.get_context('spawn')
         q = ctx.Queue()
         for i in range(self.n_proc):
-            args = (i, q, train_data, val_data)
+            args = (i, q, train_data, val_data, unlabeled_data)
             p = ctx.Process(target=self._do_train, args=args)
             p.start()
             processes.append(p)
@@ -150,9 +152,11 @@ class Trainable:
     def _get_val_sampler(self, data, n_proc, rank):
         return self._get_train_sampler(data, n_proc, rank)
 
-    def _get_dataloader(self, data, sampler):
+    def _get_dataloader(self, data, sampler, batch_size=None):
+        if batch_size is None:
+            batch_size = self.batch_size
         return torch.utils.data.DataLoader(
-            dataset=data, batch_size=self.batch_size, shuffle=False,
+            dataset=data, batch_size=batch_size, shuffle=False,
             num_workers=self.num_workers, pin_memory=True, sampler=sampler
         )
 
@@ -191,7 +195,7 @@ class Trainable:
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
 
-    def _do_train(self, rank, q, train_data, val_data):
+    def _do_train(self, rank, q, train_data, val_data, unlabeled_data=None):
         """
         One worker for training.
 
@@ -200,6 +204,7 @@ class Trainable:
 
         :param train_data: A dataset containing training data
         :param val_data: A dataset containing validation data
+        :param unlabeled_data: A dataset containing unlabeled data
         :return:
         """
         if rank == 0:
@@ -233,6 +238,15 @@ class Trainable:
             val_sampler = self._get_val_sampler(val_data, n_proc=self.n_proc, rank=rank)
             val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler)
 
+        if unlabeled_data is None:
+            unlabeled_data_loader = None
+        else:
+            unlabeled_sampler = self._get_train_sampler(data=unlabeled_data,
+                                                            n_proc=self.n_proc,
+                                                            rank=rank)
+            unlabeled_data_loader = self._get_dataloader(data=unlabeled_data,
+                                                         sampler=unlabeled_sampler,
+                                                         batch_size=self.unlabeled_batch_size)
         # Initializes statistics containers (will only be filled by lead process)
         best_model_to_save = None
         best_val_acc = 0
@@ -250,7 +264,8 @@ class Trainable:
             train_sampler.set_epoch(epoch)
 
             # Trains on training data
-            train_loss, train_acc = self._train_epoch(rank, train_data_loader)
+            train_loss, train_acc = self._train_epoch(rank, train_data_loader,
+                                                            unlabeled_data_loader)
 
             # Evaluates on validation data
             if val_data_loader:
@@ -311,7 +326,7 @@ class Trainable:
         # https://pytorch.org/docs/stable/multiprocessing.html#multiprocessing-cuda-sharing-details
         dist.barrier()
 
-    def _train_epoch(self, rank, train_data_loader):
+    def _train_epoch(self, rank, train_data_loader, unlabeled_data_loader=None):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data

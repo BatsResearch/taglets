@@ -56,7 +56,7 @@ class Controller:
                     log.info("Initializing %s module", cls.__name__)
                     module = cls(task=self.task)
                     log.info("Training %s module", cls.__name__)
-                    module.train_taglets(labeled, val)
+                    module.train_taglets(labeled, val, unlabeled)
                     log.info("Finished training %s module", cls.__name__)
 
                     # Collects taglets

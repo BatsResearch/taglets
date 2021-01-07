@@ -392,9 +392,9 @@ class PrototypeTaglet(Taglet):
                                                 n_cls=self.val_way,
                                                 n_per=self.val_shot + self.query)
 
-    def _get_dataloader(self, data, sampler):
+    def _get_dataloader(self, data, sampler, batch_size=None):
         return torch.utils.data.DataLoader(
-            dataset=data, batch_sampler=sampler,
+            dataset=data,  batch_sampler=sampler,
             num_workers=0, pin_memory=True)
 
     def _get_pred_classifier(self):
@@ -429,7 +429,7 @@ class PrototypeTaglet(Taglet):
         for key, values in self.prototypes.items():
             self.prototypes[key] = torch.stack(values).mean(dim=0)
 
-    def train(self, train_data, val_data):
+    def train(self, train_data, val_data, unlabeled_data=None):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
         os.environ['MASTER_PORT'] = '8888'
 
@@ -472,7 +472,7 @@ class PrototypeTaglet(Taglet):
             super().train(train_data, val_data)
         self._build_prototypes(train_data, rank=0)
 
-    def _train_epoch(self, rank, train_data_loader):
+    def _train_epoch(self, rank, train_data_loader, unlabeled_data_loader=None):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training data
