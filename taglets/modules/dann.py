@@ -36,19 +36,19 @@ class DannModel(nn.Module):
         self.fc_target = torch.nn.Linear(output_shape, num_target)
         self.fc_domain = torch.nn.Linear(output_shape, 2)
 
-    def forward(self, target_input, alpha=1.0, source_inputs=None):
-        x = self.base(target_input)
+    def forward(self, primary_input, secondary_input=None, alpha=1.0):
+        x = self.base(primary_input)
         x = torch.flatten(x, 1)
-        if source_inputs is None:
+        if secondary_input is None:
             return self.fc_target(x)
         reverse_x = GradientReversalLayer.apply(x, alpha)
-        target = (self.fc_target(x), self.fc_domain(reverse_x))
+        dist = (self.fc_target(x), self.fc_domain(reverse_x))
 
-        x = self.base(source_inputs)
+        x = self.base(secondary_input)
         x = torch.flatten(x, 1)
         reverse_x = GradientReversalLayer.apply(x, alpha)
-        source = (self.fc_source(x), self.fc_domain(reverse_x))
-        return target, source
+        secondary_dist = (self.fc_source(x), self.fc_domain(reverse_x))
+        return dist, secondary_dist
 
     def _get_model_output_shape(self, in_size, mod):
         """
@@ -166,7 +166,7 @@ class DannTaglet(Taglet):
 
         return train_data, all_related_class
 
-    def train(self, train_data, val_data):
+    def train(self, train_data, val_data, unlabeled_data=None):
         # Get Scads data and set up model
         self.source_data, num_classes = self._get_scads_data()
         log.info("Source classes found: {}".format(num_classes))
@@ -186,11 +186,11 @@ class DannTaglet(Taglet):
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
-        super(DannTaglet, self).train(train_data, val_data)
+        super(DannTaglet, self).train(train_data, val_data, unlabeled_data)
         self.training_first_stage = False
-        super(DannTaglet, self).train(train_data, val_data)
+        super(DannTaglet, self).train(train_data, val_data, unlabeled_data)
 
-    def _do_train(self, rank, q, train_data, val_data):
+    def _do_train(self, rank, q, train_data, val_data, unlabeled_data=None):
         # batch_size = min(len(train_data) // num_batches, 256)
         if self.training_first_stage:
             old_batch_size = self.batch_size
@@ -200,23 +200,29 @@ class DannTaglet(Taglet):
             self.batch_size = old_batch_size
         old_batch_size = self.batch_size
         self.batch_size = 16
-        super(DannTaglet, self)._do_train(rank, q, train_data, val_data)
+        super(DannTaglet, self)._do_train(rank, q, train_data, val_data, unlabeled_data)
         self.batch_size = old_batch_size
 
-    def _train_epoch(self, rank, train_data_loader):
+    def _train_epoch(self, rank, train_data_loader, unlabeled_data=None):
         if self.training_first_stage:
-            return self._adapt(rank, train_data_loader)
-        return super(DannTaglet, self)._train_epoch(rank, train_data_loader)
+            return self._adapt(rank, train_data_loader, unlabeled_data)
+        return super(DannTaglet, self)._train_epoch(rank, train_data_loader, unlabeled_data)
 
-    def _adapt(self, rank, train_data_loader):
+    def _adapt(self, rank, train_data_loader, unlabeled_data):
         self.model.train()
         running_loss = 0
         running_acc = 0
-        for source_batch, target_batch in zip(self.source_data_loader, train_data_loader):
+        if unlabeled_data:
+            data = zip(self.source_data_loader, train_data_loader, unlabeled_data)
+        else:
+            data = zip(self.source_data_loader, train_data_loader)
+        for source_batch, target_batch, unlabeled_inputs in data:
             source_inputs, source_labels = source_batch
             target_inputs, target_labels = target_batch
             zeros = torch.zeros(len(source_inputs), dtype=torch.long)
             ones = torch.zeros(len(target_inputs), dtype=torch.long)
+            if unlabeled_data:
+                unlabeled_ones = torch.zeros(len(unlabeled_inputs), dtype=torch.long)
             if self.use_gpu:
                 source_inputs = source_inputs.cuda(rank)
                 source_labels = source_labels.cuda(rank)
@@ -224,14 +230,21 @@ class DannTaglet(Taglet):
                 target_labels = target_labels.cuda(rank)
                 zeros = zeros.cuda(rank)
                 ones = ones.cuda(rank)
+                if unlabeled_data:
+                    unlabeled_inputs = unlabeled_inputs.cuda(rank)
+                    unlabeled_ones = unlabeled_ones.cuda(rank)
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
-                (target_classes, target_domains), (source_classes, source_domains) = self.model(target_inputs, source_inputs=source_inputs)
+                (target_classes, target_domains), (source_classes, source_domains) = self.model(target_inputs, secondary_input=source_inputs)
                 source_class_loss = self.criterion(source_classes, source_labels)
                 target_class_loss = self.criterion(target_classes, target_labels)
                 source_domain_loss = self.criterion(source_domains, zeros)
                 target_domain_loss = self.criterion(target_domains, ones)
+                if unlabeled_data:
+                    # Redundant because of how DistributedDataParallel handles parameters to forward()
+                    (_, unlabeled_target_domains), _ = self.model(unlabeled_inputs, secondary_input=unlabeled_inputs)
+                    target_domain_loss += self.criterion(unlabeled_target_domains, unlabeled_ones)
                 loss = source_class_loss + target_class_loss + source_domain_loss + target_domain_loss
 
                 loss.backward()
