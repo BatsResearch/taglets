@@ -151,7 +151,7 @@ class MultiTaskTaglet(Taglet):
 
         return train_data, all_related_class
 
-    def train(self, train_data, val_data):
+    def train(self, train_data, val_data, unlabeled_data=None):
         # Get Scads data and set up model
         self.source_data, num_classes = self._get_scads_data()
         log.info("Source classes found: {}".format(num_classes))
@@ -172,9 +172,9 @@ class MultiTaskTaglet(Taglet):
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
         
-        super(MultiTaskTaglet, self).train(train_data, val_data)
+        super(MultiTaskTaglet, self).train(train_data, val_data, unlabeled_data)
 
-    def _do_train(self, rank, q, train_data, val_data):
+    def _do_train(self, rank, q, train_data, val_data, unlabeled_data=None):
         # batch_size = min(len(train_data) // num_batches, 256)
         old_batch_size = self.batch_size
         self.batch_size = 256 if not os.environ.get("CI") else 32
@@ -184,10 +184,10 @@ class MultiTaskTaglet(Taglet):
 
         old_batch_size = self.batch_size
         self.batch_size = 16
-        super(MultiTaskTaglet, self)._do_train(rank, q, train_data, val_data)
+        super(MultiTaskTaglet, self)._do_train(rank, q, train_data, val_data, unlabeled_data)
         self.batch_size = old_batch_size
 
-    def _train_epoch(self, rank, train_data_loader):
+    def _train_epoch(self, rank, train_data_loader, unlabeled_train_loader=None):
         self.model.train()
         running_loss = 0
         running_acc = 0
