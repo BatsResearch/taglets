@@ -392,9 +392,9 @@ class PrototypeTaglet(Taglet):
                                                 n_cls=self.val_way,
                                                 n_per=self.val_shot + self.query)
 
-    def _get_dataloader(self, data, sampler):
+    def _get_dataloader(self, data, sampler, batch_size=None):
         return torch.utils.data.DataLoader(
-            dataset=data, batch_sampler=sampler,
+            dataset=data,  batch_sampler=sampler,
             num_workers=0, pin_memory=True)
 
     def _get_pred_classifier(self):
@@ -469,7 +469,7 @@ class PrototypeTaglet(Taglet):
                 if not validate_few_shot_config('Val', val_label_distr, shot=self.val_shot,
                                                 way=self.val_way, query=self.query):
                     val_data = None
-            super().train(train_data, val_data)
+            super().train(train_data, val_data, unlabeled_data)
         self._build_prototypes(train_data, rank=0)
 
     def _train_epoch(self, rank, train_data_loader, unlabeled_data_loader=None):

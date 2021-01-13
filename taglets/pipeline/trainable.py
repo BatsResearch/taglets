@@ -9,7 +9,6 @@ import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 import torch.nn as nn
-import math
 
 log = logging.getLogger(__name__)
 
@@ -35,9 +34,10 @@ class Trainable:
         self.seed = 0
         self.num_epochs = 30 if not os.environ.get("CI") else 5
         self.batch_size = 256 if not os.environ.get("CI") else 32
-        self.unlabeled_batch_size = 0
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
+        # for extra flexibility
+        self.unlabeled_batch_size = self.batch_size
 
         # Configures GPU and multiprocessing
         n_gpu = torch.cuda.device_count()
@@ -152,7 +152,9 @@ class Trainable:
     def _get_val_sampler(self, data, n_proc, rank):
         return self._get_train_sampler(data, n_proc, rank)
 
-    def _get_dataloader(self, data, sampler, batch_size):
+    def _get_dataloader(self, data, sampler, batch_size=None):
+        if batch_size is None:
+            batch_size = self.batch_size
         return torch.utils.data.DataLoader(
             dataset=data, batch_size=batch_size, shuffle=False,
             num_workers=self.num_workers, pin_memory=True, sampler=sampler
@@ -228,14 +230,23 @@ class Trainable:
 
         # Creates distributed data loaders from datasets
         train_sampler = self._get_train_sampler(train_data, n_proc=self.n_proc, rank=rank)
-        train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler, batch_size=self.batch_size)
+        train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler)
 
         if val_data is None:
             val_data_loader = None
         else:
             val_sampler = self._get_val_sampler(val_data, n_proc=self.n_proc, rank=rank)
-            val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler, batch_size=self.batch_size)
+            val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler)
 
+        if unlabeled_data is None:
+            unlabeled_data_loader = None
+        else:
+            unlabeled_sampler = self._get_train_sampler(data=unlabeled_data,
+                                                            n_proc=self.n_proc,
+                                                            rank=rank)
+            unlabeled_data_loader = self._get_dataloader(data=unlabeled_data,
+                                                         sampler=unlabeled_sampler,
+                                                         batch_size=self.unlabeled_batch_size)
         # Initializes statistics containers (will only be filled by lead process)
         best_model_to_save = None
         best_val_acc = 0
@@ -253,8 +264,8 @@ class Trainable:
             train_sampler.set_epoch(epoch)
 
             # Trains on training data
-            train_loss, train_acc = self._train_epoch(rank, train_data_loader, None)
-
+            train_loss, train_acc = self._train_epoch(rank, train_data_loader,
+                                                            unlabeled_data_loader)
             # Evaluates on validation data
             if val_data_loader:
                 val_loss, val_acc = self._validate_epoch(rank, val_data_loader)
