@@ -22,16 +22,19 @@ class HiddenLabelDataset(Dataset):
     Wraps a labeled dataset so that it appears unlabeled
     """
     def __init__(self, dataset):
-        self.dataset = dataset
-        # dummy variable just to make things work
-        self.transform = None
+        self.subset = dataset
+        self.dataset = self.subset.dataset
 
     def __getitem__(self, idx):
-        img, _ = self.dataset[idx]
-        return img
+        data = self.subset[idx]
+        try:
+            img1, img2, _ = data
+        except ValueError:
+            return data[0]
 
     def __len__(self):
-        return len(self.dataset)
+        return len(self.subset)
+
 
 
 class TestFixMatch(TestModule, unittest.TestCase):
@@ -48,10 +51,7 @@ class TestFixMatch(TestModule, unittest.TestCase):
         self.test = ImageFolder(os.path.join(TEST_DATA, "test"), transform=preprocess)
         self.unlabeled = ImageFolder(os.path.join(TEST_DATA, "unlabeled"),
                                      transform=transforms.Compose(
-                                         [transforms.CenterCrop(224),
-                                          TransformFixMatch(mean=[0.485, 0.456, 0.406],
-                                                            std=[0.229, 0.224, 0.225],
-                                                            input_shape=(224, 224))]))
+                                         [transforms.CenterCrop(224)]))
 
         self.unlabeled = HiddenLabelDataset(self.unlabeled)
         self.task = Task("test_module", ["/c/en/airplane", "/c/en/cat", "/c/en/dog"],

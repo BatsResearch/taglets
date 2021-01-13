@@ -105,6 +105,8 @@ class FixMatchTaglet(Taglet):
         self.use_ema = use_ema
         self.ema_decay = ema_decay
 
+        self.org_unlabeled_transform = None
+
         if verbose:
             log.info('Initializing FixMatch with hyperparameters:')
             log.info('confidence threshold: %.4f', self.conf_thresh)
@@ -185,6 +187,8 @@ class FixMatchTaglet(Taglet):
         self.unlabeled_batch_size = min(self.unlabeled_batch_size, len(unlabeled_data))
         unlabeled_sampler = self._get_train_sampler(unlabeled_data, n_proc=self.n_proc, rank=rank)
 
+        # copy unlabeled dataset to prevent adverse side effects
+        unlabeled_data = deepcopy(unlabeled_data)
         # replace default transform with FixMatch Transform
         unlabeled_data.transform = TransformFixMatch(mean=[0.485, 0.456, 0.406],
                                                      std=[0.229, 0.224, 0.225],
@@ -286,12 +290,15 @@ class FixMatchTaglet(Taglet):
         # due to shared CUDA tensors. See
         # https://pytorch.org/docs/stable/multiprocessing.html#multiprocessing-cuda-sharing-details
         dist.barrier()
+        unlabeled_data.transform = self.org_unlabeled_transform
 
     def _get_pred_classifier(self):
         return self.ema_model.ema if self.use_ema else self.model
 
     def _train_epoch(self, rank, train_data_loader, unlabeled_data_loader=None):
         self.model.train()
+        if self.use_ema:
+            self.ema_model.ema.train()
 
         labeled_iter = iter(train_data_loader)
         unlabeled_iter = iter(unlabeled_data_loader)
@@ -307,10 +314,15 @@ class FixMatchTaglet(Taglet):
 
             try:
                 # u_w = weak aug examples; u_s = strong aug examples
-                (inputs_u_w, inputs_u_s) = next(unlabeled_iter)
+                ex = next(unlabeled_iter)
             except StopIteration:
                 unlabeled_iter = iter(unlabeled_data_loader)
-                (inputs_u_w, inputs_u_s) = next(unlabeled_iter)
+                ex = next(unlabeled_iter)
+
+            try:
+                inputs_u_w, inputs_u_s = ex[0], ex[1]
+            except TypeError:
+                raise ValueError("Unlabeled transform is not configured correctly.")
 
             batch_size = inputs_x.shape[0]
             inputs = torch.cat((inputs_x, inputs_u_w, inputs_u_s))

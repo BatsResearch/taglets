@@ -25,17 +25,19 @@ class HiddenLabelDataset(Dataset):
     """
     Wraps a labeled dataset so that it appears unlabeled
     """
-    def __init__(self, dataset, dup=False):
-        self.dataset = dataset
-        self.dup = dup
+    def __init__(self, dataset):
+        self.subset = dataset
+        self.dataset = self.subset.dataset
 
     def __getitem__(self, idx):
-        img, _ = self.dataset[idx]
-        # TODO: replace with something clearner
-        return img, img if self.dup else img
+        data = self.subset[idx]
+        try:
+            img1, img2, _ = data
+        except ValueError:
+            return data[0]
 
     def __len__(self):
-        return len(self.dataset)
+        return len(self.subset)
 
 
 class MnistResNet(ResNet):
@@ -115,10 +117,12 @@ class TestController(unittest.TestCase):
             [transforms.Grayscale(num_output_channels=3),
              transforms.ToTensor()])
 
-        mnist = MNIST('.', train=True, transform=preprocess, download=True)
-        size = int(len(mnist) / 50)
-        labeled = Subset(mnist, [i for i in range(size)])
-        unlabeled = HiddenLabelDataset(Subset(mnist, [i for i in range(size, 2 * size)]))
+        labeled_mnist = MNIST('.', train=True, transform=preprocess, download=True)
+        size = int(len(labeled_mnist) / 50)
+        labeled = Subset(labeled_mnist, [i for i in range(size)])
+
+        # this is necessary because Fixmatch overrides the MNIST transform attribute
+        unlabeled = HiddenLabelDataset(Subset(unlabeled_mnist, [i for i in range(size, 2 * size)]))
         val = Subset(mnist, [i for i in range(2 * size, 3 * size)])
         task = Task("mnist-test", classes, (28, 28), labeled, unlabeled, val)
         task.set_initial_model(MnistResNet())
