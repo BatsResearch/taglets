@@ -33,6 +33,8 @@ class HiddenLabelDataset(Dataset):
         data = self.subset[idx]
         try:
             img1, img2, _ = data
+            return img1, img2
+
         except ValueError:
             return data[0]
 
