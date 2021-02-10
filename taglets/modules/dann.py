@@ -32,23 +32,40 @@ class DannModel(nn.Module):
         super().__init__()
         self.base = nn.Sequential(*list(model.children())[:-1])
         output_shape = self._get_model_output_shape(input_shape, self.base)
+        self.hidden_source = torch.nn.Linear(output_shape, output_shape)
+        self.relu_source = torch.nn.ReLU()
         self.fc_source = torch.nn.Linear(output_shape, num_source)
+        self.hidden_target = torch.nn.Linear(output_shape, output_shape)
+        self.relu_target = torch.nn.ReLU()
         self.fc_target = torch.nn.Linear(output_shape, num_target)
+        self.hidden_domain = torch.nn.Linear(output_shape, output_shape)
+        self.relu_domain = torch.nn.ReLU()
         self.fc_domain = torch.nn.Linear(output_shape, 2)
 
-    def forward(self, primary_input, secondary_input=None, alpha=1.0):
-        x = self.base(primary_input)
+    def forward(self, target_input, source_input=None, unlabeled_input=None, alpha=1.0):
+        x = self.base(target_input)
         x = torch.flatten(x, 1)
-        if secondary_input is None:
-            return self.fc_target(x)
+        target_class = self.fc_target(self.relu_target(self.hidden_target(x)))
+        if source_input is None:
+            return target_class
         reverse_x = GradientReversalLayer.apply(x, alpha)
-        dist = (self.fc_target(x), self.fc_domain(reverse_x))
+        target_domain = self.fc_domain(self.relu_domain(self.hidden_domain(reverse_x)))
+        target_dist = (target_class, target_domain)
 
-        x = self.base(secondary_input)
+        x = self.base(source_input)
+        x = torch.flatten(x, 1)
+        source_class = self.fc_source(self.relu_source(self.hidden_source(x)))
+        reverse_x = GradientReversalLayer.apply(x, alpha)
+        source_domain = self.fc_domain(self.relu_domain(self.hidden_domain(reverse_x)))
+        source_dist = (source_class, source_domain)
+        if unlabeled_input is None or not len(unlabeled_input):
+            return target_dist, source_dist, None
+
+        x = self.base(unlabeled_input)
         x = torch.flatten(x, 1)
         reverse_x = GradientReversalLayer.apply(x, alpha)
-        secondary_dist = (self.fc_source(x), self.fc_domain(reverse_x))
-        return dist, secondary_dist
+        unlabeled_domain = self.fc_domain(self.relu_domain(self.hidden_domain(reverse_x)))
+        return target_dist, source_dist, unlabeled_domain
 
     def _get_model_output_shape(self, in_size, mod):
         """
@@ -90,6 +107,7 @@ class DannTaglet(Taglet):
         self.img_per_related_class = 600 if not os.environ.get("CI") else 1
         self.num_related_class = 5
         self.training_first_stage = True
+        self.epoch = 0
 
     def transform_image(self, train=True):
         """
@@ -194,7 +212,8 @@ class DannTaglet(Taglet):
         # batch_size = min(len(train_data) // num_batches, 256)
         if self.training_first_stage:
             old_batch_size = self.batch_size
-            self.batch_size = 256 if not os.environ.get("CI") else 32
+            # Memory bottleneck if batch size is too large
+            self.batch_size = 16 if not os.environ.get("CI") else 32
             source_sampler = self._get_train_sampler(self.source_data, n_proc=self.n_proc, rank=rank)
             self.source_data_loader = self._get_dataloader(data=self.source_data, sampler=source_sampler)
             self.batch_size = old_batch_size
@@ -212,11 +231,18 @@ class DannTaglet(Taglet):
         self.model.train()
         running_loss = 0
         running_acc = 0
+        total_len = 0
         if unlabeled_data:
             data = zip(self.source_data_loader, train_data_loader, unlabeled_data)
+            dataloader_len = min(len(self.source_data_loader), len(train_data_loader), len(unlabeled_data))
         else:
             data = zip(self.source_data_loader, train_data_loader)
+            dataloader_len = min(len(self.source_data_loader), len(train_data_loader))
+        iteration = 0
         for source_batch, target_batch, unlabeled_inputs in data:
+            p = (iteration + self.epoch * dataloader_len) / (self.num_epochs * dataloader_len)
+            alpha = 2 / (1 + np.exp(-10 * p)) - 1
+            iteration += 1
             source_inputs, source_labels = source_batch
             target_inputs, target_labels = target_batch
             zeros = torch.zeros(len(source_inputs), dtype=torch.long)
@@ -236,14 +262,17 @@ class DannTaglet(Taglet):
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
-                (target_classes, target_domains), (source_classes, source_domains) = self.model(target_inputs, secondary_input=source_inputs)
+                (target_classes, target_domains), (source_classes, source_domains), unlabeled_target_domains = self.model(
+                    target_inputs,
+                    source_inputs,
+                    unlabeled_inputs,
+                    alpha
+                )
                 source_class_loss = self.criterion(source_classes, source_labels)
                 target_class_loss = self.criterion(target_classes, target_labels)
                 source_domain_loss = self.criterion(source_domains, zeros)
                 target_domain_loss = self.criterion(target_domains, ones)
-                if unlabeled_data:
-                    # Redundant because of how DistributedDataParallel handles parameters to forward()
-                    (_, unlabeled_target_domains), _ = self.model(unlabeled_inputs, secondary_input=unlabeled_inputs)
+                if unlabeled_target_domains is not None:
                     target_domain_loss += self.criterion(unlabeled_target_domains, unlabeled_ones)
                 loss = source_class_loss + target_class_loss + source_domain_loss + target_domain_loss
 
@@ -252,11 +281,12 @@ class DannTaglet(Taglet):
 
             running_loss += loss.item()
             running_acc += self._get_train_acc(source_classes, source_labels)
-
+            total_len += len(source_labels)
+        self.epoch += 1
         if not len(train_data_loader.dataset):
             return 0, 0
 
         epoch_loss = running_loss / len(train_data_loader.dataset)
-        epoch_acc = running_acc.item() / len(self.source_data_loader.dataset)
+        epoch_acc = running_acc.item() / total_len
 
         return epoch_loss, epoch_acc
