@@ -118,7 +118,6 @@ class TestController(unittest.TestCase):
                                               [i for i in range(labeled_size + val_size, size)]))
 
         task = Task("fixmatch-cifar100-test", classes, (32, 32), labeled, unlabeled, val)
-        task.set_initial_model(MnistResNet())
 
         # Executes task
         controller = UnreliableController(task)
