@@ -103,7 +103,7 @@ class Controller:
         if self.task.scads_path is not None:
             return [FixMatchModule
                     ]
-        return [FineTuneModule,
+        return [FixMatchModule,
                 PrototypeModule]
 
     def _combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
