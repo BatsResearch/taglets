@@ -196,10 +196,19 @@ class FixMatchTaglet(Taglet):
 
         # copy unlabeled dataset to prevent adverse side effects
         unlabeled_data = deepcopy(unlabeled_data)
-        # replace default transform with FixMatch Transform
-        unlabeled_data.transform = TransformFixMatch(mean=[0.485, 0.456, 0.406],
+
+        fixmatch_transform = TransformFixMatch(mean=[0.485, 0.456, 0.406],
                                                      std=[0.229, 0.224, 0.225],
                                                      input_shape=self.task.input_shape)
+
+        # replace default transform with FixMatch Transform
+        if not hasattr(unlabeled_data, "transform"):
+            if not hasattr(unlabeled_data, "dataset"):
+                raise ValueError("Invalid dataset. FixMatch cannot modify data transformer.")
+            unlabeled_data.dataset.transform = fixmatch_transform
+        else:
+            unlabeled_data.transform = fixmatch_transform
+
         unlabeled_data_loader = self._get_dataloader(data=unlabeled_data,
                                                      sampler=unlabeled_sampler,
                                                      batch_size=self.unlabeled_batch_size)
