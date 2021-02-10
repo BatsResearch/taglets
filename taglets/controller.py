@@ -101,11 +101,7 @@ class Controller:
 
     def _get_taglets_modules(self):
         if self.task.scads_path is not None:
-            return [FixMatchModule,
-                    MultiTaskModule,
-                    ZSLKGModule,
-                    TransferModule,
-                    FineTuneModule,
+            return [FixMatchModule
                     ]
         return [FineTuneModule,
                 PrototypeModule]
