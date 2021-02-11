@@ -121,6 +121,10 @@ class FixMatchTaglet(Taglet):
             log.info('temperature: %.4f', self.temp)
 
         super().__init__(task)
+        
+        output_shape = self._get_model_output_shape(self.task.input_shape, self.model)
+        self.model = torch.nn.Sequential(self.model,
+                                         torch.nn.Linear(output_shape, len(self.task.classes)))
         self.lr = 0.001
         self.num_epochs = 200
         
