@@ -32,7 +32,7 @@ class Trainable:
         self.lr = 0.0005
         self.criterion = torch.nn.CrossEntropyLoss()
         self.seed = 0
-        self.num_epochs = 30 if not os.environ.get("CI") else 5
+        self.num_epochs = 200 if not os.environ.get("CI") else 5
         self.batch_size = 256 if not os.environ.get("CI") else 32
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
@@ -69,7 +69,7 @@ class Trainable:
 
     def train(self, train_data, val_data, unlabeled_data=None):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '8888'
+        os.environ['MASTER_PORT'] = '8889'
 
         # Launches workers and collects results from queue
         processes = []
@@ -91,7 +91,7 @@ class Trainable:
 
     def predict(self, data):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '8888'
+        os.environ['MASTER_PORT'] = '8889'
 
         # Launches workers and collects results from queue
         processes = []

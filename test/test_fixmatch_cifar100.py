@@ -1,4 +1,4 @@
-"""
+
 from taglets.controller import Controller
 from taglets.modules.module import Module
 from taglets.scads import Scads
@@ -14,6 +14,8 @@ from torchvision import transforms
 from torchvision.datasets import CIFAR100
 from torchvision.models.resnet import ResNet, BasicBlock
 import unittest
+import torchvision.models as models
+
 
 TEST_DATA = os.path.join(os.path.dirname(os.path.realpath(__file__)), "test_data/scads")
 DB_PATH = os.path.join(TEST_DATA, "test_scads.db")
@@ -109,7 +111,7 @@ class TestController(unittest.TestCase):
         size = len(cifar100)
 
         # maybe find a better way to split based on classes?
-        labeled_size = int(size * .70)
+        labeled_size = int(size * .20)
         val_size = int(size * .10)
 
         labeled = Subset(cifar100, [i for i in range(labeled_size)])
@@ -118,7 +120,7 @@ class TestController(unittest.TestCase):
                                               [i for i in range(labeled_size + val_size, size)]))
 
         task = Task("fixmatch-cifar100-test", classes, (32, 32), labeled, unlabeled, val)
-
+        task.set_initial_model(models.resnet50(pretrained=True))
         # Executes task
         controller = UnreliableController(task)
         end_model = controller.train_end_model()
@@ -126,7 +128,9 @@ class TestController(unittest.TestCase):
         # Evaluates end model
         mnist_test = CIFAR100('.', train=False, transform=preprocess, download=True)
         mnist_test = Subset(mnist_test, [i for i in range(1000)])
-        self.assertGreater(end_model.evaluate(mnist_test), .70)
+        e = end_model.evaluate(mnist_test)
+        print(e)
+        self.assertGreater(e, .70)
 
     def test_mnist_with_scads(self):
         pass
@@ -137,4 +141,4 @@ class TestController(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-"""
+

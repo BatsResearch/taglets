@@ -81,7 +81,7 @@ def get_cosine_schedule_with_warmup(optimizer,
 class FixMatchModule(Module):
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [FixMatchTaglet(task, verbose=True)]
+        self.taglets = [FixMatchTaglet(task, use_ema=False, optimizer=Optimizer.SGD, verbose=True)]
 
 
 class FixMatchTaglet(Taglet):
@@ -90,7 +90,7 @@ class FixMatchTaglet(Taglet):
                              lambda_u=1,
                              nesterov=True,
                              mu=1,
-                             weight_decay=5e-4,
+                             weight_decay=0.01,
                              temp=0.95,
                              use_ema=False,
                              ema_decay=0.999,
@@ -102,8 +102,7 @@ class FixMatchTaglet(Taglet):
         self.conf_thresh = conf_thresh
         self.lambda_u = lambda_u
         self.nesterov = nesterov
-
-        #self.lr = 1e-3
+        
         self.mu = mu
         self.weight_decay = weight_decay
 
@@ -122,6 +121,9 @@ class FixMatchTaglet(Taglet):
             log.info('temperature: %.4f', self.temp)
 
         super().__init__(task)
+        self.lr = 0.001
+        self.num_epochs = 200
+        
 
         if use_ema:
             self.ema_model = ModelEMA(self.model, decay=self.ema_decay)
@@ -170,9 +172,9 @@ class FixMatchTaglet(Taglet):
             )
             if self.use_ema:
                 self.ema_model.ema = self.ema_model.ema.cuda(rank)
-                self.ema_model.ema = nn.parallel.DistributedDataParallel(
-                    self.ema_model.ema, device_ids=[rank]
-            )
+                #self.ema_model.ema = nn.parallel.DistributedDataParallel(
+                #    self.ema_model.ema, device_ids=[rank]
+                #)
         else:
             self.model = self.model.cpu()
             self.model = nn.parallel.DistributedDataParallel(
@@ -181,9 +183,9 @@ class FixMatchTaglet(Taglet):
 
             if self.use_ema:
                 self.ema_model.ema = self.ema_model.ema.cpu()
-                self.ema_model.ema = nn.parallel.DistributedDataParallel(
-                    self.ema_model.ema, device_ids=None
-                )
+                #self.ema_model.ema = nn.parallel.DistributedDataParallel(
+                #    self.ema_model.ema, device_ids=None
+                #)
 
         # Creates distributed data loaders from datasets
         train_sampler = self._get_train_sampler(train_data, n_proc=self.n_proc, rank=rank)
