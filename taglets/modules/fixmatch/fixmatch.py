@@ -81,7 +81,7 @@ def get_cosine_schedule_with_warmup(optimizer,
 class FixMatchModule(Module):
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [FixMatchTaglet(task, use_ema=False, optimizer=Optimizer.SGD, verbose=True)]
+        self.taglets = [FixMatchTaglet(task, use_ema=False, verbose=True)]
 
 
 class FixMatchTaglet(Taglet):
@@ -109,7 +109,6 @@ class FixMatchTaglet(Taglet):
         # temp used to sharpen logits
         self.temp = temp
         self.use_ema = use_ema
-        self.ema_decay = ema_decay
 
         self.org_unlabeled_transform = None
 
@@ -127,10 +126,9 @@ class FixMatchTaglet(Taglet):
                                          torch.nn.Linear(output_shape, len(self.task.classes)))
         self.lr = 0.001
         self.num_epochs = 200
-        
 
         if use_ema:
-            self.ema_model = ModelEMA(self.model, decay=self.ema_decay)
+            self.ema_model = ModelEMA(self.model, decay=ema_decay)
 
         self.unlabeled_batch_size = math.floor(self.mu * self.batch_size)
         if self.unlabeled_batch_size == 0:
@@ -176,9 +174,6 @@ class FixMatchTaglet(Taglet):
             )
             if self.use_ema:
                 self.ema_model.ema = self.ema_model.ema.cuda(rank)
-                #self.ema_model.ema = nn.parallel.DistributedDataParallel(
-                #    self.ema_model.ema, device_ids=[rank]
-                #)
         else:
             self.model = self.model.cpu()
             self.model = nn.parallel.DistributedDataParallel(
@@ -187,9 +182,6 @@ class FixMatchTaglet(Taglet):
 
             if self.use_ema:
                 self.ema_model.ema = self.ema_model.ema.cpu()
-                #self.ema_model.ema = nn.parallel.DistributedDataParallel(
-                #    self.ema_model.ema, device_ids=None
-                #)
 
         # Creates distributed data loaders from datasets
         train_sampler = self._get_train_sampler(train_data, n_proc=self.n_proc, rank=rank)
@@ -396,8 +388,9 @@ class FixMatchTaglet(Taglet):
 
     def _train_epoch(self, rank, train_data_loader, unlabeled_data_loader=None):
         self.model.train()
-        if self.use_ema:
-            self.ema_model.ema.train()
+
+        #if self.use_ema:
+        #    self.ema_model.ema.train()
 
         labeled_iter = iter(train_data_loader)
         unlabeled_iter = iter(unlabeled_data_loader)
@@ -456,37 +449,6 @@ class FixMatchTaglet(Taglet):
             running_acc += self._get_train_acc(logits_x, targets_x)
 
         epoch_loss = running_loss / self.steps_per_epoch
-        epoch_acc = running_acc.item() / len(train_data_loader.dataset)
+        epoch_acc = running_acc.item() / len(unlabeled_data_loader.dataset)
         return epoch_loss, epoch_acc
 
-    def _validate_epoch(self, rank, val_data_loader):
-        """
-        Validate for one epoch.
-        :param val_data_loader: A dataloader containing validation data
-        :param use_gpu: Whether or not to use the GPU
-        :return: None
-        """
-        test_model = self.model
-        if self.use_ema:
-            test_model = self.ema_model.ema
-
-        test_model.eval()
-        running_loss = 0
-        running_acc = 0
-        for batch in val_data_loader:
-            inputs = batch[0]
-            labels = batch[1]
-            if self.use_gpu:
-                inputs = inputs.cuda(rank)
-                labels = labels.cuda(rank)
-            with torch.set_grad_enabled(False):
-                outputs = test_model(inputs)
-                loss = torch.nn.functional.cross_entropy(outputs, labels)
-                _, preds = torch.max(outputs, 1)
-
-            running_loss += loss.item()
-            running_acc += torch.sum(preds == labels)
-
-        epoch_loss = running_loss / len(val_data_loader.dataset)
-        epoch_acc = running_acc.item() / len(val_data_loader.dataset)
-        return epoch_loss, epoch_acc
