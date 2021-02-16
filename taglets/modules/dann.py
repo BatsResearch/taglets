@@ -33,30 +33,28 @@ class DannModel(nn.Module):
         self.base = nn.Sequential(*list(model.children())[:-1])
         output_shape = self._get_model_output_shape(input_shape, self.base)
         self.hidden_source = torch.nn.Linear(output_shape, output_shape)
-        self.relu_source = torch.nn.ReLU()
+        self.relu = torch.nn.ReLU()
         self.fc_source = torch.nn.Linear(output_shape, num_source)
         self.hidden_target = torch.nn.Linear(output_shape, output_shape)
-        self.relu_target = torch.nn.ReLU()
         self.fc_target = torch.nn.Linear(output_shape, num_target)
         self.hidden_domain = torch.nn.Linear(output_shape, output_shape)
-        self.relu_domain = torch.nn.ReLU()
         self.fc_domain = torch.nn.Linear(output_shape, 2)
 
     def forward(self, target_input, source_input=None, unlabeled_input=None, alpha=1.0):
         x = self.base(target_input)
         x = torch.flatten(x, 1)
-        target_class = self.fc_target(self.relu_target(self.hidden_target(x)))
+        target_class = self.fc_target(self.relu(self.hidden_target(x)))
         if source_input is None:
             return target_class
         reverse_x = GradientReversalLayer.apply(x, alpha)
-        target_domain = self.fc_domain(self.relu_domain(self.hidden_domain(reverse_x)))
+        target_domain = self.fc_domain(self.relu(self.hidden_domain(reverse_x)))
         target_dist = (target_class, target_domain)
 
         x = self.base(source_input)
         x = torch.flatten(x, 1)
-        source_class = self.fc_source(self.relu_source(self.hidden_source(x)))
+        source_class = self.fc_source(self.relu(self.hidden_source(x)))
         reverse_x = GradientReversalLayer.apply(x, alpha)
-        source_domain = self.fc_domain(self.relu_domain(self.hidden_domain(reverse_x)))
+        source_domain = self.fc_domain(self.relu(self.hidden_domain(reverse_x)))
         source_dist = (source_class, source_domain)
         if unlabeled_input is None or not len(unlabeled_input):
             return target_dist, source_dist, None
@@ -64,7 +62,7 @@ class DannModel(nn.Module):
         x = self.base(unlabeled_input)
         x = torch.flatten(x, 1)
         reverse_x = GradientReversalLayer.apply(x, alpha)
-        unlabeled_domain = self.fc_domain(self.relu_domain(self.hidden_domain(reverse_x)))
+        unlabeled_domain = self.fc_domain(self.relu(self.hidden_domain(reverse_x)))
         return target_dist, source_dist, unlabeled_domain
 
     def _get_model_output_shape(self, in_size, mod):
