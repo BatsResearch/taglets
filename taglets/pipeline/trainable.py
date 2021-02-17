@@ -64,13 +64,11 @@ class Trainable:
         self._params_to_update = params_to_update
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
-
         self.valid = True
 
     def train(self, train_data, val_data, unlabeled_data=None):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '8889'
-
+        os.environ['MASTER_PORT'] = '8888'
         # Launches workers and collects results from queue
         processes = []
         ctx = mp.get_context('spawn')
@@ -91,7 +89,7 @@ class Trainable:
 
     def predict(self, data):
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '8889'
+        os.environ['MASTER_PORT'] = '8888'
 
         # Launches workers and collects results from queue
         processes = []
