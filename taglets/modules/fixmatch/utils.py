@@ -186,21 +186,23 @@ class RandAugment(object):
 
 
 class TransformFixMatch(object):
-    def __init__(self, mean, std, input_shape):
+    def __init__(self, mean, std, input_shape, grayscale=False):
         assert len(input_shape) == 2
-        self.weak = transforms.Compose([
+        header = [transforms.Greyscale(num_output_channels=3)] if grayscale else []
+
+        self.weak = transforms.Compose(header.extend([
             transforms.Resize(input_shape),
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(size=input_shape,
                                   padding=int(input_shape[0]*0.125),
-                                  padding_mode='reflect')])
-        self.strong = transforms.Compose([
+                                  padding_mode='reflect')]))
+        self.strong = transforms.Compose(header.extend([
             transforms.Resize(input_shape),
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(size=input_shape,
                                   padding=int(input_shape[0]*0.125),
                                   padding_mode='reflect'),
-            RandAugment(n=2, m=10)])
+            RandAugment(n=2, m=10)]))
         self.normalize = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize(mean=mean, std=std)])
@@ -209,3 +211,22 @@ class TransformFixMatch(object):
         weak = self.weak(x)
         strong = self.strong(x)
         return self.normalize(weak), self.normalize(strong)
+
+
+def parse_transform_compose(transform):
+    s = transform.__repr__()
+    l = s.split("\n")
+    l = [x.replace(" ", "") for x in l]
+    l = [x for x in l if "Compose" not in x]
+    l = [x for x in l if x != ")"]
+    return l
+
+
+def is_grayscale(transform):
+    try:
+        parsed_t = parse_transform_compose(transform)
+        for s in parsed_t:
+            if "Grayscale" in s:
+                return True
+    except AttributeError:
+        return False

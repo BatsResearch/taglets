@@ -5,7 +5,7 @@ from taglets.data.custom_dataset import CustomDataset
 from taglets.pipeline import Cache, Taglet
 from taglets.scads import Scads, ScadsEmbedding
 
-from .utils import TransformFixMatch
+from .utils import TransformFixMatch, is_grayscale
 from copy import deepcopy
 from enum import Enum
 
@@ -245,6 +245,21 @@ class FixMatchTaglet(Taglet):
 
         return train_dataset, val_dataset, all_related_class
 
+    def _init_unlabeled_transform(self, unlabeled_data):
+        if not hasattr(unlabeled_data, "transform"):
+            if not hasattr(unlabeled_data, "dataset"):
+                raise ValueError("Invalid dataset. FixMatch cannot modify data transformer.")
+            unlabeled_data.dataset.transform = TransformFixMatch(mean=[0.485, 0.456, 0.406],
+                                                                 std=[0.229, 0.224, 0.225],
+                                                                 input_shape=self.task.input_shape,
+                                                                 grayscale=is_grayscale(
+                                                                     unlabeled_data.dataset.transform))
+        else:
+            unlabeled_data.transform = TransformFixMatch(mean=[0.485, 0.456, 0.406],
+                                                         std=[0.229, 0.224, 0.225],
+                                                         input_shape=self.task.input_shape,
+                                                         grayscale=is_grayscale(unlabeled_data.transform))
+
     def _do_train(self, rank, q, train_data, val_data, unlabeled_data=None):
         """
                One worker for training.
@@ -306,17 +321,8 @@ class FixMatchTaglet(Taglet):
         # copy unlabeled dataset to prevent adverse side effects
         unlabeled_data = deepcopy(unlabeled_data)
 
-        fixmatch_transform = TransformFixMatch(mean=[0.485, 0.456, 0.406],
-                                               std=[0.229, 0.224, 0.225],
-                                               input_shape=self.task.input_shape)
-
         # replace default transform with FixMatch Transform
-        if not hasattr(unlabeled_data, "transform"):
-            if not hasattr(unlabeled_data, "dataset"):
-                raise ValueError("Invalid dataset. FixMatch cannot modify data transformer.")
-            unlabeled_data.dataset.transform = fixmatch_transform
-        else:
-            unlabeled_data.transform = fixmatch_transform
+        self._init_unlabeled_transform(unlabeled_data)
 
         unlabeled_data_loader = self._get_dataloader(data=unlabeled_data,
                                                      sampler=unlabeled_sampler,
