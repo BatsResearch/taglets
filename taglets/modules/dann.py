@@ -77,6 +77,12 @@ class DannModel(nn.Module):
         f = mod(torch.rand(2, 3, *in_size))
         return int(np.prod(f.size()[1:]))
 
+    def _remove_extra_heads(self):
+        self.hidden_source = None
+        self.fc_source = None
+        self.hidden_domain = None
+        self.fc_domain = None
+
 
 class DannModule(Module):
     """
@@ -93,7 +99,7 @@ class DannTaglet(Taglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'dann'
-        self.num_epochs = 50 if not os.environ.get("CI") else 5
+        self.num_epochs = 2 if not os.environ.get("CI") else 5
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
@@ -185,6 +191,8 @@ class DannTaglet(Taglet):
     def train(self, train_data, val_data, unlabeled_data=None):
         # Get Scads data and set up model
         self.source_data, num_classes = self._get_scads_data()
+        self.source_data = train_data
+        num_classes = 10
         log.info("Source classes found: {}".format(num_classes))
         log.info("Number of source training images: {}".format(len(self.source_data)))
 
@@ -194,17 +202,23 @@ class DannTaglet(Taglet):
 
         self.model = DannModel(self.model, len(self.task.classes), num_classes, self.task.input_shape)
 
-        params_to_update = []
+        # Domain adversarial training
+        self._update_params()
+        super(DannTaglet, self).train(train_data, val_data, unlabeled_data)
+
+        # Finetune target data
+        self.training_first_stage = False
+        self.model._remove_extra_heads()
+        self._update_params()
+        super(DannTaglet, self).train(train_data, val_data, unlabeled_data)
+
+    def _update_params(self):
+        self.params_to_update = []
         for param in self.model.parameters():
             if param.requires_grad:
-                params_to_update.append(param)
-        self._params_to_update = params_to_update
+                self.params_to_update.append(param)
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
-
-        super(DannTaglet, self).train(train_data, val_data, unlabeled_data)
-        self.training_first_stage = False
-        super(DannTaglet, self).train(train_data, val_data, unlabeled_data)
 
     def _do_train(self, rank, q, train_data, val_data, unlabeled_data=None):
         # batch_size = min(len(train_data) // num_batches, 256)

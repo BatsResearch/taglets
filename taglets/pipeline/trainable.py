@@ -220,12 +220,12 @@ class Trainable:
         if self.use_gpu:
             self.model = self.model.cuda(rank)
             self.model = nn.parallel.DistributedDataParallel(
-                self.model, device_ids=[rank], find_unused_parameters=True
+                self.model, device_ids=[rank]
             )
         else:
             self.model = self.model.cpu()
             self.model = nn.parallel.DistributedDataParallel(
-                self.model, device_ids=None, find_unused_parameters=True
+                self.model, device_ids=None
             )
 
         # Creates distributed data loaders from datasets
