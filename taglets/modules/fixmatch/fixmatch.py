@@ -248,7 +248,7 @@ class FixMatchTaglet(Taglet):
                                                          grayscale=is_grayscale(unlabeled_data.transform))
 
     def train(self, train_data, val_data, unlabeled_data=None):
-        scads_train_data, num_classes = self._get_scads_data()
+        self.scads_train_data, num_classes = self._get_scads_data()
 
         if num_classes == 0:
             return
@@ -256,8 +256,6 @@ class FixMatchTaglet(Taglet):
         output_shape = self._get_model_output_shape(self.task.input_shape, self.model)
         self.model = torch.nn.Sequential(self.model,
                                          torch.nn.Linear(output_shape, num_classes))
-
-        train_data = ConcatDataset([scads_train_data, train_data])
 
         # copy unlabeled dataset to prevent adverse side effects
         unlabeled_data = deepcopy(unlabeled_data)
@@ -313,6 +311,9 @@ class FixMatchTaglet(Taglet):
         train_sampler = self._get_train_sampler(train_data, n_proc=self.n_proc, rank=rank)
         train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler,
                                                                   batch_size=self.batch_size)
+
+        self.scads_train_data_loader = self._get_dataloader(data=self.scads_train_data, sampler=train_sampler,
+                                                                                        batch_size=self.batch_size)
 
         # batch size can't be larger than number of examples
         self.unlabeled_batch_size = min(self.unlabeled_batch_size, len(unlabeled_data))
@@ -432,6 +433,7 @@ class FixMatchTaglet(Taglet):
 
         labeled_iter = iter(train_data_loader)
         unlabeled_iter = iter(unlabeled_data_loader)
+        scads_iter = iter(self.scads_train_data)
 
         running_loss = 0.0
         running_acc = 0.0
@@ -442,6 +444,12 @@ class FixMatchTaglet(Taglet):
             except StopIteration:
                 labeled_iter = iter(train_data_loader)
                 inputs_x, targets_x = next(labeled_iter)
+
+            try:
+                scads_inputs, scads_targets = next(scads_iter)
+            except StopIteration:
+                labeled_iter = iter(self.scads_train_data_loader)
+                scads_inputs, scads_targets = next(scads_iter)
 
             try:
                 # u_w = weak aug examples; u_s = strong aug examples
@@ -455,8 +463,8 @@ class FixMatchTaglet(Taglet):
             except TypeError:
                 raise ValueError("Unlabeled transform is not configured correctly.")
 
-            batch_size = inputs_x.shape[0]
-            inputs = torch.cat((inputs_x, inputs_u_w, inputs_u_s))
+            batch_size = inputs_x.shape[0] + scads_inputs.shape[0]
+            inputs = torch.cat((inputs_x, scads_inputs, inputs_u_w, inputs_u_s))
             inputs = inputs.cuda(rank) if self.use_gpu else inputs.cpu()
             targets_x = targets_x.cuda(rank) if self.use_gpu else targets_x.cpu()
 
