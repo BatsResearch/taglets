@@ -188,7 +188,7 @@ class RandAugment(object):
 class TransformFixMatch(object):
     def __init__(self, mean, std, input_shape, grayscale=False):
         assert len(input_shape) == 2
-        header = [transforms.Greyscale(num_output_channels=3)] if grayscale else []
+        header = [transforms.Grayscale(num_output_channels=3)] if grayscale else []
 
         self.weak = transforms.Compose(header.extend([
             transforms.Resize(input_shape),
