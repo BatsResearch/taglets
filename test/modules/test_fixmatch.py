@@ -36,7 +36,6 @@ class HiddenLabelDataset(Dataset):
         return len(self.dataset)
 
 
-
 class TestFixMatch(TestModule, unittest.TestCase):
     def _get_module(self, task):
         return FixMatchModule(task)

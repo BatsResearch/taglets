@@ -137,7 +137,7 @@ class FixMatchTaglet(Taglet):
             log.info('temperature: %.4f', self.temp)
 
         super().__init__(task)
-        
+
         output_shape = self._get_model_output_shape(self.task.input_shape, self.model)
         self.model = torch.nn.Sequential(self.model,
                                          torch.nn.Linear(output_shape, len(self.task.classes)))
@@ -216,7 +216,8 @@ class FixMatchTaglet(Taglet):
 
                 neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
                 for neighbor in neighbors:
-                    if get_images(neighbor, offset + cur_related_class - 1 if cur_related_class > 0 else 0):
+                    if get_images(neighbor, offset):
+                        offset += 1
                         cur_related_class += 1
                         all_related_class += 1
                         if cur_related_class >= self.num_related_class:
@@ -227,23 +228,11 @@ class FixMatchTaglet(Taglet):
                       (image_paths, image_labels, all_related_class))
 
         transform = self.transform_image(train=True)
-        train_val_data = CustomDataset(image_paths,
-                                       labels=image_labels,
-                                       transform=transform)
+        train_data = CustomDataset(image_paths,
+                                   labels=image_labels,
+                                   transform=transform)
 
-        # 80% for training, 20% for validation
-        train_percent = 0.8
-        num_data = len(train_val_data)
-        indices = list(range(num_data))
-        train_split = int(np.floor(train_percent * num_data))
-        np.random.shuffle(indices)
-        train_idx = indices[:train_split]
-        valid_idx = indices[train_split:]
-
-        train_dataset = Subset(train_val_data, train_idx)
-        val_dataset = Subset(train_val_data, valid_idx)
-
-        return train_dataset, val_dataset, all_related_class
+        return train_data, all_related_class
 
     def _init_unlabeled_transform(self, unlabeled_data):
         if not hasattr(unlabeled_data, "transform"):
@@ -259,6 +248,25 @@ class FixMatchTaglet(Taglet):
                                                          std=[0.229, 0.224, 0.225],
                                                          input_shape=self.task.input_shape,
                                                          grayscale=is_grayscale(unlabeled_data.transform))
+
+    def train(self, train_data, val_data, unlabeled_data=None):
+        scads_train_data, num_classes = self._get_scads_data()
+
+        if num_classes == 0:
+            return
+
+        output_shape = self._get_model_output_shape(self.task.input_shape, self.model)
+        self.model = torch.nn.Sequential(self.model,
+                                         torch.nn.Linear(output_shape, num_classes))
+
+        train_data = ConcatDataset([scads_train_data, train_data])
+
+        # copy unlabeled dataset to prevent adverse side effects
+        unlabeled_data = deepcopy(unlabeled_data)
+
+        # replace default transform with FixMatch Transform
+        self._init_unlabeled_transform(unlabeled_data)
+        super(FixMatchTaglet, self).train(train_data, val_data, unlabeled_data)
 
     def _do_train(self, rank, q, train_data, val_data, unlabeled_data=None):
         """
@@ -302,12 +310,6 @@ class FixMatchTaglet(Taglet):
             if self.use_ema:
                 self.ema_model.ema = self.ema_model.ema.cpu()
 
-        # Get SCADS data
-        scads_train_data, scads_val_data, scads_num_classes = self._get_scads_data()
-
-        train_data = ConcatDataset([scads_train_data, train_data])
-        val_data = ConcatDataset([scads_val_data, val_data]) if val_data is not None else scads_val_data
-
 
         # Creates distributed data loaders from datasets
         train_sampler = self._get_train_sampler(train_data, n_proc=self.n_proc, rank=rank)
@@ -317,12 +319,6 @@ class FixMatchTaglet(Taglet):
         # batch size can't be larger than number of examples
         self.unlabeled_batch_size = min(self.unlabeled_batch_size, len(unlabeled_data))
         unlabeled_sampler = self._get_train_sampler(unlabeled_data, n_proc=self.n_proc, rank=rank)
-
-        # copy unlabeled dataset to prevent adverse side effects
-        unlabeled_data = deepcopy(unlabeled_data)
-
-        # replace default transform with FixMatch Transform
-        self._init_unlabeled_transform(unlabeled_data)
 
         unlabeled_data_loader = self._get_dataloader(data=unlabeled_data,
                                                      sampler=unlabeled_sampler,
