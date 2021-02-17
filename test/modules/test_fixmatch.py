@@ -50,8 +50,7 @@ class TestFixMatch(TestModule, unittest.TestCase):
         self.val = ImageFolder(os.path.join(TEST_DATA, "val"), transform=preprocess)
         self.test = ImageFolder(os.path.join(TEST_DATA, "test"), transform=preprocess)
         self.unlabeled = ImageFolder(os.path.join(TEST_DATA, "unlabeled"),
-                                     transform=transforms.Compose(
-                                         [transforms.CenterCrop(224)]))
+                                     transform=preprocess)
 
         self.unlabeled = HiddenLabelDataset(self.unlabeled)
         self.task = Task("test_module", ["/c/en/airplane", "/c/en/cat", "/c/en/dog"],
