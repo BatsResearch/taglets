@@ -188,21 +188,25 @@ class RandAugment(object):
 class TransformFixMatch(object):
     def __init__(self, mean, std, input_shape, grayscale=False):
         assert len(input_shape) == 2
-        header = [transforms.Grayscale(num_output_channels=3)] if grayscale else []
-
-        self.weak = transforms.Compose(header.extend([
+        weak_header = [transforms.Grayscale(num_output_channels=3)] if grayscale else []
+        strong_header = weak_header.copy()
+        
+        weak_header.extend([
             transforms.Resize(input_shape),
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(size=input_shape,
                                   padding=int(input_shape[0]*0.125),
-                                  padding_mode='reflect')]))
-        self.strong = transforms.Compose(header.extend([
+                                  padding_mode='reflect')])
+        self.weak = transforms.Compose(weak_header)
+        
+        strong_header.extend([
             transforms.Resize(input_shape),
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(size=input_shape,
                                   padding=int(input_shape[0]*0.125),
                                   padding_mode='reflect'),
-            RandAugment(n=2, m=10)]))
+            RandAugment(n=2, m=10)])
+        self.strong = transforms.Compose(strong_header)
         self.normalize = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize(mean=mean, std=std)])
