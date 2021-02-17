@@ -441,6 +441,7 @@ class FixMatchTaglet(Taglet):
 
         running_loss = 0.0
         running_acc = 0.0
+        acc_count = 0
         for i in range(self.steps_per_epoch):
             try:
                 inputs_x, targets_x = next(labeled_iter)
@@ -491,6 +492,7 @@ class FixMatchTaglet(Taglet):
 
             running_loss += loss.item()
             running_acc += self._get_train_acc(logits_x, targets_x)
+            acc_count += len(targets_x)
 
         epoch_loss = running_loss / self.steps_per_epoch
         epoch_acc = running_acc.item() / self.steps_per_epoch
