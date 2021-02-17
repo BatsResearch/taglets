@@ -441,8 +441,7 @@ class FixMatchTaglet(Taglet):
 
         running_loss = 0.0
         running_acc = 0.0
-        iters = 0
-        for i in range(len(train_data_loader)):
+        for i in range(self.steps_per_epoch):
             try:
                 inputs_x, targets_x = next(labeled_iter)
             except StopIteration:
@@ -490,12 +489,11 @@ class FixMatchTaglet(Taglet):
             if self.use_ema:
                 self.ema_model.update(self.model)
 
-            iters += 1
             running_loss += loss.item()
             running_acc += self._get_train_acc(logits_x, targets_x)
 
         epoch_loss = running_loss / self.steps_per_epoch
-        epoch_acc = running_acc.item() / iters
+        epoch_acc = running_acc.item() / self.steps_per_epoch
         return epoch_loss, epoch_acc
 
     def _validate_epoch(self, rank, val_data_loader):
