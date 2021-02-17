@@ -1,5 +1,3 @@
-from torch.utils.data import Subset
-
 from taglets.modules.module import Module
 from taglets.data.custom_dataset import CustomDataset
 from taglets.pipeline import Cache, Taglet
@@ -13,7 +11,6 @@ import math
 import pickle
 import os
 import random
-import numpy as np
 
 import torch
 import logging
@@ -22,8 +19,6 @@ import torch.distributed as dist
 import torch.nn.functional as F
 
 import torchvision.transforms as transforms
-
-from torch.utils.data.dataset import ConcatDataset
 
 
 log = logging.getLogger(__name__)
@@ -313,7 +308,7 @@ class FixMatchTaglet(Taglet):
                                                                   batch_size=self.batch_size)
 
         self.scads_train_data_loader = self._get_dataloader(data=self.scads_train_data, sampler=train_sampler,
-                                                                                        batch_size=self.batch_size)
+                                                                                        batch_size=min(self.batch_size, len(self.scads_train_data)))
 
         # batch size can't be larger than number of examples
         self.unlabeled_batch_size = min(self.unlabeled_batch_size, len(unlabeled_data))
@@ -448,7 +443,7 @@ class FixMatchTaglet(Taglet):
             try:
                 scads_inputs, scads_targets = next(scads_iter)
             except StopIteration:
-                labeled_iter = iter(self.scads_train_data_loader)
+                scads_iter = iter(self.scads_train_data_loader)
                 scads_inputs, scads_targets = next(scads_iter)
 
             try:
