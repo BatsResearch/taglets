@@ -303,10 +303,10 @@ class FixMatchTaglet(Taglet):
                 self.ema_model.ema = self.ema_model.ema.cpu()
 
         # Get SCADS data
-        #scads_train_data, scads_val_data, scads_num_classes = self._get_scads_data()
+        scads_train_data, scads_val_data, scads_num_classes = self._get_scads_data()
 
-        #train_data = ConcatDataset([scads_train_data, train_data])
-        #val_data = ConcatDataset([scads_val_data, val_data]) if val_data is not None else scads_val_data
+        train_data = ConcatDataset([scads_train_data, train_data])
+        val_data = ConcatDataset([scads_val_data, val_data]) if val_data is not None else scads_val_data
 
 
         # Creates distributed data loaders from datasets
@@ -495,7 +495,7 @@ class FixMatchTaglet(Taglet):
             acc_count += len(targets_x)
 
         epoch_loss = running_loss / self.steps_per_epoch
-        epoch_acc = running_acc.item() / self.steps_per_epoch
+        epoch_acc = running_acc.item() / acc_count
         return epoch_loss, epoch_acc
 
     def _validate_epoch(self, rank, val_data_loader):
