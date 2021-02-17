@@ -433,7 +433,7 @@ class FixMatchTaglet(Taglet):
 
         labeled_iter = iter(train_data_loader)
         unlabeled_iter = iter(unlabeled_data_loader)
-        scads_iter = iter(self.scads_train_data)
+        scads_iter = iter(self.scads_train_data_loader)
 
         running_loss = 0.0
         running_acc = 0.0
@@ -475,8 +475,7 @@ class FixMatchTaglet(Taglet):
                 logits_u_w, logits_u_s = logits[batch_size:].chunk(2)
                 del logits
 
-                lx = F.cross_entropy(logits_x, targets_x, reduction='mean')
-
+                lx = F.cross_entropy(logits_x, torch.cat([targets_x, scads_targets]), reduction='mean')
                 pseudo_label = torch.softmax(logits_u_w.detach() / self.temp, dim=-1)
                 max_probs, targets_u = torch.max(pseudo_label, dim=-1)
                 # binary mask to ignore unconfident psudolabels
