@@ -288,10 +288,10 @@ class FixMatchTaglet(Taglet):
                 self.ema_model.ema = self.ema_model.ema.cpu()
 
         # Get SCADS data
-        scads_train_data, scads_val_data, scads_num_classes = self._get_scads_data()
+        #scads_train_data, scads_val_data, scads_num_classes = self._get_scads_data()
 
-        train_data = ConcatDataset([scads_train_data, train_data])
-        val_data = ConcatDataset([scads_val_data, val_data]) if val_data is not None else scads_val_data
+        #train_data = ConcatDataset([scads_train_data, train_data])
+        #val_data = ConcatDataset([scads_val_data, val_data]) if val_data is not None else scads_val_data
 
 
         # Creates distributed data loaders from datasets
