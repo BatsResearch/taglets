@@ -23,7 +23,7 @@ class HiddenLabelDataset(Dataset):
     """
     def __init__(self, dataset):
         self.subset = dataset
-        self.dataset = self.subset.dataset
+        #self.dataset = self.subset.dataset
 
     def __getitem__(self, idx):
         data = self.subset[idx]
