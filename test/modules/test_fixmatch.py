@@ -22,11 +22,10 @@ class HiddenLabelDataset(Dataset):
     Wraps a labeled dataset so that it appears unlabeled
     """
     def __init__(self, dataset):
-        self.subset = dataset
-        #self.dataset = self.subset.dataset
+        self.dataset = dataset
 
     def __getitem__(self, idx):
-        data = self.subset[idx]
+        data = self.dataset[idx]
         try:
             img1, img2, _ = data
             return img1, img2
@@ -34,7 +33,7 @@ class HiddenLabelDataset(Dataset):
             return data[0]
 
     def __len__(self):
-        return len(self.subset)
+        return len(self.dataset)
 
 
 
