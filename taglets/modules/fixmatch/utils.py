@@ -189,11 +189,13 @@ class TransformFixMatch(object):
     def __init__(self, mean, std, input_shape):
         assert len(input_shape) == 2
         self.weak = transforms.Compose([
+            transforms.Resize(input_shape),
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(size=input_shape,
                                   padding=int(input_shape[0]*0.125),
                                   padding_mode='reflect')])
         self.strong = transforms.Compose([
+            transforms.Resize(input_shape),
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(size=input_shape,
                                   padding=int(input_shape[0]*0.125),

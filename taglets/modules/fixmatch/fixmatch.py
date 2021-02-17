@@ -1,17 +1,19 @@
+from torch.utils.data import Subset
+
 from taglets.modules.module import Module
-from taglets.pipeline import Taglet
+from taglets.data.custom_dataset import CustomDataset
+from taglets.pipeline import Cache, Taglet
+from taglets.scads import Scads, ScadsEmbedding
+
 from .utils import TransformFixMatch
 from copy import deepcopy
 from enum import Enum
 
-#from ..
-#from ....data.custom_dataset import CustomDataset
-#from ....pipeline import Cache, Taglet
-#from ....scads import Scads, ScadsEmbedding
-
 import math
 import pickle
-
+import os
+import random
+import numpy as np
 
 import torch
 import logging
@@ -20,6 +22,8 @@ import torch.distributed as dist
 import torch.nn.functional as F
 
 import torchvision.transforms as transforms
+
+from torch.utils.data.dataset import ConcatDataset
 
 
 log = logging.getLogger(__name__)
@@ -30,8 +34,11 @@ class Optimizer(Enum):
     ADAM = 2
 
 
-# support for exponential moving average
 class ModelEMA(object):
+    """
+    ModelEMA is a layer over a Pytorch Module that implements exponential moving average (EMA).
+    Note: EMA may result in worse performance, depending on the dataset you're training on.
+    """
     def __init__(self, model, decay):
         self.ema = deepcopy(model)
         self.ema.eval()
@@ -64,6 +71,7 @@ class ModelEMA(object):
                 esd[k].copy_(msd[j])
 
 
+# Custom learning rate scheduler used in FixMatch
 def get_cosine_schedule_with_warmup(optimizer,
                                     num_warmup_steps,
                                     num_training_steps,
@@ -81,7 +89,7 @@ def get_cosine_schedule_with_warmup(optimizer,
 class FixMatchModule(Module):
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [FixMatchTaglet(task, use_ema=False, verbose=True)]
+        self.taglets = [FixMatchTaglet(task, optimizer=Optimizer.ADAM, use_ema=False, verbose=False)]
 
 
 class FixMatchTaglet(Taglet):
@@ -98,13 +106,21 @@ class FixMatchTaglet(Taglet):
                              verbose=False):
         self.name = 'fixmatch'
 
+        if os.getenv("LWLL_TA1_PROB_TASK") is not None:
+            self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
+        else:
+            self.save_dir = os.path.join('trained_models', self.name)
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+
         self.steps_per_epoch = steps_per_epoch
         self.conf_thresh = conf_thresh
         self.lambda_u = lambda_u
         self.nesterov = nesterov
-        
         self.mu = mu
-        self.weight_decay = weight_decay
+
+        self.img_per_related_class = 600 if not os.environ.get("CI") else 1
+        self.num_related_class = 5
 
         # temp used to sharpen logits
         self.temp = temp
@@ -114,6 +130,7 @@ class FixMatchTaglet(Taglet):
 
         if verbose:
             log.info('Initializing FixMatch with hyperparameters:')
+            log.info('ema enabled: %s', self.use_ema)
             log.info('confidence threshold: %.4f', self.conf_thresh)
             log.info('nesterov: ' + str(self.nesterov))
             log.info("unlabeled loss weight (lambda u): %.4f", self.lambda_u)
@@ -124,8 +141,8 @@ class FixMatchTaglet(Taglet):
         output_shape = self._get_model_output_shape(self.task.input_shape, self.model)
         self.model = torch.nn.Sequential(self.model,
                                          torch.nn.Linear(output_shape, len(self.task.classes)))
-        self.lr = 0.001
-        self.num_epochs = 200
+
+        self.weight_decay = weight_decay
 
         if use_ema:
             self.ema_model = ModelEMA(self.model, decay=ema_decay)
@@ -134,12 +151,99 @@ class FixMatchTaglet(Taglet):
         if self.unlabeled_batch_size == 0:
             raise ValueError("unlabeled dataset is too small for FixMatch.")
 
-        # according to paper, SGD results in better performance than ADAM
         self.opt_type = optimizer
         if self.opt_type == Optimizer.SGD:
             self.optimizer = torch.optim.SGD(self._params_to_update, lr=self.lr,
                                                                      momentum=0.9,
                                                                      nesterov=self.nesterov)
+
+    def transform_image(self, train=True):
+        """
+        Get the transform to be used on an image.
+        :return: A transform
+        """
+        data_mean = [0.485, 0.456, 0.406]
+        data_std = [0.229, 0.224, 0.225]
+
+        if train:
+            return transforms.Compose([
+                transforms.RandomResizedCrop(self.task.input_shape, scale=(0.8, 1.0)),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=data_mean, std=data_std)
+            ])
+        else:
+            return transforms.Compose([
+                transforms.Resize(self.task.input_shape),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=data_mean, std=data_std)
+            ])
+
+    def _get_scads_data(self):
+        data = Cache.get("scads", self.task.classes)
+        if data is not None:
+            image_paths, image_labels, all_related_class = data
+        else:
+            root_path = Scads.get_root_path()
+            Scads.open(self.task.scads_path)
+            ScadsEmbedding.load(self.task.scads_embedding_path)
+            image_paths = []
+            image_labels = []
+            visited = set()
+
+            def get_images(node, label):
+                if node.get_conceptnet_id() not in visited:
+                    visited.add(node.get_conceptnet_id())
+                    images = node.get_images_whitelist(self.task.whitelist)
+                    if len(images) < self.img_per_related_class:
+                        return False
+                    images = random.sample(images, self.img_per_related_class)
+                    images = [os.path.join(root_path, image) for image in images]
+                    image_paths.extend(images)
+                    image_labels.extend([label] * len(images))
+                    log.debug("Source class found: {}".format(node.get_conceptnet_id()))
+                    return True
+                return False
+
+            all_related_class = 0
+            offset = len(self.task.classes)
+            for conceptnet_id in self.task.classes:
+                cur_related_class = 0
+                target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
+                if get_images(target_node, all_related_class):
+                    cur_related_class += 1
+                    all_related_class += 1
+
+                neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
+                for neighbor in neighbors:
+                    if get_images(neighbor, offset + cur_related_class - 1 if cur_related_class > 0 else 0):
+                        cur_related_class += 1
+                        all_related_class += 1
+                        if cur_related_class >= self.num_related_class:
+                            break
+
+            Scads.close()
+            Cache.set('scads', self.task.classes,
+                      (image_paths, image_labels, all_related_class))
+
+        transform = self.transform_image(train=True)
+        train_val_data = CustomDataset(image_paths,
+                                       labels=image_labels,
+                                       transform=transform)
+
+        # 80% for training, 20% for validation
+        train_percent = 0.8
+        num_data = len(train_val_data)
+        indices = list(range(num_data))
+        train_split = int(np.floor(train_percent * num_data))
+        np.random.shuffle(indices)
+        train_idx = indices[:train_split]
+        valid_idx = indices[train_split:]
+
+        train_dataset = Subset(train_val_data, train_idx)
+        val_dataset = Subset(train_val_data, valid_idx)
+
+        return train_dataset, val_dataset, all_related_class
 
     def _do_train(self, rank, q, train_data, val_data, unlabeled_data=None):
         """
@@ -183,6 +287,13 @@ class FixMatchTaglet(Taglet):
             if self.use_ema:
                 self.ema_model.ema = self.ema_model.ema.cpu()
 
+        # Get SCADS data
+        scads_train_data, scads_val_data, scads_num_classes = self._get_scads_data()
+
+        train_data = ConcatDataset([scads_train_data, train_data])
+        val_data = ConcatDataset([scads_val_data, val_data]) if val_data is not None else scads_val_data
+
+
         # Creates distributed data loaders from datasets
         train_sampler = self._get_train_sampler(train_data, n_proc=self.n_proc, rank=rank)
         train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler,
@@ -196,8 +307,8 @@ class FixMatchTaglet(Taglet):
         unlabeled_data = deepcopy(unlabeled_data)
 
         fixmatch_transform = TransformFixMatch(mean=[0.485, 0.456, 0.406],
-                                                     std=[0.229, 0.224, 0.225],
-                                                     input_shape=self.task.input_shape)
+                                               std=[0.229, 0.224, 0.225],
+                                               input_shape=self.task.input_shape)
 
         # replace default transform with FixMatch Transform
         if not hasattr(unlabeled_data, "transform"):
@@ -277,6 +388,11 @@ class FixMatchTaglet(Taglet):
                     log.debug("Deep copying new best model." +
                               "(validation of {:.4f}%, over {:.4f}%)".format(
                                   val_acc * 100, best_val_acc * 100))
+                    if self.use_ema:
+                        best_ema_model_to_save = deepcopy(self.ema_model.ema.module.state_dict())
+                        if self.save_dir:
+                            torch.save(best_ema_model_to_save, self.save_dir + '/ema_model.pth.tar')
+
                     best_model_to_save = deepcopy(self.model.module.state_dict())
                     best_val_acc = val_acc
                     if self.save_dir:
@@ -293,6 +409,8 @@ class FixMatchTaglet(Taglet):
                 val_dic = {'train': train_acc_list, 'validation': val_acc_list}
                 self.save_plot('accuracy', val_dic, self.save_dir)
             if self.select_on_val and best_model_to_save is not None:
+                if self.use_ema and best_ema_model_to_save is not None:
+                    self.ema_model.ema.load_state_dict(best_ema_model_to_save)
                 self.model.module.load_state_dict(best_model_to_save)
 
             self.model.cpu()
@@ -306,97 +424,18 @@ class FixMatchTaglet(Taglet):
         dist.barrier()
         unlabeled_data.transform = self.org_unlabeled_transform
 
-    def transform_image(self, train=True):
-        """
-        Get the transform to be used on an image.
-        :return: A transform
-        """
-        data_mean = [0.485, 0.456, 0.406]
-        data_std = [0.229, 0.224, 0.225]
-
-        if train:
-            return transforms.Compose([
-                transforms.RandomResizedCrop(self.task.input_shape, scale=(0.8, 1.0)),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=data_mean, std=data_std)
-            ])
-        else:
-            return transforms.Compose([
-                transforms.Resize(self.task.input_shape),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=data_mean, std=data_std)
-            ])
-
-    """
-    def _get_scads_data(self):
-        data = Cache.get("scads", self.task.classes)
-        if data is not None:
-            image_paths, image_labels, all_related_class = data
-        else:
-            root_path = Scads.get_root_path()
-            Scads.open(self.task.scads_path)
-            ScadsEmbedding.load(self.task.scads_embedding_path)
-            image_paths = []
-            image_labels = []
-            visited = set()
-
-            def get_images(node, label):
-                if node.get_conceptnet_id() not in visited:
-                    visited.add(node.get_conceptnet_id())
-                    images = node.get_images_whitelist(self.task.whitelist)
-                    if len(images) < self.img_per_related_class:
-                        return False
-                    images = random.sample(images, self.img_per_related_class)
-                    images = [os.path.join(root_path, image) for image in images]
-                    image_paths.extend(images)
-                    image_labels.extend([label] * len(images))
-                    log.debug("Source class found: {}".format(node.get_conceptnet_id()))
-                    return True
-                return False
-
-            all_related_class = 0
-            for conceptnet_id in self.task.classes:
-                cur_related_class = 0
-                target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
-                if get_images(target_node, all_related_class):
-                    cur_related_class += 1
-                    all_related_class += 1
-
-                neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
-                for neighbor in neighbors:
-                    if get_images(neighbor, all_related_class):
-                        cur_related_class += 1
-                        all_related_class += 1
-                        if cur_related_class >= self.num_related_class:
-                            break
-
-            Scads.close()
-            Cache.set('scads', self.task.classes,
-                      (image_paths, image_labels, all_related_class))
-
-        transform = self.transform_image(train=True)
-        train_data = CustomDataset(image_paths,
-                                   labels=image_labels,
-                                   transform=transform)
-
-        return train_data, all_related_class
-    """
-
     def _get_pred_classifier(self):
         return self.ema_model.ema if self.use_ema else self.model
 
     def _train_epoch(self, rank, train_data_loader, unlabeled_data_loader=None):
         self.model.train()
 
-        #if self.use_ema:
-        #    self.ema_model.ema.train()
-
         labeled_iter = iter(train_data_loader)
         unlabeled_iter = iter(unlabeled_data_loader)
 
         running_loss = 0.0
         running_acc = 0.0
+        iters = 0
         for i in range(len(train_data_loader)):
             try:
                 inputs_x, targets_x = next(labeled_iter)
@@ -445,10 +484,39 @@ class FixMatchTaglet(Taglet):
             if self.use_ema:
                 self.ema_model.update(self.model)
 
+            iters += 1
             running_loss += loss.item()
             running_acc += self._get_train_acc(logits_x, targets_x)
 
         epoch_loss = running_loss / self.steps_per_epoch
-        epoch_acc = running_acc.item() / len(unlabeled_data_loader.dataset)
+        epoch_acc = running_acc.item() / iters
         return epoch_loss, epoch_acc
 
+    def _validate_epoch(self, rank, val_data_loader):
+        """
+        Validate for one epoch.
+        :param val_data_loader: A dataloader containing validation data
+        :param use_gpu: Whether or not to use the GPU
+        :return: None
+        """
+        eval_model = self.ema_model.ema if self.use_ema else self.model
+
+        running_loss = 0
+        running_acc = 0
+        for batch in val_data_loader:
+            inputs = batch[0]
+            labels = batch[1]
+            if self.use_gpu:
+                inputs = inputs.cuda(rank)
+                labels = labels.cuda(rank)
+            with torch.set_grad_enabled(False):
+                outputs = eval_model(inputs)
+                loss = torch.nn.functional.cross_entropy(outputs, labels)
+                _, preds = torch.max(outputs, 1)
+
+            running_loss += loss.item()
+            running_acc += torch.sum(preds == labels)
+
+        epoch_loss = running_loss / len(val_data_loader.dataset)
+        epoch_acc = running_acc.item() / len(val_data_loader.dataset)
+        return epoch_loss, epoch_acc
