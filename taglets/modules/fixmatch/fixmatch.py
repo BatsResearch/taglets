@@ -206,7 +206,6 @@ class FixMatchTaglet(Taglet):
                 return False
 
             all_related_class = 0
-            offset = len(self.task.classes)
             for conceptnet_id in self.task.classes:
                 cur_related_class = 0
                 target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
@@ -216,8 +215,7 @@ class FixMatchTaglet(Taglet):
 
                 neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
                 for neighbor in neighbors:
-                    if get_images(neighbor, offset):
-                        offset += 1
+                    if get_images(neighbor, all_related_class):
                         cur_related_class += 1
                         all_related_class += 1
                         if cur_related_class >= self.num_related_class:
