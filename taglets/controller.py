@@ -100,7 +100,13 @@ class Controller:
         return self.end_model
 
     def _get_taglets_modules(self):
-        return [FixMatchModule]
+        if self.task.scads_path is not None:
+            return [MultiTaskModule,
+                    ZSLKGModule,
+                    TransferModule,
+                    FineTuneModule,
+                    FixMatchModule]
+        return [FineTuneModule, FixMatchModule]
 
     def _combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
         labeled = DataLoader(labeled_dataset, batch_size=1, shuffle=False)

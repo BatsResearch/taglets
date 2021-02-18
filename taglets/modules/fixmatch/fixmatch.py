@@ -25,7 +25,6 @@ import torchvision.transforms as transforms
 
 from torch.utils.data.dataset import ConcatDataset
 
-
 log = logging.getLogger(__name__)
 
 
@@ -39,6 +38,7 @@ class ModelEMA(object):
     ModelEMA is a layer over a Pytorch Module that implements exponential moving average (EMA).
     Note: EMA may result in worse performance, depending on the dataset you're training on.
     """
+
     def __init__(self, model, decay):
         self.ema = deepcopy(model)
         self.ema.eval()
@@ -75,14 +75,15 @@ class ModelEMA(object):
 def get_cosine_schedule_with_warmup(optimizer,
                                     num_warmup_steps,
                                     num_training_steps,
-                                    num_cycles=7./16.,
+                                    num_cycles=7. / 16.,
                                     last_epoch=-1):
     def _lr_lambda(current_step):
         if current_step < num_warmup_steps:
             return float(current_step) / float(max(1, num_warmup_steps))
         no_progress = float(current_step - num_warmup_steps) / \
-            float(max(1, num_training_steps - num_warmup_steps))
+                      float(max(1, num_training_steps - num_warmup_steps))
         return max(0., math.cos(math.pi * num_cycles * no_progress))
+
     return torch.optim.lr_scheduler.LambdaLR(optimizer, _lr_lambda, last_epoch)
 
 
@@ -94,17 +95,17 @@ class FixMatchModule(Module):
 
 class FixMatchTaglet(Taglet):
     def __init__(self, task, steps_per_epoch=-1,
-                             conf_thresh=0.95,
-                             lambda_u=1,
-                             nesterov=True,
-                             mu=1,
-                             weight_decay=0.01,
-                             temp=0.95,
-                             use_ema=False,
-                             ema_decay=0.999,
-                             optimizer=Optimizer.ADAM,
-                             verbose=False,
-                             use_scads=True):
+                 conf_thresh=0.95,
+                 lambda_u=1,
+                 nesterov=True,
+                 mu=1,
+                 weight_decay=0.01,
+                 temp=0.95,
+                 use_ema=False,
+                 ema_decay=0.999,
+                 optimizer=Optimizer.ADAM,
+                 verbose=False,
+                 use_scads=True):
         self.name = 'fixmatch'
 
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
@@ -127,6 +128,7 @@ class FixMatchTaglet(Taglet):
         # temp used to sharpen logits
         self.temp = temp
         self.use_ema = use_ema
+        self.ema_decay = ema_decay
 
         self.org_unlabeled_transform = None
 
@@ -140,14 +142,7 @@ class FixMatchTaglet(Taglet):
 
         super().__init__(task)
 
-        output_shape = self._get_model_output_shape(self.task.input_shape, self.model)
-        #self.model = torch.nn.Sequential(self.model,
-        #                                 torch.nn.Linear(output_shape, len(self.task.classes)))
-
         self.weight_decay = weight_decay
-
-        if use_ema:
-            self.ema_model = ModelEMA(self.model, decay=ema_decay)
 
         self.unlabeled_batch_size = math.floor(self.mu * self.batch_size)
         if self.unlabeled_batch_size == 0:
@@ -156,8 +151,8 @@ class FixMatchTaglet(Taglet):
         self.opt_type = optimizer
         if self.opt_type == Optimizer.SGD:
             self.optimizer = torch.optim.SGD(self._params_to_update, lr=self.lr,
-                                                                     momentum=0.9,
-                                                                     nesterov=self.nesterov)
+                                             momentum=0.9,
+                                             nesterov=self.nesterov)
 
     def transform_image(self, train=True):
         """
@@ -252,17 +247,25 @@ class FixMatchTaglet(Taglet):
     def train(self, train_data, val_data, unlabeled_data=None):
         output_shape = self._get_model_output_shape(self.task.input_shape, self.model)
 
-        if self.use_scads:
-          self.scads_train_data, num_classes = self._get_scads_data()
-
-          if num_classes == 0:
-              return
-
-          self.model = torch.nn.Sequential(self.model,
-                                          torch.nn.Linear(output_shape, num_classes))
+        if self.task.scads_path is None:
+            self.use_scads = False
+            num_classes = 0
         else:
-          self.model = torch.nn.Sequential(self.model,
-                                          torch.nn.Linear(output_shape, len(self.task.classes)))
+            self.scads_train_data, num_classes = self._get_scads_data()
+
+        self.use_scads = self.use_scads and num_classes >= len(self.task.classes)
+        if self.use_scads:
+            if num_classes == 0:
+                return
+
+            self.model = torch.nn.Sequential(self.model,
+                                             torch.nn.Linear(output_shape, num_classes))
+        else:
+            self.model = torch.nn.Sequential(self.model,
+                                             torch.nn.Linear(output_shape, len(self.task.classes)))
+
+        if self.use_ema:
+            self.ema_model = ModelEMA(self.model, decay=self.ema_decay)
 
         # copy unlabeled dataset to prevent adverse side effects
         unlabeled_data = deepcopy(unlabeled_data)
@@ -313,15 +316,16 @@ class FixMatchTaglet(Taglet):
             if self.use_ema:
                 self.ema_model.ema = self.ema_model.ema.cpu()
 
-
         # Creates distributed data loaders from datasets
         train_sampler = self._get_train_sampler(train_data, n_proc=self.n_proc, rank=rank)
         train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler,
-                                                                  batch_size=self.batch_size)
+                                                 batch_size=self.batch_size)
 
-        scads_sampler = self._get_train_sampler(self.scads_train_data, n_proc=self.n_proc, rank=rank)
-        self.scads_train_data_loader = self._get_dataloader(data=self.scads_train_data, sampler=scads_sampler,
-                                                                                        batch_size=min(self.batch_size, len(self.scads_train_data)))
+        if self.use_scads:
+            scads_sampler = self._get_train_sampler(self.scads_train_data, n_proc=self.n_proc, rank=rank)
+            self.scads_train_data_loader = self._get_dataloader(data=self.scads_train_data, sampler=scads_sampler,
+                                                                batch_size=min(self.batch_size,
+                                                                               len(self.scads_train_data)))
 
         # batch size can't be larger than number of examples
         self.unlabeled_batch_size = min(self.unlabeled_batch_size, len(unlabeled_data))
@@ -345,7 +349,7 @@ class FixMatchTaglet(Taglet):
         else:
             val_sampler = self._get_val_sampler(val_data, n_proc=self.n_proc, rank=rank)
             val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler,
-                                                                  batch_size=self.batch_size)
+                                                   batch_size=self.batch_size)
 
         # Initializes statistics containers (will only be filled by lead process)
         best_model_to_save = None
@@ -440,8 +444,10 @@ class FixMatchTaglet(Taglet):
         self.model.train()
 
         labeled_iter = iter(train_data_loader)
+        if self.use_scads:
+            scads_iter = iter(self.scads_train_data_loader)
+
         unlabeled_iter = iter(unlabeled_data_loader)
-        scads_iter = iter(self.scads_train_data_loader)
 
         running_loss = 0.0
         running_acc = 0.0
@@ -453,11 +459,12 @@ class FixMatchTaglet(Taglet):
                 labeled_iter = iter(train_data_loader)
                 inputs_x, targets_x = next(labeled_iter)
 
-            try:
-                scads_inputs, scads_targets = next(scads_iter)
-            except StopIteration:
-                scads_iter = iter(self.scads_train_data_loader)
-                scads_inputs, scads_targets = next(scads_iter)
+            if self.use_scads:
+                try:
+                    scads_inputs, scads_targets = next(scads_iter)
+                except StopIteration:
+                    scads_iter = iter(self.scads_train_data_loader)
+                    scads_inputs, scads_targets = next(scads_iter)
 
             try:
                 # u_w = weak aug examples; u_s = strong aug examples
@@ -471,12 +478,17 @@ class FixMatchTaglet(Taglet):
             except TypeError:
                 raise ValueError("Unlabeled transform is not configured correctly.")
 
-            batch_size = inputs_x.shape[0] + scads_inputs.shape[0]
-            inputs = torch.cat((inputs_x, scads_inputs, inputs_u_w, inputs_u_s))
+            batch_size = inputs_x.shape[0]
+            if self.use_scads:
+                batch_size += scads_inputs.shape[0]
+                inputs = torch.cat((inputs_x, scads_inputs, inputs_u_w, inputs_u_s))
+            else:
+                inputs = torch.cat((inputs_x, inputs_u_w, inputs_u_s))
+
             inputs = inputs.cuda(rank) if self.use_gpu else inputs.cpu()
             targets_x = targets_x.cuda(rank) if self.use_gpu else targets_x.cpu()
 
-            labels = torch.cat([targets_x, scads_targets])
+            labels = torch.cat([targets_x, scads_targets]) if self.use_scads else targets_x
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
