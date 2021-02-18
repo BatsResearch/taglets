@@ -160,7 +160,7 @@ class TestModule:
 
     def test_module(self):
         module = self._get_module(self.task)
-        module.train_taglets(self.train, self.val)
+        module.train_taglets(self.train, self.val, self.unlabeled)
         taglets = module.get_taglets()
         for taglet in taglets:
             votes = taglet.execute(self.unlabeled)
