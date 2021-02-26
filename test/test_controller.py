@@ -26,14 +26,20 @@ class HiddenLabelDataset(Dataset):
     Wraps a labeled dataset so that it appears unlabeled
     """
     def __init__(self, dataset):
-        self.dataset = dataset
+        self.subset = dataset
+        self.dataset = self.subset.dataset
 
     def __getitem__(self, idx):
-        img, _ = self.dataset[idx]
-        return img
+        data = self.subset[idx]
+        try:
+            img1, img2, _ = data
+            return img1, img2
+
+        except ValueError:
+            return data[0]
 
     def __len__(self):
-        return len(self.dataset)
+        return len(self.subset)
 
 
 class MnistResNet(ResNet):
@@ -118,6 +124,8 @@ class TestController(unittest.TestCase):
         mnist = MNIST('.', train=True, transform=preprocess, download=True)
         size = int(len(mnist) / 50)
         labeled = Subset(mnist, [i for i in range(size)])
+
+        # this is necessary because Fixmatch overrides the MNIST transform attribute
         unlabeled = HiddenLabelDataset(Subset(mnist, [i for i in range(size, 2 * size)]))
         val = Subset(mnist, [i for i in range(2 * size, 3 * size)])
         task = Task("mnist-test", classes, (28, 28), labeled, unlabeled, val)
