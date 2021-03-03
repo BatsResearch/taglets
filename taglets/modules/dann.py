@@ -258,7 +258,7 @@ class DannTaglet(Taglet):
             source_inputs, source_labels = source_batch
             target_inputs, target_labels = target_batch
             zeros = torch.zeros(len(source_inputs), dtype=torch.long)
-            ones = torch.zeros(len(target_inputs), dtype=torch.long)
+            ones = torch.ones(len(target_inputs), dtype=torch.long)
             if unlabeled_data:
                 unlabeled_ones = torch.zeros(len(unlabeled_inputs), dtype=torch.long)
             if self.use_gpu:
