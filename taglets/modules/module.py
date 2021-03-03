@@ -15,6 +15,7 @@ class Module:
         Train the Module's taglets.
         :param train_data: A Torch Dataset of training data
         :param val_data: A Torch Dataset of validation data
+        :param unlabeled_data: A Torch Dataset of unlabeled data
         :return: None
         """
         for taglet in self.taglets:
