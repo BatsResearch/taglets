@@ -19,6 +19,9 @@ from .utils import labels_to_concept_ids
 import linecache
 from pathlib import Path
 
+# Add this packages
+import argparse
+from ..scads import Scads
 
 log = logging.getLogger(__name__)
 
@@ -32,11 +35,12 @@ class JPL:
         Create a new JPL object.
         """
 
-        self.team_secret = team_secret #'a5aed2a8-db80-4b22-bf72-11f2d0765572'
+        self.team_secret = team_secret
         self.gov_team_secret = gov_team_secret
-        self.url = api_url #'https://api-staging.lollllz.com'
+        self.url = api_url 
         self.session_token = ''
-        self.data_type = dataset_type #'sample'   # Sample or full
+        self.data_type = dataset_type
+
 
     def get_available_tasks(self, problem_type):
         """
@@ -44,7 +48,8 @@ class JPL:
         :return: A list of tasks (problems)
         """
         headers = {'user_secret': self.team_secret,
-                   'govteam_secret': self.gov_team_secret}
+                   'govteam_secret': self.gov_team_secret
+                   }
         r = requests.get(self.url + "/list_tasks", headers=headers)
         task_list = r.json()['tasks']
 
@@ -63,7 +68,8 @@ class JPL:
         :return: The task metadata
         """
         headers = {'user_secret': self.team_secret,
-                   'govteam_secret': self.gov_team_secret}
+                    'govteam_secret': self.gov_team_secret}
+        
         r = requests.get(self.url + "/task_metadata/" + task_name, headers=headers)
         return r.json()['task_metadata']
 
@@ -74,7 +80,8 @@ class JPL:
         :return: None
         """
         headers = {'user_secret': self.team_secret,
-                   'govteam_secret': self.gov_team_secret}
+                    'govteam_secret': self.gov_team_secret}
+
         # r = requests.get(self.url + "/auth/get_session_token/" + self.data_type + "/" + task_name, headers=headers)
         r = requests.post(self.url + "/auth/create_session",
                           json={'session_name': 'testing', 'data_type': self.data_type, 'task_id': task_name},
@@ -89,7 +96,7 @@ class JPL:
         :return: The session status
         """
         headers = {'user_secret': self.team_secret,
-                   'govteam_secret': self.gov_team_secret,
+                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
         r = requests.get(self.url + "/session_status", headers=headers)
         if 'Session_Status' in r.json():
@@ -103,7 +110,7 @@ class JPL:
         :return: A list of lists with name and label e.g., ['2', '1.png'], ['7', '2.png'], etc.
         """
         headers = {'user_secret': self.team_secret,
-                   'govteam_secret': self.gov_team_secret,
+                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
         r = requests.get(self.url + "/seed_labels", headers=headers)
         labels = r.json()['Labels']
@@ -116,7 +123,7 @@ class JPL:
 
     def get_secondary_seed_labels(self):
         headers = {'user_secret': self.team_secret,
-                   'govteam_secret': self.gov_team_secret,
+                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
         r = requests.get(self.url + "/secondary_seed_labels", headers=headers)
         labels = r.json()['Labels']
@@ -128,7 +135,7 @@ class JPL:
     def deactivate_session(self, deactivate_session):
 
         headers_active_session = {'user_secret': self.team_secret,
-                                  'govteam_secret': self.gov_team_secret,
+                                'govteam_secret': self.gov_team_secret,
                                   'session_token': self.session_token}
 
         r = requests.post(self.url + "/deactivate_session",
@@ -182,7 +189,8 @@ class JPL:
     def deactivate_all_sessions(self):
 
         headers_session = {'user_secret': self.team_secret,
-                           'govteam_secret': self.gov_team_secret}
+                            'govteam_secret': self.gov_team_secret
+                            }
         r = requests.get(self.url + "/list_active_sessions", headers=headers_session)
         active_sessions = r.json()['active_sessions']
         for session_token in active_sessions:
@@ -349,12 +357,14 @@ class JPLStorage:
 
 class JPLRunner:
     def __init__(self, dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
-                 testing=False):
+                 data_paths, testing=False):
+
         self.dataset_dir = dataset_dir
         self.problem_type = problem_type
         self.api = JPL(api_url, team_secret, gov_team_secret, dataset_type)
         self.api.data_type = dataset_type
         self.problem_task = problem_task
+        self.data_paths = data_paths
         self.jpl_storage, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_jpl_information()
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
@@ -428,7 +438,7 @@ class JPLRunner:
     def run_checkpoints_adapt(self):
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
-            self.run_one_checkpoint("Adapt", i)
+            self.run_one_checkpoint("Adapt", id)
 
     def run_one_checkpoint(self, phase, checkpoint_num):
         log.info('------------------------------------------------------------')
@@ -463,8 +473,8 @@ class JPLRunner:
                     unlabeled_train_dataset,
                     val_dataset,
                     self.jpl_storage.whitelist,
-                    '/tmp/predefined/scads.fall2020.sqlite3',
-                    '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz',
+                    self.data_paths[0],#'predefined/scads.fall2020.sqlite3', #'/tmp/predefined/scads.fall2020.sqlite3',
+                    self.data_paths[1],#'predefined/embeddings/numberbatch-en19.08.txt.gz', # '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz'
                     unlabeled_test_data=unlabeled_test_dataset)
         task.set_initial_model(self.initial_model)
         controller = Controller(task)
@@ -525,28 +535,24 @@ class JPLRunner:
             log.info("Phase: %s", session_status['pair_stage'])
 
 
-def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret):
+def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths):
     if problem_task == 'all':
         jpl = JPL(api_url, team_secret, gov_team_secret, dataset_type)
         problem_task_list = jpl.get_available_tasks(problem_type)
         for task in problem_task_list:
             runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, task, team_secret, gov_team_secret,
-                               testing=False)
+                               data_paths, testing=False)
             runner.run_checkpoints()
     else:
         runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
-                           testing=False)
+                           data_paths, testing=False)
         runner.run_checkpoints()
 
+def setup_production():
+    """
+    This function returns the variables needed to launch the system in production.
+    """
 
-def main():
-    logger = logging.getLogger()
-    logger.level = logging.INFO
-    stream_handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
-    
     dataset_type = os.environ.get('LWLL_TA1_DATASET_TYPE')
     problem_type = os.environ.get('LWLL_TA1_PROB_TYPE')
     dataset_dir = os.environ.get('LWLL_TA1_DATA_PATH')
@@ -556,14 +562,54 @@ def main():
     run_time = os.environ.get('LWLL_TA1_HOURS')
     team_secret = os.environ.get('LWLL_TA1_TEAM_SECRET')
     gov_team_secret = os.environ.get('LWLL_TA1_GOVTEAM_SECRET')
-    
-    valid_dataset_types = ['sample', 'full', 'all']
-    if dataset_type not in valid_dataset_types:
-        raise Exception(f'Invalid `dataset_type`, expected one of {valid_dataset_types}')
+    data_paths = ('/tmp/predefined/scads.fall2020.sqlite3',
+                  '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz')
 
     # check gpus are all
     if gpu_list != 'all':
         raise Exception(f'all gpus are required')
+    
+    return dataset_type, problem_type, dataset_dir, api_url, \
+           problem_task, team_secret, gov_team_secret, data_paths
+
+
+def setup_development():
+    """
+    This function returns the variables needed to launch the system in development.
+    """
+
+    # not sure this is very elegant. Let me know :)
+    import dev_config
+
+    return dev_config.dataset_type, dev_config.problem_type, dev_config.dataset_dir, dev_config.api_url, \
+            dev_config.problem_task, dev_config.team_secret, dev_config.gov_team_secret, dev_config.data_paths
+
+def main():
+    
+    parser = argparse.ArgumentParser(description="Run JPL task")
+    parser.add_argument("--mode",
+                        type=str,
+                        default="prod",
+                        help="The mode to execute the system. prod: system eval, dev: system development")
+    args = parser.parse_args()
+
+    if args.mode == 'prod':
+        variables = setup_production()
+    else:
+        variables = setup_development()
+    
+    dataset_type = variables[0]
+    problem_type = variables[1]
+    dataset_dir = variables[2]
+    api_url = variables[3]
+    problem_task = variables[4]
+    team_secret = variables[5]
+    gov_team_secret = variables[6]
+    data_paths = variables[7]
+     
+    valid_dataset_types = ['sample', 'full', 'all']
+    if dataset_type not in valid_dataset_types:
+        raise Exception(f'Invalid `dataset_type`, expected one of {valid_dataset_types}')
 
     # Check problem type is valid
     valid_problem_types = ['image_classification', 'object_detection', 'machine_translation', 'all']
@@ -574,8 +620,15 @@ def main():
     if not Path(dataset_dir).exists():
         raise Exception('`dataset_dir` does not exist..')
 
-    workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret)
-
+    logger = logging.getLogger()
+    logger.level = logging.INFO
+    stream_handler = logging.StreamHandler(sys.stdout)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+    
+    workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths)
+    
 
 if __name__ == "__main__":
     main()
