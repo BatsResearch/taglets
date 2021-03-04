@@ -18,10 +18,7 @@ from ..controller import Controller
 from .utils import labels_to_concept_ids
 import linecache
 from pathlib import Path
-
-# Add this packages
 import argparse
-from ..scads import Scads
 
 log = logging.getLogger(__name__)
 
