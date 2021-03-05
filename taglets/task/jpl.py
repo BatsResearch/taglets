@@ -435,7 +435,7 @@ class JPLRunner:
     def run_checkpoints_adapt(self):
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
-            self.run_one_checkpoint("Adapt", id)
+            self.run_one_checkpoint("Adapt", i)
 
     def run_one_checkpoint(self, phase, checkpoint_num):
         log.info('------------------------------------------------------------')
@@ -470,8 +470,8 @@ class JPLRunner:
                     unlabeled_train_dataset,
                     val_dataset,
                     self.jpl_storage.whitelist,
-                    self.data_paths[0],#'predefined/scads.fall2020.sqlite3', #'/tmp/predefined/scads.fall2020.sqlite3',
-                    self.data_paths[1],#'predefined/embeddings/numberbatch-en19.08.txt.gz', # '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz'
+                    self.data_paths[0],
+                    self.data_paths[1],
                     unlabeled_test_data=unlabeled_test_dataset)
         task.set_initial_model(self.initial_model)
         controller = Controller(task)
