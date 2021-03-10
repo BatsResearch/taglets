@@ -30,8 +30,9 @@ If it is the first time you run the repository's content, run:
 ```
 bash setup.sh # The first time after you clone the repo 
 ```
+Note that this will install the python packages for you, so you might want to activate a virtual environment before running this.
 
-Go to `dev_config.py`, set the variables (there are default values).  Then, double-check that in `run_jpl.sh` the `--mode=dev`, and launch the system:
+Then, go to `dev_config.py`, set the variables (there are default values).  Then, double-check that in `run_jpl.sh` the `--mode=dev`, and launch the system:
 ```
 bash run_jpl.sh
 ```
