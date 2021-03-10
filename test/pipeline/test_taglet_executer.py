@@ -9,7 +9,7 @@ from torchvision import transforms
 from torchvision.datasets import MNIST
 from torchvision.models.resnet import ResNet, BasicBlock
 import unittest
-from ..test_utils import set_headers
+from test.test_utils import set_headers
 
 
 TEST_DATA = os.path.join(os.path.dirname(os.path.realpath(__file__)), "test_data/scads")

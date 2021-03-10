@@ -3,7 +3,7 @@ from taglets.modules.module import Module
 from taglets.scads import Scads
 from taglets.scads.create.install import Installer, MnistInstallation
 from taglets.task import Task
-from .test_utils import set_headers
+from test.test_utils import set_headers
 
 import os
 import numpy as np

@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
 from torchvision.datasets import MNIST
 from torchvision.models.resnet import ResNet, BasicBlock
-from ..test_utils import set_headers
+from test.test_utils import set_headers
 
 
 class HiddenLabelDataset(Dataset):
