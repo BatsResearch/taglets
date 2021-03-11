@@ -1,13 +1,12 @@
 from taglets.pipeline import Trainable
 from taglets.task import Task
-
 import unittest
-
 import torch
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
 from torchvision.datasets import MNIST
 from torchvision.models.resnet import ResNet, BasicBlock
+from test.test_utils import set_headers
 
 
 class HiddenLabelDataset(Dataset):
@@ -40,6 +39,7 @@ class MnistResNet(ResNet):
 
 class TestTrainable(unittest.TestCase):
     def test_predict(self):
+        set_headers()
         # Creates task
         classes = [
             '/c/en/zero',

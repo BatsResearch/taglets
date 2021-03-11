@@ -3,6 +3,7 @@ from taglets.modules.module import Module
 from taglets.scads import Scads
 from taglets.scads.create.install import Installer, MnistInstallation
 from taglets.task import Task
+from test.test_utils import set_headers
 
 import os
 import numpy as np
@@ -77,7 +78,10 @@ class UnreliableController(Controller):
 class TestController(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        set_headers()
         # Set Up Scads
+        if os.path.isfile(DB_PATH):
+            os.remove(DB_PATH)
         installer = Installer(DB_PATH)
         installer.install_conceptnet(CONCEPTNET_PATH)
         installer.install_dataset(TEST_DATA, MNIST_PATH, MnistInstallation())

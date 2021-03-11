@@ -3,5 +3,5 @@ from .prototype import PrototypeModule
 from .transfer import TransferModule
 from .multitask import MultiTaskModule
 from .zsl_kg_lite import ZSLKGModule
+from .dann import DannModule
 from .fixmatch import FixMatchModule
-
