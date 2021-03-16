@@ -1,6 +1,6 @@
 from .data import SoftLabelDataset
 from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule
-from .pipeline import EndModel, TagletExecutor
+from .pipeline import EndModel, VideoEndModel, TagletExecutor
 
 import logging
 import sys
@@ -94,7 +94,10 @@ class Controller:
         end_model_train_data = self._combine_soft_labels(unlabeled_images_labels,
                                                          self.task.get_unlabeled_data(True),
                                                          self.task.get_labeled_train_data())
-        self.end_model = EndModel(self.task)
+        if self.task.video_classification:
+            self.end_model = VideoEndModel(self.task)
+        else:
+            self.end_model = EndModel(self.task)
         self.end_model.train(end_model_train_data, val)
         log.info("Finished training end model")
         return self.end_model
