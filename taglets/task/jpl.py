@@ -113,11 +113,9 @@ class JPL:
         labels = r.json()['Labels']
         seed_labels = []
         for image in labels:
-            # Elaheh: changed based on the latest version of API
             seed_labels.append([image["class"], image["id"]])
-            # seed_labels.append([image["id"], image["class"]])
         return seed_labels
-
+    """
     def get_secondary_seed_labels(self):
         headers = {'user_secret': self.team_secret,
                     'govteam_secret': self.gov_team_secret,
@@ -128,6 +126,7 @@ class JPL:
         for image in labels:
             secondary_seed_labels.append([image["class"], image["id"]])
         return secondary_seed_labels
+    """
 
     def deactivate_session(self, deactivate_session):
 
@@ -203,6 +202,12 @@ class JPLStorage:
         self.name = task_name
         self.description = ''
         self.problem_type = metadata['problem_type']
+        if self.problem_type == 'video_calssification':
+            self.video = True
+            print("We are running the video classification task")
+        else: 
+            self.video = False
+            print("We are running the image classification task")
         self.task_id = metadata['task_id']
         self.classes = []
         self.evaluation_image_path = "path to test images"
@@ -308,16 +313,19 @@ class JPLStorage:
             train_dataset = CustomDataset(image_paths[train_idx],
                                           labels=image_labels[train_idx],
                                           label_map=self.label_map,
-                                          transform=self.transform_image(train=True))
+                                          transform=self.transform_image(train=True),
+                                          video=self.video)
             val_dataset = CustomDataset(image_paths[val_idx],
                                         labels=image_labels[val_idx],
                                         label_map=self.label_map,
-                                        transform=self.transform_image(train=False))
+                                        transform=self.transform_image(train=False),
+                                        video=self.video)
         else:
             train_dataset = CustomDataset(image_paths,
                                           labels=image_labels,
                                           label_map=self.label_map,
-                                          transform=self.transform_image(train=True))
+                                          transform=self.transform_image(train=True),
+                                          video=self.video)
             val_dataset = None
 
         return train_dataset, val_dataset
@@ -335,7 +343,8 @@ class JPLStorage:
             return None
         else:
             return CustomDataset(image_paths,
-                                 transform=transform)
+                                 transform=transform, 
+                                 video=self.video)
 
     def get_evaluation_dataset(self):
         """
@@ -349,7 +358,8 @@ class JPLStorage:
             evaluation_image_names.append(img)
         image_paths = [os.path.join(self.evaluation_image_path, image_name) for image_name in evaluation_image_names]
         return CustomDataset(image_paths,
-                             transform=transform)
+                             transform=transform,
+                             video=self.video)
 
 
 class JPLRunner:
