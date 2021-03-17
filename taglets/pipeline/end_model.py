@@ -83,7 +83,7 @@ class VideoEndModel(EndModel):
 
         return epoch_loss, epoch_acc
     
-    def _validate_epoch(self, rank, val_data_loader,):
+    def _validate_epoch(self, rank, val_data_loader):
         """
         Train for one epoch.
         :param train_data_loader: A dataloader containing training videos
@@ -106,11 +106,11 @@ class VideoEndModel(EndModel):
             with torch.set_grad_enabled(False):
                 outputs = self.model(inputs)
                 aggregated_outputs = torch.mean(outputs.view(num_videos, num_frames, -1), dim=1)
-                loss = self.criterion(aggregated_outputs, labels)
+                loss = torch.nn.functional.cross_entropy(aggregated_outputs, labels)
                 _, preds = torch.max(aggregated_outputs, 1)
 
             running_loss += loss.item()
-            running_acc += self._get_train_acc(aggregated_outputs, labels)
+            running_acc += torch.sum(preds == labels)
 
         epoch_loss = running_loss / len(val_data_loader.dataset)
         epoch_acc = running_acc.item() / len(val_data_loader.dataset)
@@ -143,10 +143,7 @@ class VideoEndModel(EndModel):
         labels = []
         for batch in data_loader:
             if isinstance(batch, list):
-                if len(batch) == 2:
-                    inputs, targets = batch
-                else:
-                    inputs, targets = batch[0], None
+                inputs, targets = batch
             else:
                 inputs, targets = batch, None
 

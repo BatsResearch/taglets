@@ -427,10 +427,7 @@ class Trainable:
         labels = []
         for batch in data_loader:
             if isinstance(batch, list):
-                if len(batch) == 2:
-                    inputs, targets = batch
-                else:
-                    inputs, targets = batch[0], None
+                inputs, targets = batch
             else:
                 inputs, targets = batch, None
 

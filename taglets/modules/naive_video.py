@@ -106,7 +106,7 @@ class NaiveVideoTaglet(Taglet):
                 _, preds = torch.max(aggregated_outputs, 1)
 
             running_loss += loss.item()
-            running_acc += self._get_train_acc(aggregated_outputs, labels)
+            running_acc += torch.sum(preds == labels)
 
         epoch_loss = running_loss / len(val_data_loader.dataset)
         epoch_acc = running_acc.item() / len(val_data_loader.dataset)
@@ -139,10 +139,7 @@ class NaiveVideoTaglet(Taglet):
         labels = []
         for batch in data_loader:
             if isinstance(batch, list):
-                if len(batch) == 2:
-                    inputs, targets = batch
-                else:
-                    inputs, targets = batch[0], None
+                inputs, targets = batch
             else:
                 inputs, targets = batch, None
 
