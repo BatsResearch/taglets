@@ -139,7 +139,10 @@ class NaiveVideoTaglet(Taglet):
         labels = []
         for batch in data_loader:
             if isinstance(batch, list):
-                inputs, targets = batch
+                if len(batch) == 2:
+                    inputs, targets = batch
+                else:
+                    inputs = batch[0]
             else:
                 inputs, targets = batch, None
 
