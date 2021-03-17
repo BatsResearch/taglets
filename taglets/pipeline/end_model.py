@@ -146,7 +146,7 @@ class VideoEndModel(EndModel):
                 if len(batch) == 2:
                     inputs, targets = batch
                 else:
-                    inputs = batch[0]
+                    inputs, targets = batch[0], None
             else:
                 inputs, targets = batch, None
 
