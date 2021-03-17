@@ -1,8 +1,11 @@
 from .module import Module
 from ..pipeline import Taglet
 
+import logging
 import os
 import torch
+
+log = logging.getLogger(__name__)
 
 
 class NaiveVideoModule(Module):
@@ -103,10 +106,64 @@ class NaiveVideoTaglet(Taglet):
                 _, preds = torch.max(aggregated_outputs, 1)
 
             running_loss += loss.item()
-            running_acc += self._get_train_acc(aggregated_outputs, labels)
+            running_acc += torch.sum(preds == labels)
 
         epoch_loss = running_loss / len(val_data_loader.dataset)
         epoch_acc = running_acc.item() / len(val_data_loader.dataset)
 
         return epoch_loss, epoch_acc
 
+    def _do_predict(self, rank, q, data):
+        if rank == 0:
+            log.info('Beginning prediction')
+
+        pred_classifier = self._get_pred_classifier()
+        pred_classifier.eval()
+
+        # Configures model for device
+        if self.use_gpu:
+            pred_classifier = pred_classifier.cuda(rank)
+        else:
+            pred_classifier = pred_classifier.cpu()
+
+        # Creates distributed data loader from dataset
+        sampler = torch.utils.data.distributed.DistributedSampler(
+            data, num_replicas=self.n_proc, rank=rank, shuffle=False
+        )
+        data_loader = torch.utils.data.DataLoader(
+            dataset=data, batch_size=self.batch_size, shuffle=False,
+            num_workers=self.num_workers, pin_memory=True, sampler=sampler
+        )
+
+        outputs = []
+        labels = []
+        for batch in data_loader:
+            if isinstance(batch, list):
+                inputs, targets = batch
+            else:
+                inputs, targets = batch, None
+
+            if self.use_gpu:
+                inputs = inputs.cuda(rank)
+            num_videos = inputs.size(0)
+            num_frames = inputs.size(1)
+            inputs = inputs.flatten(start_dim=0, end_dim=1)
+
+            with torch.set_grad_enabled(False):
+                output = pred_classifier(inputs)
+                aggregated_output = torch.mean(output.view(num_videos, num_frames, -1), dim=1)
+                outputs.append(torch.nn.functional.softmax(aggregated_output, 1))
+                if targets is not None:
+                    labels.append(targets)
+
+        outputs = torch.cat(outputs).cpu().detach().numpy()
+        if len(labels) > 0:
+            labels = torch.cat(labels).cpu().detach().numpy()
+
+        if rank == 0:
+            log.info('Finished prediction')
+
+        if len(labels) > 0:
+            q.put((rank, outputs, labels))
+        else:
+            q.put((rank, outputs))
