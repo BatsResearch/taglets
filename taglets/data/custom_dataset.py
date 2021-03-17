@@ -7,7 +7,7 @@ class CustomDataset(Dataset):
     """
     A custom dataset used to create dataloaders.
     """
-    def __init__(self, filepaths, labels=None, label_map=None, transform=None):
+    def __init__(self, filepaths, labels=None, label_map=None, transform=None, video=False):
         """
         Create a new CustomDataset.
         
@@ -15,11 +15,13 @@ class CustomDataset(Dataset):
         :param labels: A list of labels
         :param label_map: A dictionary to map string labels to intergers
         :param transform: A transform to perform on the images
+        :param video: Flag to customize dataset for video classification
         """
         self.filepaths = filepaths
         self.labels = labels
         self.label_map = label_map
         self.transform = transform
+        self.video = video
 
     def __getitem__(self, index):
         img = Image.open(self.filepaths[index]).convert('RGB')

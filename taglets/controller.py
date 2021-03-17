@@ -32,9 +32,10 @@ class Controller:
     """
     Manages training and execution of taglets, as well as training EndModels
     """
-    def __init__(self, task):
+    def __init__(self, task, simple_run=False):
         self.task = task
         self.end_model = None
+        self.simple_run = simple_run
 
     def train_end_model(self):
         """
@@ -104,15 +105,23 @@ class Controller:
 
     def _get_taglets_modules(self):
         if self.task.video_classification:
-            return [NaiveVideoModule]
+            if self.simple_run:
+                """ Implement VideoRandomPredictionModule"""
+                raise NotImplementedError
+            else:
+                return [NaiveVideoModule]
         else:
-            if self.task.scads_path is not None:
-                return [MultiTaskModule,
-                        ZSLKGModule,
-                        TransferModule,
-                        FineTuneModule,
-                        FixMatchModule]
-            return [FineTuneModule, FixMatchModule]
+            if self.simple_run:
+                """ Implement RandomPredictionModule"""
+                raise NotImplementedError
+            else:
+                if self.task.scads_path is not None:
+                    return [MultiTaskModule,
+                            ZSLKGModule,
+                            TransferModule,
+                            FineTuneModule,
+                            FixMatchModule]
+                return [FineTuneModule, FixMatchModule]
 
     def _combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
         labeled = DataLoader(labeled_dataset, batch_size=1, shuffle=False)

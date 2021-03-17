@@ -263,9 +263,9 @@ class JPLStorage:
     def get_labeled_images_list(self):
         """get list of image names and labels"""
         # Elaheh: changed the following line
-        image_labels = [item[0] for item in self.labeled_images]
-        image_names = [item[1] for item in self.labeled_images]
-
+        #image_labels = [item[0] for item in self.labeled_images]
+        #image_names = [item[1] for item in self.labeled_images]
+        image_names, image_labels = list(zip(*self.labeled_images))
         # image_labels = sorted(image_labels)
 
         return image_names, image_labels
@@ -354,10 +354,16 @@ class JPLStorage:
 
 class JPLRunner:
     def __init__(self, dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
-                 data_paths, testing=False):
+                 data_paths, testing=False, simple_run=False):
 
         self.dataset_dir = dataset_dir
         self.problem_type = problem_type
+        if self.problem_type == 'video_calssification':
+            self.video = True
+            print("We are running the video classification task")
+        else: 
+            self.video = False
+            print("We are running the image classification task")
         self.api = JPL(api_url, team_secret, gov_team_secret, dataset_type)
         self.api.data_type = dataset_type
         self.problem_task = problem_task
@@ -370,6 +376,7 @@ class JPLRunner:
         self.initial_model.fc = torch.nn.Identity()
 
         self.testing = testing
+        self.simple_run = simple_run
 
     def get_jpl_information(self):
         # Elaheh: (need change in eval) choose image classification task you would like. Now there are four tasks
@@ -447,17 +454,30 @@ class JPLRunner:
         available_budget = self.get_available_budget()
         if checkpoint_num == 0:
             self.jpl_storage.labeled_images = self.api.get_initial_seed_labels()
-        elif checkpoint_num == 1:
-            self.jpl_storage.add_labeled_images(self.api.get_secondary_seed_labels())
+        elif 1 <= checkpoint_num <= 3:
+            self.jpl_storage.add_labeled_images(self.api.get_initial_seed_labels())
+        
+        elif checkpoint_num >= 4:
+            """ For the last evaluation we used to start asking for custom labels after the first 2 checkpoints.
+            Moreover we adopted randomActive learning for the first query. Do we want it?
 
-        unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names()
-        log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
-        if checkpoint_num == 2:  # Elaheh: maybe we could get rid of random active learning?!
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
             self.request_labels(candidates)
+            """
 
-        elif checkpoint_num > 2:
+            """ For the hackathon we only use RandomActiveLearning - bring it back
+
             candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
+            """
+            
+            # Get sets of unlabeled samples
+            unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names()
+            log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
+            # Pick candidates from the list
+            """ To consider: we directly query for all the available budget, we have the option 
+            of gradually ask new labels untile we exhaust the budget.
+            """
+            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
             self.request_labels(candidates)
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num)
@@ -472,9 +492,10 @@ class JPLRunner:
                     self.jpl_storage.whitelist,
                     self.data_paths[0],
                     self.data_paths[1],
-                    unlabeled_test_data=unlabeled_test_dataset)
+                    unlabeled_test_data=unlabeled_test_dataset,
+                    video_classification=self.video)
         task.set_initial_model(self.initial_model)
-        controller = Controller(task)
+        controller = Controller(task, self.simple_run)
         end_model = controller.train_end_model()
 
         evaluation_dataset = self.jpl_storage.get_evaluation_dataset()
@@ -532,17 +553,17 @@ class JPLRunner:
             log.info("Phase: %s", session_status['pair_stage'])
 
 
-def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths):
+def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths, simple_run):
     if problem_task == 'all':
         jpl = JPL(api_url, team_secret, gov_team_secret, dataset_type)
         problem_task_list = jpl.get_available_tasks(problem_type)
         for task in problem_task_list:
             runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, task, team_secret, gov_team_secret,
-                               data_paths, testing=False)
+                               data_paths, testing=False, simple_run)
             runner.run_checkpoints()
     else:
         runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
-                           data_paths, testing=False)
+                           data_paths, testing=False, simple_run)
         runner.run_checkpoints()
 
 def setup_production():
@@ -603,6 +624,9 @@ def main():
     team_secret = variables[5]
     gov_team_secret = variables[6]
     data_paths = variables[7]
+    """ Can we set this env variable in the Docker configuration?
+    """
+    simple_run = os.getenv("HACKATHON")
      
     valid_dataset_types = ['sample', 'full', 'all']
     if dataset_type not in valid_dataset_types:
@@ -624,7 +648,7 @@ def main():
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
     
-    workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths)
+    workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths, simple_run)
     
 
 if __name__ == "__main__":
