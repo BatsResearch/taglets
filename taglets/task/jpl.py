@@ -609,7 +609,7 @@ def main():
         raise Exception(f'Invalid `dataset_type`, expected one of {valid_dataset_types}')
 
     # Check problem type is valid
-    valid_problem_types = ['image_classification', 'object_detection', 'machine_translation', 'all']
+    valid_problem_types = ['image_classification', 'object_detection', 'machine_translation', 'video_classification', 'all']
     if problem_type not in valid_problem_types:
         raise Exception(f'Invalid `problem_type`, expected one of {valid_problem_types}')
 

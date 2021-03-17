@@ -1,0 +1,29 @@
+title: Example Container
+description: >
+  REPLACE ME! This is an example container.
+  And this description spans multiple lines.
+contacts:
+  - "LogX Help <help@logx.cloud>" # add your own contacts here.
+labels:
+  team: DMC # Add your own team name here.
+configs:
+  - name: example # can be whatever you want, but is required.
+    resources: # not used for CI, but perhaps for production
+      requests:
+        memory: 1Gi # units mirror k8s units.
+        cpu: 400m
+        disk: 200Mi
+        gpu: 1
+        gpu_memory: 8Gi
+    labels:
+      foo: stuff
+      bar: things
+
+  - name: test
+    labels:
+      test: true # set this to ensure this runs in the test phase
+    command: # overrides ENTRYPOINT, use `args` to override CMD instead.
+      - sh
+      - ./scripts/run-tests
+    env: # specify environment variables as needed
+      TEST_EXAMPLE: 'this is an example'
