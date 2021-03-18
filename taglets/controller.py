@@ -112,6 +112,7 @@ class Controller:
                 return [NaiveVideoModule]
         else:
             if self.simple_run:
+                print('EXCEPTION NO MODULE')
                 """ Implement RandomPredictionModule"""
                 raise NotImplementedError
             else:

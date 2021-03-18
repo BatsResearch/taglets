@@ -106,6 +106,8 @@ class JPL:
         Get seed labels.
         :return: A list of lists with name and label e.g., ['2', '1.png'], ['7', '2.png'], etc.
         """
+
+        print('Request seed labels..')
         headers = {'user_secret': self.team_secret,
                     'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
@@ -270,7 +272,7 @@ class JPLStorage:
         # Elaheh: changed the following line
         #image_labels = [item[0] for item in self.labeled_images]
         #image_names = [item[1] for item in self.labeled_images]
-        image_names, image_labels = list(zip(*self.labeled_images))
+        image_labels, image_names = list(zip(*self.labeled_images))
         # image_labels = sorted(image_labels)
 
         return image_names, image_labels
@@ -296,7 +298,9 @@ class JPLStorage:
         :return: Training, validation, and testing data loaders
         """
         image_names, image_labels = self.get_labeled_images_list()
+        
         image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
+        print("LABELED", image_paths)
         image_paths = np.asarray(image_paths)
         image_labels = np.asarray(image_labels)
 
@@ -309,7 +313,7 @@ class JPLStorage:
             np.random.shuffle(indices)
             train_idx = indices[:train_split]
             val_idx = indices[train_split:]
-
+            print("IMAGES paths, ", image_paths[train_idx])
             train_dataset = CustomDataset(image_paths[train_idx],
                                           labels=image_labels[train_idx],
                                           label_map=self.label_map,
@@ -326,6 +330,7 @@ class JPLStorage:
                                           label_map=self.label_map,
                                           transform=self.transform_image(train=True),
                                           video=self.video)
+            print('Load train dataset for first checkpoint ', train_dataset[1][0].size())
             val_dataset = None
 
         return train_dataset, val_dataset
@@ -335,10 +340,13 @@ class JPLStorage:
         Get a data loader from unlabeled data.
         :return: A data loader containing unlabeled data
         """
+        print('GET UNLABELED')
         transform = self.transform_image(train=train)
 
         image_names = self.get_unlabeled_image_names()
+        
         image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
+        print('GET UNLABELED ', image_paths[:10])
         if len(image_paths) == 0:
             return None
         else:
@@ -364,7 +372,7 @@ class JPLStorage:
 
 class JPLRunner:
     def __init__(self, dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
-                 data_paths, testing=False, simple_run=False):
+                 data_paths, simple_run=False, testing=False):
 
         self.dataset_dir = dataset_dir
         self.problem_type = problem_type
@@ -440,11 +448,12 @@ class JPLRunner:
             line = linecache.getline(filename, lineno, f.f_globals)
             self.api.deactivate_session(self.api.session_token)
 
-            logging.info('exception has occured during joint trianing:')
+            logging.info('exception has occured during joint training:')
             logging.info(ex)
             logging.info('EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj))
 
     def run_checkpoints_base(self):
+        print("in checkpoint")
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
             self.run_one_checkpoint("Base", i)
@@ -464,10 +473,15 @@ class JPLRunner:
         available_budget = self.get_available_budget()
         if checkpoint_num == 0:
             self.jpl_storage.labeled_images = self.api.get_initial_seed_labels()
+            print('Get initial seeds at zero checkpoint')
         elif 1 <= checkpoint_num <= 3:
             self.jpl_storage.add_labeled_images(self.api.get_initial_seed_labels())
+            print('Get seeds at 1-4  checkpoints')
+        # Get sets of unlabeled samples
+        unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names()
+        log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
         
-        elif checkpoint_num >= 4:
+        if checkpoint_num >= 4:
             """ For the last evaluation we used to start asking for custom labels after the first 2 checkpoints.
             Moreover we adopted randomActive learning for the first query. Do we want it?
 
@@ -479,10 +493,6 @@ class JPLRunner:
 
             candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
             """
-            
-            # Get sets of unlabeled samples
-            unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names()
-            log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
             # Pick candidates from the list
             """ To consider: we directly query for all the available budget, we have the option 
             of gradually ask new labels untile we exhaust the budget.
@@ -491,11 +501,14 @@ class JPLRunner:
             self.request_labels(candidates)
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num)
+        #print('Labeled dataset: ', labeled_dataset[0])
         unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True)
+        print('UNLabeled dataset: ')
         unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False)
+        #sys.exit()
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),
-                    (224, 224),
+                    (224, 224), # It does change for the video
                     labeled_dataset,
                     unlabeled_train_dataset,
                     val_dataset,
@@ -506,6 +519,9 @@ class JPLRunner:
                     video_classification=self.video)
         task.set_initial_model(self.initial_model)
         controller = Controller(task, self.simple_run)
+        
+        sys.exit()
+
         end_model = controller.train_end_model()
 
         evaluation_dataset = self.jpl_storage.get_evaluation_dataset()
@@ -565,15 +581,17 @@ class JPLRunner:
 
 def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths, simple_run):
     if problem_task == 'all':
+        print ('Execute all tasks')
         jpl = JPL(api_url, team_secret, gov_team_secret, dataset_type)
         problem_task_list = jpl.get_available_tasks(problem_type)
         for task in problem_task_list:
             runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, task, team_secret, gov_team_secret,
-                               data_paths, testing=False, simple_run)
+                               data_paths, simple_run, testing=False)
             runner.run_checkpoints()
     else:
+        print( "Execute a single task")
         runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
-                           data_paths, testing=False, simple_run)
+                           data_paths, simple_run, testing=False)
         runner.run_checkpoints()
 
 def setup_production():
@@ -636,7 +654,7 @@ def main():
     data_paths = variables[7]
     """ Can we set this env variable in the Docker configuration?
     """
-    simple_run = os.getenv("HACKATHON")
+    simple_run = True#os.getenv("HACKATHON")
      
     valid_dataset_types = ['sample', 'full', 'all']
     if dataset_type not in valid_dataset_types:
