@@ -3,22 +3,29 @@ gpu_list = os.getenv("LWLL_TA1_GPUS")
 if gpu_list is not None and gpu_list != "all":
     gpu_list = [x for x in gpu_list.split(" ")]
     os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(gpu_list)
-import logging
 import sys
 import time
+import logging
+import argparse
 import requests
-import numpy as np
-import torch
-import torchvision.models as models
-import torchvision.transforms as transforms
-from ..data import CustomDataset
-from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
-from ..task import Task
-from ..controller import Controller
-from .utils import labels_to_concept_ids
 import linecache
 from pathlib import Path
-import argparse
+
+
+import torch
+import numpy as np
+import pandas as pd
+import torchvision.models as models
+import torchvision.transforms as transforms
+
+
+from ..task import Task
+from ..data import CustomDataset
+from ..controller import Controller
+from .utils import labels_to_concept_ids
+from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
+
+
 
 log = logging.getLogger(__name__)
 
@@ -101,7 +108,7 @@ class JPL:
         else:
             return {}
 
-    def get_initial_seed_labels(self):
+    def get_initial_seed_labels(self, video=False):
         """
         Get seed labels.
         :return: A list of lists with name and label e.g., ['2', '1.png'], ['7', '2.png'], etc.
@@ -113,10 +120,24 @@ class JPL:
                    'session_token': self.session_token}
         r = requests.get(self.url + "/seed_labels", headers=headers)
         labels = r.json()['Labels']
-        seed_labels = []
-        for image in labels:
-            seed_labels.append([image["class"], image["id"]])
-        return seed_labels
+        print(labels[:1], video)
+
+        if video:
+            seed_labels = []
+            dictionary_clips = {}
+            for clip in labels:
+                action_frames = [str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'])]
+                dictionary_clips[clip["id"]] = action_frames
+                seed_labels.append([clip["class"], clip["id"]])
+
+            print(seed_labels[:10],dictionary_clips.keys() )
+            return seed_labels, dictionary_clips
+
+        else:
+            seed_labels = []
+            for image in labels:
+                seed_labels.append([image["class"], image["id"]])
+            return seed_labels, None
     """
     def get_secondary_seed_labels(self):
         headers = {'user_secret': self.team_secret,
@@ -204,7 +225,7 @@ class JPLStorage:
         self.name = task_name
         self.description = ''
         self.problem_type = metadata['problem_type']
-        if self.problem_type == 'video_calssification':
+        if self.problem_type == 'video_classification':
             self.video = True
             print("We are running the video classification task")
         else: 
@@ -215,6 +236,7 @@ class JPLStorage:
         self.evaluation_image_path = "path to test images"
         self.unlabeled_image_path = "path to unlabeled images"
         self.labeled_images = []  # A list of tuples with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
+        self.dictionary_clips = None
         self.number_of_channels = None
         self.train_data_loader = None
         self.phase = None  # base or adaptation
@@ -231,20 +253,29 @@ class JPLStorage:
         """
         self.labeled_images.extend(new_labeled_images)
         
-    def set_image_path(self, dataset_dir, data_type):
+    def set_image_path(self, dataset_dir, data_type, video=False):
         """
         Set self.evaluation_image_path and self.unlabeled_image_path with the given dataset_dir
         :param dataset_dir: the directory to the dataset
         :param data_type: 'sample' or 'full'
         :return:
         """
+        print('NAME BASE DIR')
         self.unlabeled_image_path = os.path.join(dataset_dir,
                                                  os.path.basename(dataset_dir) + "_" + data_type,
                                                  "train")
-        self.evaluation_image_path = os.path.join(dataset_dir,
-                                                  os.path.basename(dataset_dir) + "_" + data_type,
-                                                  "test")
-
+        print('NAME DIR ', dataset_dir, 'BASENAME ', os.path.basename(dataset_dir), "UNLABELED IMAGE PATH ", self.unlabeled_image_path)
+        if video:
+            self.evaluation_image_path = os.path.join(dataset_dir,
+                                                    "labels" + "_" + data_type,
+                                                    "meta_test.feather")
+            print('NAME DIR ', dataset_dir, 'BASENAME ', os.path.basename(dataset_dir), "EVALUATION IMAGE PATH ", self.evaluation_image_path)
+        else:
+            self.evaluation_image_path = os.path.join(dataset_dir,
+                                                    os.path.basename(dataset_dir) + "_" + data_type,
+                                                    "test")
+        
+    
     def transform_image(self, train=True):
         """
         Get the transform to be used on an image.
@@ -269,11 +300,8 @@ class JPLStorage:
 
     def get_labeled_images_list(self):
         """get list of image names and labels"""
-        # Elaheh: changed the following line
-        #image_labels = [item[0] for item in self.labeled_images]
-        #image_names = [item[1] for item in self.labeled_images]
+
         image_labels, image_names = list(zip(*self.labeled_images))
-        # image_labels = sorted(image_labels)
 
         return image_names, image_labels
 
@@ -286,10 +314,15 @@ class JPLStorage:
                 unlabeled_image_names.append(img)
         return unlabeled_image_names
 
-    def get_evaluation_image_names(self):
-        evaluation_image_names = []
-        for img in os.listdir(self.evaluation_image_path):
-            evaluation_image_names.append(img)
+    def get_evaluation_image_names(self, video=False):
+
+        if video:
+            test_meta = pd.read_feather(self.evaluation_image_path)
+            evaluation_image_names = test_meta['id'].tolist()
+        else:
+            evaluation_image_names = []
+            for img in os.listdir(self.evaluation_image_path):
+                evaluation_image_names.append(img)
         return evaluation_image_names
 
     def get_labeled_dataset(self, checkpoint_num):
@@ -318,18 +351,21 @@ class JPLStorage:
                                           labels=image_labels[train_idx],
                                           label_map=self.label_map,
                                           transform=self.transform_image(train=True),
-                                          video=self.video)
+                                          video=self.video,
+                                          clips_dictionary=None)
             val_dataset = CustomDataset(image_paths[val_idx],
                                         labels=image_labels[val_idx],
                                         label_map=self.label_map,
                                         transform=self.transform_image(train=False),
-                                        video=self.video)
+                                        video=self.video,
+                                        clips_dictionary=None)
         else:
             train_dataset = CustomDataset(image_paths,
                                           labels=image_labels,
                                           label_map=self.label_map,
                                           transform=self.transform_image(train=True),
-                                          video=self.video)
+                                          video=self.video,
+                                          clips_dictionary=None)
             print('Load train dataset for first checkpoint ', train_dataset[1][0].size())
             val_dataset = None
 
@@ -352,22 +388,45 @@ class JPLStorage:
         else:
             return CustomDataset(image_paths,
                                  transform=transform, 
-                                 video=self.video)
+                                 video=self.video,
+                                 clips_dictionary=None)
 
-    def get_evaluation_dataset(self):
+    def get_evaluation_dataset(self, dataset_dir, data_type, current_dataset, video=False):
         """
         Get a data loader from evaluation/test data.
         :return: A data loader containing unlabeled data
         """
         transform = self.transform_image(train=False)
+        
+        if video:
+            # get path for 
+            path_test = dataset_dir + '/' + current_dataset
+            base_path = os.path.join(path_test,
+                                     os.path.basename(path_test) + "_" + data_type,
+                                     "test/")                     
+            image_paths = []
+            dictionary_clips = {}
+            test_meta = pd.read_feather(self.evaluation_image_path)
+            for clip in test_meta.iterrows():
+                row = clip[1]
+                print(row)
+                action_frames = [base_path + str(i)+'.jpg' for i in range(row['start_frame'], row['end_frame'])]
+                dictionary_clips[row["id"]] = action_frames
+                image_paths.append(base_path + str(row["id"]))
+            #print("IMAGES PATHS[:2]: ", image_paths[:2], "DICTIONARY KEYS ", dictionary_clips.keys())
 
-        evaluation_image_names = []
-        for img in os.listdir(self.evaluation_image_path):
-            evaluation_image_names.append(img)
-        image_paths = [os.path.join(self.evaluation_image_path, image_name) for image_name in evaluation_image_names]
+        else:
+            evaluation_image_names = []
+            for img in os.listdir(self.evaluation_image_path):
+                evaluation_image_names.append(img)
+            image_paths = [os.path.join(self.evaluation_image_path, image_name) for image_name in evaluation_image_names]
+            clips_dictionary = None
+        
         return CustomDataset(image_paths,
                              transform=transform,
-                             video=self.video)
+                             video=self.video,
+                             clips_dictionary=dictionary_clips)
+        
 
 
 class JPLRunner:
@@ -376,7 +435,7 @@ class JPLRunner:
 
         self.dataset_dir = dataset_dir
         self.problem_type = problem_type
-        if self.problem_type == 'video_calssification':
+        if self.problem_type == 'video_classification':
             self.video = True
             print("We are running the video classification task")
         else: 
@@ -433,7 +492,7 @@ class JPLRunner:
 
         self.jpl_storage.phase = session_status['pair_stage']
         phase_dataset_dir = os.path.join(self.dataset_dir, current_dataset['name'])
-        self.jpl_storage.set_image_path(phase_dataset_dir, self.api.data_type)
+        self.jpl_storage.set_image_path(phase_dataset_dir, self.api.data_type, self.video)
 
     def run_checkpoints(self):
         try:
@@ -472,14 +531,19 @@ class JPLRunner:
 
         available_budget = self.get_available_budget()
         if checkpoint_num == 0:
-            self.jpl_storage.labeled_images = self.api.get_initial_seed_labels()
+            self.jpl_storage.labeled_images, self.jpl_storage.dictionary_clips = self.api.get_initial_seed_labels(self.video)
             print('Get initial seeds at zero checkpoint')
         elif 1 <= checkpoint_num <= 3:
-            self.jpl_storage.add_labeled_images(self.api.get_initial_seed_labels())
+            new_labeled_images, new_dictionary_clips = self.api.get_initial_seed_labels(self.video)
+            self.jpl_storage.add_labeled_images(new_labeled_images)
+            self.jpl_storage.dictionary_clips.update(new_dictionary_clips)
             print('Get seeds at 1-4  checkpoints')
+        
+        print("Dictionary clips number keys: ", len(self.jpl_storage.dictionary_clips))
         # Get sets of unlabeled samples
         unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names()
         log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
+        sys.exit()
         
         if checkpoint_num >= 4:
             """ For the last evaluation we used to start asking for custom labels after the first 2 checkpoints.
@@ -508,7 +572,7 @@ class JPLRunner:
         #sys.exit()
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),
-                    (224, 224), # It does change for the video
+                    (224, 224), 
                     labeled_dataset,
                     unlabeled_train_dataset,
                     val_dataset,
@@ -524,14 +588,16 @@ class JPLRunner:
 
         end_model = controller.train_end_model()
 
-        evaluation_dataset = self.jpl_storage.get_evaluation_dataset()
+        session_status = self.api.get_session_status()
+        current_dataset = session_status['current_dataset']['name']
+        evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.dataset_dir, self.api.data_type, current_dataset, self.video)
         outputs = end_model.predict(evaluation_dataset)
         predictions = np.argmax(outputs, 1)
         prediction_names = []
         for p in predictions:
             prediction_names.append([k for k, v in self.jpl_storage.label_map.items() if v == p][0])
 
-        predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(), 'class': prediction_names}
+        predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(self.video), 'class': prediction_names}
 
         self.submit_predictions(predictions_dict)
 
@@ -637,8 +703,13 @@ def main():
                         type=str,
                         default="prod",
                         help="The mode to execute the system. prod: system eval, dev: system development")
+    parser.add_argument("--simple_version",
+                        type=str,
+                        default="false",
+                        help="Option to choose whether exclude or not the real train")
     args = parser.parse_args()
 
+    
     if args.mode == 'prod':
         variables = setup_production()
     else:
@@ -646,16 +717,19 @@ def main():
     
     dataset_type = variables[0]
     problem_type = variables[1]
+    print(problem_type)
     dataset_dir = variables[2]
     api_url = variables[3]
     problem_task = variables[4]
     team_secret = variables[5]
     gov_team_secret = variables[6]
     data_paths = variables[7]
-    """ Can we set this env variable in the Docker configuration?
-    """
-    simple_run = True#os.getenv("HACKATHON")
-     
+    if args.simple_version == 'true':
+        simple_run = True
+    else: 
+        simple_run = False
+
+
     valid_dataset_types = ['sample', 'full', 'all']
     if dataset_type not in valid_dataset_types:
         raise Exception(f'Invalid `dataset_type`, expected one of {valid_dataset_types}')
