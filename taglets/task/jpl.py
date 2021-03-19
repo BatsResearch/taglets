@@ -321,22 +321,17 @@ class JPLStorage:
         Get training, validation, and testing data loaders from labeled data.
         :return: Training, validation, and testing data loaders
         """
-
+        
+        image_names, image_labels = self.get_labeled_images_list()
+        image_paths = [os.path.join(self.unlabeled_image_path, str(image_name)) for image_name in image_names]
+        
         if video:
-            #path_test = dataset_dir + '/' + current_dataset
-            #base_path = os.path.join(path_test,
-            #                        os.path.basename(path_test) + "_" + data_type,
-            #                        "test/")  
-            image_names, image_labels = self.get_labeled_images_list()
-            print("IMAGE LABELS ", image_labels[:10])
-            image_paths = [os.path.join(self.unlabeled_image_path, clip) for clip in dictionary_clips]
-            print('VIDEO TRAIN IMAGE PATHS ', image_paths[:10])
-
+            paths_dictionary_clips = {}
+            for clip, frames in dictionary_clips.items():
+                paths_dictionary_clips[clip] = [os.path.join(self.unlabeled_image_path, str(f)) for f in frames]
+            dictionary_clips = paths_dictionary_clips
         else:
-            image_names, image_labels = self.get_labeled_images_list()
-            image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
             dictionary_clips = None
-            print("LABELED", image_paths[:10])
         
         image_paths = np.asarray(image_paths)
         image_labels = np.asarray(image_labels)
@@ -380,9 +375,8 @@ class JPLStorage:
         Get a data loader from unlabeled data.
         :return: A data loader containing unlabeled data
         """
-        print('GET UNLABELED')
+        
         transform = self.transform_image(train=train)
-
         image_names = self.get_unlabeled_image_names()
         
         image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
@@ -547,7 +541,7 @@ class JPLRunner:
         # Get sets of unlabeled samples
         unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names(self.jpl_storage.dictionary_clips, self.video)
         log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
-        sys.exit()
+        
         if checkpoint_num >= 4:
             """ For the last evaluation we used to start asking for custom labels after the first 2 checkpoints.
             Moreover we adopted randomActive learning for the first query. Do we want it?
@@ -567,7 +561,7 @@ class JPLRunner:
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
             self.request_labels(candidates)
 
-        labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips)
+        labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
         print('Labeled dataset: ', labeled_dataset[0])
         sys.exit()
         unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True)
