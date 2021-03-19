@@ -14,7 +14,7 @@ class CustomDataset(Dataset):
         """
         Create a new CustomDataset.
         
-        :param filepaths: A list of filepaths. If video=True it is a dictionary
+        :param filepaths: A list of filepaths. 
         :param labels: A list of labels
         :param label_map: A dictionary to map string labels to intergers
         :param transform: A transform to perform on the images
@@ -33,9 +33,8 @@ class CustomDataset(Dataset):
         if self.video:
             print("BUILD VIDEO DATA LOADER")
             clip_id = int(os.path.basename(self.filepaths[index])) # chech what path you have/want
-            print(f"CLIP ID: {clip_id}")
             frames_paths = self.clips_dictionary[clip_id]
-            print(f"FRAMES list[:2]: {frames_paths[:2]} and number of frames {len(frames_paths)}")
+            #print(f"FRAMES list[:2]: {frames_paths[:2]} and number of frames {len(frames_paths)}")
 
             frames = []
             for f in frames_paths:

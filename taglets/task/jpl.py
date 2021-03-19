@@ -120,7 +120,6 @@ class JPL:
                    'session_token': self.session_token}
         r = requests.get(self.url + "/seed_labels", headers=headers)
         labels = r.json()['Labels']
-        print(labels[:1], video)
 
         if video:
             seed_labels = []
@@ -138,18 +137,6 @@ class JPL:
             for image in labels:
                 seed_labels.append([image["class"], image["id"]])
             return seed_labels, None
-    """
-    def get_secondary_seed_labels(self):
-        headers = {'user_secret': self.team_secret,
-                    'govteam_secret': self.gov_team_secret,
-                   'session_token': self.session_token}
-        r = requests.get(self.url + "/secondary_seed_labels", headers=headers)
-        labels = r.json()['Labels']
-        secondary_seed_labels = []
-        for image in labels:
-            secondary_seed_labels.append([image["class"], image["id"]])
-        return secondary_seed_labels
-    """
 
     def deactivate_session(self, deactivate_session):
 
@@ -260,7 +247,7 @@ class JPLStorage:
         :param data_type: 'sample' or 'full'
         :return:
         """
-        print('NAME BASE DIR')
+        
         self.unlabeled_image_path = os.path.join(dataset_dir,
                                                  os.path.basename(dataset_dir) + "_" + data_type,
                                                  "train")
@@ -269,7 +256,6 @@ class JPLStorage:
             self.evaluation_image_path = os.path.join(dataset_dir,
                                                     "labels" + "_" + data_type,
                                                     "meta_test.feather")
-            print('NAME DIR ', dataset_dir, 'BASENAME ', os.path.basename(dataset_dir), "EVALUATION IMAGE PATH ", self.evaluation_image_path)
         else:
             self.evaluation_image_path = os.path.join(dataset_dir,
                                                     os.path.basename(dataset_dir) + "_" + data_type,
@@ -283,7 +269,7 @@ class JPLStorage:
         """
         data_mean = [0.485, 0.456, 0.406]
         data_std = [0.229, 0.224, 0.225]
-    
+        # Remember to check it for video and eval
         if train:
             return transforms.Compose([
                 transforms.RandomResizedCrop((224, 224), scale=(0.8, 1.0)),
@@ -305,9 +291,14 @@ class JPLStorage:
 
         return image_names, image_labels
 
-    def get_unlabeled_image_names(self):
+    def get_unlabeled_image_names(self, dictionary_clips, video=False):
         """return list of name of unlabeled images"""
-        labeled_image_names = [img_name for label, img_name in self.labeled_images]
+        
+        if video: # Keep redundancy in case the way of querying for label images changes
+            labeled_image_names = [f for clip, frames in dictionary_clips.items() for f in frames]
+        else:
+            labeled_image_names = [img_name for label, img_name in self.labeled_images]
+            
         unlabeled_image_names = []
         for img in os.listdir(self.unlabeled_image_path):
             if img not in labeled_image_names:
@@ -325,15 +316,28 @@ class JPLStorage:
                 evaluation_image_names.append(img)
         return evaluation_image_names
 
-    def get_labeled_dataset(self, checkpoint_num):
+    def get_labeled_dataset(self, checkpoint_num, dictionary_clips, video=False):
         """
         Get training, validation, and testing data loaders from labeled data.
         :return: Training, validation, and testing data loaders
         """
-        image_names, image_labels = self.get_labeled_images_list()
+
+        if video:
+            #path_test = dataset_dir + '/' + current_dataset
+            #base_path = os.path.join(path_test,
+            #                        os.path.basename(path_test) + "_" + data_type,
+            #                        "test/")  
+            image_names, image_labels = self.get_labeled_images_list()
+            print("IMAGE LABELS ", image_labels[:10])
+            image_paths = [os.path.join(self.unlabeled_image_path, clip) for clip in dictionary_clips]
+            print('VIDEO TRAIN IMAGE PATHS ', image_paths[:10])
+
+        else:
+            image_names, image_labels = self.get_labeled_images_list()
+            image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
+            dictionary_clips = None
+            print("LABELED", image_paths[:10])
         
-        image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
-        print("LABELED", image_paths)
         image_paths = np.asarray(image_paths)
         image_labels = np.asarray(image_labels)
 
@@ -352,20 +356,20 @@ class JPLStorage:
                                           label_map=self.label_map,
                                           transform=self.transform_image(train=True),
                                           video=self.video,
-                                          clips_dictionary=None)
+                                          clips_dictionary=dictionary_clips)
             val_dataset = CustomDataset(image_paths[val_idx],
                                         labels=image_labels[val_idx],
                                         label_map=self.label_map,
                                         transform=self.transform_image(train=False),
                                         video=self.video,
-                                        clips_dictionary=None)
+                                        clips_dictionary=dictionary_clips)
         else:
             train_dataset = CustomDataset(image_paths,
                                           labels=image_labels,
                                           label_map=self.label_map,
                                           transform=self.transform_image(train=True),
                                           video=self.video,
-                                          clips_dictionary=None)
+                                          clips_dictionary=dictionary_clips)
             print('Load train dataset for first checkpoint ', train_dataset[1][0].size())
             val_dataset = None
 
@@ -541,10 +545,9 @@ class JPLRunner:
         
         print("Dictionary clips number keys: ", len(self.jpl_storage.dictionary_clips))
         # Get sets of unlabeled samples
-        unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names()
+        unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names(self.jpl_storage.dictionary_clips, self.video)
         log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
         sys.exit()
-        
         if checkpoint_num >= 4:
             """ For the last evaluation we used to start asking for custom labels after the first 2 checkpoints.
             Moreover we adopted randomActive learning for the first query. Do we want it?
@@ -564,8 +567,9 @@ class JPLRunner:
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
             self.request_labels(candidates)
 
-        labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num)
-        #print('Labeled dataset: ', labeled_dataset[0])
+        labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips)
+        print('Labeled dataset: ', labeled_dataset[0])
+        sys.exit()
         unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True)
         print('UNLabeled dataset: ')
         unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False)
