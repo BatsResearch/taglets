@@ -149,7 +149,7 @@ class JPL:
                           headers=headers_active_session)
         r.json()
 
-    def request_label(self, query):
+    def request_label(self, query, video=False):
         """
         Get labels of requested examples.
 
@@ -171,9 +171,22 @@ class JPL:
                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
         r = requests.post(self.url + "/query_labels", json=query, headers=headers)
-        labels_dic = r.json()['Labels']
-        labels_list = [(d['class'], d['id']) for d in labels_dic]
-        return labels_list
+        labels = r.json()['Labels']
+
+        if video:
+            labels_list = []
+            dictionary_clips = {}
+            for clip in labels:
+                action_frames = [str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'])]
+                dictionary_clips[clip["id"]] = action_frames
+                labels_list.append([clip["class"], clip["id"]])
+            return labels_list, dictionary_clips
+
+        else:
+            labels_list = []
+            for image in labels:
+                labels_list.append([image["class"], image["id"]])
+            return labels_list, None
 
     def submit_prediction(self, predictions):
         """
@@ -291,7 +304,7 @@ class JPLStorage:
 
         return image_names, image_labels
 
-    def get_unlabeled_image_names(self, dictionary_clips, video=False):
+    def get_unlabeled_image_names(self, dictionary_clips=None, video=False):
         """return list of name of unlabeled images"""
         
         if video: # Keep redundancy in case the way of querying for label images changes
@@ -370,14 +383,15 @@ class JPLStorage:
 
         return train_dataset, val_dataset
 
-    def get_unlabeled_dataset(self, train=True):
+    def get_unlabeled_dataset(self, train=True, dictionary_clips=None, video=False):
         """
         Get a data loader from unlabeled data.
         :return: A data loader containing unlabeled data
         """
         
         transform = self.transform_image(train=train)
-        image_names = self.get_unlabeled_image_names()
+        
+        image_names = self.get_unlabeled_image_names(dictionary_clips, video)
         
         image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
         print('GET UNLABELED ', image_paths[:10])
@@ -386,7 +400,7 @@ class JPLStorage:
         else:
             return CustomDataset(image_paths,
                                  transform=transform, 
-                                 video=self.video,
+                                 video=False, # self.video for the moment we are not able to create clips from unlabeled data
                                  clips_dictionary=None)
 
     def get_evaluation_dataset(self, dataset_dir, data_type, current_dataset, video=False):
@@ -559,15 +573,12 @@ class JPLRunner:
             of gradually ask new labels untile we exhaust the budget.
             """
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
-            self.request_labels(candidates)
+            self.request_labels(candidates, self.video)
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
-        print('Labeled dataset: ', labeled_dataset[0])
+        unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True, self.jpl_storage.dictionary_clips, self.video)
+        unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False, self.jpl_storage.dictionary_clips, self.video)
         sys.exit()
-        unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True)
-        print('UNLabeled dataset: ')
-        unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False)
-        #sys.exit()
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),
                     (224, 224), 
@@ -623,11 +634,12 @@ class JPLRunner:
             available_budget = available_budget // 10
         return available_budget
 
-    def request_labels(self, examples):
+    def request_labels(self, examples, video=False):
         query = {'example_ids': examples}
-        labeled_images = self.api.request_label(query)
+        labeled_images, labeled_dictionary_clips= self.api.request_label(query, video)
 
         self.jpl_storage.add_labeled_images(labeled_images)
+        self.jpl_storage.dictionary_clips.update(labeled_dictionary_clips)
         log.info("New labeled images: %s", len(labeled_images))
         log.info("Total labeled images: %s", len(self.jpl_storage.labeled_images))
 
