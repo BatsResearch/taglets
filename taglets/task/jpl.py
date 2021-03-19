@@ -593,7 +593,7 @@ class JPLRunner:
         task.set_initial_model(self.initial_model)
         controller = Controller(task, self.simple_run)
         
-        sys.exit()
+        #sys.exit()
 
         end_model = controller.train_end_model()
 
