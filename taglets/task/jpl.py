@@ -427,7 +427,7 @@ class JPLStorage:
                 evaluation_image_names.append(img)
             image_paths = [os.path.join(self.evaluation_image_path, image_name)
                            for image_name in evaluation_image_names]
-            clips_dictionary = None
+            dictionary_clips = None
         
         return CustomDataset(image_paths,
                              transform=transform,
