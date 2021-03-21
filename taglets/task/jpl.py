@@ -1,8 +1,4 @@
 import os
-gpu_list = os.getenv("LWLL_TA1_GPUS")
-if gpu_list is not None and gpu_list != "all":
-    gpu_list = [x for x in gpu_list.split(" ")]
-    os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(gpu_list)
 import sys
 import time
 import logging
@@ -11,13 +7,11 @@ import requests
 import linecache
 from pathlib import Path
 
-
 import torch
 import numpy as np
 import pandas as pd
 import torchvision.models as models
 import torchvision.transforms as transforms
-
 
 from ..task import Task
 from ..data import CustomDataset
@@ -26,6 +20,10 @@ from .utils import labels_to_concept_ids
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
 
 
+gpu_list = os.getenv("LWLL_TA1_GPUS")
+if gpu_list is not None and gpu_list != "all":
+    gpu_list = [x for x in gpu_list.split(" ")]
+    os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(gpu_list)
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +42,6 @@ class JPL:
         self.url = api_url 
         self.session_token = ''
         self.data_type = dataset_type
-
 
     def get_available_tasks(self, problem_type):
         """
@@ -72,7 +69,7 @@ class JPL:
         :return: The task metadata
         """
         headers = {'user_secret': self.team_secret,
-                    'govteam_secret': self.gov_team_secret}
+                   'govteam_secret': self.gov_team_secret}
         
         r = requests.get(self.url + "/task_metadata/" + task_name, headers=headers)
         return r.json()['task_metadata']
@@ -84,7 +81,7 @@ class JPL:
         :return: None
         """
         headers = {'user_secret': self.team_secret,
-                    'govteam_secret': self.gov_team_secret}
+                   'govteam_secret': self.gov_team_secret}
 
         # r = requests.get(self.url + "/auth/get_session_token/" + self.data_type + "/" + task_name, headers=headers)
         r = requests.post(self.url + "/auth/create_session",
@@ -100,7 +97,7 @@ class JPL:
         :return: The session status
         """
         headers = {'user_secret': self.team_secret,
-                    'govteam_secret': self.gov_team_secret,
+                   'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
         r = requests.get(self.url + "/session_status", headers=headers)
         if 'Session_Status' in r.json():
@@ -116,7 +113,7 @@ class JPL:
 
         print('Request seed labels..')
         headers = {'user_secret': self.team_secret,
-                    'govteam_secret': self.gov_team_secret,
+                   'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
         r = requests.get(self.url + "/seed_labels", headers=headers)
         labels = r.json()['Labels']
@@ -129,7 +126,7 @@ class JPL:
                 dictionary_clips[clip["id"]] = action_frames
                 seed_labels.append([clip["class"], clip["id"]])
 
-            print(seed_labels[:10],dictionary_clips.keys() )
+            print(seed_labels[:10], dictionary_clips.keys())
             return seed_labels, dictionary_clips
 
         else:
@@ -141,7 +138,7 @@ class JPL:
     def deactivate_session(self, deactivate_session):
 
         headers_active_session = {'user_secret': self.team_secret,
-                                'govteam_secret': self.gov_team_secret,
+                                  'govteam_secret': self.gov_team_secret,
                                   'session_token': self.session_token}
 
         r = requests.post(self.url + "/deactivate_session",
@@ -181,7 +178,6 @@ class JPL:
                 dictionary_clips[clip["id"]] = action_frames
                 labels_list.append([clip["class"], clip["id"]])
             return labels_list, dictionary_clips
-
         else:
             labels_list = []
             for image in labels:
@@ -208,8 +204,7 @@ class JPL:
     def deactivate_all_sessions(self):
 
         headers_session = {'user_secret': self.team_secret,
-                            'govteam_secret': self.gov_team_secret
-                            }
+                           'govteam_secret': self.gov_team_secret}
         r = requests.get(self.url + "/list_active_sessions", headers=headers_session)
         active_sessions = r.json()['active_sessions']
         for session_token in active_sessions:
@@ -264,16 +259,16 @@ class JPLStorage:
         self.unlabeled_image_path = os.path.join(dataset_dir,
                                                  os.path.basename(dataset_dir) + "_" + data_type,
                                                  "train")
-        print('NAME DIR ', dataset_dir, 'BASENAME ', os.path.basename(dataset_dir), "UNLABELED IMAGE PATH ", self.unlabeled_image_path)
+        print('NAME DIR ', dataset_dir, 'BASENAME ', os.path.basename(dataset_dir),
+              "UNLABELED IMAGE PATH ", self.unlabeled_image_path)
         if video:
             self.evaluation_image_path = os.path.join(dataset_dir,
-                                                    "labels" + "_" + data_type,
-                                                    "meta_test.feather")
+                                                      "labels" + "_" + data_type,
+                                                      "meta_test.feather")
         else:
             self.evaluation_image_path = os.path.join(dataset_dir,
-                                                    os.path.basename(dataset_dir) + "_" + data_type,
-                                                    "test")
-        
+                                                      os.path.basename(dataset_dir) + "_" + data_type,
+                                                      "test")
     
     def transform_image(self, train=True):
         """
@@ -306,8 +301,7 @@ class JPLStorage:
 
     def get_unlabeled_image_names(self, dictionary_clips=None, video=False):
         """return list of name of unlabeled images"""
-        
-        if video: # Keep redundancy in case the way of querying for label images changes
+        if video:  # Keep redundancy in case the way of querying for label images changes
             labeled_image_names = [f for clip, frames in dictionary_clips.items() for f in frames]
         else:
             labeled_image_names = [img_name for label, img_name in self.labeled_images]
@@ -400,7 +394,7 @@ class JPLStorage:
         else:
             return CustomDataset(image_paths,
                                  transform=transform, 
-                                 video=False, # self.video for the moment we are not able to create clips from unlabeled data
+                                 video=False,  # self.video for the moment we are not able to create clips from unlabeled data
                                  clips_dictionary=None)
 
     def get_evaluation_dataset(self, dataset_dir, data_type, current_dataset, video=False):
@@ -425,20 +419,20 @@ class JPLStorage:
                 action_frames = [base_path + str(i)+'.jpg' for i in range(row['start_frame'], row['end_frame'])]
                 dictionary_clips[row["id"]] = action_frames
                 image_paths.append(base_path + str(row["id"]))
-            #print("IMAGES PATHS[:2]: ", image_paths[:2], "DICTIONARY KEYS ", dictionary_clips.keys())
+            # print("IMAGES PATHS[:2]: ", image_paths[:2], "DICTIONARY KEYS ", dictionary_clips.keys())
 
         else:
             evaluation_image_names = []
             for img in os.listdir(self.evaluation_image_path):
                 evaluation_image_names.append(img)
-            image_paths = [os.path.join(self.evaluation_image_path, image_name) for image_name in evaluation_image_names]
+            image_paths = [os.path.join(self.evaluation_image_path, image_name)
+                           for image_name in evaluation_image_names]
             clips_dictionary = None
         
         return CustomDataset(image_paths,
                              transform=transform,
                              video=self.video,
                              clips_dictionary=dictionary_clips)
-        
 
 
 class JPLRunner:
@@ -543,7 +537,8 @@ class JPLRunner:
 
         available_budget = self.get_available_budget()
         if checkpoint_num == 0:
-            self.jpl_storage.labeled_images, self.jpl_storage.dictionary_clips = self.api.get_initial_seed_labels(self.video)
+            self.jpl_storage.labeled_images, self.jpl_storage.dictionary_clips = \
+                self.api.get_initial_seed_labels(self.video)
             print('Get initial seeds at zero checkpoint')
         elif 1 <= checkpoint_num <= 3:
             new_labeled_images, new_dictionary_clips = self.api.get_initial_seed_labels(self.video)
@@ -553,7 +548,8 @@ class JPLRunner:
         
         print("Dictionary clips number keys: ", len(self.jpl_storage.dictionary_clips))
         # Get sets of unlabeled samples
-        unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names(self.jpl_storage.dictionary_clips, self.video)
+        unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names(self.jpl_storage.dictionary_clips,
+                                                                           self.video)
         log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
         
         if checkpoint_num >= 4:
@@ -593,13 +589,16 @@ class JPLRunner:
         task.set_initial_model(self.initial_model)
         controller = Controller(task, self.simple_run)
         
-        #sys.exit()
+        # sys.exit()
 
         end_model = controller.train_end_model()
 
         session_status = self.api.get_session_status()
         current_dataset = session_status['current_dataset']['name']
-        evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.dataset_dir, self.api.data_type, current_dataset, self.video)
+        evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.dataset_dir,
+                                                                     self.api.data_type,
+                                                                     current_dataset,
+                                                                     self.video)
         outputs = end_model.predict(evaluation_dataset)
         predictions = np.argmax(outputs, 1)
         prediction_names = []
@@ -636,7 +635,7 @@ class JPLRunner:
 
     def request_labels(self, examples, video=False):
         query = {'example_ids': examples}
-        labeled_images, labeled_dictionary_clips= self.api.request_label(query, video)
+        labeled_images, labeled_dictionary_clips = self.api.request_label(query, video)
 
         self.jpl_storage.add_labeled_images(labeled_images)
         self.jpl_storage.dictionary_clips.update(labeled_dictionary_clips)
@@ -655,9 +654,10 @@ class JPLRunner:
             log.info("Phase: %s", session_status['pair_stage'])
 
 
-def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths, simple_run):
+def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths,
+             simple_run):
     if problem_task == 'all':
-        print ('Execute all tasks')
+        print('Execute all tasks')
         jpl = JPL(api_url, team_secret, gov_team_secret, dataset_type)
         problem_task_list = jpl.get_available_tasks(problem_type)
         for task in problem_task_list:
@@ -665,10 +665,11 @@ def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, tea
                                data_paths, simple_run, testing=False)
             runner.run_checkpoints()
     else:
-        print( "Execute a single task")
+        print("Execute a single task")
         runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
                            data_paths, simple_run, testing=False)
         runner.run_checkpoints()
+
 
 def setup_production():
     """
@@ -691,8 +692,7 @@ def setup_production():
     if gpu_list != 'all':
         raise Exception(f'all gpus are required')
     
-    return dataset_type, problem_type, dataset_dir, api_url, \
-           problem_task, team_secret, gov_team_secret, data_paths
+    return dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths
 
 
 def setup_development():
@@ -703,8 +703,9 @@ def setup_development():
     # not sure this is very elegant. Let me know :)
     import dev_config
 
-    return dev_config.dataset_type, dev_config.problem_type, dev_config.dataset_dir, dev_config.api_url, \
-            dev_config.problem_task, dev_config.team_secret, dev_config.gov_team_secret, dev_config.data_paths
+    return (dev_config.dataset_type, dev_config.problem_type, dev_config.dataset_dir, dev_config.api_url,
+            dev_config.problem_task, dev_config.team_secret, dev_config.gov_team_secret, dev_config.data_paths)
+
 
 def main():
     
@@ -718,7 +719,6 @@ def main():
                         default="false",
                         help="Option to choose whether exclude or not the real train")
     args = parser.parse_args()
-
     
     if args.mode == 'prod':
         variables = setup_production()
@@ -739,13 +739,13 @@ def main():
     else: 
         simple_run = False
 
-
     valid_dataset_types = ['sample', 'full', 'all']
     if dataset_type not in valid_dataset_types:
         raise Exception(f'Invalid `dataset_type`, expected one of {valid_dataset_types}')
 
     # Check problem type is valid
-    valid_problem_types = ['image_classification', 'object_detection', 'machine_translation', 'video_classification', 'all']
+    valid_problem_types = ['image_classification', 'object_detection', 'machine_translation', 'video_classification',
+                           'all']
     if problem_type not in valid_problem_types:
         raise Exception(f'Invalid `problem_type`, expected one of {valid_problem_types}')
 
@@ -760,7 +760,8 @@ def main():
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
     
-    workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths, simple_run)
+    workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths,
+             simple_run)
     
 
 if __name__ == "__main__":
