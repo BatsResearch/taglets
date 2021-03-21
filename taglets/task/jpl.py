@@ -228,6 +228,7 @@ class JPLStorage:
             print("We are running the image classification task")
         self.task_id = metadata['task_id']
         self.classes = []
+        self.evaluation_meta_path = "path to meta data for test videos"
         self.evaluation_image_path = "path to test images"
         self.unlabeled_image_path = "path to unlabeled images"
         self.labeled_images = []  # A list of tuples with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
@@ -263,6 +264,9 @@ class JPLStorage:
               "UNLABELED IMAGE PATH ", self.unlabeled_image_path)
         if video:
             self.evaluation_image_path = os.path.join(dataset_dir,
+                                                      os.path.basename(dataset_dir) + "_" + data_type,
+                                                      "test")
+            self.evaluation_meta_path = os.path.join(dataset_dir,
                                                       "labels" + "_" + data_type,
                                                       "meta_test.feather")
         else:
@@ -315,7 +319,7 @@ class JPLStorage:
     def get_evaluation_image_names(self, video=False):
 
         if video:
-            test_meta = pd.read_feather(self.evaluation_image_path)
+            test_meta = pd.read_feather(self.evaluation_meta_path)
             evaluation_image_names = test_meta['id'].tolist()
         else:
             evaluation_image_names = []
@@ -397,7 +401,7 @@ class JPLStorage:
                                  video=False,  # self.video for the moment we are not able to create clips from unlabeled data
                                  clips_dictionary=None)
 
-    def get_evaluation_dataset(self, dataset_dir, data_type, current_dataset, video=False):
+    def get_evaluation_dataset(self, video=False):
         """
         Get a data loader from evaluation/test data.
         :return: A data loader containing unlabeled data
@@ -405,20 +409,15 @@ class JPLStorage:
         transform = self.transform_image(train=False)
         
         if video:
-            # get path for 
-            path_test = dataset_dir + '/' + current_dataset
-            base_path = os.path.join(path_test,
-                                     os.path.basename(path_test) + "_" + data_type,
-                                     "test/")                     
             image_paths = []
             dictionary_clips = {}
-            test_meta = pd.read_feather(self.evaluation_image_path)
+            test_meta = pd.read_feather(self.evaluation_meta_path)
             for clip in test_meta.iterrows():
                 row = clip[1]
                 print(row)
-                action_frames = [base_path + str(i)+'.jpg' for i in range(row['start_frame'], row['end_frame'])]
+                action_frames = [self.evaluation_image_path + str(i)+'.jpg' for i in range(row['start_frame'], row['end_frame'])]
                 dictionary_clips[row["id"]] = action_frames
-                image_paths.append(base_path + str(row["id"]))
+                image_paths.append(self.evaluation_image_path + str(row["id"]))
             # print("IMAGES PATHS[:2]: ", image_paths[:2], "DICTIONARY KEYS ", dictionary_clips.keys())
 
         else:
@@ -593,12 +592,7 @@ class JPLRunner:
 
         end_model = controller.train_end_model()
 
-        session_status = self.api.get_session_status()
-        current_dataset = session_status['current_dataset']['name']
-        evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.dataset_dir,
-                                                                     self.api.data_type,
-                                                                     current_dataset,
-                                                                     self.video)
+        evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.video)
         outputs = end_model.predict(evaluation_dataset)
         predictions = np.argmax(outputs, 1)
         prediction_names = []
