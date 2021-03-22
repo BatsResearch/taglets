@@ -415,10 +415,10 @@ class JPLStorage:
             for clip in test_meta.iterrows():
                 row = clip[1]
                 print(row)
-                action_frames = [self.evaluation_image_path + str(i)+'.jpg'
+                action_frames = [os.path.join(self.evaluation_image_path, str(i)+'.jpg')
                                  for i in range(row['start_frame'], row['end_frame'])]
                 dictionary_clips[row["id"]] = action_frames
-                image_paths.append(self.evaluation_image_path + str(row["id"]))
+                image_paths.append(os.path.join(self.evaluation_image_path + str(row["id"])))
             # print("IMAGES PATHS[:2]: ", image_paths[:2], "DICTIONARY KEYS ", dictionary_clips.keys())
 
         else:
