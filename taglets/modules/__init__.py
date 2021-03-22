@@ -5,3 +5,4 @@ from .multitask import MultiTaskModule
 from .zsl_kg_lite import ZSLKGModule
 from .fixmatch import FixMatchModule
 from .naive_video import NaiveVideoModule
+from .random import RandomModule

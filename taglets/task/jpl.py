@@ -267,8 +267,8 @@ class JPLStorage:
                                                       os.path.basename(dataset_dir) + "_" + data_type,
                                                       "test")
             self.evaluation_meta_path = os.path.join(dataset_dir,
-                                                      "labels" + "_" + data_type,
-                                                      "meta_test.feather")
+                                                     "labels" + "_" + data_type,
+                                                     "meta_test.feather")
         else:
             self.evaluation_image_path = os.path.join(dataset_dir,
                                                       os.path.basename(dataset_dir) + "_" + data_type,
@@ -415,7 +415,8 @@ class JPLStorage:
             for clip in test_meta.iterrows():
                 row = clip[1]
                 print(row)
-                action_frames = [self.evaluation_image_path + str(i)+'.jpg' for i in range(row['start_frame'], row['end_frame'])]
+                action_frames = [self.evaluation_image_path + str(i)+'.jpg'
+                                 for i in range(row['start_frame'], row['end_frame'])]
                 dictionary_clips[row["id"]] = action_frames
                 image_paths.append(self.evaluation_image_path + str(row["id"]))
             # print("IMAGES PATHS[:2]: ", image_paths[:2], "DICTIONARY KEYS ", dictionary_clips.keys())

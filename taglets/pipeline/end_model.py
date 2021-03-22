@@ -171,3 +171,25 @@ class VideoEndModel(EndModel):
             q.put((rank, outputs, labels))
         else:
             q.put((rank, outputs))
+
+
+class RandomEndModel(EndModel):
+    def train(self, train_data, val_data, unlabeled_data=None):
+        pass
+    
+    def predict(self, data):
+        if len(data) == 0:
+            raise ValueError('Should not get an empty dataset')
+        if isinstance(data[0], list):
+            data_loader = torch.utils.data.DataLoader(
+                dataset=data, batch_size=self.batch_size, shuffle=False,
+                num_workers=self.num_workers, pin_memory=True
+            )
+            labels = []
+            for batch in data_loader:
+                inputs, targets = batch
+                labels.append(targets)
+            labels = torch.cat(labels).numpy()
+            return np.random.rand(len(data), self.task.classes), labels
+        else:
+            return np.random.rand(len(data), self.task.classes)

@@ -1,6 +1,7 @@
 from .data import SoftLabelDataset
-from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule
-from .pipeline import EndModel, VideoEndModel, TagletExecutor
+from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
+    RandomModule
+from .pipeline import EndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
 import logging
 import sys
@@ -95,7 +96,9 @@ class Controller:
         end_model_train_data = self._combine_soft_labels(unlabeled_images_labels,
                                                          self.task.get_unlabeled_data(True),
                                                          self.task.get_labeled_train_data())
-        if self.task.video_classification:
+        if self.simple_run:
+            self.end_model = RandomEndModel(self.task)
+        elif self.task.video_classification:
             self.end_model = VideoEndModel(self.task)
         else:
             self.end_model = EndModel(self.task)
@@ -104,25 +107,18 @@ class Controller:
         return self.end_model
 
     def _get_taglets_modules(self):
-        if self.task.video_classification:
-            if self.simple_run:
-                """ Implement VideoRandomPredictionModule"""
-                raise NotImplementedError
-            else:
-                return [NaiveVideoModule]
+        if self.simple_run:
+             return [RandomModule]
+        elif self.task.video_classification:
+             return [NaiveVideoModule]
         else:
-            if self.simple_run:
-                print('EXCEPTION NO MODULE')
-                """ Implement RandomPredictionModule"""
-                raise NotImplementedError
-            else:
-                if self.task.scads_path is not None:
-                    return [MultiTaskModule,
-                            ZSLKGModule,
-                            TransferModule,
-                            FineTuneModule,
-                            FixMatchModule]
-                return [FineTuneModule, FixMatchModule]
+            if self.task.scads_path is not None:
+                return [MultiTaskModule,
+                        ZSLKGModule,
+                        TransferModule,
+                        FineTuneModule,
+                        FixMatchModule]
+            return [FineTuneModule, FixMatchModule]
 
     def _combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
         labeled = DataLoader(labeled_dataset, batch_size=1, shuffle=False)
