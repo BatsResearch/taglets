@@ -35,6 +35,6 @@ class RandomTaglet(Taglet):
                 inputs, targets = batch
                 labels.append(targets)
             labels = torch.cat(labels).numpy()
-            return np.random.rand(len(data), self.task.classes), labels
+            return np.random.rand(len(data), len(self.task.classes)), labels
         else:
-            return np.random.rand(len(data), self.task.classes)
+            return np.random.rand(len(data), len(self.task.classes))

@@ -3,6 +3,7 @@ from .taglet import Trainable
 import logging
 import os
 import torch
+import numpy as np
 
 log = logging.getLogger(__name__)
 
@@ -190,6 +191,6 @@ class RandomEndModel(EndModel):
                 inputs, targets = batch
                 labels.append(targets)
             labels = torch.cat(labels).numpy()
-            return np.random.rand(len(data), self.task.classes), labels
+            return np.random.rand(len(data), len(self.task.classes)), labels
         else:
-            return np.random.rand(len(data), self.task.classes)
+            return np.random.rand(len(data), len(self.task.classes))
