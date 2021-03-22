@@ -31,7 +31,6 @@ class CustomDataset(Dataset):
     def __getitem__(self, index):
 
         if self.video:
-            print("BUILD VIDEO DATA LOADER")
             clip_id = int(os.path.basename(self.filepaths[index])) # chech what path you have/want
             frames_paths = self.clips_dictionary[clip_id]
             #print(f"FRAMES list[:2]: {frames_paths[:2]} and number of frames {len(frames_paths)}")
@@ -44,7 +43,6 @@ class CustomDataset(Dataset):
                 frames.append(frame)
 
             img = torch.stack(frames) # need to be of the same size!
-            print(f"VIDEO TENSOR size:{img.size()}")
                 
         else:
             img = Image.open(self.filepaths[index]).convert('RGB')
