@@ -111,13 +111,13 @@ class JPL:
         :return: A list of lists with name and label e.g., ['2', '1.png'], ['7', '2.png'], etc.
         """
 
-        print('Request seed labels..')
+        log.info('Request seed labels.')
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
         r = requests.get(self.url + "/seed_labels", headers=headers)
         labels = r.json()['Labels']
-        print(f"NUM OF NEW RAW RETRIEVED LABELS: {len(labels)}")
+        log.info(f"NUM OF NEW RAW RETRIEVED LABELS: {len(labels)}")
 
         if video:
             seed_labels = []
@@ -126,8 +126,6 @@ class JPL:
                 action_frames = [str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'])]
                 dictionary_clips[clip["id"]] = action_frames
                 seed_labels.append([clip["class"], clip["id"]])
-
-            print(f"Look at seeds[:10]: {seed_labels[:10]}")
             return seed_labels, dictionary_clips
 
         else:
@@ -170,7 +168,7 @@ class JPL:
                    'session_token': self.session_token}
         r = requests.post(self.url + "/query_labels", json=query, headers=headers)
         labels = r.json()['Labels']
-        print(f"NUM OF NEW RAW RETRIEVED LABELS: {len(labels)}")
+        log.info(f"NUM OF NEW RAW RETRIEVED LABELS: {len(labels)}")
 
         if video:
             labels_list = []
@@ -224,15 +222,16 @@ class JPLStorage:
         self.problem_type = metadata['problem_type']
         if self.problem_type == 'video_classification':
             self.video = True
-            print("We are running the video classification task")
+            log.info("We are running the video classification task")
         else: 
             self.video = False
-            print("We are running the image classification task")
+            log.info("We are running the image classification task")
         self.task_id = metadata['task_id']
         self.classes = []
         self.evaluation_meta_path = "path to meta data for test videos"
         self.evaluation_image_path = "path to test images"
         self.unlabeled_image_path = "path to unlabeled images"
+        self.unlabeled_meta_path = "path to meta data for train videos"
         self.labeled_images = []  # A list of tuples with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
         self.dictionary_clips = None
         self.number_of_channels = None
@@ -269,6 +268,10 @@ class JPLStorage:
             self.evaluation_meta_path = os.path.join(dataset_dir,
                                                      "labels" + "_" + data_type,
                                                      "meta_test.feather")
+            self.unlabeled_meta_path = os.path.join(dataset_dir,
+                                                 "labels" + "_" + data_type,
+                                                 "meta_train.feather")
+
         else:
             self.evaluation_image_path = os.path.join(dataset_dir,
                                                       os.path.basename(dataset_dir) + "_" + data_type,
@@ -305,16 +308,25 @@ class JPLStorage:
 
     def get_unlabeled_image_names(self, dictionary_clips=None, video=False):
         """return list of name of unlabeled images"""
-        if video:  # Keep redundancy in case the way of querying for label images changes
-            labeled_image_names = [f for clip, frames in dictionary_clips.items() for f in frames]
+        
+        if video: 
+            labeled_clip_names = list(dictionary_clips.keys())
+            train_meta = pd.read_feather(self.unlabeled_meta_path)
+            unlabeled_clip_names = []
+            for clip in train_meta.iterrows(): 
+                row = clip[1]
+                if row not in labeled_clip_names:
+                    unlabeled_clip_names.append(row)
+            return unlabeled_clip_names
+
         else:
             labeled_image_names = [img_name for label, img_name in self.labeled_images]
             
-        unlabeled_image_names = []
-        for img in os.listdir(self.unlabeled_image_path):
-            if img not in labeled_image_names:
-                unlabeled_image_names.append(img)
-        return unlabeled_image_names
+            unlabeled_image_names = []
+            for img in os.listdir(self.unlabeled_image_path):
+                if img not in labeled_image_names:
+                    unlabeled_image_names.append(img)
+            return unlabeled_image_names
 
     def get_evaluation_image_names(self, video=False):
 
@@ -356,7 +368,6 @@ class JPLStorage:
             np.random.shuffle(indices)
             train_idx = indices[:train_split]
             val_idx = indices[train_split:]
-            print(f"Example of training image paths, {image_paths[train_idx][0]}")
             train_dataset = CustomDataset(image_paths[train_idx],
                                           labels=image_labels[train_idx],
                                           label_map=self.label_map,
@@ -376,12 +387,11 @@ class JPLStorage:
                                           transform=self.transform_image(train=True),
                                           video=self.video,
                                           clips_dictionary=dictionary_clips)
-            print('Size of the first checkpoint train dataset ', train_dataset[1][0].size())
             val_dataset = None
 
         return train_dataset, val_dataset
 
-    def get_unlabeled_dataset(self, train=True, dictionary_clips=None, video=False):
+    def get_unlabeled_dataset(self, train=True, video=False):
         """
         Get a data loader from unlabeled data.
         :return: A data loader containing unlabeled data
@@ -389,16 +399,29 @@ class JPLStorage:
         
         transform = self.transform_image(train=train)
         
-        image_names = self.get_unlabeled_image_names(dictionary_clips, video)
+        if video:
+            image_paths = []
+            dictionary_clips = {}
+            train_meta = pd.read_feather(self.unlabeled_meta_path)
+            for clip in test_meta.iterrows():
+                row = clip[1]
+                action_frames = [os.path.join(self.unlabeled_image_path, str(i)+'.jpg')
+                                 for i in range(row['start_frame'], row['end_frame'])]
+                dictionary_clips[row["id"]] = action_frames
+                image_paths.append(os.path.join(self.unlabeled_image_path, str(row["id"])))
+        else:
+            image_names = self.get_unlabeled_image_names(dictionary_clips, video)
+            
+            image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
+            dictionary_clips = None
         
-        image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
         if len(image_paths) == 0:
             return None
         else:
             return CustomDataset(image_paths,
-                                 transform=transform, 
-                                 video=False,  # self.video for the moment we are not able to create clips from unlabeled data
-                                 clips_dictionary=None)
+                                transform=transform, 
+                                video=video, 
+                                clips_dictionary=dictionary_clips)
 
     def get_evaluation_dataset(self, video=False):
         """
@@ -440,10 +463,10 @@ class JPLRunner:
         self.problem_type = problem_type
         if self.problem_type == 'video_classification':
             self.video = True
-            print("We are running the video classification task")
+            log.info("Define JPLRunner: We are running the video classification task")
         else: 
             self.video = False
-            print("We are running the image classification task")
+            log.info("Define JPLRunner: We are running the image classification task")
         self.api = JPL(api_url, team_secret, gov_team_secret, dataset_type)
         self.api.data_type = dataset_type
         self.problem_task = problem_task
@@ -464,8 +487,8 @@ class JPLRunner:
         jpl_task_name = image_classification_task
         self.api.create_session(jpl_task_name)
         jpl_task_metadata = self.api.get_task_metadata(jpl_task_name)
-        print('jpl_task_metadata')
-        print(jpl_task_metadata)
+        log.info('jpl_task_metadata')
+        log.info(f"{jpl_task_metadata}")
 
         if self.api.data_type == 'full':
             num_base_checkpoints = len(jpl_task_metadata['base_label_budget_full'])
@@ -515,7 +538,7 @@ class JPLRunner:
             logging.info('EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj))
 
     def run_checkpoints_base(self):
-        print("in checkpoint")
+        log.info("Enter checkpoint")
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
             self.run_one_checkpoint("Base", i)
@@ -536,14 +559,18 @@ class JPLRunner:
         if checkpoint_num == 0:
             self.jpl_storage.labeled_images, self.jpl_storage.dictionary_clips = \
                 self.api.get_initial_seed_labels(self.video)
-            print('Get initial seeds at zero checkpoint')
+            log.info('Get initial seeds at zero checkpoint')
         elif 1 <= checkpoint_num <= 3:
             new_labeled_images, new_dictionary_clips = self.api.get_initial_seed_labels(self.video)
             self.jpl_storage.add_labeled_images(new_labeled_images)
-            self.jpl_storage.dictionary_clips.update(new_dictionary_clips)
-            print('Get seeds at 1-4  checkpoints')
+            if self.jpl_storage.dictionary_clips != None:
+                self.jpl_storage.dictionary_clips.update(new_dictionary_clips)
+            log.info(f'Get seeds at {checkpoint_num} checkpoints')
         
-        print("Dictionary clips number keys: ", len(self.jpl_storage.dictionary_clips))
+        if self.jpl_storage.dictionary_clips != None:
+            log.info("Dictionary clips number keys: ", len(self.jpl_storage.dictionary_clips))
+        else:
+            log.info("Dictionary clips number keys: ", (self.jpl_storage.dictionary_clips))
         # Get sets of unlabeled samples
         unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names(self.jpl_storage.dictionary_clips,
                                                                            self.video)
@@ -566,7 +593,7 @@ class JPLRunner:
             of gradually ask new labels untile we exhaust the budget.
             """
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
-            print(f"NUM of REQUESTED DATA: {len(candidates)}")
+            log.info(f"candidates: ", candidates)
             self.request_labels(candidates, self.video)
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
@@ -631,14 +658,15 @@ class JPLRunner:
         labeled_images, labeled_dictionary_clips = self.api.request_label(query, video)
 
         self.jpl_storage.add_labeled_images(labeled_images)
-        self.jpl_storage.dictionary_clips.update(labeled_dictionary_clips)
+        if self.jpl_storage.dictionary_clips != None:
+            self.jpl_storage.dictionary_clips.update(labeled_dictionary_clips)
         log.info("New labeled images: %s", len(labeled_images))
         log.info("Total labeled images: %s", len(self.jpl_storage.labeled_images))
 
     def submit_predictions(self, predictions):
-        print('**** session status after submit prediction  ****')
+        log.info('**** session status after submit prediction  ****')
         submit_status = self.api.submit_prediction(predictions)
-        print(submit_status)
+        log.info(submit_status)
         # session_status = self.api.get_session_status()
         session_status = submit_status
         if 'checkpoint_scores' in session_status:
@@ -650,7 +678,7 @@ class JPLRunner:
 def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths,
              simple_run):
     if problem_task == 'all':
-        print('Execute all tasks')
+        log.info('Execute all tasks')
         jpl = JPL(api_url, team_secret, gov_team_secret, dataset_type)
         problem_task_list = jpl.get_available_tasks(problem_type)
         for task in problem_task_list:
@@ -658,7 +686,7 @@ def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, tea
                                data_paths, simple_run, testing=False)
             runner.run_checkpoints()
     else:
-        print("Execute a single task")
+        log.info("Execute a single task")
         runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
                            data_paths, simple_run, testing=False)
         runner.run_checkpoints()
@@ -720,7 +748,7 @@ def main():
     
     dataset_type = variables[0]
     problem_type = variables[1]
-    print(f"Problem type: {problem_type}")
+    log.info(f"Problem type: {problem_type}")
     dataset_dir = variables[2]
     api_url = variables[3]
     problem_task = variables[4]
