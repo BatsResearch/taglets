@@ -597,8 +597,8 @@ class JPLRunner:
             self.request_labels(candidates, self.video)
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
-        unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True, self.jpl_storage.dictionary_clips, self.video)
-        unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False, self.jpl_storage.dictionary_clips, self.video)
+        unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True, self.video)
+        unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False, self.video)
         # sys.exit()
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),
