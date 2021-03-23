@@ -117,7 +117,7 @@ class JPL:
                    'session_token': self.session_token}
         r = requests.get(self.url + "/seed_labels", headers=headers)
         labels = r.json()['Labels']
-        log.info(f"NUM OF NEW RAW RETRIEVED LABELS: {len(labels)}")
+        log.debug(f"NUM OF NEW RAW RETRIEVED LABELS: {len(labels)}")
 
         if video:
             seed_labels = []
@@ -168,7 +168,7 @@ class JPL:
                    'session_token': self.session_token}
         r = requests.post(self.url + "/query_labels", json=query, headers=headers)
         labels = r.json()['Labels']
-        log.info(f"NUM OF NEW RAW RETRIEVED LABELS: {len(labels)}")
+        log.debug(f"NUM OF NEW RAW RETRIEVED LABELS: {len(labels)}")
 
         if video:
             labels_list = []
@@ -463,10 +463,8 @@ class JPLRunner:
         self.problem_type = problem_type
         if self.problem_type == 'video_classification':
             self.video = True
-            log.info("Define JPLRunner: We are running the video classification task")
         else: 
             self.video = False
-            log.info("Define JPLRunner: We are running the image classification task")
         self.api = JPL(api_url, team_secret, gov_team_secret, dataset_type)
         self.api.data_type = dataset_type
         self.problem_task = problem_task
@@ -487,8 +485,7 @@ class JPLRunner:
         jpl_task_name = image_classification_task
         self.api.create_session(jpl_task_name)
         jpl_task_metadata = self.api.get_task_metadata(jpl_task_name)
-        log.info('jpl_task_metadata')
-        log.info(f"{jpl_task_metadata}")
+        log.info(f"Task metadata: {jpl_task_metadata}")
 
         if self.api.data_type == 'full':
             num_base_checkpoints = len(jpl_task_metadata['base_label_budget_full'])
@@ -525,17 +522,18 @@ class JPLRunner:
             self.run_checkpoints_base()
             self.run_checkpoints_adapt()
         except Exception as ex:
-            exc_type, exc_obj, tb = sys.exc_info()
-            f = tb.tb_frame
-            lineno = tb.tb_lineno
-            filename = f.f_code.co_filename
-            linecache.checkcache(filename)
-            line = linecache.getline(filename, lineno, f.f_globals)
+            #exc_type, exc_obj, tb = sys.exc_info()
+            #f = tb.tb_frame
+            #lineno = tb.tb_lineno
+            #filename = f.f_code.co_filename
+            #linecache.checkcache(filename)
+            #line = linecache.getline(filename, lineno, f.f_globals)
             self.api.deactivate_session(self.api.session_token)
 
-            logging.info('exception has occured during joint training:')
-            logging.info(ex)
-            logging.info('EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj))
+            logging.exception('EXCEPTION has occured during joint training:')
+            #logging.info('exception has occured during joint training:')
+            #logging.info(ex)
+            #logging.info('EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj))
 
     def run_checkpoints_base(self):
         log.info("Enter checkpoint")
@@ -559,7 +557,7 @@ class JPLRunner:
         if checkpoint_num == 0:
             self.jpl_storage.labeled_images, self.jpl_storage.dictionary_clips = \
                 self.api.get_initial_seed_labels(self.video)
-            log.info('Get initial seeds at zero checkpoint')
+            log.info(f'Get initial seeds at {checkpoint_num} checkpoint')
         elif 1 <= checkpoint_num <= 3:
             new_labeled_images, new_dictionary_clips = self.api.get_initial_seed_labels(self.video)
             self.jpl_storage.add_labeled_images(new_labeled_images)
@@ -567,14 +565,10 @@ class JPLRunner:
                 self.jpl_storage.dictionary_clips.update(new_dictionary_clips)
             log.info(f'Get seeds at {checkpoint_num} checkpoints')
         
-        if self.jpl_storage.dictionary_clips != None:
-            log.info("Dictionary clips number keys: ", len(self.jpl_storage.dictionary_clips))
-        else:
-            log.info("Dictionary clips number keys: ", (self.jpl_storage.dictionary_clips))
         # Get sets of unlabeled samples
         unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names(self.jpl_storage.dictionary_clips,
                                                                            self.video)
-        log.info('number of unlabeled data: {}'.format(len(unlabeled_image_names)))
+        log.debug('Number of unlabeled data: {}'.format(len(unlabeled_image_names)))
         
         if checkpoint_num >= 4:
             """ For the last evaluation we used to start asking for custom labels after the first 2 checkpoints.
@@ -593,7 +587,7 @@ class JPLRunner:
             of gradually ask new labels untile we exhaust the budget.
             """
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
-            log.info(f"candidates: ", candidates)
+            log.debug(f"Candidates to query[0]: ", candidates[0])
             self.request_labels(candidates, self.video)
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
@@ -774,8 +768,8 @@ def main():
     if not Path(dataset_dir).exists():
         raise Exception('`dataset_dir` does not exist..')
 
-    logger = logging.getLogger()
-    logger.level = logging.INFO
+    logger = logging.getLogger(__name__)
+    logger.level = logging.DEBUG
     stream_handler = logging.StreamHandler(sys.stdout)
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
     stream_handler.setFormatter(formatter)
