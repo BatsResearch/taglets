@@ -13,6 +13,7 @@ import pandas as pd
 import torchvision.models as models
 import torchvision.transforms as transforms
 
+import logger
 from ..task import Task
 from ..data import CustomDataset
 from ..controller import Controller
@@ -410,7 +411,7 @@ class JPLStorage:
                 dictionary_clips[row["id"]] = action_frames
                 image_paths.append(os.path.join(self.unlabeled_image_path, str(row["id"])))
         else:
-            image_names = self.get_unlabeled_image_names(dictionary_clips, video)
+            image_names = self.get_unlabeled_image_names(None, video)
             
             image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
             dictionary_clips = None
@@ -587,7 +588,7 @@ class JPLRunner:
             of gradually ask new labels untile we exhaust the budget.
             """
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
-            log.debug(f"Candidates to query[0]: ", candidates[0])
+            log.debug(f"Candidates to query[0]: {candidates[0]}")
             self.request_labels(candidates, self.video)
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
@@ -768,12 +769,14 @@ def main():
     if not Path(dataset_dir).exists():
         raise Exception('`dataset_dir` does not exist..')
 
-    logger = logging.getLogger(__name__)
-    logger.level = logging.DEBUG
+    logger_ = logging.getLogger(__name__)
+    logger_.level = logging.DEBUG
     stream_handler = logging.StreamHandler(sys.stdout)
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
     stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
+    logger_.addHandler(stream_handler)
+
+    logger.log(error_message="example error", checkpoint=5, team="test")
     
     workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths,
              simple_run)

@@ -50,7 +50,6 @@ class CustomDataset(Dataset):
             if self.transform is not None:
                 img = self.transform(img)
 
-            print(f"IMAGE TENSOR size:{img.size()}")
 
         if self.labels is not None:
             if self.label_map is not None:
