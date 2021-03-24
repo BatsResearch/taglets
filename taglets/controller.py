@@ -22,7 +22,7 @@ import traceback
 # logging configuration
 ####################################################################
 class JPLHandler(StreamHandler):
-
+    "Handle the log stream and wrap it into the JPL logger."
     def __init__(self):
         StreamHandler.__init__(self)
 
