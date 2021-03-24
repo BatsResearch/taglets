@@ -1,29 +1,16 @@
-title: Example Container
+title: taglets
 description: >
-  REPLACE ME! This is an example container.
-  And this description spans multiple lines.
+  Configurations to build taglets image.
 contacts:
-  - "LogX Help <help@logx.cloud>" # add your own contacts here.
+  - "<help@logx.cloud>" # add your own contacts here.
 labels:
-  team: DMC # Add your own team name here.
+  team: Brown # Add your own team name here.
 configs:
-  - name: example # can be whatever you want, but is required.
-    resources: # not used for CI, but perhaps for production
-      requests:
-        memory: 1Gi # units mirror k8s units.
-        cpu: 400m
-        disk: 200Mi
-        gpu: 1
-        gpu_memory: 8Gi
+  - name: hackathon-2021
     labels:
-      foo: stuff
-      bar: things
-
-  - name: test
-    labels:
-      test: true # set this to ensure this runs in the test phase
-    command: # overrides ENTRYPOINT, use `args` to override CMD instead.
-      - sh
-      - ./scripts/run-tests
+      hackathon-2021: true # set this to ensure this runs in the test phase
     env: # specify environment variables as needed
       TEST_EXAMPLE: 'this is an example'
+build:
+  tag: brown_taglets:1.0
+    commit: true
