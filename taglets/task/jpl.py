@@ -734,8 +734,8 @@ def main():
                         help="The mode to execute the system. prod: system eval, dev: system development")
     parser.add_argument("--simple_version",
                         type=str,
-                        default="false",
-                        help="Option to choose whether exclude or not the real train")
+                        default="true",
+                        help="Option to choose whether to execute or not the entire trining pipeline")
     args = parser.parse_args()
     
     if args.mode == 'prod':
