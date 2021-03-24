@@ -1,5 +1,5 @@
 import os
-from .scads_classes import Node, Dataset
+from .scads_classes import Dataset
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 import logging
@@ -33,8 +33,8 @@ def add_dataset(path_to_database, root, path_to_dataset, dataset_installer):
         logging.warning('Dataset already exits at {}'.format(dataset.path))
         return
 
-    # Add Images to database
-    all_images = dataset_installer.get_images(dataset, session, root)
-    session.add_all(all_images)
+    # Add Images/Video to database
+    all_data = dataset_installer.get_data(dataset, session, root)
+    session.add_all(all_data)
     session.commit()
-    logging.info("Images in {} added to images dataset.".format(dataset_name))
+    logging.info("Data in {} added.".format(dataset_name))

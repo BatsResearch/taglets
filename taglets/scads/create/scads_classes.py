@@ -51,6 +51,7 @@ class Node(Base):
     conceptnet_id = Column(String, index=True, unique=True)
 
     images = relationship("Image", back_populates="node")
+    clips = relationship("Clip", back_populates="node")
     outgoing_edges = relationship("Edge", primaryjoin=id == Edge.start_node)
 
     def __repr__(self):
@@ -94,6 +95,7 @@ class Dataset(Base):
     path = Column(String)
     
     images = relationship("Image", back_populates="dataset")
+    clips = relationship("Clip", back_populates="dataset")
     
     def __repr__(self):
         return "<Dataset(name='%s')>" % self.name
@@ -129,3 +131,28 @@ class Image(Base):
         return "<Image(dataset='%s', node='%s', path='%s'')>" % (self.dataset_id,
                                                                  self.node_id,
                                                                  self.path)
+
+
+class Clip(Base):
+    __tablename__ = "clips"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    clip_id = Column(Integer, index=True)
+    video_id = Column(Integer)
+    base_path = Column(String)
+    start_frame = Column(Integer)
+    end_frame = Column(Integer)
+
+    dataset_id = Column(Integer, ForeignKey('datasets.id'))
+    node_id = Column(Integer, ForeignKey('nodes.id'), index=True)
+
+    dataset = relationship("Dataset", back_populates="clips")
+    node = relationship("Node", back_populates="clips")
+
+    def __repr__(self):
+        return "<Clip(id='%s', node='%s', base_path='%s', start_frame='%s', end_frame='%s'" % (
+            self.id,
+            self.node_id,
+            self.base_path,
+            self.start_frame,
+            self.end_frame
+        )

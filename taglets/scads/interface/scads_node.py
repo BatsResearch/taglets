@@ -13,15 +13,15 @@ class ScadsNode:
     def get_conceptnet_id(self):
         return self.node.conceptnet_id
 
-    def get_datasets(self):
+    def get_datasets(self, images=True):
         """
         Get list of datasets.
         :return: List of our datasets containing the node
         """
         datasets = set()
-        images = self.node.images
-        for image in images:
-            datasets.add(image.dataset.name)
+        data = self.node.images if images else self.node.clips
+        for datum in data:
+            datasets.add(datum.dataset.name)
         return list(datasets)
 
     def get_images(self):
@@ -55,6 +55,28 @@ class ScadsNode:
             return [x[0] for x in results]
         else:
             return self.get_images()
+
+    def get_clips(self):
+        q = "SELECT base_path, start_frame, end_frame from clips " \
+            "JOIN nodes ON clips.node_id=nodes.id " \
+            "WHERE nodes.id = " + str(self.node.id) + ";"
+        results = self.session.connection().execute(q)
+        return [(x[0], x[1], x[2]) for x in results]
+
+    def get_clips_whitelist(self, whitelist):
+        if whitelist is not None and len(whitelist) > 0:
+            q = "SELECT clips.base_path, start_frame, end_frame from clips " \
+                "JOIN nodes ON clips.node_id = nodes.id " \
+                "JOIN datasets ON images.dataset_id = datasets.id " \
+                "WHERE nodes.id = " + str(self.node.id) \
+                + " AND (datasets.path = '" + whitelist[0] + "'"
+            for path in whitelist[1:]:
+                q += " OR datasets.path = '" + path + "'"
+            q += ");"
+            results = self.session.connection().execute(q)
+            return [(x[0], x[1], x[2]) for x in results]
+        else:
+            return self.get_clips()
 
     def get_neighbors(self):
         """
