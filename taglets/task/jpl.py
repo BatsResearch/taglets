@@ -771,12 +771,13 @@ def main():
     if not Path(dataset_dir).exists():
         raise Exception('`dataset_dir` does not exist..')
 
-    logger = logging.getLogger(__name__)
-    logger.level = logging.DEBUG
-    stream_handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
+    #_logger = logging.getLogger(__name__)
+    #_logger.level = logging.DEBUG
+    #stream_handler = logging.StreamHandler(sys.stdout)
+    #stream_handler = logging.StreamHandler(logger.log)
+    #formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+    #stream_handler.setFormatter(formatter)
+    #_logger.addHandler(stream_handler)
     
     workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths,
              simple_run)

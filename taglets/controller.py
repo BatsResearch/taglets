@@ -3,12 +3,17 @@ from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModul
     RandomModule
 from .pipeline import EndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
+import logger
 import logging
+from logging import StreamHandler
 import sys
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, ConcatDataset
 import traceback
+
+
+
 
 ####################################################################
 # We configure logging in the main class of the application so that
@@ -16,12 +21,28 @@ import traceback
 # redesigned if used as part of a larger application with its own
 # logging configuration
 ####################################################################
-logger = logging.getLogger()
-logger.level = logging.INFO
-stream_handler = logging.StreamHandler(sys.stdout)
+class JPLHandler(StreamHandler):
+
+    def __init__(self):
+        StreamHandler.__init__(self)
+
+    def emit(self, record):
+        msg = self.format(record)
+        self.jpl_logger = logger.log(msg, 'Brown', 0) # For the moment fixed checkpoint
+
+logger_ = logging.getLogger()
+logger_.level = logging.INFO
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+
+stream_handler = logging.StreamHandler(sys.stdout)
+stream_handler.setLevel(logging.DEBUG)
 stream_handler.setFormatter(formatter)
-logger.addHandler(stream_handler)
+logger_.addHandler(stream_handler)
+
+jpl_handler = JPLHandler()
+jpl_handler.setLevel(logging.INFO)
+jpl_handler.setFormatter(formatter)
+logger_.addHandler(jpl_handler)
 ####################################################################
 # End of logging configuration
 ####################################################################

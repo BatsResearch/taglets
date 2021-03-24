@@ -8,9 +8,7 @@ labels:
 configs:
   - name: hackathon-2021
     labels:
-      hackathon-2021: true # set this to ensure this runs in the test phase
-    env: # specify environment variables as needed
-      TEST_EXAMPLE: 'this is an example'
+      hackathon-2021: true 
 build:
   tag: brown_taglets:1.0
     commit: true
