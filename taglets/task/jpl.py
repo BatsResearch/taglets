@@ -167,6 +167,7 @@ class JPL:
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
+        log.debug(f"Query for new labels: {type(query['example_ids'][0])}")
         r = requests.post(self.url + "/query_labels", json=query, headers=headers)
         labels = r.json()['Labels']
         log.debug(f"NUM OF NEW RAW RETRIEVED LABELS: {len(labels)}")
@@ -315,9 +316,9 @@ class JPLStorage:
             train_meta = pd.read_feather(self.unlabeled_meta_path)
             unlabeled_clip_names = []
             for clip in train_meta.iterrows(): 
-                row = clip[1]
+                row = clip[1]['id']
                 if row not in labeled_clip_names:
-                    unlabeled_clip_names.append(row)
+                    unlabeled_clip_names.append(int(row))
             return unlabeled_clip_names
 
         else:
@@ -404,7 +405,7 @@ class JPLStorage:
             image_paths = []
             dictionary_clips = {}
             train_meta = pd.read_feather(self.unlabeled_meta_path)
-            for clip in test_meta.iterrows():
+            for clip in train_meta.iterrows():
                 row = clip[1]
                 action_frames = [os.path.join(self.unlabeled_image_path, str(i)+'.jpg')
                                  for i in range(row['start_frame'], row['end_frame'])]
@@ -674,6 +675,7 @@ def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, tea
              simple_run):
     if problem_task == 'all':
         log.info('Execute all tasks')
+        print(log.info('Execute all tasks'))
         jpl = JPL(api_url, team_secret, gov_team_secret, dataset_type)
         problem_task_list = jpl.get_available_tasks(problem_type)
         for task in problem_task_list:
@@ -769,14 +771,12 @@ def main():
     if not Path(dataset_dir).exists():
         raise Exception('`dataset_dir` does not exist..')
 
-    logger_ = logging.getLogger(__name__)
-    logger_.level = logging.DEBUG
+    logger = logging.getLogger(__name__)
+    logger.level = logging.DEBUG
     stream_handler = logging.StreamHandler(sys.stdout)
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
     stream_handler.setFormatter(formatter)
-    logger_.addHandler(stream_handler)
-
-    logger.log(error_message="example error", checkpoint=5, team="test")
+    logger.addHandler(stream_handler)
     
     workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths,
              simple_run)
