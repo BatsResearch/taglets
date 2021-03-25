@@ -181,7 +181,7 @@ class RandomEndModel(EndModel):
     def predict(self, data):
         if len(data) == 0:
             raise ValueError('Should not get an empty dataset')
-        if isinstance(data[0], list):
+        if isinstance(data[0], tuple):
             data_loader = torch.utils.data.DataLoader(
                 dataset=data, batch_size=self.batch_size, shuffle=False,
                 num_workers=self.num_workers, pin_memory=True
