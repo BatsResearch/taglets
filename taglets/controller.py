@@ -3,7 +3,7 @@ from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModul
     RandomModule
 from .pipeline import EndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
-import logger
+#import logger
 import logging
 from logging import StreamHandler
 import sys
@@ -21,6 +21,7 @@ import traceback
 # redesigned if used as part of a larger application with its own
 # logging configuration
 ####################################################################
+"""
 class JPLHandler(StreamHandler):
     "Handle the log stream and wrap it into the JPL logger."
     def __init__(self):
@@ -29,7 +30,7 @@ class JPLHandler(StreamHandler):
     def emit(self, record):
         msg = self.format(record)
         self.jpl_logger = logger.log(msg, 'Brown', 0) # For the moment fixed checkpoint
-
+"""
 logger_ = logging.getLogger()
 logger_.level = logging.INFO
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
@@ -39,10 +40,10 @@ stream_handler.setLevel(logging.DEBUG)
 stream_handler.setFormatter(formatter)
 logger_.addHandler(stream_handler)
 
-jpl_handler = JPLHandler()
-jpl_handler.setLevel(logging.INFO)
-jpl_handler.setFormatter(formatter)
-logger_.addHandler(jpl_handler)
+#jpl_handler = JPLHandler()
+#jpl_handler.setLevel(logging.INFO)
+#jpl_handler.setFormatter(formatter)
+#logger_.addHandler(jpl_handler)
 ####################################################################
 # End of logging configuration
 ####################################################################

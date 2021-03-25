@@ -10,5 +10,6 @@ configs:
     labels:
       hackathon-2021: true 
 build:
-  tag: brown_taglets:1.0
+  tag: 
     commit: true
+

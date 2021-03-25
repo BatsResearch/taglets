@@ -13,7 +13,7 @@ import pandas as pd
 import torchvision.models as models
 import torchvision.transforms as transforms
 
-import logger
+#import logger
 from ..task import Task
 from ..data import CustomDataset
 from ..controller import Controller
@@ -116,7 +116,9 @@ class JPL:
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
+        log.info(f"HEADERS: {headers}")
         r = requests.get(self.url + "/seed_labels", headers=headers)
+        log.info(f"JSON REQUEST: {r.json()}")
         labels = r.json()['Labels']
         log.debug(f"NUM OF NEW RAW RETRIEVED LABELS: {len(labels)}")
 
