@@ -10,7 +10,5 @@ configs:
     labels:
       hackathon-2021: true 
 build:
-  arg_exprs:
-      - LWLL_SECRET=${LWLL_SECRET_EXAMPLE}
   tag: brown_taglets:1.0
     commit: true
