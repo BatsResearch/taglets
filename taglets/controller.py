@@ -21,7 +21,6 @@ import traceback
 # redesigned if used as part of a larger application with its own
 # logging configuration
 ####################################################################
-
 class JPLHandler(StreamHandler):
     "Handle the log stream and wrap it into the JPL logger."
     def __init__(self):
@@ -40,10 +39,10 @@ stream_handler.setLevel(logging.DEBUG)
 stream_handler.setFormatter(formatter)
 logger_.addHandler(stream_handler)
 
-#jpl_handler = JPLHandler()
-#jpl_handler.setLevel(logging.INFO)
-#jpl_handler.setFormatter(formatter)
-#logger_.addHandler(jpl_handler)
+jpl_handler = JPLHandler()
+jpl_handler.setLevel(logging.INFO)
+jpl_handler.setFormatter(formatter)
+logger_.addHandler(jpl_handler)
 ####################################################################
 # End of logging configuration
 ####################################################################

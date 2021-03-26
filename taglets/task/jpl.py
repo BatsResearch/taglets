@@ -118,9 +118,9 @@ class JPL:
                    'session_token': self.session_token}
         log.info(f"HEADERS: {headers}")
         r = requests.get(self.url + "/seed_labels", headers=headers)
-        log.info(f"JSON REQUEST: {r.json()}")
+        #log.info(f"JSON REQUEST: {r.json()}")
         labels = r.json()['Labels']
-        log.debug(f"NUM OF NEW RAW RETRIEVED LABELS: {len(labels)}")
+        #log.debug(f"NUM OF NEW RAW RETRIEVED LABELS: {len(labels)}")
 
         if video:
             seed_labels = []
