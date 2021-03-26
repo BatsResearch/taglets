@@ -1,5 +1,11 @@
 FROM nvidia/cuda:10.1-devel-ubuntu18.04
 ARG LWLL_SECRET
+ARG LOGGER_REPO_DEPLOY_USER
+ARG LOGGER_REPO_DEPLOY_TOKEN
+
+RUN echo ${LWLL_SECRET}
+RUN echo ${LOGGER_REPO_DEPLOY_USER}
+RUN echo ${LOGGER_REPO_DEPLOY_TOKEN}
 
 #Install other libraries from requirements.txt
 RUN apt-get update
@@ -13,6 +19,8 @@ RUN apt-get install -y build-essential
 RUN apt-get install -y --no-install-recommends apt-utils
 RUN apt-get install -y wget
 RUN apt-get install -y vim
+RUN apt-get -y install build-essential nghttp2 libnghttp2-dev libssl-dev
+RUN apt update && apt-get install -y git
 
 # --------------Upgrade to Python 3.7------------------
 # Upgrade installed packages
@@ -38,8 +46,13 @@ RUN curl -s https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 
 #Copy all files in ~/taglets to /tmp/
 COPY . /tmp
+
 RUN cd /tmp && pip install .
 RUN cd /tmp && ./setup.sh
+RUN cd /tmp/ && git clone https://${LOGGER_REPO_DEPLOY_USER}:${LOGGER_REPO_DEPLOY_TOKEN}@gitlab.lollllz.com/brown/logger
+RUN cd /tmp/logger && pip install -e .
+
+
 
 
 #RUN addgroup --gid 1000 tagletuser

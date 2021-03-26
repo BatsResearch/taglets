@@ -2,7 +2,7 @@ title: taglets
 description: >
   Configurations to build taglets image.
 contacts:
-  - "<help@logx.cloud>" # add your own contacts here.
+  - "Cristina Menghini <cristina_menghini@brown.edu>" # add your own contacts here.
 labels:
   team: Brown # Add your own team name here.
 configs:
@@ -10,6 +10,10 @@ configs:
     labels:
       hackathon-2021: true 
 build:
+  arg_exprs:
+    - LWLL_SECRET=${LWLL_SECRET_EXAMPLE}
+    - LOGGER_REPO_DEPLOY_USER=${LOGGER_REPO_DEPLOY_USER}
+    - LOGGER_REPO_DEPLOY_TOKEN=${LOGGER_REPO_DEPLOY_TOKEN}
   tag: 
     commit: true
 
