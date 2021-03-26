@@ -21,6 +21,7 @@ RUN apt-get install -y wget
 RUN apt-get install -y vim
 RUN apt-get -y install build-essential nghttp2 libnghttp2-dev libssl-dev
 RUN apt update && apt-get install -y git
+RUN apt-get install dialog apt-utils -y
 
 # --------------Upgrade to Python 3.7------------------
 # Upgrade installed packages
@@ -48,7 +49,7 @@ RUN curl -s https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 COPY . /tmp
 
 RUN cd /tmp && pip install .
-RUN cd /tmp && ./setup.sh
+#RUN cd /tmp && ./setup.sh
 RUN cd /tmp/ && git clone https://${LOGGER_REPO_DEPLOY_USER}:${LOGGER_REPO_DEPLOY_TOKEN}@gitlab.lollllz.com/brown/logger
 RUN cd /tmp/logger && pip install -e .
 
