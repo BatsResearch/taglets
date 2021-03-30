@@ -265,6 +265,7 @@ class JPLStorage:
         self.unlabeled_image_path = os.path.join(dataset_dir,
                                                  os.path.basename(dataset_dir) + "_" + data_type,
                                                  "train")
+        log.debug(f"Unlabeled image PATH: {self.unlabeled_image_path}")
         if video:
             self.evaluation_image_path = os.path.join(dataset_dir,
                                                       os.path.basename(dataset_dir) + "_" + data_type,
@@ -698,7 +699,8 @@ def setup_production():
 
     dataset_type = os.environ.get('LWLL_TA1_DATASET_TYPE')
     problem_type = os.environ.get('LWLL_TA1_PROB_TYPE')
-    dataset_dir = os.environ.get('LWLL_TA1_DATA_PATH')
+    dataset_dir = os.path.join(os.environ.get('LWLL_TA1_DATA_PATH') , 'evaluation')
+    log.debug(dataset_dir)
     api_url = os.environ.get('LWLL_TA1_API_ENDPOINT')
     problem_task = os.environ.get('LWLL_TA1_PROB_TASK')
     gpu_list = os.environ.get('LWLL_TA1_GPUS')
@@ -723,7 +725,7 @@ def setup_development():
     # not sure this is very elegant. Let me know :)
     import dev_config
 
-    return (dev_config.dataset_type, dev_config.problem_type, dev_config.dataset_dir, dev_config.api_url,
+    return (dev_config.dataset_type, dev_config.problem_type, os.path.join(dev_config.dataset_dir, 'development'), dev_config.api_url,
             dev_config.problem_task, dev_config.team_secret, dev_config.gov_team_secret, dev_config.data_paths)
 
 
@@ -749,6 +751,7 @@ def main():
     problem_type = variables[1]
     log.info(f"Problem type: {problem_type}")
     dataset_dir = variables[2]
+    log.info(f"Dataset dir: {dataset_dir}")
     api_url = variables[3]
     problem_task = variables[4]
     team_secret = variables[5]

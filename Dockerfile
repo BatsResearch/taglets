@@ -70,5 +70,3 @@ WORKDIR /tmp
 #ENTRYPOINT["taglets.task.jpl.ext_launch"]
 CMD ["taglets"]
 #CMD ["python","-m","taglets.task.jpl"]
-
-
