@@ -746,7 +746,7 @@ def main():
                         help="Option to choose whether to execute or not the entire trining pipeline")
     parser.add_argument("--folder",
                         type=str,
-                        default="development",# evaluation
+                        default="evaluation",# development
                         help="Option to choose the data folder")
     args = parser.parse_args()
     
