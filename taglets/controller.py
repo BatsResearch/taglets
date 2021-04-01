@@ -39,10 +39,12 @@ stream_handler.setLevel(logging.DEBUG)
 stream_handler.setFormatter(formatter)
 logger_.addHandler(stream_handler)
 
+
 jpl_handler = JPLHandler()
 jpl_handler.setLevel(logging.INFO)
 jpl_handler.setFormatter(formatter)
 logger_.addHandler(jpl_handler)
+
 ####################################################################
 # End of logging configuration
 ####################################################################

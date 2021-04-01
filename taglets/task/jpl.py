@@ -24,6 +24,7 @@ from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
 gpu_list = os.getenv("LWLL_TA1_GPUS")
 if gpu_list is not None and gpu_list != "all":
     gpu_list = [x for x in gpu_list.split(" ")]
+    print(gpu_list)
     os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(gpu_list)
 
 log = logging.getLogger(__name__)
@@ -692,14 +693,14 @@ def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, tea
         runner.run_checkpoints()
 
 
-def setup_production():
+def setup_production(simple_run):
     """
     This function returns the variables needed to launch the system in production.
     """
 
     dataset_type = os.environ.get('LWLL_TA1_DATASET_TYPE')
     problem_type = os.environ.get('LWLL_TA1_PROB_TYPE')
-    dataset_dir = os.path.join(os.environ.get('LWLL_TA1_DATA_PATH') , 'evaluation')
+    dataset_dir = os.environ.get('LWLL_TA1_DATA_PATH')
     log.debug(dataset_dir)
     api_url = os.environ.get('LWLL_TA1_API_ENDPOINT')
     problem_task = os.environ.get('LWLL_TA1_PROB_TASK')
@@ -710,10 +711,13 @@ def setup_production():
     data_paths = ('/tmp/predefined/scads.fall2020.sqlite3',
                   '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz')
 
-    # check gpus are all
-    if gpu_list != 'all':
-        raise Exception(f'all gpus are required')
-    
+    if simple_run:
+        log.info(f"Running production in simple mode, not all GPUs required")
+    else:   
+        # check gpus are all
+        if gpu_list != 'all':
+            raise Exception(f'all gpus are required')
+        
     return dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths
 
 
@@ -725,7 +729,7 @@ def setup_development():
     # not sure this is very elegant. Let me know :)
     import dev_config
 
-    return (dev_config.dataset_type, dev_config.problem_type, os.path.join(dev_config.dataset_dir, 'development'), dev_config.api_url,
+    return (dev_config.dataset_type, dev_config.problem_type, dev_config.dataset_dir, dev_config.api_url,
             dev_config.problem_task, dev_config.team_secret, dev_config.gov_team_secret, dev_config.data_paths)
 
 
@@ -740,27 +744,34 @@ def main():
                         type=str,
                         default="true",
                         help="Option to choose whether to execute or not the entire trining pipeline")
+    parser.add_argument("--folder",
+                        type=str,
+                        default="development",# evaluation
+                        help="Option to choose the data folder")
     args = parser.parse_args()
     
+
+    if args.simple_version == 'true':
+        simple_run = True
+    else: 
+        simple_run = False
+
     if args.mode == 'prod':
-        variables = setup_production()
+        variables = setup_production(simple_run)
     else:
         variables = setup_development()
     
     dataset_type = variables[0]
     problem_type = variables[1]
     log.info(f"Problem type: {problem_type}")
-    dataset_dir = variables[2]
+    dataset_dir = os.path.join(variables[2], args.folder)
     log.info(f"Dataset dir: {dataset_dir}")
     api_url = variables[3]
     problem_task = variables[4]
     team_secret = variables[5]
     gov_team_secret = variables[6]
     data_paths = variables[7]
-    if args.simple_version == 'true':
-        simple_run = True
-    else: 
-        simple_run = False
+    
 
     valid_dataset_types = ['sample', 'full', 'all']
     if dataset_type not in valid_dataset_types:

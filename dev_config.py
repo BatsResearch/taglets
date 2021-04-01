@@ -1,4 +1,4 @@
-dataset_type ='full'
+dataset_type ='sample'
 problem_type = 'image_classification'
 dataset_dir = '/lwll'
 api_url = 'https://api-dev.lollllz.com/'

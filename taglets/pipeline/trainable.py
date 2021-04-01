@@ -226,6 +226,7 @@ class Trainable:
                 self.model, device_ids=None
             )
 
+
         # Creates distributed data loaders from datasets
         train_sampler = self._get_train_sampler(train_data, n_proc=self.n_proc, rank=rank)
         train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler)
@@ -422,7 +423,7 @@ class Trainable:
             dataset=data, batch_size=self.batch_size, shuffle=False,
             num_workers=self.num_workers, pin_memory=True, sampler=sampler
         )
-
+        
         outputs = []
         labels = []
         for batch in data_loader:
@@ -464,3 +465,4 @@ class Trainable:
         mod = mod.cpu()
         f = mod(torch.rand(2, 3, *in_size))
         return int(np.prod(f.size()[1:]))
+        

@@ -54,19 +54,13 @@ RUN cd /tmp/ && git clone https://${LOGGER_REPO_DEPLOY_USER}:${LOGGER_REPO_DEPLO
 RUN cd /tmp/logger && pip install -e .
 
 
-
-
-#RUN addgroup --gid 1000 tagletuser
-#RUN adduser --disabled-password --gecos '' --uid 1000 --gid 1000 tagletuser
 RUN useradd --create-home tagletuser
-USER tagletuser
-#WORKDIR /home/tagletuser
+RUN chmod -R 777 /tmp
+RUN chmod -R 777 /home/tagletuser/
+USER 65534:65534
+ENV TORCH_HOME=/tmp
 
 WORKDIR /tmp
 
-
-#RUN echo ${LWLL_SECRET}
-
-#ENTRYPOINT["taglets.task.jpl.ext_launch"]
 CMD ["taglets"]
-#CMD ["python","-m","taglets.task.jpl"]
+
