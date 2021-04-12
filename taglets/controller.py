@@ -1,6 +1,6 @@
 from .data import SoftLabelDataset
 from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
-    RandomModule
+    RandomModule, DannModule
 from .pipeline import EndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
 import os
@@ -139,7 +139,8 @@ class Controller:
              return [NaiveVideoModule]
         else:
             if self.task.scads_path is not None:
-                return [MultiTaskModule,
+                return [DannModule, 
+                        MultiTaskModule,
                         ZSLKGModule,
                         TransferModule,
                         FineTuneModule,

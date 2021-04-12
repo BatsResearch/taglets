@@ -80,6 +80,8 @@ class TestController(unittest.TestCase):
     def setUpClass(cls):
         set_headers()
         # Set Up Scads
+        if os.path.isfile(DB_PATH):
+            os.remove(DB_PATH)
         installer = Installer(DB_PATH)
         installer.install_conceptnet(CONCEPTNET_PATH)
         installer.install_dataset(TEST_DATA, MNIST_PATH, MnistInstallation())
