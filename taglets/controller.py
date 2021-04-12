@@ -35,7 +35,7 @@ if not os.environ.get("CI"):
     import logger
     
     class JPLHandler(StreamHandler):
-    "Handle the log stream and wrap it into the JPL logger."
+        "Handle the log stream and wrap it into the JPL logger."
         def __init__(self):
             StreamHandler.__init__(self)
 
