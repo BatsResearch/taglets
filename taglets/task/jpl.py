@@ -13,7 +13,8 @@ import pandas as pd
 import torchvision.models as models
 import torchvision.transforms as transforms
 
-import logger
+if not os.environ.get("CI"):
+    import logger
 from ..task import Task
 from ..data import CustomDataset
 from ..controller import Controller
