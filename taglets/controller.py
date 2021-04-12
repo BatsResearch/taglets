@@ -3,7 +3,7 @@ from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModul
     RandomModule
 from .pipeline import EndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
-
+import os
 import logging
 from logging import StreamHandler
 import sys
