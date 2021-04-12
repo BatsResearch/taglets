@@ -36,12 +36,12 @@ if not os.environ.get("CI"):
     
     class JPLHandler(StreamHandler):
     "Handle the log stream and wrap it into the JPL logger."
-    def __init__(self):
-        StreamHandler.__init__(self)
+        def __init__(self):
+            StreamHandler.__init__(self)
 
-    def emit(self, record):
-        msg = self.format(record)
-        self.jpl_logger = logger.log(msg, 'Brown', 0) # For the moment fixed checkpoint
+        def emit(self, record):
+            msg = self.format(record)
+            self.jpl_logger = logger.log(msg, 'Brown', 0) # For the moment fixed checkpoint
 
     jpl_handler = JPLHandler()
     jpl_handler.setLevel(logging.INFO)
