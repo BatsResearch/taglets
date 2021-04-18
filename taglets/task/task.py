@@ -31,7 +31,7 @@ class Task:
         self.unlabeled_test_data = unlabeled_test_data
         self.video_classification = video_classification
 
-        self.initial = models.resnet18(pretrained=True)
+        self.initial = models.resnet50(pretrained=True)
         self.initial.fc = torch.nn.Identity()
         self.whitelist = whitelist
 
