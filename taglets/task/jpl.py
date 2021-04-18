@@ -16,7 +16,7 @@ import torchvision.transforms as transforms
 if not os.environ.get("CI"):
     import logger
 from ..task import Task
-from ..data import CustomDataset, CustomVideoDataset
+from ..data import CustomImageDataset, CustomVideoDataset
 from ..controller import Controller
 from .utils import labels_to_concept_ids
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
@@ -394,15 +394,15 @@ class JPLStorage:
             else:
                 val_dataset = None
         else:
-            train_dataset = CustomDataset(image_paths[train_idx],
-                                          labels=image_labels[train_idx],
-                                          label_map=self.label_map,
-                                          transform=self.transform_image(train=True))
+            train_dataset = CustomImageDataset(image_paths[train_idx],
+                                               labels=image_labels[train_idx],
+                                               label_map=self.label_map,
+                                               transform=self.transform_image(train=True))
             if len(val_idx) != 0:
-                val_dataset = CustomDataset(image_paths[val_idx],
-                                            labels=image_labels[val_idx],
-                                            label_map=self.label_map,
-                                            transform=self.transform_image(train=False))
+                val_dataset = CustomImageDataset(image_paths[val_idx],
+                                                 labels=image_labels[val_idx],
+                                                 label_map=self.label_map,
+                                                 transform=self.transform_image(train=False))
             else:
                 val_dataset = None
 
@@ -440,8 +440,8 @@ class JPLStorage:
                                           transform=transform,
                                           clips_dictionary=dictionary_clips)
             else:
-                return CustomDataset(image_paths,
-                                     transform=transform)
+                return CustomImageDataset(image_paths,
+                                          transform=transform)
 
     def get_evaluation_dataset(self, video=False):
         """
@@ -474,8 +474,8 @@ class JPLStorage:
                                       transform=transform,
                                       clips_dictionary=dictionary_clips)
         else:
-            return CustomDataset(image_paths,
-                                 transform=transform)
+            return CustomImageDataset(image_paths,
+                                      transform=transform)
 
 
 class JPLRunner:

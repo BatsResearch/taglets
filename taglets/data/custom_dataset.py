@@ -1,18 +1,17 @@
 import os
 
-
 from torch.utils.data import Dataset
 from PIL import Image
 import torch
 
 
-class CustomDataset(Dataset):
+class CustomImageDataset(Dataset):
     """
     A custom dataset used to create dataloaders.
     """
     def __init__(self, filepaths, labels=None, label_map=None, transform=None):
         """
-        Create a new CustomDataset.
+        Create a new CustomImageDataset.
         
         :param filepaths: A list of filepaths. 
         :param labels: A list of labels
@@ -50,7 +49,7 @@ class CustomVideoDataset(Dataset):
     
     def __init__(self, filepaths, labels=None, label_map=None, transform=None, clips_dictionary=None):
         """
-        Create a new CustomDataset.
+        Create a new CustomVideoDataset.
 
         :param filepaths: A list of filepaths.
         :param labels: A list of labels
