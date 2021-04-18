@@ -1,7 +1,7 @@
 from .data import SoftLabelDataset
 from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
     RandomModule, DannModule
-from .pipeline import EndModel, VideoEndModel, RandomEndModel, TagletExecutor
+from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
 import os
 import logging
@@ -127,7 +127,7 @@ class Controller:
         elif self.task.video_classification:
             self.end_model = VideoEndModel(self.task)
         else:
-            self.end_model = EndModel(self.task)
+            self.end_model = ImageEndModel(self.task)
         self.end_model.train(end_model_train_data, val)
         log.info("Finished training end model")
         return self.end_model
