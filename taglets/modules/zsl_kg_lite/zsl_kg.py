@@ -1,5 +1,5 @@
 from ..module import Module
-from ...pipeline import Cache, Taglet
+from ...pipeline import Cache, ImageTaglet
 
 import copy
 import os
@@ -34,7 +34,7 @@ class ZSLKGModule(Module):
         self.taglets = [ZSLKGTaglet(task)]
 
 
-class ZSLKGTaglet(Taglet):
+class ZSLKGTaglet(ImageTaglet):
     def __init__(self, task):
         super().__init__(task)
 

@@ -1,5 +1,5 @@
 from .module import Module
-from ..pipeline import Taglet
+from ..pipeline import ImageTaglet
 
 import logging
 import numpy as np
@@ -18,7 +18,7 @@ class RandomModule(Module):
         self.taglets = [RandomTaglet(task)]
 
 
-class RandomTaglet(Taglet):
+class RandomTaglet(ImageTaglet):
     def train(self, train_data, val_data, unlabeled_data=None):
         pass
     

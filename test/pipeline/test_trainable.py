@@ -1,4 +1,4 @@
-from taglets.pipeline import Trainable
+from taglets.pipeline import ImageTrainable
 from taglets.task import Task
 import unittest
 import torch
@@ -67,7 +67,7 @@ class TestTrainable(unittest.TestCase):
         task = Task("mnist-test", classes, (28, 28), labeled, unlabeled, val)
         task.set_initial_model(MnistResNet())
 
-        trainable = Trainable(task)
+        trainable = ImageTrainable(task)
         trainable.model = torch.nn.Sequential(
             trainable.model, torch.nn.Linear(512, 10)
         )

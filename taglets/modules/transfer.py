@@ -1,6 +1,6 @@
-from ..data.custom_dataset import CustomDataset
+from ..data.custom_dataset import CustomImageDataset
 from .module import Module
-from ..pipeline import Cache, Taglet
+from ..pipeline import Cache, ImageTaglet
 from ..scads import Scads, ScadsEmbedding
 
 import os
@@ -25,7 +25,7 @@ class TransferModule(Module):
         self.taglets = [TransferTaglet(task)]
 
 
-class TransferTaglet(Taglet):
+class TransferTaglet(ImageTaglet):
     def __init__(self, task, freeze=False, is_norm=False):
         super().__init__(task)
         self.name = 'transfer'
@@ -110,9 +110,9 @@ class TransferTaglet(Taglet):
                       (image_paths, image_labels, all_related_class))
 
         transform = self.transform_image(train=True)
-        train_val_data = CustomDataset(image_paths,
-                                       labels=image_labels,
-                                       transform=transform)
+        train_val_data = CustomImageDataset(image_paths,
+                                            labels=image_labels,
+                                            transform=transform)
 
         # 80% for training, 20% for validation
         train_percent = 0.8

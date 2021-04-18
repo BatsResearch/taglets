@@ -1,5 +1,5 @@
 from .module import Module
-from ..pipeline import Taglet
+from ..pipeline import ImageTaglet
 
 import os
 import torch
@@ -14,7 +14,7 @@ class FineTuneModule(Module):
         self.taglets = [FineTuneTaglet(task)]
 
 
-class FineTuneTaglet(Taglet):
+class FineTuneTaglet(ImageTaglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'finetune'
