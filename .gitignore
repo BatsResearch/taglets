@@ -162,3 +162,8 @@ dmypy.json
 
 # predefined
 predefined
+
+# Notebook
+API.ipynb
+taglets/JPL_test.ipynb
+taglets/task/JPL_test.ipynb

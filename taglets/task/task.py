@@ -8,7 +8,8 @@ class Task:
     A class defining an image classification task
     """
     def __init__(self, name, classes, input_shape, labeled_train_data, unlabeled_train_data, validation_data,
-                 whitelist=None, scads_path=None, scads_embedding_path=None, unlabeled_test_data=None):
+                 whitelist=None, scads_path=None, scads_embedding_path=None, unlabeled_test_data=None,
+                 video_classification=False):
         """
         Create a new Task
 
@@ -28,8 +29,9 @@ class Task:
         self.scads_path = scads_path
         self.scads_embedding_path = scads_embedding_path
         self.unlabeled_test_data = unlabeled_test_data
+        self.video_classification = video_classification
 
-        self.initial = models.resnet18(pretrained=True)
+        self.initial = models.resnet50(pretrained=True)
         self.initial.fc = torch.nn.Identity()
         self.whitelist = whitelist
 

@@ -1,13 +1,19 @@
 from .data import SoftLabelDataset
-from .modules import FineTuneModule, PrototypeModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, DannModule
-from .pipeline import EndModel, TagletExecutor
+from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
+    RandomModule, DannModule
+from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
+import os
 import logging
+from logging import StreamHandler
 import sys
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, ConcatDataset
 import traceback
+
+
+
 
 ####################################################################
 # We configure logging in the main class of the application so that
@@ -15,12 +21,33 @@ import traceback
 # redesigned if used as part of a larger application with its own
 # logging configuration
 ####################################################################
-logger = logging.getLogger()
-logger.level = logging.INFO
-stream_handler = logging.StreamHandler(sys.stdout)
+
+logger_ = logging.getLogger()
+logger_.level = logging.INFO
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+
+stream_handler = logging.StreamHandler(sys.stdout)
+stream_handler.setLevel(logging.DEBUG)
 stream_handler.setFormatter(formatter)
-logger.addHandler(stream_handler)
+logger_.addHandler(stream_handler)
+
+if not os.environ.get("CI"):
+    import logger
+    
+    class JPLHandler(StreamHandler):
+        "Handle the log stream and wrap it into the JPL logger."
+        def __init__(self):
+            StreamHandler.__init__(self)
+
+        def emit(self, record):
+            msg = self.format(record)
+            self.jpl_logger = logger.log(msg, 'Brown', 0) # For the moment fixed checkpoint
+
+    jpl_handler = JPLHandler()
+    jpl_handler.setLevel(logging.INFO)
+    jpl_handler.setFormatter(formatter)
+    logger_.addHandler(jpl_handler)
+
 ####################################################################
 # End of logging configuration
 ####################################################################
@@ -32,9 +59,10 @@ class Controller:
     """
     Manages training and execution of taglets, as well as training EndModels
     """
-    def __init__(self, task):
+    def __init__(self, task, simple_run=False):
         self.task = task
         self.end_model = None
+        self.simple_run = simple_run
 
     def train_end_model(self):
         """
@@ -94,20 +122,30 @@ class Controller:
         end_model_train_data = self._combine_soft_labels(unlabeled_images_labels,
                                                          self.task.get_unlabeled_data(True),
                                                          self.task.get_labeled_train_data())
-        self.end_model = EndModel(self.task)
+        if self.simple_run:
+            self.end_model = RandomEndModel(self.task)
+        elif self.task.video_classification:
+            self.end_model = VideoEndModel(self.task)
+        else:
+            self.end_model = ImageEndModel(self.task)
         self.end_model.train(end_model_train_data, val)
         log.info("Finished training end model")
         return self.end_model
 
     def _get_taglets_modules(self):
-        if self.task.scads_path is not None:
-            return [DannModule,
-                    MultiTaskModule,
-                    ZSLKGModule,
-                    TransferModule,
-                    FineTuneModule,
-                    FixMatchModule]
-        return [FineTuneModule, FixMatchModule]
+        if self.simple_run:
+             return [RandomModule]
+        elif self.task.video_classification:
+             return [NaiveVideoModule]
+        else:
+            if self.task.scads_path is not None:
+                return [DannModule, 
+                        MultiTaskModule,
+                        ZSLKGModule,
+                        TransferModule,
+                        FineTuneModule,
+                        FixMatchModule]
+            return [FineTuneModule, FixMatchModule]
 
     def _combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
         labeled = DataLoader(labeled_dataset, batch_size=1, shuffle=False)

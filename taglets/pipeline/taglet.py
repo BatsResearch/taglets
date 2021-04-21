@@ -1,14 +1,10 @@
 import logging
-from .trainable import Trainable
+from .trainable import ImageTrainable, VideoTrainable
 import numpy as np
 
 log = logging.getLogger(__name__)
 
-
-class Taglet(Trainable):
-    """
-    A trainable model that produces votes for unlabeled images
-    """
+class TagletMixin:
     def execute(self, unlabeled_data):
         """
         Execute the Taglet on unlabeled images.
@@ -18,3 +14,16 @@ class Taglet(Trainable):
         """
         outputs = self.predict(unlabeled_data)
         return np.argmax(outputs, 1)
+
+
+class ImageTaglet(ImageTrainable, TagletMixin):
+    """
+    A trainable model that produces votes for unlabeled images
+    """
+
+
+class VideoTaglet(VideoTrainable, TagletMixin):
+    """
+    A trainable model that produces votes for unlabeled videos
+    """
+

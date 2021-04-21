@@ -1,23 +1,26 @@
 from .module import Module
-from ..pipeline import ImageTaglet
+from ..pipeline import VideoTaglet
 
+import logging
 import os
 import torch
 
+log = logging.getLogger(__name__)
 
-class FineTuneModule(Module):
+
+class NaiveVideoModule(Module):
     """
     A module that fine-tunes the task's initial model.
     """
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [FineTuneTaglet(task)]
+        self.taglets = [NaiveVideoTaglet(task)]
 
 
-class FineTuneTaglet(ImageTaglet):
+class NaiveVideoTaglet(VideoTaglet):
     def __init__(self, task):
         super().__init__(task)
-        self.name = 'finetune'
+        self.name = 'naive-video'
         output_shape = self._get_model_output_shape(self.task.input_shape, self.model)
         self.model = torch.nn.Sequential(self.model,
                                          torch.nn.Linear(output_shape, len(self.task.classes)))
@@ -36,4 +39,3 @@ class FineTuneTaglet(ImageTaglet):
         self._params_to_update = params_to_update
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
-

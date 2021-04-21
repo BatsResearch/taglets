@@ -1,5 +1,5 @@
 from .module import Module
-from ..pipeline import Taglet
+from ..pipeline import ImageTaglet
 import os
 import logging
 import torch
@@ -297,7 +297,7 @@ class PrototypeModule(Module):
                                                             use_scads=False)]
 
 
-class PrototypeTaglet(Taglet):
+class PrototypeTaglet(ImageTaglet):
     def __init__(self, task, train_shot, train_way, query,
                  episodes, auto_meta_param, val_shot=None, val_way=None, use_scads=True):
         self.name = 'prototype'

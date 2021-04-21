@@ -21,3 +21,19 @@ To start a container, run
 docker run --rm --env-file env.list -v /lwll:/lwll:delegated --gpus all --shm-size 64G --ulimit nofile=1000000:1000000 brown_taglets:1.0
 ```
 **Note:** "--shm-size 64G" and "--ulimit nofile=1000000:1000000" are crucial for our system to work.
+
+## Run for Development
+
+To run the system for development, avoiding Docker, place yourself in the top level directory.
+
+If it is the first time you run the repository's content, run:
+```
+bash setup.sh # The first time after you clone the repo 
+```
+Note that this will install the python packages for you, so you might want to activate a virtual environment before running this.
+
+Then, go to `dev_config.py`, set the variables (there are default values).  Then, double-check that in `run_jpl.sh` the `--mode=dev`, and launch the system:
+```
+bash run_jpl.sh
+```
+

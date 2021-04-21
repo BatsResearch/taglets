@@ -1,6 +1,6 @@
 from .module import Module
-from ..data.custom_dataset import CustomDataset
-from ..pipeline import Cache, Taglet
+from ..data.custom_dataset import CustomImageDataset
+from ..pipeline import Cache, ImageTaglet
 from ..scads import Scads, ScadsEmbedding
 
 import os
@@ -60,7 +60,7 @@ class MultiTaskModule(Module):
         self.taglets = [MultiTaskTaglet(task)]
 
 
-class MultiTaskTaglet(Taglet):
+class MultiTaskTaglet(ImageTaglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'multitask'
@@ -145,9 +145,9 @@ class MultiTaskTaglet(Taglet):
                       (image_paths, image_labels, all_related_class))
 
         transform = self.transform_image(train=True)
-        train_data = CustomDataset(image_paths,
-                                   labels=image_labels,
-                                   transform=transform)
+        train_data = CustomImageDataset(image_paths,
+                                        labels=image_labels,
+                                        transform=transform)
 
         return train_data, all_related_class
 

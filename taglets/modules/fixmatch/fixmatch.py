@@ -1,8 +1,8 @@
 from torch.utils.data import Subset
 
 from taglets.modules.module import Module
-from taglets.data.custom_dataset import CustomDataset
-from taglets.pipeline import Cache, Taglet
+from taglets.data.custom_dataset import CustomImageDataset
+from taglets.pipeline import Cache, ImageTaglet
 from taglets.scads import Scads, ScadsEmbedding
 
 from .utils import TransformFixMatch, is_grayscale
@@ -93,7 +93,7 @@ class FixMatchModule(Module):
         self.taglets = [FixMatchTaglet(task, optimizer=Optimizer.ADAM, use_ema=False, verbose=False)]
 
 
-class FixMatchTaglet(Taglet):
+class FixMatchTaglet(ImageTaglet):
     def __init__(self, task, steps_per_epoch=-1,
                  conf_thresh=0.95,
                  lambda_u=1,
@@ -223,9 +223,9 @@ class FixMatchTaglet(Taglet):
                       (image_paths, image_labels, all_related_class))
 
         transform = self.transform_image(train=True)
-        train_data = CustomDataset(image_paths,
-                                   labels=image_labels,
-                                   transform=transform)
+        train_data = CustomImageDataset(image_paths,
+                                        labels=image_labels,
+                                        transform=transform)
 
         return train_data, all_related_class
 
