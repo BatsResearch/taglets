@@ -1,7 +1,7 @@
 import argparse
 import os
 import pandas as pd
-from ..create.scads_classes import Node, Image
+from ..create.scads_classes import Node, Image, Clip
 from ..create.create_scads import add_conceptnet
 from ..create.add_datasets import add_dataset
 from .wnids_to_concept import SYNSET_TO_CONCEPTNET_ID
@@ -12,7 +12,7 @@ class DatasetInstaller:
     def get_name(self):
         raise NotImplementedError()
 
-    def get_images(self, dataset, session, root):
+    def get_data(self, dataset, session, root):
         raise NotImplementedError()
     
     def get_conceptnet_id(self, label):
@@ -20,7 +20,10 @@ class DatasetInstaller:
 
 
 class ImageClassificationInstaller(DatasetInstaller):
-    def get_images(self, dataset, session, root):
+    def get_name(self):
+        raise NotImplementedError()
+
+    def get_data(self, dataset, session, root):
         size = "full"
         modes = ['train', 'test']
         label_to_node_id = {}
@@ -56,7 +59,10 @@ class ImageClassificationInstaller(DatasetInstaller):
     
     
 class ObjectDetectionInstaller(DatasetInstaller):
-    def get_images(self, dataset, session, root):
+    def get_name(self):
+        raise NotImplementedError()
+
+    def get_data(self, dataset, session, root):
         size = "full"
         modes = ['train', 'test']
         label_to_node_id = {}
@@ -106,6 +112,57 @@ class ObjectDetectionInstaller(DatasetInstaller):
                             path=os.path.join(mode_dir, image))
                 all_images.append(img)
         return all_images
+
+
+class VideoClassificationInstaller(DatasetInstaller):
+    def get_name(self):
+        raise NotImplementedError()
+
+    def get_data(self, dataset, session, root):
+        size = "full"
+        modes = ['train', 'test']
+        label_to_node_id = {}
+
+        all_clips = []
+        for mode in modes:
+            base_path = os.path.join(dataset.path, f'{dataset.path}_' + size, mode)
+            df = pd.read_feather(
+                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            if mode == "test":
+                df_label = pd.crosstab(df['id'], df['class'])
+                df = pd.read_feather(
+                    os.path.join(root, dataset.path, "labels_" + size, "meta_" + mode + ".feather")
+                )
+
+            for _, row in df.iterrows():
+                row = row.astype("object")
+                if mode == "test":
+                    label = df_label.loc[row['id']].idxmax()
+                else:
+                    label = row['class']
+                # Get node_id
+                if label in label_to_node_id:
+                    node_id = label_to_node_id[label]
+                else:
+                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                    node_id = node.id if node else None
+                    label_to_node_id[label] = node_id
+
+                # Scads is missing a missing conceptnet id
+                if not node_id:
+                    continue
+
+                clip = Clip(
+                    clip_id=row['id'],
+                    video_id=row['video_id'],
+                    base_path=base_path,
+                    start_frame=row['start_frame'],
+                    end_frame=row['end_frame'],
+                    dataset_id=dataset.id,
+                    node_id=node_id
+                )
+                all_clips.append(clip)
+        return all_clips
 
 
 class CifarInstallation(ImageClassificationInstaller):
@@ -202,6 +259,11 @@ class GoogleOpenImageInstallation(ObjectDetectionInstaller):
         return "GoogleOpenImage"
 
 
+class HMDBInstallation(VideoClassificationInstaller):
+    def get_name(self):
+        return "HMDB"
+
+
 class Installer:
     def __init__(self, path_to_database):
         self.db = path_to_database
@@ -265,3 +327,8 @@ if __name__ == "__main__":
         for domain in args.domainnet:
             name = domain.split("-")[1].capitalize()
             installer.install_dataset(args.root, domain, DomainNetInstallation(name))
+
+    if args.hmdb:
+        if not args.root:
+            raise RuntimeError("Must specify root directory.")
+        installer.install_dataset(args.root, args.hmdb, HMDBInstallation())

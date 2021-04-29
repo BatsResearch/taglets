@@ -1,7 +1,7 @@
 import unittest
 import os
 from taglets.scads import Scads
-from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation, ImageNetInstallation, COCO2014Installation, GoogleOpenImageInstallation, VOC2009Installation, DomainNetInstallation
+from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation, ImageNetInstallation, COCO2014Installation, GoogleOpenImageInstallation, VOC2009Installation, DomainNetInstallation, HMDBInstallation
 
 ROOT = os.path.dirname(os.path.realpath(__file__))
 ROOT = ROOT + "/../test_data/scads"
@@ -14,6 +14,7 @@ COCO2014_PATH = "coco2014"
 GOOGLE_OPEN_IMAGE_PATH = "google_open_image"
 VOC2009_PATH = "voc2009"
 domainnet_PATH = "domainnet"
+hmdb_PATH = "hmdb"
 
 
 class TestSCADS(unittest.TestCase):
@@ -29,7 +30,7 @@ class TestSCADS(unittest.TestCase):
         installer.install_dataset(ROOT, GOOGLE_OPEN_IMAGE_PATH, GoogleOpenImageInstallation())
         installer.install_dataset(ROOT, VOC2009_PATH, VOC2009Installation())
         installer.install_dataset(ROOT, domainnet_PATH, DomainNetInstallation('clipart'))
-
+        installer.install_dataset(ROOT, hmdb_PATH, HMDBInstallation())
 
         Scads.open(DB_PATH)
 
@@ -135,7 +136,23 @@ class TestSCADS(unittest.TestCase):
         self.assertTrue('domainnet/domainnet_full/train/clipart_270_000029.jpg'
                         in images)
 
+    def test_clips(self):
+        node = Scads.get_node_by_conceptnet_id("/c/en/run")
+        self.assertEqual(node.node.id, 29)
+        self.assertEqual(node.get_conceptnet_id(), "/c/en/run")
 
+        self.assertEqual(node.get_datasets(images=False), ['HMDB'])
+
+        images = node.get_images()
+        self.assertEqual(len(images), 0)
+        clips = node.get_clips()
+        self.assertEqual(len(clips), 19)
+        self.assertTrue('hmdb/hmdb_full/test'
+                        in [x[0] for x in clips])
+        clip = clips[0]
+        self.assertEqual(clip[0], "hmdb/hmdb_full/train")
+        self.assertEqual(clip[1], 231465)
+        self.assertEqual(clip[2], 231565)
 
     def test_undirected_relation(self):
         node = Scads.get_node_by_conceptnet_id("/c/en/zero")
