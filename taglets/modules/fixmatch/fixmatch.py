@@ -487,6 +487,12 @@ class FixMatchTaglet(ImageTaglet):
 
             inputs = inputs.cuda(rank) if self.use_gpu else inputs.cpu()
             targets_x = targets_x.cuda(rank) if self.use_gpu else targets_x.cpu()
+            
+            if self.use_scads:
+              scads_tagets = scads_targets.cuda(rank) if self.use_gpu else scads_targets.cpu()
+              labels = torch.cat([targets_x, scads_targets]) 
+            else:
+              labels = targets_x
 
             labels = torch.cat([targets_x, scads_targets]) if self.use_scads else targets_x
 
