@@ -158,22 +158,22 @@ class TestSCADS(unittest.TestCase):
         self.assertEqual(clip[2], 231565)
 
         # UCF101
-        node1 = Scads.get_node_by_conceptnet_id("/c/en/run")
-        self.assertEqual(node.node.id, 29)
-        self.assertEqual(node.get_conceptnet_id(), "/c/en/run")
+        #node1 = Scads.get_node_by_conceptnet_id("/c/en/run")
+        #self.assertEqual(node.node.id, 29)
+        #self.assertEqual(node.get_conceptnet_id(), "/c/en/run")
 
-        self.assertEqual(node.get_datasets(images=False), ['UFC101'])
+        #self.assertEqual(node.get_datasets(images=False), ['UFC101'])
 
-        images = node.get_images()
-        self.assertEqual(len(images), 0)
-        clips = node.get_clips()
-        self.assertEqual(len(clips), 19)
-        self.assertTrue('hmdb/hmdb_full/test'
-                        in [x[0] for x in clips])
-        clip = clips[0]
-        self.assertEqual(clip[0], "hmdb/hmdb_full/train")
-        self.assertEqual(clip[1], 231465)
-        self.assertEqual(clip[2], 231565)
+        #images = node.get_images()
+        #self.assertEqual(len(images), 0)
+        #clips = node.get_clips()
+        #self.assertEqual(len(clips), 19)
+        #self.assertTrue('hmdb/hmdb_full/test'
+        #                in [x[0] for x in clips])
+        #clip = clips[0]
+        #self.assertEqual(clip[0], "hmdb/hmdb_full/train")
+        #self.assertEqual(clip[1], 231465)
+        #self.assertEqual(clip[2], 231565)
 
     def test_undirected_relation(self):
         node = Scads.get_node_by_conceptnet_id("/c/en/zero")
