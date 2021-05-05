@@ -23,8 +23,6 @@ import torch.nn.functional as F
 
 import torchvision.transforms as transforms
 
-from torch.utils.data.dataset import ConcatDataset
-
 log = logging.getLogger(__name__)
 
 
@@ -179,6 +177,7 @@ class FixMatchTaglet(ImageTaglet):
 
     def _get_scads_data(self):
         data = Cache.get("scads", self.task.classes)
+
         if data is not None:
             image_paths, image_labels, all_related_class = data
         else:
@@ -224,11 +223,11 @@ class FixMatchTaglet(ImageTaglet):
                       (image_paths, image_labels, all_related_class))
 
         transform = self.transform_image(train=True)
-        train_data = CustomImageDataset(image_paths,
-                                        labels=image_labels,
-                                        transform=transform)
+        train_dataset = CustomImageDataset(image_paths,
+                                            labels=image_labels,
+                                            transform=transform)
 
-        return train_data, all_related_class
+        return train_dataset, all_related_class
 
     def _init_unlabeled_transform(self, unlabeled_data):
         if not hasattr(unlabeled_data, "transform"):
@@ -246,24 +245,36 @@ class FixMatchTaglet(ImageTaglet):
                                                          grayscale=is_grayscale(unlabeled_data.transform))
 
     def train(self, train_data, val_data, unlabeled_data=None):
-        output_shape = self._get_model_output_shape(self.task.input_shape, self.model)
-
         if self.task.scads_path is None:
             self.use_scads = False
-            num_classes = 0
         else:
-            self.scads_train_data, num_classes = self._get_scads_data()
+            scads_train_data, scads_num_classes = self._get_scads_data()
 
-        self.use_scads = self.use_scads and num_classes >= len(self.task.classes)
+        # warm-up using scads data
         if self.use_scads:
-            if num_classes == 0:
-                return
+            encoder = torch.nn.Sequential(*list(self.model.children())[:-1])
+            output_shape = self._get_model_output_shape(self.task.input_shape, encoder)
+            self.model.fc = torch.nn.Linear(output_shape, scads_num_classes)
 
-            self.model = torch.nn.Sequential(self.model,
-                                             torch.nn.Linear(output_shape, num_classes))
-        else:
-            self.model = torch.nn.Sequential(self.model,
-                                             torch.nn.Linear(output_shape, len(self.task.classes)))
+            params_to_update = []
+            for param in self.model.parameters():
+                if param.requires_grad:
+                    params_to_update.append(param)
+            self._params_to_update = params_to_update
+            self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
+            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+
+            num_epochs_copy = self.num_epochs
+            use_ema_copy = self.use_ema
+            self.num_epochs = 25 if not os.environ.get("CI") else 5
+            self.use_ema = False
+            super(FixMatchTaglet, self).train(train_data, None, None)
+            self.num_epochs = num_epochs_copy
+            self.use_ema = use_ema_copy
+
+        encoder = torch.nn.Sequential(*list(self.model.children())[:-1])
+        output_shape = self._get_model_output_shape(self.task.input_shape, encoder)
+        self.model.fc = torch.nn.Linear(output_shape, len(self.task.classes))
 
         if self.use_ema:
             self.ema_model = ModelEMA(self.model, decay=self.ema_decay)
@@ -288,7 +299,7 @@ class FixMatchTaglet(ImageTaglet):
                :return:
                """
 
-        if unlabeled_data is None:
+        if not self.use_scads and unlabeled_data is None:
             raise ValueError("Cannot train FixMatch taglet without unlabeled data.")
 
         if rank == 0:
@@ -322,28 +333,23 @@ class FixMatchTaglet(ImageTaglet):
         train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler,
                                                  batch_size=self.batch_size)
 
-        if self.use_scads:
-            scads_sampler = self._get_train_sampler(self.scads_train_data, n_proc=self.n_proc, rank=rank)
-            self.scads_train_data_loader = self._get_dataloader(data=self.scads_train_data, sampler=scads_sampler,
-                                                                batch_size=min(self.batch_size,
-                                                                               len(self.scads_train_data)))
+        if not self.use_scads:
+            # batch size can't be larger than number of examples
+            self.unlabeled_batch_size = min(self.unlabeled_batch_size, len(unlabeled_data))
+            unlabeled_sampler = self._get_train_sampler(unlabeled_data, n_proc=self.n_proc, rank=rank)
 
-        # batch size can't be larger than number of examples
-        self.unlabeled_batch_size = min(self.unlabeled_batch_size, len(unlabeled_data))
-        unlabeled_sampler = self._get_train_sampler(unlabeled_data, n_proc=self.n_proc, rank=rank)
+            unlabeled_data_loader = self._get_dataloader(data=unlabeled_data,
+                                                         sampler=unlabeled_sampler,
+                                                         batch_size=self.unlabeled_batch_size)
 
-        unlabeled_data_loader = self._get_dataloader(data=unlabeled_data,
-                                                     sampler=unlabeled_sampler,
-                                                     batch_size=self.unlabeled_batch_size)
+            if self.steps_per_epoch == -1:
+                self.steps_per_epoch = max(len(unlabeled_data_loader), len(unlabeled_data_loader))
 
-        if self.steps_per_epoch == -1:
-            self.steps_per_epoch = max(len(unlabeled_data_loader), len(unlabeled_data_loader))
-
-        if self.opt_type == Optimizer.SGD:
-            total_steps = self.steps_per_epoch * self.num_epochs
-            self.lr_scheduler = get_cosine_schedule_with_warmup(self.optimizer,
-                                                                num_warmup_steps=0,
-                                                                num_training_steps=total_steps)
+            if self.opt_type == Optimizer.SGD:
+                total_steps = self.steps_per_epoch * self.num_epochs
+                self.lr_scheduler = get_cosine_schedule_with_warmup(self.optimizer,
+                                                                    num_warmup_steps=0,
+                                                                    num_training_steps=total_steps)
 
         if val_data is None:
             val_data_loader = None
@@ -445,10 +451,8 @@ class FixMatchTaglet(ImageTaglet):
         self.model.train()
 
         labeled_iter = iter(train_data_loader)
-        if self.use_scads:
-            scads_iter = iter(self.scads_train_data_loader)
-
-        unlabeled_iter = iter(unlabeled_data_loader)
+        if not self.use_scads:
+            unlabeled_iter = iter(unlabeled_data_loader)
 
         running_loss = 0.0
         running_acc = 0.0
@@ -460,58 +464,48 @@ class FixMatchTaglet(ImageTaglet):
                 labeled_iter = iter(train_data_loader)
                 inputs_x, targets_x = next(labeled_iter)
 
-            if self.use_scads:
+            if not self.use_scads:
                 try:
-                    scads_inputs, scads_targets = next(scads_iter)
+                    # u_w = weak aug examples; u_s = strong aug examples
+                    ex = next(unlabeled_iter)
                 except StopIteration:
-                    scads_iter = iter(self.scads_train_data_loader)
-                    scads_inputs, scads_targets = next(scads_iter)
+                    unlabeled_iter = iter(unlabeled_data_loader)
+                    ex = next(unlabeled_iter)
 
-            try:
-                # u_w = weak aug examples; u_s = strong aug examples
-                ex = next(unlabeled_iter)
-            except StopIteration:
-                unlabeled_iter = iter(unlabeled_data_loader)
-                ex = next(unlabeled_iter)
-
-            try:
-                inputs_u_w, inputs_u_s = ex[0], ex[1]
-            except TypeError:
-                raise ValueError("Unlabeled transform is not configured correctly.")
+                try:
+                    inputs_u_w, inputs_u_s = ex[0], ex[1]
+                except TypeError:
+                    raise ValueError("Unlabeled transform is not configured correctly.")
 
             batch_size = inputs_x.shape[0]
-            if self.use_scads:
-                batch_size += scads_inputs.shape[0]
-                inputs = torch.cat((inputs_x, scads_inputs, inputs_u_w, inputs_u_s))
-            else:
+            if not self.use_scads:
                 inputs = torch.cat((inputs_x, inputs_u_w, inputs_u_s))
 
             inputs = inputs.cuda(rank) if self.use_gpu else inputs.cpu()
             targets_x = targets_x.cuda(rank) if self.use_gpu else targets_x.cpu()
-            
-            if self.use_scads:
-              scads_tagets = scads_targets.cuda(rank) if self.use_gpu else scads_targets.cpu()
-              labels = torch.cat([targets_x, scads_targets]) 
-            else:
-              labels = targets_x
-
-            labels = torch.cat([targets_x, scads_targets]) if self.use_scads else targets_x
+            labels = targets_x
 
             self.optimizer.zero_grad()
+
             with torch.set_grad_enabled(True):
                 logits = self.model(inputs)
-                logits_x = logits[:batch_size]
-                logits_u_w, logits_u_s = logits[batch_size:].chunk(2)
-                del logits
 
-                lx = F.cross_entropy(logits_x, labels, reduction='mean')
-                pseudo_label = torch.softmax(logits_u_w.detach() / self.temp, dim=-1)
-                max_probs, targets_u = torch.max(pseudo_label, dim=-1)
-                # binary mask to ignore unconfident psudolabels
-                mask = max_probs.ge(self.conf_thresh).float()
+                if self.use_scads:
+                    loss = F.cross_entropy(logits, labels, reduction='mean')
+                else:
+                    logits_x = logits[:batch_size]
+                    logits_u_w, logits_u_s = logits[batch_size:].chunk(2)
+                    del logits
 
-                lu = (F.cross_entropy(logits_u_s, targets_u, reduction='none') * mask).mean()
-                loss = lx + self.lambda_u * lu
+                    lx = F.cross_entropy(logits_x, labels, reduction='mean')
+                    pseudo_label = torch.softmax(logits_u_w.detach() / self.temp, dim=-1)
+                    max_probs, targets_u = torch.max(pseudo_label, dim=-1)
+                    # binary mask to ignore unconfident psudolabels
+                    mask = max_probs.ge(self.conf_thresh).float()
+
+                    lu = (F.cross_entropy(logits_u_s, targets_u, reduction='none') * mask).mean()
+                    loss = lx + self.lambda_u * lu
+
                 loss.backward()
                 self.optimizer.step()
 
