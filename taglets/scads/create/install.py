@@ -263,6 +263,10 @@ class HMDBInstallation(VideoClassificationInstaller):
     def get_name(self):
         return "HMDB"
 
+class UCF101Installation(VideoClassificationInstaller):
+    def get_name(self):
+        return "UFC101"
+
 
 class Installer:
     def __init__(self, path_to_database):
@@ -288,6 +292,8 @@ if __name__ == "__main__":
     parser.add_argument("--voc2009", type=str, help="Path to voc2009 directory from the root")
     parser.add_argument("--googleopenimage", type=str, help="Path to googleopenimage directory from the root")
     parser.add_argument("--domainnet", nargs="+")
+    parser.add_argument("--hmdb", type=str, help="Path to hmdb directory from the root")
+    parser.add_argument("--ufc101", type=str, help="Path to ufc101 directory from the root")
     args = parser.parse_args()
 
     # Install SCADS
@@ -332,3 +338,8 @@ if __name__ == "__main__":
         if not args.root:
             raise RuntimeError("Must specify root directory.")
         installer.install_dataset(args.root, args.hmdb, HMDBInstallation())
+
+    if args.ufc101:
+        if not args.root:
+            raise RuntimeError("Must specify root directory.")
+        installer.install_dataset(args.root, args.ufc101, UCF101Installation())
