@@ -365,6 +365,7 @@ class FixMatchTaglet(ImageTaglet):
                                                                     num_warmup_steps=0,
                                                                     num_training_steps=total_steps)
         else:
+            unlabeled_data_loader = None
             self.steps_per_epoch = len(train_data_loader)
 
         if val_data is None:
