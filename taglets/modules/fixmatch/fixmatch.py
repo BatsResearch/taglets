@@ -1,5 +1,3 @@
-from torch.utils.data import Subset
-
 from taglets.modules.module import Module
 from taglets.data.custom_dataset import CustomImageDataset
 from taglets.pipeline import Cache, ImageTaglet
@@ -13,7 +11,6 @@ import math
 import pickle
 import os
 import random
-import numpy as np
 
 import torch
 import logging
@@ -148,10 +145,6 @@ class FixMatchTaglet(ImageTaglet):
             raise ValueError("unlabeled dataset is too small for FixMatch.")
 
         self.opt_type = optimizer
-        if self.opt_type == Optimizer.SGD:
-            self.optimizer = torch.optim.SGD(self._params_to_update, lr=self.lr,
-                                             momentum=0.9,
-                                             nesterov=self.nesterov)
 
     def transform_image(self, train=True):
         """
@@ -247,11 +240,11 @@ class FixMatchTaglet(ImageTaglet):
     def train(self, train_data, val_data, unlabeled_data=None):
         if self.task.scads_path is None:
             self.use_scads = False
-        else:
-            scads_train_data, scads_num_classes = self._get_scads_data()
 
         # warm-up using scads data
         if self.use_scads:
+            scads_train_data, scads_num_classes = self._get_scads_data()
+
             encoder = torch.nn.Sequential(*list(self.model.children())[:-1])
             output_shape = self._get_model_output_shape(self.task.input_shape, encoder)
             self.model.fc = torch.nn.Linear(output_shape, scads_num_classes)
@@ -264,17 +257,38 @@ class FixMatchTaglet(ImageTaglet):
             self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
             self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
+            batch_size_copy = self.batch_size
             num_epochs_copy = self.num_epochs
             use_ema_copy = self.use_ema
+
+            self.batch_size = 256 if not os.environ.get("CI") else 32
             self.num_epochs = 25 if not os.environ.get("CI") else 5
             self.use_ema = False
+
             super(FixMatchTaglet, self).train(train_data, None, None)
+
+            self.batch_size = batch_size_copy
             self.num_epochs = num_epochs_copy
             self.use_ema = use_ema_copy
+            self.use_scads = False
 
+        # init fixmatch head
         encoder = torch.nn.Sequential(*list(self.model.children())[:-1])
         output_shape = self._get_model_output_shape(self.task.input_shape, encoder)
         self.model.fc = torch.nn.Linear(output_shape, len(self.task.classes))
+
+        params_to_update = []
+        for param in self.model.parameters():
+            if param.requires_grad:
+                params_to_update.append(param)
+        self._params_to_update = params_to_update
+
+        if self.opt_type == Optimizer.SGD:
+            self.optimizer = torch.optim.SGD(self._params_to_update, lr=self.lr,
+                                                                     momentum=0.9,
+                                                                     nesterov=self.nesterov)
+        else:
+            self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=self.weight_decay)
 
         if self.use_ema:
             self.ema_model = ModelEMA(self.model, decay=self.ema_decay)
@@ -343,13 +357,15 @@ class FixMatchTaglet(ImageTaglet):
                                                          batch_size=self.unlabeled_batch_size)
 
             if self.steps_per_epoch == -1:
-                self.steps_per_epoch = max(len(unlabeled_data_loader), len(unlabeled_data_loader))
+                self.steps_per_epoch = max(len(train_data_loader), len(unlabeled_data_loader))
 
             if self.opt_type == Optimizer.SGD:
                 total_steps = self.steps_per_epoch * self.num_epochs
                 self.lr_scheduler = get_cosine_schedule_with_warmup(self.optimizer,
                                                                     num_warmup_steps=0,
                                                                     num_training_steps=total_steps)
+        else:
+            self.steps_per_epoch = len(train_data_loader)
 
         if val_data is None:
             val_data_loader = None
@@ -491,6 +507,7 @@ class FixMatchTaglet(ImageTaglet):
                 logits = self.model(inputs)
 
                 if self.use_scads:
+                    logits_x = logits
                     loss = F.cross_entropy(logits, labels, reduction='mean')
                 else:
                     logits_x = logits[:batch_size]
