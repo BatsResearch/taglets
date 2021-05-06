@@ -495,7 +495,7 @@ class FixMatchTaglet(ImageTaglet):
                     raise ValueError("Unlabeled transform is not configured correctly.")
 
             batch_size = inputs_x.shape[0]
-            if not self.use_scads:
+            if self.use_scads:
                 inputs = inputs_x
             else:
                 inputs = torch.cat((inputs_x, inputs_u_w, inputs_u_s))
