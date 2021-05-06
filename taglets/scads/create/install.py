@@ -7,6 +7,7 @@ from ..create.add_datasets import add_dataset
 from .wnids_to_concept import SYNSET_TO_CONCEPTNET_ID
 import imagesize
 import numpy as np
+import re
 
 class DatasetInstaller:
     def get_name(self):
@@ -55,6 +56,7 @@ class ImageClassificationInstaller(DatasetInstaller):
                             node_id=node_id,
                             path=os.path.join(mode_dir, image))
                 all_images.append(img)
+        print(f"NUMBER OF SAVED IMAGES {len(all_images)} vs DF SIZE {df_label.shape}")
         return all_images
     
     
@@ -118,6 +120,13 @@ class VideoClassificationInstaller(DatasetInstaller):
     def get_name(self):
         raise NotImplementedError()
 
+    def composed_labels(self, string, dataset):
+        if dataset.name == 'HMDB':
+            return [w.strip() for w in string.split('_')]
+        elif dataset.name == 'UCF101':
+            list_words = re.findall('[A-Z][^A-Z]*', string)
+            return [w.lower().strip() for w in list_words]
+
     def get_data(self, dataset, session, root):
         size = "full"
         modes = ['train', 'test']
@@ -137,31 +146,43 @@ class VideoClassificationInstaller(DatasetInstaller):
             for _, row in df.iterrows():
                 row = row.astype("object")
                 if mode == "test":
-                    label = df_label.loc[row['id']].idxmax()
+                    labels = self.composed_labels(df_label.loc[row['id']].idxmax(), dataset)
+                
                 else:
-                    label = row['class']
-                # Get node_id
-                if label in label_to_node_id:
-                    node_id = label_to_node_id[label]
-                else:
-                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
-                    node_id = node.id if node else None
-                    label_to_node_id[label] = node_id
+                    labels = self.composed_labels(row['class'], dataset)
+                
+                for label in labels:
+                    # Get node_id
+                    if label in label_to_node_id:
+                        if label == 'skijet':
+                            print(label_to_node_id[label])
+                        node_id = label_to_node_id[label]
+                    else:
+                        
+                        node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                        node_id = node.id if node else None
+                        label_to_node_id[label] = node_id
+                        if label == 'skijet':
+                            print('CONCEPT SKIJET: ', self.get_conceptnet_id(label), node)
+                            print(label_to_node_id[label]) 
+                        
+                    
+                    # Scads is missing a missing conceptnet id
+                    if not node_id:
+                        print(node_id, label)
+                        continue
+                    
+                    clip = Clip(
+                        clip_id=row['id'],
+                        video_id=row['video_id'],
+                        base_path=base_path,
+                        start_frame=row['start_frame'],
+                        end_frame=row['end_frame'],
+                        dataset_id=dataset.id,
+                        node_id=node_id
+                    )
+                    all_clips.append(clip)
 
-                # Scads is missing a missing conceptnet id
-                if not node_id:
-                    continue
-
-                clip = Clip(
-                    clip_id=row['id'],
-                    video_id=row['video_id'],
-                    base_path=base_path,
-                    start_frame=row['start_frame'],
-                    end_frame=row['end_frame'],
-                    dataset_id=dataset.id,
-                    node_id=node_id
-                )
-                all_clips.append(clip)
         return all_clips
 
 
@@ -265,7 +286,12 @@ class HMDBInstallation(VideoClassificationInstaller):
 
 class UCF101Installation(VideoClassificationInstaller):
     def get_name(self):
-        return "UFC101"
+        return "UCF101"
+    def get_conceptnet_id(self, label):
+        exceptions = {'skijet': 'jet_ski'}
+        if label in exceptions:
+            return "/c/en/" + exceptions[label]
+        return "/c/en/" + label.lower().replace(" ", "_").replace("-", "_")
 
 
 class Installer:
@@ -293,7 +319,7 @@ if __name__ == "__main__":
     parser.add_argument("--googleopenimage", type=str, help="Path to googleopenimage directory from the root")
     parser.add_argument("--domainnet", nargs="+")
     parser.add_argument("--hmdb", type=str, help="Path to hmdb directory from the root")
-    parser.add_argument("--ufc101", type=str, help="Path to ufc101 directory from the root")
+    parser.add_argument("--ucf101", type=str, help="Path to ufc101 directory from the root")
     args = parser.parse_args()
 
     # Install SCADS
@@ -339,7 +365,7 @@ if __name__ == "__main__":
             raise RuntimeError("Must specify root directory.")
         installer.install_dataset(args.root, args.hmdb, HMDBInstallation())
 
-    if args.ufc101:
+    if args.ucf101:
         if not args.root:
             raise RuntimeError("Must specify root directory.")
-        installer.install_dataset(args.root, args.ufc101, UCF101Installation())
+        installer.install_dataset(args.root, args.ucf101, UCF101Installation())
