@@ -496,6 +496,8 @@ class FixMatchTaglet(ImageTaglet):
 
             batch_size = inputs_x.shape[0]
             if not self.use_scads:
+                inputs = inputs_x
+            else:
                 inputs = torch.cat((inputs_x, inputs_u_w, inputs_u_s))
 
             inputs = inputs.cuda(rank) if self.use_gpu else inputs.cpu()
