@@ -158,11 +158,11 @@ class TestSCADS(unittest.TestCase):
         self.assertEqual(clip[2], 231565)
 
         # UCF101
-        #node1 = Scads.get_node_by_conceptnet_id("/c/en/run")
-        #self.assertEqual(node.node.id, 29)
-        #self.assertEqual(node.get_conceptnet_id(), "/c/en/run")
+        node1 = Scads.get_node_by_conceptnet_id("/c/en/jet_ski")
+        self.assertEqual(node1.node.id, 125655)
+        self.assertEqual(node1.get_conceptnet_id(), "/c/en/jet_ski")
 
-        #self.assertEqual(node.get_datasets(images=False), ['UFC101'])
+        #self.assertEqual(node1.get_datasets(images=False), ['UCF101'])
 
         #images = node.get_images()
         #self.assertEqual(len(images), 0)

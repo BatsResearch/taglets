@@ -149,7 +149,7 @@ class Clip(Base):
     node = relationship("Node", back_populates="clips")
 
     def __repr__(self):
-        return "<Clip(id='%s', node='%s', base_path='%s', start_frame='%s', end_frame='%s'" % (
+        return "<Clip(id='%s', node='%s', base_path='%s', start_frame='%s', end_frame='%s')>" % (
             self.id,
             self.node_id,
             self.base_path,

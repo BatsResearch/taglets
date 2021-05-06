@@ -56,7 +56,6 @@ class ImageClassificationInstaller(DatasetInstaller):
                             node_id=node_id,
                             path=os.path.join(mode_dir, image))
                 all_images.append(img)
-        print(f"NUMBER OF SAVED IMAGES {len(all_images)} vs DF SIZE {df_label.shape}")
         return all_images
     
     
@@ -135,6 +134,7 @@ class VideoClassificationInstaller(DatasetInstaller):
         all_clips = []
         for mode in modes:
             base_path = os.path.join(dataset.path, f'{dataset.path}_' + size, mode)
+            #print(base_path)
             df = pd.read_feather(
                 os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
             if mode == "test":
@@ -154,24 +154,18 @@ class VideoClassificationInstaller(DatasetInstaller):
                 for label in labels:
                     # Get node_id
                     if label in label_to_node_id:
-                        if label == 'skijet':
-                            print(label_to_node_id[label])
                         node_id = label_to_node_id[label]
                     else:
                         
                         node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
                         node_id = node.id if node else None
                         label_to_node_id[label] = node_id
-                        if label == 'skijet':
-                            print('CONCEPT SKIJET: ', self.get_conceptnet_id(label), node)
-                            print(label_to_node_id[label]) 
-                        
                     
                     # Scads is missing a missing conceptnet id
                     if not node_id:
-                        print(node_id, label)
                         continue
-                    
+
+                    #print(base_path)
                     clip = Clip(
                         clip_id=row['id'],
                         video_id=row['video_id'],
