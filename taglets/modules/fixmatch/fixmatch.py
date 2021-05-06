@@ -315,10 +315,6 @@ class FixMatchTaglet(ImageTaglet):
         if not self.use_scads and unlabeled_data is None:
             raise ValueError("Cannot train FixMatch taglet without unlabeled data.")
 
-        if self.use_scads:
-            super(FixMatchTaglet, self)._do_train(rank, q, train_data, val_data, unlabeled_data)
-            return
-
         if rank == 0:
             log.info('Beginning training')
 
@@ -473,17 +469,13 @@ class FixMatchTaglet(ImageTaglet):
         self.model.train()
 
         labeled_iter = iter(train_data_loader)
-        if self.use_scads:
-            super(FixMatchTaglet, self)._train_epoch(rank, train_data_loader, unlabeled_data_loader)
-            return
-           
-        unlabeled_iter = iter(unlabeled_data_loader)
+        if not self.use_scads:
+            unlabeled_iter = iter(unlabeled_data_loader)
 
         running_loss = 0.0
         running_acc = 0.0
         acc_count = 0
         for i in range(self.steps_per_epoch):
-            log.error(i)
             try:
                 inputs_x, targets_x = next(labeled_iter)
             except StopIteration:
@@ -579,4 +571,3 @@ class FixMatchTaglet(ImageTaglet):
         epoch_loss = running_loss / len(val_data_loader.dataset)
         epoch_acc = running_acc.item() / len(val_data_loader.dataset)
         return epoch_loss, epoch_acc
-  
