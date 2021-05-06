@@ -170,7 +170,6 @@ class FixMatchTaglet(ImageTaglet):
 
     def _get_scads_data(self):
         data = Cache.get("scads", self.task.classes)
-
         if data is not None:
             image_paths, image_labels, all_related_class = data
         else:
@@ -265,7 +264,7 @@ class FixMatchTaglet(ImageTaglet):
             self.num_epochs = 25 if not os.environ.get("CI") else 5
             self.use_ema = False
 
-            super(FixMatchTaglet, self).train(train_data, None, None)
+            super(FixMatchTaglet, self).train(scads_train_data, None, None)
 
             self.batch_size = batch_size_copy
             self.num_epochs = num_epochs_copy
@@ -315,6 +314,10 @@ class FixMatchTaglet(ImageTaglet):
 
         if not self.use_scads and unlabeled_data is None:
             raise ValueError("Cannot train FixMatch taglet without unlabeled data.")
+
+        if self.use_scads:
+            super(FixMatchTaglet, self)._do_train(rank, q, train_data, val_data, unlabeled_data)
+            return
 
         if rank == 0:
             log.info('Beginning training')
@@ -459,7 +462,9 @@ class FixMatchTaglet(ImageTaglet):
         # due to shared CUDA tensors. See
         # https://pytorch.org/docs/stable/multiprocessing.html#multiprocessing-cuda-sharing-details
         dist.barrier()
-        unlabeled_data.transform = self.org_unlabeled_transform
+
+        if unlabeled_data is not None:
+            unlabeled_data.transform = self.org_unlabeled_transform
 
     def _get_pred_classifier(self):
         return self.ema_model.ema if self.use_ema else self.model
@@ -468,13 +473,17 @@ class FixMatchTaglet(ImageTaglet):
         self.model.train()
 
         labeled_iter = iter(train_data_loader)
-        if not self.use_scads:
-            unlabeled_iter = iter(unlabeled_data_loader)
+        if self.use_scads:
+            super(FixMatchTaglet, self)._train_epoch(rank, train_data_loader, unlabeled_data_loader)
+            return
+           
+        unlabeled_iter = iter(unlabeled_data_loader)
 
         running_loss = 0.0
         running_acc = 0.0
         acc_count = 0
         for i in range(self.steps_per_epoch):
+            log.error(i)
             try:
                 inputs_x, targets_x = next(labeled_iter)
             except StopIteration:
@@ -570,3 +579,4 @@ class FixMatchTaglet(ImageTaglet):
         epoch_loss = running_loss / len(val_data_loader.dataset)
         epoch_acc = running_acc.item() / len(val_data_loader.dataset)
         return epoch_loss, epoch_acc
+  
