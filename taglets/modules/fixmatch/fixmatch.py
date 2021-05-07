@@ -139,7 +139,8 @@ class FixMatchTaglet(ImageTaglet):
 
         self.weight_decay = weight_decay
         
-        self.batch_size = max(self.batch_size // 4, 32)
+        # ratio between labeled and unlabeled data is one to one 
+        self.batch_size = max(self.batch_size // 2, 32)
         self.unlabeled_batch_size = math.floor(self.mu * self.batch_size)
         if self.unlabeled_batch_size == 0:
             raise ValueError("unlabeled dataset is too small for FixMatch.")
