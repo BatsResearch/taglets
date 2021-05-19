@@ -20,6 +20,7 @@ from ..data import CustomImageDataset, CustomVideoDataset
 from ..controller import Controller
 from .utils import labels_to_concept_ids
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
+from ..scads import Scads
 
 
 gpu_list = os.getenv("LWLL_TA1_GPUS")
@@ -777,6 +778,8 @@ def main():
         variables = setup_production(simple_run)
     else:
         variables = setup_development()
+
+    Scads.set_root_path(os.path.join(variables[2], 'external'))
     
     dataset_type = variables[0]
     problem_type = variables[1]
