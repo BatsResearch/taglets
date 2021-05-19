@@ -57,7 +57,7 @@ class ScadsNode:
             return self.get_images()
 
     def get_clips(self):
-        q = "SELECT base_path, start_frame, end_frame from clips " \
+        q = "SELECT DISTINCT base_path, start_frame, end_frame, clip_id, video_id from clips " \
             "JOIN nodes ON clips.node_id=nodes.id " \
             "WHERE nodes.id = " + str(self.node.id) + ";"
         results = self.session.connection().execute(q)
@@ -65,7 +65,7 @@ class ScadsNode:
 
     def get_clips_whitelist(self, whitelist):
         if whitelist is not None and len(whitelist) > 0:
-            q = "SELECT clips.base_path, start_frame, end_frame from clips " \
+            q = "SELECT DISTINCT clips.base_path, start_frame, end_frame, clip_id, video_id from clips " \
                 "JOIN nodes ON clips.node_id = nodes.id " \
                 "JOIN datasets ON images.dataset_id = datasets.id " \
                 "WHERE nodes.id = " + str(self.node.id) \
@@ -93,3 +93,4 @@ class ScadsNode:
                                    edge.weight,
                                    edge.relation.is_directed))
         return edges
+ 

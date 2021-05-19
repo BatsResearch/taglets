@@ -139,6 +139,9 @@ class TestSCADS(unittest.TestCase):
                         in images)
 
     def test_clips(self):
+        """"""  
+
+
         # HMDB
         node = Scads.get_node_by_conceptnet_id("/c/en/run")
         self.assertEqual(node.node.id, 29)

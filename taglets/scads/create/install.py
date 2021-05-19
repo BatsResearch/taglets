@@ -126,6 +126,7 @@ class VideoClassificationInstaller(DatasetInstaller):
             list_words = re.findall('[A-Z][^A-Z]*', string)
             return [w.lower().strip() for w in list_words]
 
+    
     def get_data(self, dataset, session, root):
         size = "full"
         modes = ['train', 'test']
@@ -146,36 +147,63 @@ class VideoClassificationInstaller(DatasetInstaller):
             for _, row in df.iterrows():
                 row = row.astype("object")
                 if mode == "test":
-                    labels = self.composed_labels(df_label.loc[row['id']].idxmax(), dataset)
-                
+                    #labels = self.composed_labels(df_label.loc[row['id']].idxmax(), dataset)
+                    label = df_label.loc[row['id']].idxmax()
                 else:
-                    labels = self.composed_labels(row['class'], dataset)
-                
-                for label in labels:
+                    #labels = self.composed_labels(row['class'], dataset)
+                    label = row['class']
+                #for label in labels:
                     # Get node_id
-                    if label in label_to_node_id:
-                        node_id = label_to_node_id[label]
-                    else:
-                        
-                        node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
-                        node_id = node.id if node else None
+                if label in label_to_node_id:
+                    node_id = label_to_node_id[label]
+                else: 
+                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                    if node:
+                        print(f"No need of splitting the class: {label}")
+                        node_id = node.id 
                         label_to_node_id[label] = node_id
-                    
-                    # Scads is missing a missing conceptnet id
-                    if not node_id:
-                        continue
 
-                    #print(base_path)
-                    clip = Clip(
-                        clip_id=row['id'],
-                        video_id=row['video_id'],
-                        base_path=base_path,
-                        start_frame=row['start_frame'],
-                        end_frame=row['end_frame'],
-                        dataset_id=dataset.id,
-                        node_id=node_id
-                    )
-                    all_clips.append(clip)
+                        clip = Clip(
+                                    clip_id=row['id'],
+                                    video_id=row['video_id'],
+                                    base_path=base_path,
+                                    start_frame=row['start_frame'],
+                                    end_frame=row['end_frame'],
+                                    dataset_id=dataset.id,
+                                    node_id=node_id
+                                )
+                        all_clips.append(clip)
+                    else:
+                        print(f"Need of splitting the class: {label}")
+                        labels = self.composed_labels(label, dataset)
+                        for l in labels:
+                            if l in label_to_node_id:
+                                node_id = label_to_node_id[l]
+                            else: 
+                                node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(l)).first()
+                                node_id = node.id if node else None
+                                label_to_node_id[l] = node_id
+
+                            if not node_id:
+                                print(f"Not able to assign a concept: {l}")
+                                continue
+                            
+                            clip = Clip(
+                                clip_id=row['id'],
+                                video_id=row['video_id'],
+                                base_path=base_path,
+                                start_frame=row['start_frame'],
+                                end_frame=row['end_frame'],
+                                dataset_id=dataset.id,
+                                node_id=node_id
+                            )
+                            all_clips.append(clip)
+                
+                # Scads is missing a missing conceptnet id
+                #if not node_id:
+                #    continue
+
+                
 
         return all_clips
 
@@ -255,6 +283,13 @@ class DomainNetInstallation(ImageClassificationInstaller):
             return "/c/en/" + exceptions[label]
         return "/c/en/" + label.lower().replace(" ", "_").replace("-", "_")
 
+class MslCuriosityInstallation(ImageClassificationInstaller):
+    def get_name(self):
+        return "MslCuriosity"
+
+    def get_conceptnet_id(self, label):
+        pass
+
 
 class VOC2009Installation(ObjectDetectionInstaller):
     def get_name(self):
@@ -282,10 +317,15 @@ class UCF101Installation(VideoClassificationInstaller):
     def get_name(self):
         return "UCF101"
     def get_conceptnet_id(self, label):
-        exceptions = {'skijet': 'jet_ski'}
+        exceptions = {'Skijet': 'jet_ski'}
         if label in exceptions:
             return "/c/en/" + exceptions[label]
-        return "/c/en/" + label.lower().replace(" ", "_").replace("-", "_")
+        else:
+            label_clean = '_'.join([i.lower() for i in re.findall('[A-Z][^A-Z]*', label)])
+            if len(label_clean) != 0:
+                return "/c/en/" + label_clean#label.lower().replace(" ", "_")#.replace("-", "_")
+            else:
+                return "/c/en/" + label.lower()
 
 
 class Installer:
@@ -314,6 +354,8 @@ if __name__ == "__main__":
     parser.add_argument("--domainnet", nargs="+")
     parser.add_argument("--hmdb", type=str, help="Path to hmdb directory from the root")
     parser.add_argument("--ucf101", type=str, help="Path to ufc101 directory from the root")
+    parser.add_argument("--msl_curiosity", type=str, help="Path to msl_curiosity directory from the root")
+    
     args = parser.parse_args()
 
     # Install SCADS
@@ -363,3 +405,9 @@ if __name__ == "__main__":
         if not args.root:
             raise RuntimeError("Must specify root directory.")
         installer.install_dataset(args.root, args.ucf101, UCF101Installation())
+
+    if args.msl_curiosity:
+        if not args.root:
+            raise RuntimeError("Must specify root directory.")
+        installer.install_dataset(args.root, args.msl_curiosity, MslCuriosityInstallation())
+    
