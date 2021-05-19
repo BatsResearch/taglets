@@ -481,7 +481,7 @@ class JPLStorage:
 
 class JPLRunner:
     def __init__(self, dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
-                 data_paths, simple_run=False, testing=False):
+                 data_paths, simple_run, batch_size, testing=False):
 
         self.dataset_dir = dataset_dir
         self.problem_type = problem_type
@@ -502,6 +502,7 @@ class JPLRunner:
 
         self.testing = testing
         self.simple_run = simple_run
+        self.batch_size = batch_size
 
     def get_jpl_information(self):
         # Elaheh: (need change in eval) choose image classification task you would like. Now there are four tasks
@@ -624,6 +625,7 @@ class JPLRunner:
                     labeled_dataset,
                     unlabeled_train_dataset,
                     val_dataset,
+                    self.batch_size,
                     self.jpl_storage.whitelist,
                     self.data_paths[0],
                     self.data_paths[1],
@@ -694,7 +696,7 @@ class JPLRunner:
 
 
 def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths,
-             simple_run):
+             simple_run, batch_size):
     if problem_task == 'all':
         log.info('Execute all tasks')
         print(log.info('Execute all tasks'))
@@ -702,12 +704,12 @@ def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, tea
         problem_task_list = jpl.get_available_tasks(problem_type)
         for task in problem_task_list:
             runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, task, team_secret, gov_team_secret,
-                               data_paths, simple_run, testing=False)
+                               data_paths, simple_run, batch_size, testing=False)
             runner.run_checkpoints()
     else:
         log.info("Execute a single task")
         runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
-                           data_paths, simple_run, testing=False)
+                           data_paths, simple_run, batch_size, testing=False)
         runner.run_checkpoints()
 
 
@@ -766,6 +768,10 @@ def main():
                         type=str,
                         default="evaluation",# development
                         help="Option to choose the data folder")
+    parser.add_argument("--batch_size",
+                        type=int,
+                        default="128",
+                        help="Universal batch size")
     args = parser.parse_args()
     
 
@@ -773,6 +779,7 @@ def main():
         simple_run = True
     else: 
         simple_run = False
+    batch_size = args.batch_size
 
     if args.mode == 'prod':
         variables = setup_production(simple_run)
@@ -816,7 +823,7 @@ def main():
     #_logger.addHandler(stream_handler)
     
     workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths,
-             simple_run)
+             simple_run, batch_size)
     
 
 if __name__ == "__main__":

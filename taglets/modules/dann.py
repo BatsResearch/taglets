@@ -224,12 +224,12 @@ class DannTaglet(ImageTaglet):
         if self.training_first_stage:
             old_batch_size = self.batch_size
             # Memory bottleneck if batch size is too large
-            self.batch_size = 16 if not os.environ.get("CI") else 32
+            self.batch_size = max(int(old_batch_size/8), 8) if not os.environ.get("CI") else 32
             source_sampler = self._get_train_sampler(self.source_data, n_proc=self.n_proc, rank=rank)
             self.source_data_loader = self._get_dataloader(data=self.source_data, sampler=source_sampler)
             self.batch_size = old_batch_size
         old_batch_size = self.batch_size
-        self.batch_size = 16
+        self.batch_size = max(int(old_batch_size/8), 8)
         super(DannTaglet, self)._do_train(rank, q, train_data, val_data, unlabeled_data)
         self.batch_size = old_batch_size
 
