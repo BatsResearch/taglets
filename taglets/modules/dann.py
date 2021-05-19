@@ -191,7 +191,6 @@ class DannTaglet(ImageTaglet):
     def train(self, train_data, val_data, unlabeled_data=None):
         # Get Scads data and set up model
         self.source_data, num_classes = self._get_scads_data()
-        self.source_data = train_data
         log.info("Source classes found: {}".format(num_classes))
         log.info("Number of source training images: {}".format(len(self.source_data)))
 
