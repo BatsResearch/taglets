@@ -192,7 +192,6 @@ class DannTaglet(ImageTaglet):
         # Get Scads data and set up model
         self.source_data, num_classes = self._get_scads_data()
         self.source_data = train_data
-        num_classes = 10
         log.info("Source classes found: {}".format(num_classes))
         log.info("Number of source training images: {}".format(len(self.source_data)))
 
