@@ -9,6 +9,7 @@ import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 import torch.nn as nn
+mp.set_sharing_strategy('file_system')
 
 log = logging.getLogger(__name__)
 
