@@ -304,7 +304,7 @@ class FixMatchTaglet(ImageTaglet):
         self._init_unlabeled_transform(unlabeled_data)
         super(FixMatchTaglet, self).train(train_data, val_data, unlabeled_data)
 
-    def _do_train(self, rank, q, train_data, val_data, unlabeled_data=None):
+    def _do_train(self, train_data, val_data, unlabeled_data=None):
         """
                One worker for training.
 
