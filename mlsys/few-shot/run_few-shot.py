@@ -139,7 +139,7 @@ def main():
         'resnet24': resnet24,
     }
     
-    if args.meta_dataset == 'CIFAR-FS':
+    if args.dataset == 'CIFAR-FS':
         train_dataset = CIFARFS('train', data_aug=True)
         initial_model = model_dict[args.model](avg_pool=True,
                                                drop_rate=0.1,
