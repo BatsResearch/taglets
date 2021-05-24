@@ -125,12 +125,6 @@ def main():
     
     args = parser.parse_args()
     
-    if args.lr_decay_epochs is not None:
-        iterations = args.lr_decay_epochs.split(',')
-        args.lr_decay_epochs = list([])
-        for it in iterations:
-            args.lr_decay_epochs.append(int(it))
-    
     # set up logging
     logger = logging.getLogger()
     logger.level = logging.INFO
