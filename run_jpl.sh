@@ -1,6 +1,3 @@
 #!/usr/bin/env bash
 
-# Increases open file limit for multiprocessing
-ulimit -n 1000000
-export PYTHONPATH=".:$PYTHONPATH"
-python -m taglets.task.jpl --mode dev --simple_version true --folder development
+accelerate launch run_jpl.py --mode dev --simple_version true --folder development
