@@ -30,12 +30,12 @@ class CIFARFS(Dataset):
             transforms.ToTensor(),
             transforms.Normalize(mean=self.mean, std=self.std)
         ])
-        dir = os.getcwd()
+        dir = os.path.dirname(os.path.realpath(__file__))
         self.label2word = {}
-        with open(os.path.join(dir, 'data', 'CIFAR-FS', 'cifar-100-python', 'meta'), 'rb') as f:
+        with open(os.path.join(dir, '..', 'data', 'CIFAR-FS', 'cifar-100-python', 'meta'), 'rb') as f:
             data = pickle.load(f, encoding='utf-8')
             old_label2word = data['fine_label_names']
-        with open(os.path.join(dir, 'data', 'CIFAR-FS',
+        with open(os.path.join(dir, '..', 'data', 'CIFAR-FS',
                                f'CIFAR_FS_{partition}.pickle'), 'rb') as f:
             data = pickle.load(f, encoding='latin1')
             self.imgs = data['data']

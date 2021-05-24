@@ -36,8 +36,8 @@ class MiniImageNet(Dataset):
             transforms.ToTensor(),
             transforms.Normalize(mean=self.mean, std=self.std)
         ])
-        dir = os.getcwd()
-        with open(os.path.join(dir, 'data', 'miniImageNet',
+        dir = os.path.dirname(os.path.realpath(__file__))
+        with open(os.path.join(dir, '..', 'data', 'miniImageNet',
                                f'miniImageNet_category_split_{partition}.pickle'), 'rb') as f:
             data = pickle.load(f, encoding='latin1')
             self.imgs = data['data']
