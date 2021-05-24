@@ -27,11 +27,14 @@ def pre_train(model, train_dataset):
     # ------------------------------------------------------
 
     save_dir = os.path.join(os.getcwd(), 'saved_models', datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
 
     train_dataloader = DataLoader(train_dataset,
-                                  batch_size=64,
+                                  batch_size=batch_size,
                                   shuffle=True,
                                   drop_last=True)
+    
     
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=lr_decay_epochs, gamma=lr_decay_rate)
