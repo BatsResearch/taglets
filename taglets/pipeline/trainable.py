@@ -40,6 +40,10 @@ class Trainable:
         # for extra flexibility
         self.unlabeled_batch_size = self.batch_size
 
+        n_gpu = torch.cuda.device_count()
+        self.n_proc = n_gpu
+        self.num_workers = min(max(0, mp.cpu_count() // self.n_proc - 1), 2)
+
         self.model = task.get_initial_model()
 
         self._init_random(self.seed)
@@ -53,7 +57,6 @@ class Trainable:
                 params_to_update.append(param)
         self._params_to_update = params_to_update
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
-        self.optimizer = self.accelerator.prepare(self.optimizer)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
         self.valid = True
 
@@ -77,10 +80,10 @@ class Trainable:
     def _get_dataloader(self, data, sampler, batch_size=None):
         if batch_size is None:
             batch_size = self.batch_size
-        return torch.utils.data.DataLoader(
+        return self.accelerator.prepare(torch.utils.data.DataLoader(
             dataset=data, batch_size=batch_size, shuffle=False,
             num_workers=self.num_workers, pin_memory=True, sampler=sampler
-        )
+        ))
 
     def _get_pred_classifier(self):
         return self.model
@@ -151,11 +154,7 @@ class Trainable:
         val_loss_list = []
         val_acc_list = []
 
-        self.model, train_data_loader, val_data_loader, unlabeled_data_loader \
-            = self.accelerator.prepare(self.model,
-                                       train_data_loader,
-                                       val_data_loader,
-                                       unlabeled_data_loader)
+        self.model, self.optimizer = self.accelerator.prepare(self.model, self.optimizer)
 
         # Iterates over epochs
         for epoch in range(self.num_epochs):
@@ -194,6 +193,7 @@ class Trainable:
                 self.lr_scheduler.step()
 
         self.accelerator.wait_for_everyone()
+        self.optimizer = self.optimizer.optimizer
         self.model = self.accelerator.unwrap_model(self.model)
 
         if self.save_dir and self.accelerator.is_local_main_process:

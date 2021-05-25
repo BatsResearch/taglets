@@ -255,9 +255,7 @@ class FixMatchTaglet(ImageTaglet):
                 if param.requires_grad:
                     params_to_update.append(param)
             self._params_to_update = params_to_update
-            self.optimizer = self.accelerator.prepare(torch.optim.Adam(self._params_to_update,
-                                                                       lr=self.lr,
-                                                                       weight_decay=1e-4))
+            self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
             self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
             batch_size_copy = self.batch_size
@@ -287,13 +285,9 @@ class FixMatchTaglet(ImageTaglet):
         self._params_to_update = params_to_update
 
         if self.opt_type == Optimizer.SGD:
-            self.optimizer = self.accelerator.prepare(torch.optim.SGD(self._params_to_update, lr=self.lr,
-                                                                      momentum=0.9,
-                                                                      nesterov=self.nesterov))
+            self.optimizer = torch.optim.SGD(self._params_to_update, lr=self.lr, momentum=0.9, nesterov=self.nesterov)
         else:
-            self.optimizer = self.accelerator.prepare(torch.optim.Adam(self._params_to_update,
-                                                                       lr=self.lr,
-                                                                       weight_decay=self.weight_decay))
+            self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=self.weight_decay)
 
         if self.use_ema:
             self.ema_model = ModelEMA(self.model, decay=self.ema_decay)
@@ -357,11 +351,7 @@ class FixMatchTaglet(ImageTaglet):
         val_loss_list = []
         val_acc_list = []
 
-        self.model, train_data_loader, val_data_loader, unlabeled_data_loader \
-            = self.accelerator.prepare(self.model,
-                                       train_data_loader,
-                                       val_data_loader,
-                                       unlabeled_data_loader)
+        self.model, self.optimizer = self.accelerator.prepare(self.model, self.optimizer)
 
         # Iterates over epochs
         for epoch in range(self.num_epochs):
