@@ -38,7 +38,7 @@ class DropBlock(nn.Module):
         
         batch_size, channels, height, width = mask.shape
         # print ("mask", mask[0][0])
-        non_zero_idxs = mask.nonzero()
+        non_zero_idxs = torch.nonzero(mask)
         nr_blocks = non_zero_idxs.shape[0]
         
         offsets = torch.stack(
