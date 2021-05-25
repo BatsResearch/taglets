@@ -103,13 +103,6 @@ class FixMatchTaglet(ImageTaglet):
                  use_scads=True):
         self.name = 'fixmatch'
 
-        if os.getenv("LWLL_TA1_PROB_TASK") is not None:
-            self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
-        else:
-            self.save_dir = os.path.join('trained_models', self.name)
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
-
         self.steps_per_epoch = steps_per_epoch
         self.conf_thresh = conf_thresh
         self.lambda_u = lambda_u
@@ -146,6 +139,14 @@ class FixMatchTaglet(ImageTaglet):
             raise ValueError("unlabeled dataset is too small for FixMatch.")
 
         self.opt_type = optimizer
+        
+        if os.getenv("LWLL_TA1_PROB_TASK") is not None:
+            self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
+        else:
+            self.save_dir = os.path.join('trained_models', self.name)
+        if not os.path.exists(self.save_dir) and self.accelerator.is_local_main_process:
+            os.makedirs(self.save_dir)
+        self.accelerator.wait_for_everyone()
 
     def transform_image(self, train=True):
         """
@@ -348,6 +349,7 @@ class FixMatchTaglet(ImageTaglet):
                                                    batch_size=self.batch_size)
 
         # Initializes statistics containers (will only be filled by lead process)
+        best_ema_model_to_save = None
         best_model_to_save = None
         best_val_acc = 0
         train_loss_list = []
@@ -384,22 +386,31 @@ class FixMatchTaglet(ImageTaglet):
             val_loss_list.append(val_loss)
             val_acc_list.append(val_acc)
             if val_acc > best_val_acc:
+                self.accelerator.wait_for_everyone()
                 log.debug("Deep copying new best model." +
                           "(validation of {:.4f}%, over {:.4f}%)".format(
                               val_acc * 100, best_val_acc * 100))
                 if self.use_ema:
-                    best_ema_model_to_save = deepcopy(self.ema_model.ema.module.state_dict())
+                    unwrapped_ema_model = self.accelerator.unwrap_model(self.ema_model.ema)
+                    best_ema_model_to_save = deepcopy(unwrapped_ema_model.state_dict())
                     if self.save_dir:
-                        torch.save(best_ema_model_to_save, self.save_dir + '/ema_model.pth.tar')
+                        self.accelerator.save(best_ema_model_to_save, self.save_dir + '/ema_model.pth.tar')
 
-                best_model_to_save = deepcopy(self.model.module.state_dict())
+                unwrapped_model = self.accelerator.unwrap_model(self.model)
+                best_model_to_save = deepcopy(unwrapped_model.state_dict())
                 best_val_acc = val_acc
                 if self.save_dir:
-                    torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
+                    self.accelerator.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
             if self.opt_type == Optimizer.ADAM:
                 self.lr_scheduler.step()
-        if self.save_dir:
+
+        self.accelerator.wait_for_everyone()
+        self.model = self.accelerator.unwrap_model(self.model)
+        if self.use_ema:
+            self.ema_model.ema = self.accelerator.unwrap_model(self.ema_model.ema)
+        
+        if self.save_dir and self.accelerator.is_local_main_process:
             val_dic = {'train': train_loss_list, 'validation': val_loss_list}
             self.save_plot('loss', val_dic, self.save_dir)
             val_dic = {'train': train_acc_list, 'validation': val_acc_list}
@@ -407,7 +418,7 @@ class FixMatchTaglet(ImageTaglet):
         if self.select_on_val and best_model_to_save is not None:
             if self.use_ema and best_ema_model_to_save is not None:
                 self.ema_model.ema.load_state_dict(best_ema_model_to_save)
-            self.model.module.load_state_dict(best_model_to_save)
+            self.model.load_state_dict(best_model_to_save)
         if unlabeled_data is not None:
             unlabeled_data.transform = self.org_unlabeled_transform
 

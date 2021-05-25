@@ -40,19 +40,6 @@ class Trainable:
         # for extra flexibility
         self.unlabeled_batch_size = self.batch_size
 
-        # Configures GPU and multiprocessing
-        n_gpu = torch.cuda.device_count()
-        if n_gpu > 0:
-            self.use_gpu = True
-            self.n_proc = n_gpu
-        else:
-            self.use_gpu = False
-            self.n_proc = max(1, mp.cpu_count() - 1)
-        self.num_workers = min(max(0, mp.cpu_count() // self.n_proc - 1), 2)
-
-        # Gradients are summed over workers, so need to scale the step size
-        self.lr = self.lr / self.n_proc
-
         self.model = task.get_initial_model()
 
         self._init_random(self.seed)
@@ -86,14 +73,6 @@ class Trainable:
         outputs, labels = self.predict(labeled_data)
         correct = (np.argmax(outputs, 1) == labels).sum()
         return correct / outputs.shape[0]
-
-    def _get_train_sampler(self, data, n_proc, rank):
-        return torch.utils.data.distributed.DistributedSampler(data,
-                                                               num_replicas=n_proc,
-                                                               rank=rank)
-
-    def _get_val_sampler(self, data, n_proc, rank):
-        return self._get_train_sampler(data, n_proc, rank)
 
     def _get_dataloader(self, data, sampler, batch_size=None):
         if batch_size is None:
@@ -200,24 +179,30 @@ class Trainable:
             val_loss_list.append(val_loss)
             val_acc_list.append(val_acc)
             if val_acc > best_val_acc:
+                self.accelerator.wait_for_everyone()
+                unwrapped_model = self.accelerator.unwrap_model(self.model)
+                
                 log.debug("Deep copying new best model." +
                           "(validation of {:.4f}%, over {:.4f}%)".format(
                               val_acc * 100, best_val_acc * 100))
-                best_model_to_save = copy.deepcopy(self.model.module.state_dict())
+                best_model_to_save = copy.deepcopy(unwrapped_model.state_dict())
                 best_val_acc = val_acc
                 if self.save_dir:
-                    torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
+                    self.accelerator.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
             if self.lr_scheduler:
                 self.lr_scheduler.step()
 
-        if self.save_dir:
+        self.accelerator.wait_for_everyone()
+        self.model = self.accelerator.unwrap_model(self.model)
+
+        if self.save_dir and self.accelerator.is_local_main_process:
             val_dic = {'train': train_loss_list, 'validation': val_loss_list}
             self.save_plot('loss', val_dic, self.save_dir)
             val_dic = {'train': train_acc_list, 'validation': val_acc_list}
             self.save_plot('accuracy', val_dic, self.save_dir)
         if self.select_on_val and best_model_to_save is not None:
-            self.model.module.load_state_dict(best_model_to_save)
+            self.model.load_state_dict(best_model_to_save)
 
     def _train_epoch(self, train_data_loader, unlabeled_data_loader=None):
         raise NotImplementedError
