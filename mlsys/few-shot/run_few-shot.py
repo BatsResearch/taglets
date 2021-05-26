@@ -216,14 +216,6 @@ def main():
     
     args = parser.parse_args()
     
-    # set up logging
-    logger = logging.getLogger()
-    logger.level = logging.INFO
-    stream_handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
-    
     model_dict = {
         'resnet12': resnet12,
         'resnet18': resnet18,
