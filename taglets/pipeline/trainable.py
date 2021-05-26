@@ -267,6 +267,7 @@ class ImageTrainable(Trainable):
         self.model.train()
         running_loss = 0
         running_acc = 0
+        total_len = 0
         for batch in train_data_loader:
             inputs = batch[0]
             labels = batch[1]
@@ -283,12 +284,13 @@ class ImageTrainable(Trainable):
 
             running_loss += loss.item()
             running_acc += self._get_train_acc(outputs, labels)
+            total_len += len(labels)
 
-        if not len(train_data_loader.dataset):
+        if not len(train_data_loader):
             return 0, 0
 
-        epoch_loss = running_loss / len(train_data_loader.dataset)
-        epoch_acc = running_acc.item() / len(train_data_loader.dataset)
+        epoch_loss = running_loss / len(train_data_loader)
+        epoch_acc = running_acc.item() / total_len
 
         return epoch_loss, epoch_acc
     
@@ -302,6 +304,7 @@ class ImageTrainable(Trainable):
         self.model.eval()
         running_loss = 0
         running_acc = 0
+        total_len = 0
         for batch in val_data_loader:
             inputs = batch[0]
             labels = batch[1]
@@ -315,9 +318,10 @@ class ImageTrainable(Trainable):
 
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels)
+            total_len += len(labels)
 
-        epoch_loss = running_loss / len(val_data_loader.dataset)
-        epoch_acc = running_acc.item() / len(val_data_loader.dataset)
+        epoch_loss = running_loss / len(val_data_loader)
+        epoch_acc = running_acc.item() / total_len
 
         return epoch_loss, epoch_acc
     

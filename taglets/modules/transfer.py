@@ -1,8 +1,3 @@
-from ..data.custom_dataset import CustomImageDataset
-from .module import Module
-from ..pipeline import Cache, ImageTaglet
-from ..scads import Scads, ScadsEmbedding
-
 import os
 import random
 import torch
@@ -11,6 +6,11 @@ import numpy as np
 import torchvision.transforms as transforms
 import torch.nn as nn
 from torch.utils.data import Subset
+
+from ..data.custom_dataset import CustomImageDataset
+from .module import Module
+from ..pipeline import Cache, ImageTaglet
+from ..scads import Scads, ScadsEmbedding
 
 log = logging.getLogger(__name__)
 
