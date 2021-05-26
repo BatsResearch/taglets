@@ -119,7 +119,7 @@ def pre_train(model, train_dataset):
     return model
 
 
-def meta_test(initial_model, module, test_dataset, n_ways=5, n_shots=1, num_episodes=600, n_queries=15, **kwargs):
+def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1, num_episodes=600, n_queries=15, **kwargs):
     data_by_class = {}
     for idx in range(len(test_dataset.imgs)):
         if test_dataset.labels[idx] not in data_by_class:
@@ -182,7 +182,7 @@ def meta_test(initial_model, module, test_dataset, n_ways=5, n_shots=1, num_epis
                     scads_embedding_path='./predefined/embeddings/numberbatch-en19.08.txt.gz')
         task.set_initial_model(initial_model)
         
-        taglet_module = module(task)
+        taglet_module = training_module(task)
         taglet_module.train_taglets(episode_train_dataset, None, None)
         taglet = taglet_module.get_valid_taglets()
         
