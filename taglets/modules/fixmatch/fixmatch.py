@@ -1,24 +1,18 @@
-from taglets.modules.module import Module
-from taglets.data.custom_dataset import CustomImageDataset
-from taglets.pipeline import Cache, ImageTaglet
-from taglets.scads import Scads, ScadsEmbedding
-
-from .utils import TransformFixMatch, is_grayscale
+import math
+import os
+import random
+import torch
+import logging
+import torch.nn.functional as F
+import torchvision.transforms as transforms
 from copy import deepcopy
 from enum import Enum
 
-import math
-import pickle
-import os
-import random
-
-import torch
-import logging
-import torch.nn as nn
-import torch.distributed as dist
-import torch.nn.functional as F
-
-import torchvision.transforms as transforms
+from ..module import Module
+from ...data.custom_dataset import CustomImageDataset
+from ...pipeline import Cache, ImageTaglet
+from ...scads import Scads, ScadsEmbedding
+from .utils import TransformFixMatch, is_grayscale
 
 log = logging.getLogger(__name__)
 
