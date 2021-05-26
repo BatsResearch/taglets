@@ -7,7 +7,6 @@ import torch
 from torch.utils.data import DataLoader, ConcatDataset
 import traceback
 from accelerate import Accelerator
-
 accelerator = Accelerator()
 
 from .data import SoftLabelDataset

@@ -7,6 +7,8 @@ import torch.nn.functional as F
 import torchvision.transforms as transforms
 from copy import deepcopy
 from enum import Enum
+from accelerate import Accelerator
+accelerator = Accelerator()
 
 from ..module import Module
 from ...data.custom_dataset import CustomImageDataset
@@ -138,9 +140,9 @@ class FixMatchTaglet(ImageTaglet):
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
             self.save_dir = os.path.join('trained_models', self.name)
-        if not os.path.exists(self.save_dir) and self.accelerator.is_local_main_process:
+        if not os.path.exists(self.save_dir) and accelerator.is_local_main_process:
             os.makedirs(self.save_dir)
-        self.accelerator.wait_for_everyone()
+        accelerator.wait_for_everyone()
 
     def transform_image(self, train=True):
         """
@@ -345,7 +347,7 @@ class FixMatchTaglet(ImageTaglet):
         val_loss_list = []
         val_acc_list = []
 
-        self.model, self.optimizer = self.accelerator.prepare(self.model, self.optimizer)
+        self.model, self.optimizer = accelerator.prepare(self.model, self.optimizer)
 
         # Iterates over epochs
         for epoch in range(self.num_epochs):
@@ -370,31 +372,31 @@ class FixMatchTaglet(ImageTaglet):
             val_loss_list.append(val_loss)
             val_acc_list.append(val_acc)
             if val_acc > best_val_acc:
-                self.accelerator.wait_for_everyone()
+                accelerator.wait_for_everyone()
                 log.debug("Deep copying new best model." +
                           "(validation of {:.4f}%, over {:.4f}%)".format(
                               val_acc * 100, best_val_acc * 100))
                 if self.use_ema:
-                    unwrapped_ema_model = self.accelerator.unwrap_model(self.ema_model.ema)
+                    unwrapped_ema_model = accelerator.unwrap_model(self.ema_model.ema)
                     best_ema_model_to_save = deepcopy(unwrapped_ema_model.state_dict())
                     if self.save_dir:
-                        self.accelerator.save(best_ema_model_to_save, self.save_dir + '/ema_model.pth.tar')
+                        accelerator.save(best_ema_model_to_save, self.save_dir + '/ema_model.pth.tar')
 
-                unwrapped_model = self.accelerator.unwrap_model(self.model)
+                unwrapped_model = accelerator.unwrap_model(self.model)
                 best_model_to_save = deepcopy(unwrapped_model.state_dict())
                 best_val_acc = val_acc
                 if self.save_dir:
-                    self.accelerator.save(best_model_to_save, self.save_dir + '/model.pth.tar')
+                    accelerator.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
             if self.opt_type == Optimizer.ADAM:
                 self.lr_scheduler.step()
 
-        self.accelerator.wait_for_everyone()
-        self.model = self.accelerator.unwrap_model(self.model)
+        accelerator.wait_for_everyone()
+        self.model = accelerator.unwrap_model(self.model)
         if self.use_ema:
-            self.ema_model.ema = self.accelerator.unwrap_model(self.ema_model.ema)
+            self.ema_model.ema = accelerator.unwrap_model(self.ema_model.ema)
         
-        if self.save_dir and self.accelerator.is_local_main_process:
+        if self.save_dir and accelerator.is_local_main_process:
             val_dic = {'train': train_loss_list, 'validation': val_loss_list}
             self.save_plot('loss', val_dic, self.save_dir)
             val_dic = {'train': train_acc_list, 'validation': val_acc_list}
@@ -469,7 +471,7 @@ class FixMatchTaglet(ImageTaglet):
                     lu = (F.cross_entropy(logits_u_s, targets_u, reduction='none') * mask).mean()
                     loss = lx + self.lambda_u * lu
 
-                self.accelerator.backward(loss)
+                accelerator.backward(loss)
                 self.optimizer.step()
 
             if self.opt_type == Optimizer.SGD:
@@ -477,8 +479,8 @@ class FixMatchTaglet(ImageTaglet):
             if self.use_ema:
                 self.ema_model.update(self.model)
 
-            logits_x = self.accelerator.gather(logits_x)
-            labels = self.accelerator.gather(labels)
+            logits_x = accelerator.gather(logits_x)
+            labels = accelerator.gather(labels)
 
             running_loss += loss.item()
             running_acc += self._get_train_acc(logits_x, labels)
@@ -507,8 +509,8 @@ class FixMatchTaglet(ImageTaglet):
                 loss = torch.nn.functional.cross_entropy(outputs, labels)
                 _, preds = torch.max(outputs, 1)
 
-            preds = self.accelerator.gather(preds)
-            labels = self.accelerator.gather(labels)
+            preds = accelerator.gather(preds)
+            labels = accelerator.gather(labels)
 
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels)

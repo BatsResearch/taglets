@@ -3,13 +3,11 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import pickle
 import random
 import torch
-import torch.distributed as dist
 import torch.multiprocessing as mp
-import torch.nn as nn
 from accelerate import Accelerator
+accelerator = Accelerator()
 
 log = logging.getLogger(__name__)
 
@@ -48,8 +46,6 @@ class Trainable:
 
         self._init_random(self.seed)
 
-        self.accelerator = Accelerator()
-
         # Parameters needed to be updated based on freezing layer
         params_to_update = []
         for param in self.model.parameters():
@@ -80,7 +76,7 @@ class Trainable:
     def _get_dataloader(self, data, sampler, batch_size=None):
         if batch_size is None:
             batch_size = self.batch_size
-        return self.accelerator.prepare(torch.utils.data.DataLoader(
+        return accelerator.prepare(torch.utils.data.DataLoader(
             dataset=data, batch_size=batch_size, shuffle=False,
             num_workers=self.num_workers, pin_memory=True, sampler=sampler
         ))
@@ -154,7 +150,7 @@ class Trainable:
         val_loss_list = []
         val_acc_list = []
 
-        self.model, self.optimizer = self.accelerator.prepare(self.model, self.optimizer)
+        self.model, self.optimizer = accelerator.prepare(self.model, self.optimizer)
 
         # Iterates over epochs
         for epoch in range(self.num_epochs):
@@ -178,8 +174,8 @@ class Trainable:
             val_loss_list.append(val_loss)
             val_acc_list.append(val_acc)
             if val_acc > best_val_acc:
-                self.accelerator.wait_for_everyone()
-                unwrapped_model = self.accelerator.unwrap_model(self.model)
+                accelerator.wait_for_everyone()
+                unwrapped_model = accelerator.unwrap_model(self.model)
                 
                 log.debug("Deep copying new best model." +
                           "(validation of {:.4f}%, over {:.4f}%)".format(
@@ -187,16 +183,16 @@ class Trainable:
                 best_model_to_save = copy.deepcopy(unwrapped_model.state_dict())
                 best_val_acc = val_acc
                 if self.save_dir:
-                    self.accelerator.save(best_model_to_save, self.save_dir + '/model.pth.tar')
+                    accelerator.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
             if self.lr_scheduler:
                 self.lr_scheduler.step()
 
-        self.accelerator.wait_for_everyone()
+        accelerator.wait_for_everyone()
         self.optimizer = self.optimizer.optimizer
-        self.model = self.accelerator.unwrap_model(self.model)
+        self.model = accelerator.unwrap_model(self.model)
 
-        if self.save_dir and self.accelerator.is_local_main_process:
+        if self.save_dir and accelerator.is_local_main_process:
             val_dic = {'train': train_loss_list, 'validation': val_loss_list}
             self.save_plot('loss', val_dic, self.save_dir)
             val_dic = {'train': train_acc_list, 'validation': val_acc_list}
@@ -234,7 +230,7 @@ class Trainable:
             num_workers=self.num_workers, pin_memory=True, sampler=None
         )
         
-        data_loader = self.accelerator.prepare(data_loader)
+        data_loader = accelerator.prepare(data_loader)
         
         outputs, labels = self._predict_epoch(data_loader, pred_classifier)
         if len(labels) > 0:
@@ -279,11 +275,11 @@ class ImageTrainable(Trainable):
             with torch.set_grad_enabled(True):
                 outputs = self.model(inputs)
                 loss = self.criterion(outputs, labels)
-                self.accelerator.backward(loss)
+                accelerator.backward(loss)
                 self.optimizer.step()
 
-            outputs = self.accelerator.gather(outputs)
-            labels = self.accelerator.gather(labels)
+            outputs = accelerator.gather(outputs)
+            labels = accelerator.gather(labels)
 
             running_loss += loss.item()
             running_acc += self._get_train_acc(outputs, labels)
@@ -314,8 +310,8 @@ class ImageTrainable(Trainable):
                 loss = torch.nn.functional.cross_entropy(outputs, labels)
                 _, preds = torch.max(outputs, 1)
             
-            preds = self.accelerator.gather(preds)
-            labels = self.accelerator.gather(labels)
+            preds = accelerator.gather(preds)
+            labels = accelerator.gather(labels)
 
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels)
@@ -336,9 +332,9 @@ class ImageTrainable(Trainable):
             
             with torch.set_grad_enabled(False):
                 output = pred_classifier(inputs)
-                outputs.append(torch.nn.functional.softmax(self.accelerator.gather(output), 1))
+                outputs.append(torch.nn.functional.softmax(accelerator.gather(output), 1))
                 if targets is not None:
-                    labels.append(self.accelerator.gather(targets))
+                    labels.append(accelerator.gather(targets))
         
         outputs = torch.cat(outputs).cpu().detach().numpy()
         if len(labels) > 0:
