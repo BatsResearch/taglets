@@ -242,7 +242,7 @@ def main():
                                                dropblock_size=5,
                                                n_classes=args.n_classes)
 
-    if args.model_path is None:
+    if args.model_path is not None:
         save_params = torch.load(args.model_path)
         initial_model.load_state_dict(save_params['model'])
     else:
