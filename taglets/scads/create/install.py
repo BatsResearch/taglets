@@ -213,13 +213,12 @@ class ImageNet22kInstallation(ImageClassificationInstaller):
         all_images = []
         all_wnids = os.listdir(os.path.join(root, dataset.path))
         for wnid in all_wnids:
-            all_images = os.listdir(os.path.join(root, dataset.path, wnid))
             label = self.wnid_to_name(wnid)
             node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
             node_id = node.id if node else None
             if not node_id:
                 continue
-            for image in all_images:
+            for image in os.listdir(os.path.join(root, dataset.path, wnid)):
                 img = Image(dataset_id=dataset.id,
                             node_id=node_id,
                             path=os.path.join(dataset.path, wnid, image))
