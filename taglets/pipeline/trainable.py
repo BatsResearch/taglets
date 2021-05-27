@@ -231,8 +231,13 @@ class Trainable:
         )
         
         data_loader = accelerator.prepare(data_loader)
+        self.model, self.optimizer = accelerator.prepare(self.model, self.optimizer)
         
         outputs, labels = self._predict_epoch(data_loader, pred_classifier)
+
+        self.optimizer = self.optimizer.optimizer
+        self.model = accelerator.unwrap_model(self.model)
+        
         if len(labels) > 0:
             return outputs, labels
         else:
