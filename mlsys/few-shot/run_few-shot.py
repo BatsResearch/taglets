@@ -13,6 +13,7 @@ from taglets.modules.multitask import MultiTaskModule
 from taglets.modules.transfer import TransferModule
 from taglets.task import Task
 from taglets.scads import Scads
+from taglets.task.utils import labels_to_concept_ids
 
 from .models import resnet12, resnet18, resnet24
 from .datasets import CIFARFS, MiniImageNet
@@ -174,7 +175,7 @@ def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1,
         # ------------------------------------------------------------------------------------
         
         task = Task('name',
-                    classes,
+                    labels_to_concept_ids(classes),
                     (height, width),
                     episode_train_dataset,
                     None,
