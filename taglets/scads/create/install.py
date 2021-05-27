@@ -339,7 +339,7 @@ if __name__ == "__main__":
     if args.imagenet:
         installer.install_dataset(args.root, args.imagenet, ImageNetInstallation())
     if args.imagenet22k:
-        installer.install_dataset(args.root, args.imagenet22k, ImageNetInstallation())
+        installer.install_dataset(args.root, args.imagenet22k, ImageNet22kInstallation())
     if args.coco2014:
         installer.install_dataset(args.root, args.coco2014, COCO2014Installation())
     if args.voc2009:
