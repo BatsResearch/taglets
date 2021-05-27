@@ -1,12 +1,15 @@
 import argparse
 import os
 import pandas as pd
+import imagesize
+from nltk.corpus import wordnet as wn
+import numpy as np
+
 from ..create.scads_classes import Node, Image, Clip
 from ..create.create_scads import add_conceptnet
 from ..create.add_datasets import add_dataset
 from .wnids_to_concept import SYNSET_TO_CONCEPTNET_ID
-import imagesize
-import numpy as np
+
 
 class DatasetInstaller:
     def get_name(self):
@@ -196,6 +199,38 @@ class ImageNetInstallation(ImageClassificationInstaller):
 
     def get_conceptnet_id(self, label):
         return SYNSET_TO_CONCEPTNET_ID[label]
+    
+    
+class ImageNet22kInstallation(ImageClassificationInstaller):
+    def wnid_to_name(self, wnid):
+        synset = wn.synset_from_pos_and_offset('n', int(wnid[1:]))
+        return synset.lemmas()[0].name()
+    
+    def get_name(self):
+        return "ImageNet22k"
+
+    def get_data(self, dataset, session, root):
+        all_images = []
+        all_wnids = os.listdir(os.path.join(root, dataset.path))
+        for wnid in all_wnids:
+            all_images = os.listdir(os.path.join(root, dataset.path, wnid))
+            label = self.wnid_to_name(wnid)
+            node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+            node_id = node.id if node else None
+            if not node_id:
+                continue
+            for image in all_images:
+                img = Image(dataset_id=dataset.id,
+                            node_id=node_id,
+                            path=os.path.join(dataset.path, wnid, image))
+                all_images.append(img)
+        return all_images
+
+    def get_conceptnet_id(self, label):
+        if label in SYNSET_TO_CONCEPTNET_ID:
+            return SYNSET_TO_CONCEPTNET_ID[label]
+        else:
+            return super().get_conceptnet_id(label)
 
 
 class COCO2014Installation(ObjectDetectionInstaller):
@@ -284,6 +319,7 @@ if __name__ == "__main__":
     parser.add_argument("--cifar100", type=str, help="Path to CIFAR100 directory from the root")
     parser.add_argument("--mnist", type=str, help="Path to MNIST directory from the root")
     parser.add_argument("--imagenet", type=str, help="Path to ImageNet directory from the root")
+    parser.add_argument("--imagenet22k", type=str, help="Path to ImageNet22k directory from the root")
     parser.add_argument("--coco2014", type=str, help="Path to COCO2014 directory from the root")
     parser.add_argument("--voc2009", type=str, help="Path to voc2009 directory from the root")
     parser.add_argument("--googleopenimage", type=str, help="Path to googleopenimage directory from the root")
@@ -294,41 +330,25 @@ if __name__ == "__main__":
     installer = Installer(args.db)
     if args.conceptnet:
         installer.install_conceptnet(args.conceptnet)
+    if not args.root:
+        raise RuntimeError("Must specify root directory.")
     if args.cifar100:
-        if not args.root:
-            raise RuntimeError("Must specify root directory.")
         installer.install_dataset(args.root, args.cifar100, CifarInstallation())
     if args.mnist:
-        if not args.root:
-            raise RuntimeError("Must specify root directory.")
         installer.install_dataset(args.root, args.mnist, MnistInstallation())
     if args.imagenet:
-        if not args.root:
-            raise RuntimeError("Must specify root directory.")
         installer.install_dataset(args.root, args.imagenet, ImageNetInstallation())
+    if args.imagenet:
+        installer.install_dataset(args.root, args.imagenet22k, ImageNetInstallation())
     if args.coco2014:
-        if not args.root:
-            raise RuntimeError("Must specify root directory.")
         installer.install_dataset(args.root, args.coco2014, COCO2014Installation())
-
     if args.voc2009:
-        if not args.root:
-            raise RuntimeError("Must specify root directory.")
         installer.install_dataset(args.root, args.voc2009, VOC2009Installation())
-
     if args.googleopenimage:
-        if not args.root:
-            raise RuntimeError("Must specify root directory.")
         installer.install_dataset(args.root, args.googleopenimage, GoogleOpenImageInstallation())
-
     if args.domainnet:
-        if not args.root:
-            raise RuntimeError("Must specify root directory.")
         for domain in args.domainnet:
             name = domain.split("-")[1].capitalize()
             installer.install_dataset(args.root, domain, DomainNetInstallation(name))
-
     if args.hmdb:
-        if not args.root:
-            raise RuntimeError("Must specify root directory.")
         installer.install_dataset(args.root, args.hmdb, HMDBInstallation())
