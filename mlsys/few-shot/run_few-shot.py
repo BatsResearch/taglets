@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from taglets.modules.multitask import MultiTaskModule
 from taglets.modules.transfer import TransferModule
 from taglets.task import Task
+from taglets.scads import Scads
 
 from .models import resnet12, resnet18, resnet24
 from .datasets import CIFARFS, MiniImageNet
@@ -178,7 +179,7 @@ def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1,
                     episode_train_dataset,
                     None,
                     None,
-                    scads_path='./predefined/scads.fall2020.sqlite3',
+                    scads_path='./predefined/scads.imagenet22k.sqlite3',
                     scads_embedding_path='./predefined/embeddings/numberbatch-en19.08.txt.gz')
         task.set_initial_model(initial_model)
         
@@ -214,6 +215,8 @@ def main():
     parser.add_argument('--model', type=str, default='resnet12', choices=['resnet12', 'resnet18', 'resnet24'])
     parser.add_argument('--model_path', type=str, help='path to pre-trained model')
     
+    parser.add_argument('--scads_root_path', type=str, default='/users/wpiriyak/data/bats/datasets')
+    
     args = parser.parse_args()
     
     model_dict = {
@@ -247,6 +250,8 @@ def main():
         initial_model.load_state_dict(save_params['model'])
     else:
         initial_model = pre_train(initial_model, train_dataset)
+
+    Scads.set_root_path(args.scads_root_path)
 
     kwargs = {k: v for k, v in vars(args).items() if v is not None}
     acc_list = meta_test(initial_model, module_dict[args.module], test_dataset, **kwargs)
