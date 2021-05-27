@@ -338,7 +338,7 @@ if __name__ == "__main__":
         installer.install_dataset(args.root, args.mnist, MnistInstallation())
     if args.imagenet:
         installer.install_dataset(args.root, args.imagenet, ImageNetInstallation())
-    if args.imagenet:
+    if args.imagenet22k:
         installer.install_dataset(args.root, args.imagenet22k, ImageNetInstallation())
     if args.coco2014:
         installer.install_dataset(args.root, args.coco2014, COCO2014Installation())
