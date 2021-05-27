@@ -324,6 +324,7 @@ if __name__ == "__main__":
     parser.add_argument("--voc2009", type=str, help="Path to voc2009 directory from the root")
     parser.add_argument("--googleopenimage", type=str, help="Path to googleopenimage directory from the root")
     parser.add_argument("--domainnet", nargs="+")
+    parser.add_argument("--hmdb", type=str, help="Path to hmdb directory from the root")
     args = parser.parse_args()
 
     # Install SCADS
