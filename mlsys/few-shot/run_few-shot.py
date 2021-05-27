@@ -127,7 +127,8 @@ def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1,
         if test_dataset.labels[idx] not in data_by_class:
             data_by_class[test_dataset.labels[idx]] = []
         data_by_class[test_dataset.labels[idx]].append(test_dataset.imgs[idx])
-    classes = list(data_by_class.keys())
+    label2word = test_dataset.get_label2word()
+    classes = list(set(label2word.values()))
     n_classes = len(classes)
     
     initial_model.fc = torch.nn.Identity()
