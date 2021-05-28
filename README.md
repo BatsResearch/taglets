@@ -32,6 +32,12 @@ bash setup.sh # The first time after you clone the repo
 ```
 Note that this will install the python packages for you, so you might want to activate a virtual environment before running this.
 
+Next, to config the Accelerate library, run:
+```
+accelerate config
+```
+and answer the questions asked.
+
 Then, go to `dev_config.py`, set the variables (there are default values).  Then, double-check that in `run_jpl.sh` the `--mode=dev`, and launch the system:
 ```
 bash run_jpl.sh

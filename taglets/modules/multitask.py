@@ -1,8 +1,3 @@
-from .module import Module
-from ..data.custom_dataset import CustomImageDataset
-from ..pipeline import Cache, ImageTaglet
-from ..scads import Scads, ScadsEmbedding
-
 import os
 import random
 import torch
@@ -10,6 +5,13 @@ import logging
 import numpy as np
 import torchvision.transforms as transforms
 import torch.nn as nn
+from accelerate import Accelerator
+accelerator = Accelerator()
+
+from .module import Module
+from ..data.custom_dataset import CustomImageDataset
+from ..pipeline import Cache, ImageTaglet
+from ..scads import Scads, ScadsEmbedding
 
 log = logging.getLogger(__name__)
 
@@ -174,27 +176,22 @@ class MultiTaskTaglet(ImageTaglet):
         
         super(MultiTaskTaglet, self).train(train_data, val_data, unlabeled_data)
 
-    def _do_train(self, rank, q, train_data, val_data, unlabeled_data=None):
-        source_sampler = self._get_train_sampler(self.source_data, n_proc=self.n_proc, rank=rank)
-        self.source_data_loader = self._get_dataloader(data=self.source_data, sampler=source_sampler)
+    def _do_train(self, train_data, val_data, unlabeled_data=None):
+        self.source_data_loader = self._get_dataloader(data=self.source_data, sampler=None)
 
         old_batch_size = self.batch_size
         self.batch_size = max(int(old_batch_size/8), 8)
-        super(MultiTaskTaglet, self)._do_train(rank, q, train_data, val_data, unlabeled_data)
+        super(MultiTaskTaglet, self)._do_train(train_data, val_data, unlabeled_data)
         self.batch_size = old_batch_size
 
-    def _train_epoch(self, rank, train_data_loader, unlabeled_train_loader=None):
+    def _train_epoch(self, train_data_loader, unlabeled_train_loader=None):
         self.model.train()
         running_loss = 0
         running_acc = 0
+        total_len = 0
         for source_batch, target_batch in zip(self.source_data_loader, train_data_loader):
             source_inputs, source_labels = source_batch
             target_inputs, target_labels = target_batch
-            if self.use_gpu:
-                source_inputs = source_inputs.cuda(rank)
-                source_labels = source_labels.cuda(rank)
-                target_inputs = target_inputs.cuda(rank)
-                target_labels = target_labels.cuda(rank)
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
@@ -204,19 +201,24 @@ class MultiTaskTaglet(ImageTaglet):
                 target_loss = self.criterion(target_outputs, target_labels)
                 loss = source_loss + target_loss
 
-                loss.backward()
+                accelerator.backward(loss)
                 self.optimizer.step()
+
+            source_outputs = accelerator.gather(source_outputs)
+            source_labels = accelerator.gather(source_labels)
+            target_outputs = accelerator.gather(target_outputs)
+            target_labels = accelerator.gather(target_labels)
 
             running_loss += loss.item()
             running_acc += self._get_train_acc(source_outputs, source_labels)
             running_acc += self._get_train_acc(target_outputs, target_labels)
+            total_len += len(source_labels)
+            total_len += len(target_labels)
 
-        if not len(train_data_loader.dataset):
+        if not len(train_data_loader):
             return 0, 0
 
-        epoch_loss = running_loss / len(train_data_loader.dataset)
-        total_len = len(train_data_loader.dataset)
-        total_len += len(self.source_data_loader.dataset)
+        epoch_loss = running_loss / len(train_data_loader)
         epoch_acc = running_acc.item() / total_len
 
         return epoch_loss, epoch_acc

@@ -1,8 +1,3 @@
-from .data import SoftLabelDataset
-from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
-    RandomModule, DannModule
-from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor
-
 import os
 import logging
 from logging import StreamHandler
@@ -11,9 +6,13 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, ConcatDataset
 import traceback
+from accelerate import Accelerator
+accelerator = Accelerator()
 
-
-
+from .data import SoftLabelDataset
+from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
+    RandomModule, DannModule
+from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
 ####################################################################
 # We configure logging in the main class of the application so that
@@ -26,8 +25,18 @@ logger_ = logging.getLogger()
 logger_.level = logging.INFO
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
 
-stream_handler = logging.StreamHandler(sys.stdout)
-stream_handler.setLevel(logging.DEBUG)
+
+class AccelerateHandler(StreamHandler):
+    def __init__(self, stream):
+        super().__init__(stream)
+    
+    def emit(self, record):
+        if accelerator.is_local_main_process:
+            super().emit(record)
+
+
+stream_handler = AccelerateHandler(sys.stdout)
+stream_handler.setLevel(logging.INFO)
 stream_handler.setFormatter(formatter)
 logger_.addHandler(stream_handler)
 
@@ -42,6 +51,7 @@ if not os.environ.get("CI"):
         def emit(self, record):
             msg = self.format(record)
             self.jpl_logger = logger.log(msg, 'Brown', 0) # For the moment fixed checkpoint
+
 
     jpl_handler = JPLHandler()
     jpl_handler.setLevel(logging.INFO)
