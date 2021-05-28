@@ -9,7 +9,7 @@ class CustomImageDataset(Dataset):
     """
     A custom dataset used to create dataloaders.
     """
-    def __init__(self, filepaths, labels=None, label_map=None, transform=None):
+    def __init__(self, filepaths, labels=None, label_map=None, transform=None, loaded=False):
         """
         Create a new CustomImageDataset.
         
@@ -22,9 +22,13 @@ class CustomImageDataset(Dataset):
         self.labels = labels
         self.label_map = label_map
         self.transform = transform
+        self.loaded = loaded
 
     def __getitem__(self, index):
-        img = Image.open(self.filepaths[index]).convert('RGB')
+        if self.loaded:
+            img = self.filepaths[index]
+        else:
+            img = Image.open(self.filepaths[index]).convert('RGB')
 
         if self.transform is not None:
             img = self.transform(img)

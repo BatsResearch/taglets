@@ -7,13 +7,14 @@ import random
 import scipy
 import sys
 import torch
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader
 
 from taglets.modules.multitask import MultiTaskModule
 from taglets.modules.transfer import TransferModule
 from taglets.task import Task
 from taglets.scads import Scads
 from taglets.task.utils import labels_to_concept_ids
+from taglets.data.custom_dataset import CustomImageDataset
 
 from .models import resnet12, resnet18, resnet24
 from .datasets import CIFARFS, MiniImageNet
@@ -165,14 +166,22 @@ def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1,
             query_xs_ids = np.random.choice(query_xs_ids, n_queries, False)
             query_xs.append(imgs[query_xs_ids])
             query_ys.append([idx] * query_xs_ids.shape[0])
-        channel, height, width = query_xs[0][0].shape
-        support_xs = torch.FloatTensor(support_xs).reshape((-1, channel, height, width))
-        query_xs = torch.FloatTensor(query_xs).reshape((-1, channel, height, width))
-        support_ys = torch.LongTensor(support_ys).reshape(-1)
-        query_ys = torch.LongTensor(query_ys).reshape(-1)
+        height, width, channel = query_xs[0][0].shape
+        support_xs, support_ys, query_xs, query_ys = np.array(support_xs), \
+                                                     np.array(support_ys), \
+                                                     np.array(query_xs), \
+                                                     np.array(query_ys)
+        support_xs = support_xs.reshape((-1, channel, height, width))
+        query_xs = query_xs.reshape((-1, channel, height, width))
+        support_ys = support_ys.reshape(-1)
+        query_ys = query_ys.reshape(-1)
         
-        episode_train_dataset = TensorDataset(support_xs, support_ys)
-        episode_test_dataset = TensorDataset(query_xs, query_ys)
+        episode_train_dataset = CustomImageDataset(support_xs, support_ys,
+                                                   transform=test_dataset.aug_transform,
+                                                   loaded=True)
+        episode_test_dataset = CustomImageDataset(query_xs, query_ys,
+                                                  transform=test_dataset.noaug_transform,
+                                                  loaded=True)
         # ------------------------------------------------------------------------------------
         
         task = Task('name',
