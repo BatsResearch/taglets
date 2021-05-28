@@ -200,7 +200,7 @@ def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1,
         
         acc = taglet.evaluate(episode_test_dataset)
         acc_list.append(acc)
-        m, h = mean_confidence_interval(acc)
+        m, h = mean_confidence_interval(acc_list)
         
         log.info('episode acc: {:.4f}'.format(acc))
         log.info('aggregate 95% interval acc: {} +/- {}'.format(m, h))
