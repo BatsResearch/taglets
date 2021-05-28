@@ -171,8 +171,8 @@ def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1,
                                                      np.array(support_ys), \
                                                      np.array(query_xs), \
                                                      np.array(query_ys)
-        support_xs = support_xs.reshape((-1, channel, height, width))
-        query_xs = query_xs.reshape((-1, channel, height, width))
+        support_xs = support_xs.reshape((-1, height, width, channel))
+        query_xs = query_xs.reshape((-1, height, width, channel))
         support_ys = support_ys.reshape(-1)
         query_ys = query_ys.reshape(-1)
         
@@ -196,7 +196,7 @@ def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1,
         
         taglet_module = training_module(task)
         taglet_module.train_taglets(episode_train_dataset, None, None)
-        taglet = taglet_module.get_valid_taglets()
+        taglet = taglet_module.get_valid_taglets()[0]
         
         acc = taglet.evaluate(episode_test_dataset)
         acc_list.append(acc)
