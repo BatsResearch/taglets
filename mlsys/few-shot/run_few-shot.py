@@ -195,6 +195,10 @@ def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1,
         task.set_initial_model(initial_model)
         
         taglet_module = training_module(task)
+        random.seed(episode)
+        np.random.seed(episode)
+        torch.manual_seed(episode)
+        torch.cuda.manual_seed(episode)
         taglet_module.train_taglets(episode_train_dataset, None, None)
         taglet = taglet_module.get_valid_taglets()[0]
         
