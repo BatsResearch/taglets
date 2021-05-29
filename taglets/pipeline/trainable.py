@@ -39,7 +39,7 @@ class Trainable:
         self.unlabeled_batch_size = self.batch_size
 
         n_gpu = torch.cuda.device_count()
-        self.n_proc = n_gpu
+        self.n_proc = n_gpu if n_gpu > 0 else max(1, mp.cpu_count() - 1)
         self.num_workers = min(max(0, mp.cpu_count() // self.n_proc - 1), 2)
 
         self.model = task.get_initial_model()
@@ -73,12 +73,12 @@ class Trainable:
         correct = (np.argmax(outputs, 1) == labels).sum()
         return correct / outputs.shape[0]
 
-    def _get_dataloader(self, data, sampler, batch_size=None):
+    def _get_dataloader(self, data, shuffle, batch_size=None):
         if batch_size is None:
             batch_size = self.batch_size
         return accelerator.prepare(torch.utils.data.DataLoader(
             dataset=data, batch_size=batch_size, shuffle=False,
-            num_workers=self.num_workers, pin_memory=True, sampler=sampler
+            num_workers=self.num_workers, pin_memory=True
         ))
 
     def _get_pred_classifier(self):
@@ -129,18 +129,18 @@ class Trainable:
         :return:
         """
         log.info('Beginning training')
-        train_data_loader = self._get_dataloader(data=train_data, sampler=None)
+        train_data_loader = self._get_dataloader(data=train_data, shuffle=True)
 
         if val_data is None:
             val_data_loader = None
         else:
-            val_data_loader = self._get_dataloader(data=val_data, sampler=None)
+            val_data_loader = self._get_dataloader(data=val_data, shuffle=False)
 
         if unlabeled_data is None:
             unlabeled_data_loader = None
         else:
             unlabeled_data_loader = self._get_dataloader(data=unlabeled_data,
-                                                         sampler=None,
+                                                         shuffle=True,
                                                          batch_size=self.unlabeled_batch_size)
         # Initializes statistics containers (will only be filled by lead process)
         best_model_to_save = None

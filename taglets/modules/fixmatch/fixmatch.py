@@ -309,7 +309,7 @@ class FixMatchTaglet(ImageTaglet):
                """
         log.info('Beginning training')
 
-        train_data_loader = self._get_dataloader(data=train_data, sampler=None,
+        train_data_loader = self._get_dataloader(data=train_data, shuffle=True,
                                                  batch_size=self.batch_size)
 
         if not self.use_scads:
@@ -317,7 +317,7 @@ class FixMatchTaglet(ImageTaglet):
             self.unlabeled_batch_size = min(self.unlabeled_batch_size, len(unlabeled_data))
 
             unlabeled_data_loader = self._get_dataloader(data=unlabeled_data,
-                                                         sampler=None,
+                                                         shuffle=True,
                                                          batch_size=self.unlabeled_batch_size)
 
             if self.steps_per_epoch == -1:
@@ -335,7 +335,7 @@ class FixMatchTaglet(ImageTaglet):
         if val_data is None:
             val_data_loader = None
         else:
-            val_data_loader = self._get_dataloader(data=val_data, sampler=None,
+            val_data_loader = self._get_dataloader(data=val_data, shuffle=False,
                                                    batch_size=self.batch_size)
 
         # Initializes statistics containers (will only be filled by lead process)
