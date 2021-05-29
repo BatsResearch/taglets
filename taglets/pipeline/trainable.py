@@ -39,7 +39,7 @@ class Trainable:
         self.unlabeled_batch_size = self.batch_size
 
         n_gpu = torch.cuda.device_count()
-        self.n_proc = n_gpu
+        self.n_proc = n_gpu if n_gpu > 0 else max(1, mp.cpu_count() - 1)
         self.num_workers = min(max(0, mp.cpu_count() // self.n_proc - 1), 2)
 
         self.model = task.get_initial_model()
