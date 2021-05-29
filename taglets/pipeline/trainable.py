@@ -77,7 +77,7 @@ class Trainable:
         if batch_size is None:
             batch_size = self.batch_size
         return accelerator.prepare(torch.utils.data.DataLoader(
-            dataset=data, batch_size=batch_size, shuffle=False,
+            dataset=data, batch_size=batch_size, shuffle=shuffle,
             num_workers=self.num_workers, pin_memory=True
         ))
 
