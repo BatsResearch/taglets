@@ -177,7 +177,7 @@ class MultiTaskTaglet(ImageTaglet):
         super(MultiTaskTaglet, self).train(train_data, val_data, unlabeled_data)
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):
-        self.source_data_loader = self._get_dataloader(data=self.source_data, sampler=None)
+        self.source_data_loader = self._get_dataloader(data=self.source_data, shuffle=True)
 
         old_batch_size = self.batch_size
         self.batch_size = max(int(old_batch_size/8), 8)
