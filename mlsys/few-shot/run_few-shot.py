@@ -129,7 +129,7 @@ def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1,
             data_by_class[test_dataset.labels[idx]] = []
         data_by_class[test_dataset.labels[idx]].append(test_dataset.imgs[idx])
     label2word = test_dataset.get_label2word()
-    classes = list(set(label2word.values()))
+    classes = np.asarray(list(set(label2word.values())))
     n_classes = len(classes)
     
     initial_model.fc = torch.nn.Identity()
@@ -185,7 +185,7 @@ def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1,
         # ------------------------------------------------------------------------------------
         
         task = Task('name',
-                    labels_to_concept_ids(classes),
+                    labels_to_concept_ids(classes[cls_sampled]),
                     (height, width),
                     episode_train_dataset,
                     None,
