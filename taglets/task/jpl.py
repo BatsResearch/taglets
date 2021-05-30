@@ -213,20 +213,20 @@ class JPL:
     def post_only_once(self, command, headers, posting_json):
         if accelerator.is_local_main_process:
             r = requests.post(self.url + "/" + command, json=posting_json, headers=headers)
-            with open(os.path.join(self.saved_api_response_dir, command + "_response.json"), "w") as f:
+            with open(os.path.join(self.saved_api_response_dir, command.replace("/", "_") + "_response.json"), "w") as f:
                 json.dump(r.json(), f)
         accelerator.wait_for_everyone()
-        with open(os.path.join(self.saved_api_response_dir, command + "_response.json"), "r") as f:
+        with open(os.path.join(self.saved_api_response_dir, command.replace("/", "_") + "_response.json"), "r") as f:
             response = json.load(f)
         return response
     
     def get_only_once(self, command, headers):
         if accelerator.is_local_main_process:
             r = requests.get(self.url + "/" + command, headers=headers)
-            with open(os.path.join(self.saved_api_response_dir, command + "_response.json"), "w") as f:
+            with open(os.path.join(self.saved_api_response_dir, command.replace("/", "_") + "_response.json"), "w") as f:
                 json.dump(r.json(), f)
         accelerator.wait_for_everyone()
-        with open(os.path.join(self.saved_api_response_dir, command + "_response.json"), "r") as f:
+        with open(os.path.join(self.saved_api_response_dir, command.replace("/", "_") + "_response.json"), "r") as f:
             response = json.load(f)
         return response
     
