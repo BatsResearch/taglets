@@ -1,20 +1,19 @@
 import os
-import sys
 import time
 import logging
 import argparse
+import json
 import requests
-import linecache
 from pathlib import Path
 
+from accelerate import Accelerator
+accelerator = Accelerator()
 import torch
 import numpy as np
 import pandas as pd
 import torchvision.models as models
 import torchvision.transforms as transforms
 
-if not os.environ.get("CI"):
-    import logger
 from ..task import Task
 from ..data import CustomImageDataset, CustomVideoDataset
 from ..controller import Controller
@@ -46,6 +45,7 @@ class JPL:
         self.url = api_url 
         self.session_token = ''
         self.data_type = dataset_type
+        self.saved_api_response_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saved_api_response')
 
     def get_available_tasks(self, problem_type):
         """
@@ -86,13 +86,11 @@ class JPL:
         """
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret}
+        session_json = {'session_name': 'testing', 'data_type': self.data_type, 'task_id': task_name}
+        
+        response = self.post_only_once("auth/create_session", headers, session_json)
 
-        # r = requests.get(self.url + "/auth/get_session_token/" + self.data_type + "/" + task_name, headers=headers)
-        r = requests.post(self.url + "/auth/create_session",
-                          json={'session_name': 'testing', 'data_type': self.data_type, 'task_id': task_name},
-                          headers=headers)
-
-        session_token = r.json()['session_token']
+        session_token = response['session_token']
         self.session_token = session_token
 
     def get_session_status(self):
@@ -119,11 +117,9 @@ class JPL:
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
-        log.info(f"HEADERS: {headers}")
-        r = requests.get(self.url + "/seed_labels", headers=headers)
-        #log.info(f"JSON REQUEST: {r.json()}")
-        labels = r.json()['Labels']
-        #log.debug(f"NUM OF NEW RAW RETRIEVED LABELS: {len(labels)}")
+        log.debug(f"HEADERS: {headers}")
+        response = self.get_only_once("seed_labels", headers)
+        labels = response['Labels']
 
         if video:
             seed_labels = []
@@ -141,15 +137,14 @@ class JPL:
             return seed_labels, None
 
     def deactivate_session(self, deactivate_session):
-
-        headers_active_session = {'user_secret': self.team_secret,
-                                  'govteam_secret': self.gov_team_secret,
-                                  'session_token': self.session_token}
-
-        r = requests.post(self.url + "/deactivate_session",
-                          json={'session_token': deactivate_session},
-                          headers=headers_active_session)
-        r.json()
+        if accelerator.is_local_main_process:
+            headers_active_session = {'user_secret': self.team_secret,
+                                      'govteam_secret': self.gov_team_secret,
+                                      'session_token': self.session_token}
+    
+            r = requests.post(self.url + "/deactivate_session",
+                              json={'session_token': deactivate_session},
+                              headers=headers_active_session)
 
     def request_label(self, query, video=False):
         """
@@ -169,12 +164,12 @@ class JPL:
         For example:
          [['7','56392.png'], ['8','3211.png'], ['4','19952.png']]
         """
+        log.debug(f"Query for new labels: {type(query['example_ids'][0])}")
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
-        log.debug(f"Query for new labels: {type(query['example_ids'][0])}")
-        r = requests.post(self.url + "/query_labels", json=query, headers=headers)
-        labels = r.json()['Labels']
+        response = self.post_only_once("query_labels", headers, query)
+        labels = response['Labels']
         log.debug(f"NUM OF NEW RAW RETRIEVED LABELS: {len(labels)}")
 
         if video:
@@ -201,15 +196,13 @@ class JPL:
                        'label': ['9', '6', '9', '2', '10']}
         :return: The session status after submitting prediction
         """
-
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
-        r = requests.post(self.url + "/submit_predictions", json={'predictions': predictions}, headers=headers)
-        return r.json()
-
+        predictions_json={'predictions': predictions}
+        return self.post_only_once('submit_predictions', headers, predictions_json)
+        
     def deactivate_all_sessions(self):
-
         headers_session = {'user_secret': self.team_secret,
                            'govteam_secret': self.gov_team_secret}
         r = requests.get(self.url + "/list_active_sessions", headers=headers_session)
@@ -217,6 +210,25 @@ class JPL:
         for session_token in active_sessions:
             self.deactivate_session(session_token)
 
+    def post_only_once(self, command, headers, posting_json):
+        if accelerator.is_local_main_process:
+            r = requests.post(self.url + "/" + command, json=posting_json, headers=headers)
+            with open(os.path.join(self.saved_api_response_dir, command + "_response.json"), "w") as f:
+                json.dump(r.json(), f)
+        accelerator.wait_for_everyone()
+        with open(os.path.join(self.saved_api_response_dir, command + "_response.json"), "r") as f:
+            response = json.load(f)
+        return response
+    
+    def get_only_once(self, command, headers):
+        if accelerator.is_local_main_process:
+            r = requests.get(self.url + "/" + command, headers=headers)
+            with open(os.path.join(self.saved_api_response_dir, command + "_response.json"), "w") as f:
+                json.dump(r.json(), f)
+        accelerator.wait_for_everyone()
+        with open(os.path.join(self.saved_api_response_dir, command + "_response.json"), "r") as f:
+            response = json.load(f)
+        return response
     
 class JPLStorage:
     def __init__(self, task_name, metadata):
@@ -787,6 +799,11 @@ def main():
         variables = setup_development()
 
     Scads.set_root_path(os.path.join(variables[2], 'external'))
+    
+    saved_api_response_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saved_api_response')
+    if not os.path.exists(saved_api_response_dir) and accelerator.is_local_main_process:
+        os.makedirs(saved_api_response_dir)
+    accelerator.wait_for_everyone()
     
     dataset_type = variables[0]
     problem_type = variables[1]
