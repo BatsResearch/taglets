@@ -348,6 +348,12 @@ class ImageTrainable(Trainable):
         outputs = torch.cat(outputs).cpu().detach().numpy()
         if len(labels) > 0:
             labels = torch.cat(labels).cpu().detach().numpy()
+            
+        # Accelerate pads the dataset if its length is not divisible by the "actual" batch size
+        # so we need to remove the extra elements
+        dataset_len = len(data_loader.dataset)
+        outputs = outputs[:dataset_len]
+        labels = labels[:dataset_len]
         
         return outputs, labels
         
