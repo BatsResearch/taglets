@@ -253,6 +253,8 @@ class ZSLKGTaglet(ImageTaglet):
         be called during normal TAGLETS execution.
         """
         
+        # Note: This function is not using accelerate yet
+        
         log.debug("fc id to graph id mapping")
         mapping_path = os.path.join(self.imagenet_graph_path, 'mapping.json')
         mapping = json.load(open(mapping_path))

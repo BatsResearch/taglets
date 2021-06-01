@@ -283,14 +283,14 @@ class DannTaglet(ImageTaglet):
             source_classes = accelerator.gather(source_classes.detach())
             source_labels = accelerator.gather(source_labels)
 
-            running_loss += loss.item()
-            running_acc += self._get_train_acc(source_classes, source_labels)
+            running_loss += torch.mean(accelerator.gather(loss.detach())).item()
+            running_acc += self._get_train_acc(source_classes, source_labels).item()
             total_len += len(source_labels)
         self.epoch += 1
         if not len(train_data_loader.dataset):
             return 0, 0
 
-        epoch_loss = running_loss / len(train_data_loader.dataset)
-        epoch_acc = running_acc.item() / total_len
+        epoch_loss = running_loss / len(train_data_loader)
+        epoch_acc = running_acc / total_len
 
         return epoch_loss, epoch_acc

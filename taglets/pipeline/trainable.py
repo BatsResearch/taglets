@@ -287,15 +287,15 @@ class ImageTrainable(Trainable):
             outputs = accelerator.gather(outputs.detach())
             labels = accelerator.gather(labels)
 
-            running_loss += loss.item()
-            running_acc += self._get_train_acc(outputs, labels)
+            running_loss += torch.mean(accelerator.gather(loss.detach())).item()
+            running_acc += self._get_train_acc(outputs, labels).item()
             total_len += len(labels)
 
         if not len(train_data_loader):
             return 0, 0
 
         epoch_loss = running_loss / len(train_data_loader)
-        epoch_acc = running_acc.item() / total_len
+        epoch_acc = running_acc / total_len
 
         return epoch_loss, epoch_acc
     
@@ -321,12 +321,12 @@ class ImageTrainable(Trainable):
             preds = accelerator.gather(preds.detach())
             labels = accelerator.gather(labels)
 
-            running_loss += loss.item()
-            running_acc += torch.sum(preds == labels)
+            running_loss += torch.mean(accelerator.gather(loss.detach())).item()
+            running_acc += torch.sum(preds == labels).item()
             total_len += len(labels)
 
         epoch_loss = running_loss / len(val_data_loader)
-        epoch_acc = running_acc.item() / total_len
+        epoch_acc = running_acc / total_len
 
         return epoch_loss, epoch_acc
     
