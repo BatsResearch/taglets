@@ -40,7 +40,7 @@ class Trainable:
 
         n_gpu = torch.cuda.device_count()
         self.n_proc = n_gpu if n_gpu > 0 else max(1, mp.cpu_count() - 1)
-        self.num_workers = min(max(0, mp.cpu_count() // self.n_proc - 1), 2)
+        self.num_workers = min(max(0, mp.cpu_count() // self.n_proc - 1), 2) if not os.environ.get("CI") else 0
 
         self.model = task.get_initial_model()
 
