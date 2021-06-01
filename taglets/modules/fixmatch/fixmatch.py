@@ -479,7 +479,7 @@ class FixMatchTaglet(ImageTaglet):
             if self.use_ema:
                 self.ema_model.update(self.model)
 
-            logits_x = accelerator.gather(logits_x)
+            logits_x = accelerator.gather(logits_x.detach())
             labels = accelerator.gather(labels)
 
             running_loss += loss.item()
@@ -509,7 +509,7 @@ class FixMatchTaglet(ImageTaglet):
                 loss = torch.nn.functional.cross_entropy(outputs, labels)
                 _, preds = torch.max(outputs, 1)
 
-            preds = accelerator.gather(preds)
+            preds = accelerator.gather(preds.detach())
             labels = accelerator.gather(labels)
 
             running_loss += loss.item()

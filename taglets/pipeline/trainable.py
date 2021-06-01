@@ -284,7 +284,7 @@ class ImageTrainable(Trainable):
                 accelerator.backward(loss)
                 self.optimizer.step()
 
-            outputs = accelerator.gather(outputs)
+            outputs = accelerator.gather(outputs.detach())
             labels = accelerator.gather(labels)
 
             running_loss += loss.item()
@@ -318,7 +318,7 @@ class ImageTrainable(Trainable):
                 loss = torch.nn.functional.cross_entropy(outputs, labels)
                 _, preds = torch.max(outputs, 1)
             
-            preds = accelerator.gather(preds)
+            preds = accelerator.gather(preds.detach())
             labels = accelerator.gather(labels)
 
             running_loss += loss.item()
@@ -341,13 +341,13 @@ class ImageTrainable(Trainable):
             
             with torch.set_grad_enabled(False):
                 output = pred_classifier(inputs)
-                outputs.append(torch.nn.functional.softmax(accelerator.gather(output), 1))
+                outputs.append(torch.nn.functional.softmax(accelerator.gather(output.detach()).cpu(), 1))
                 if targets is not None:
-                    labels.append(accelerator.gather(targets))
+                    labels.append(accelerator.gather(targets.detach()).cpu())
         
-        outputs = torch.cat(outputs).cpu().detach().numpy()
+        outputs = torch.cat(outputs).numpy()
         if len(labels) > 0:
-            labels = torch.cat(labels).cpu().detach().numpy()
+            labels = torch.cat(labels).numpy()
             
         # Accelerate pads the dataset if its length is not divisible by the "actual" batch size
         # so we need to remove the extra elements

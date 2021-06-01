@@ -204,9 +204,9 @@ class MultiTaskTaglet(ImageTaglet):
                 accelerator.backward(loss)
                 self.optimizer.step()
 
-            source_outputs = accelerator.gather(source_outputs)
+            source_outputs = accelerator.gather(source_outputs.detach())
             source_labels = accelerator.gather(source_labels)
-            target_outputs = accelerator.gather(target_outputs)
+            target_outputs = accelerator.gather(target_outputs.detach())
             target_labels = accelerator.gather(target_labels)
 
             running_loss += loss.item()
