@@ -287,7 +287,7 @@ class ImageTrainable(Trainable):
             outputs = accelerator.gather(outputs.detach())
             labels = accelerator.gather(labels)
 
-            running_loss += torch.mean(accelerator.gather(loss.detach())).item()
+            running_loss += loss.item()
             running_acc += self._get_train_acc(outputs, labels).item()
             total_len += len(labels)
 
@@ -321,7 +321,7 @@ class ImageTrainable(Trainable):
             preds = accelerator.gather(preds.detach())
             labels = accelerator.gather(labels)
 
-            running_loss += torch.mean(accelerator.gather(loss.detach())).item()
+            running_loss += loss.item()
             running_acc += torch.sum(preds == labels).item()
             total_len += len(labels)
 
@@ -387,7 +387,7 @@ class VideoTrainable(Trainable):
             aggregated_outputs = accelerator.gather(aggregated_outputs.detach())
             labels = accelerator.gather(labels)
             
-            running_loss += torch.mean(accelerator.gather(loss.detach())).item()
+            running_loss += loss.item()
             running_acc += self._get_train_acc(aggregated_outputs, labels).item()
         
         if not len(train_data_loader.dataset):
@@ -424,7 +424,7 @@ class VideoTrainable(Trainable):
             preds  = accelerator.gather(preds.detach())
             labels = accelerator.gather(labels)
 
-            running_loss += torch.mean(accelerator.gather(loss.detach())).item()
+            running_loss += loss.item()
             running_acc += torch.sum(preds == labels).item()
         
         epoch_loss = running_loss / len(val_data_loader.dataset)

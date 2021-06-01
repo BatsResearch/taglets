@@ -482,7 +482,7 @@ class FixMatchTaglet(ImageTaglet):
             logits_x = accelerator.gather(logits_x.detach())
             labels = accelerator.gather(labels)
 
-            running_loss += torch.mean(accelerator.gather(loss.detach())).item()
+            running_loss += loss.item()
             running_acc += self._get_train_acc(logits_x, labels).item()
             acc_count += len(labels)
 
@@ -512,7 +512,7 @@ class FixMatchTaglet(ImageTaglet):
             preds = accelerator.gather(preds.detach())
             labels = accelerator.gather(labels)
 
-            running_loss += torch.mean(accelerator.gather(loss.detach())).item()
+            running_loss += loss.item()
             running_acc += torch.sum(preds == labels).item()
 
         epoch_loss = running_loss / len(val_data_loader.dataset)

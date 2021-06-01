@@ -209,7 +209,7 @@ class MultiTaskTaglet(ImageTaglet):
             target_outputs = accelerator.gather(target_outputs.detach())
             target_labels = accelerator.gather(target_labels)
 
-            running_loss += torch.mean(accelerator.gather(loss.detach())).item()
+            running_loss += loss.item()
             running_acc += self._get_train_acc(source_outputs, source_labels).item()
             running_acc += self._get_train_acc(target_outputs, target_labels).item()
             total_len += len(source_labels)
