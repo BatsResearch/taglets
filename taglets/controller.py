@@ -49,8 +49,9 @@ if not os.environ.get("CI"):
             StreamHandler.__init__(self)
 
         def emit(self, record):
-            msg = self.format(record)
-            self.jpl_logger = logger.log(msg, 'Brown', 0) # For the moment fixed checkpoint
+            if accelerator.is_local_main_process:
+                msg = self.format(record)
+                self.jpl_logger = logger.log(msg, 'Brown', 0) # For the moment fixed checkpoint
 
 
     jpl_handler = JPLHandler()

@@ -479,15 +479,15 @@ class FixMatchTaglet(ImageTaglet):
             if self.use_ema:
                 self.ema_model.update(self.model)
 
-            logits_x = accelerator.gather(logits_x)
+            logits_x = accelerator.gather(logits_x.detach())
             labels = accelerator.gather(labels)
 
             running_loss += loss.item()
-            running_acc += self._get_train_acc(logits_x, labels)
+            running_acc += self._get_train_acc(logits_x, labels).item()
             acc_count += len(labels)
 
         epoch_loss = running_loss / self.steps_per_epoch
-        epoch_acc = running_acc.item() / acc_count
+        epoch_acc = running_acc / acc_count
         return epoch_loss, epoch_acc
 
     def _validate_epoch(self, val_data_loader):
@@ -509,12 +509,12 @@ class FixMatchTaglet(ImageTaglet):
                 loss = torch.nn.functional.cross_entropy(outputs, labels)
                 _, preds = torch.max(outputs, 1)
 
-            preds = accelerator.gather(preds)
+            preds = accelerator.gather(preds.detach())
             labels = accelerator.gather(labels)
 
             running_loss += loss.item()
-            running_acc += torch.sum(preds == labels)
+            running_acc += torch.sum(preds == labels).item()
 
         epoch_loss = running_loss / len(val_data_loader.dataset)
-        epoch_acc = running_acc.item() / len(val_data_loader.dataset)
+        epoch_acc = running_acc / len(val_data_loader.dataset)
         return epoch_loss, epoch_acc

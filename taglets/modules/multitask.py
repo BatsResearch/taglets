@@ -204,14 +204,14 @@ class MultiTaskTaglet(ImageTaglet):
                 accelerator.backward(loss)
                 self.optimizer.step()
 
-            source_outputs = accelerator.gather(source_outputs)
+            source_outputs = accelerator.gather(source_outputs.detach())
             source_labels = accelerator.gather(source_labels)
-            target_outputs = accelerator.gather(target_outputs)
+            target_outputs = accelerator.gather(target_outputs.detach())
             target_labels = accelerator.gather(target_labels)
 
             running_loss += loss.item()
-            running_acc += self._get_train_acc(source_outputs, source_labels)
-            running_acc += self._get_train_acc(target_outputs, target_labels)
+            running_acc += self._get_train_acc(source_outputs, source_labels).item()
+            running_acc += self._get_train_acc(target_outputs, target_labels).item()
             total_len += len(source_labels)
             total_len += len(target_labels)
 
@@ -219,6 +219,6 @@ class MultiTaskTaglet(ImageTaglet):
             return 0, 0
 
         epoch_loss = running_loss / len(train_data_loader)
-        epoch_acc = running_acc.item() / total_len
+        epoch_acc = running_acc / total_len
 
         return epoch_loss, epoch_acc

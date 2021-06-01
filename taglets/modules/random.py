@@ -1,6 +1,8 @@
 from .module import Module
 from ..pipeline import ImageTaglet
 
+from accelerate import Accelerator
+accelerator = Accelerator()
 import logging
 import numpy as np
 import torch
@@ -26,14 +28,11 @@ class RandomTaglet(ImageTaglet):
         if len(data) == 0:
             raise ValueError('Should not get an empty dataset')
         if isinstance(data[0], tuple):
-            data_loader = torch.utils.data.DataLoader(
-                dataset=data, batch_size=self.batch_size, shuffle=False,
-                num_workers=self.num_workers, pin_memory=True
-            )
+            data_loader = self._get_dataloader(data, False)
             labels = []
             for batch in data_loader:
                 inputs, targets = batch
-                labels.append(targets)
+                labels.append(accelerator.gather(targets).cpu())
             labels = torch.cat(labels).numpy()
             return np.random.rand(len(data), len(self.task.classes)), labels
         else:

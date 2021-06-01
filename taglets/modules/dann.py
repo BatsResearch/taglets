@@ -3,6 +3,8 @@ from ..data.custom_dataset import CustomImageDataset
 from ..pipeline import Cache, ImageTaglet
 from ..scads import Scads, ScadsEmbedding
 
+from accelerate import Accelerator
+accelerator = Accelerator()
 import os
 import random
 import torch
@@ -218,38 +220,37 @@ class DannTaglet(ImageTaglet):
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
-    def _do_train(self, rank, q, train_data, val_data, unlabeled_data=None):
+    def _do_train(self, train_data, val_data, unlabeled_data=None):
         # batch_size = min(len(train_data) // num_batches, 256)
         if self.training_first_stage:
             old_batch_size = self.batch_size
             # Memory bottleneck if batch size is too large
             self.batch_size = max(int(old_batch_size/8), 8) if not os.environ.get("CI") else 32
-            source_sampler = self._get_train_sampler(self.source_data, n_proc=self.n_proc, rank=rank)
-            self.source_data_loader = self._get_dataloader(data=self.source_data, sampler=source_sampler)
+            self.source_data_loader = self._get_dataloader(data=self.source_data, shuffle=True)
             self.batch_size = old_batch_size
         old_batch_size = self.batch_size
         self.batch_size = max(int(old_batch_size/8), 8)
-        super(DannTaglet, self)._do_train(rank, q, train_data, val_data, unlabeled_data)
+        super(DannTaglet, self)._do_train(train_data, val_data, unlabeled_data)
         self.batch_size = old_batch_size
 
-    def _train_epoch(self, rank, train_data_loader, unlabeled_data=None):
+    def _train_epoch(self, train_data_loader, unlabeled_data_loader=None):
         if self.training_first_stage:
-            return self._adapt(rank, train_data_loader, unlabeled_data)
-        return super(DannTaglet, self)._train_epoch(rank, train_data_loader, unlabeled_data)
+            return self._adapt(train_data_loader, unlabeled_data_loader)
+        return super(DannTaglet, self)._train_epoch(train_data_loader, unlabeled_data_loader)
 
-    def _adapt(self, rank, train_data_loader, unlabeled_data):
+    def _adapt(self, train_data_loader, unlabeled_data_loader):
         self.model.train()
         running_loss = 0
         running_acc = 0
         total_len = 0
-        if unlabeled_data:
-            data = zip(self.source_data_loader, train_data_loader, unlabeled_data)
-            dataloader_len = min(len(self.source_data_loader), len(train_data_loader), len(unlabeled_data))
+        if unlabeled_data_loader:
+            data_loader = zip(self.source_data_loader, train_data_loader, unlabeled_data_loader)
+            dataloader_len = min(len(self.source_data_loader), len(train_data_loader), len(unlabeled_data_loader))
         else:
-            data = zip(self.source_data_loader, train_data_loader)
+            data_loader = zip(self.source_data_loader, train_data_loader)
             dataloader_len = min(len(self.source_data_loader), len(train_data_loader))
         iteration = 0
-        for source_batch, target_batch, unlabeled_inputs in data:
+        for source_batch, target_batch, unlabeled_inputs in data_loader:
             p = (iteration + self.epoch * dataloader_len) / (self.num_epochs * dataloader_len)
             alpha = 2 / (1 + np.exp(-10 * p)) - 1
             iteration += 1
@@ -257,18 +258,8 @@ class DannTaglet(ImageTaglet):
             target_inputs, target_labels = target_batch
             zeros = torch.zeros(len(source_inputs), dtype=torch.long)
             ones = torch.ones(len(target_inputs), dtype=torch.long)
-            if unlabeled_data:
+            if unlabeled_data_loader:
                 unlabeled_ones = torch.zeros(len(unlabeled_inputs), dtype=torch.long)
-            if self.use_gpu:
-                source_inputs = source_inputs.cuda(rank)
-                source_labels = source_labels.cuda(rank)
-                target_inputs = target_inputs.cuda(rank)
-                target_labels = target_labels.cuda(rank)
-                zeros = zeros.cuda(rank)
-                ones = ones.cuda(rank)
-                if unlabeled_data:
-                    unlabeled_inputs = unlabeled_inputs.cuda(rank)
-                    unlabeled_ones = unlabeled_ones.cuda(rank)
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
@@ -286,17 +277,20 @@ class DannTaglet(ImageTaglet):
                     target_domain_loss += self.criterion(unlabeled_target_domains, unlabeled_ones)
                 loss = source_class_loss + target_class_loss + source_domain_loss + target_domain_loss
 
-                loss.backward()
+                accelerator.backward(loss)
                 self.optimizer.step()
 
+            source_classes = accelerator.gather(source_classes.detach())
+            source_labels = accelerator.gather(source_labels)
+
             running_loss += loss.item()
-            running_acc += self._get_train_acc(source_classes, source_labels)
+            running_acc += self._get_train_acc(source_classes, source_labels).item()
             total_len += len(source_labels)
         self.epoch += 1
         if not len(train_data_loader.dataset):
             return 0, 0
 
-        epoch_loss = running_loss / len(train_data_loader.dataset)
-        epoch_acc = running_acc.item() / total_len
+        epoch_loss = running_loss / len(train_data_loader)
+        epoch_acc = running_acc / total_len
 
         return epoch_loss, epoch_acc
