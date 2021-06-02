@@ -26,5 +26,5 @@ install:
 
 script:
   - export PYTHONPATH=".:$PYTHONPATH"
-  - accelerate launch ./run_unittest.py
+  - accelerate launch --config_file ./accelerate_unittest_config.yml ./run_unittest.py
 
