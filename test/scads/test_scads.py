@@ -1,5 +1,9 @@
 import unittest
 import os
+
+from accelerate import Accelerator
+accelerator = Accelerator()
+
 from taglets.scads import Scads
 from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation, ImageNetInstallation, COCO2014Installation, GoogleOpenImageInstallation, VOC2009Installation, DomainNetInstallation, HMDBInstallation
 
@@ -21,17 +25,18 @@ class TestSCADS(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        installer = Installer(DB_PATH)
-        installer.install_conceptnet(CONCEPTNET_PATH)
-        installer.install_dataset(ROOT, CIFAR_PATH, CifarInstallation())
-        installer.install_dataset(ROOT, MNIST_PATH, MnistInstallation())
-        installer.install_dataset(ROOT, IMAGENET_PATH, ImageNetInstallation())
-        installer.install_dataset(ROOT, COCO2014_PATH, COCO2014Installation())
-        installer.install_dataset(ROOT, GOOGLE_OPEN_IMAGE_PATH, GoogleOpenImageInstallation())
-        installer.install_dataset(ROOT, VOC2009_PATH, VOC2009Installation())
-        installer.install_dataset(ROOT, domainnet_PATH, DomainNetInstallation('clipart'))
-        installer.install_dataset(ROOT, hmdb_PATH, HMDBInstallation())
-
+        if accelerator.is_local_main_process:
+            installer = Installer(DB_PATH)
+            installer.install_conceptnet(CONCEPTNET_PATH)
+            installer.install_dataset(ROOT, CIFAR_PATH, CifarInstallation())
+            installer.install_dataset(ROOT, MNIST_PATH, MnistInstallation())
+            installer.install_dataset(ROOT, IMAGENET_PATH, ImageNetInstallation())
+            installer.install_dataset(ROOT, COCO2014_PATH, COCO2014Installation())
+            installer.install_dataset(ROOT, GOOGLE_OPEN_IMAGE_PATH, GoogleOpenImageInstallation())
+            installer.install_dataset(ROOT, VOC2009_PATH, VOC2009Installation())
+            installer.install_dataset(ROOT, domainnet_PATH, DomainNetInstallation('clipart'))
+            installer.install_dataset(ROOT, hmdb_PATH, HMDBInstallation())
+        accelerator.wait_for_everyone()
         Scads.open(DB_PATH)
 
     def test_invalid_conceptnet_id(self):

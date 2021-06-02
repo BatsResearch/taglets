@@ -13,6 +13,8 @@ from torchvision import transforms
 from torchvision.datasets import MNIST
 from torchvision.models.resnet import ResNet, BasicBlock
 import unittest
+from accelerate import Accelerator
+accelerator = Accelerator()
 
 
 MNIST.resources = [
@@ -87,31 +89,33 @@ class TestController(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Set Up Scads
-        if os.path.isfile(DB_PATH):
-            os.remove(DB_PATH)
-        installer = Installer(DB_PATH)
-        installer.install_conceptnet(CONCEPTNET_PATH)
-        installer.install_dataset(TEST_DATA, MNIST_PATH, MnistInstallation())
-
-        # Build ScadsEmbedding File
-        arr = []
-        for i in range(10):
-            l = [0.0] * 10
-            l[i] = 1.0
-            arr.append(l)
-        arr = np.asarray(arr)
-        label_list = ['/c/en/zero',
-                      '/c/en/one',
-                      '/c/en/two',
-                      '/c/en/three',
-                      '/c/en/four',
-                      '/c/en/five',
-                      '/c/en/six',
-                      '/c/en/seven',
-                      '/c/en/eight',
-                      '/c/en/nine']
-        df = pd.DataFrame(arr, index=label_list, dtype='f')
-        df.to_hdf(EMBEDDING_PATH, key='mat', mode='w')
+        if accelerator.is_local_main_process:
+            if os.path.isfile(DB_PATH):
+                os.remove(DB_PATH)
+            installer = Installer(DB_PATH)
+            installer.install_conceptnet(CONCEPTNET_PATH)
+            installer.install_dataset(TEST_DATA, MNIST_PATH, MnistInstallation())
+    
+            # Build ScadsEmbedding File
+            arr = []
+            for i in range(10):
+                l = [0.0] * 10
+                l[i] = 1.0
+                arr.append(l)
+            arr = np.asarray(arr)
+            label_list = ['/c/en/zero',
+                          '/c/en/one',
+                          '/c/en/two',
+                          '/c/en/three',
+                          '/c/en/four',
+                          '/c/en/five',
+                          '/c/en/six',
+                          '/c/en/seven',
+                          '/c/en/eight',
+                          '/c/en/nine']
+            df = pd.DataFrame(arr, index=label_list, dtype='f')
+            df.to_hdf(EMBEDDING_PATH, key='mat', mode='w')
+        accelerator.wait_for_everyone()
 
     def test_mnist(self):
         # Creates task
