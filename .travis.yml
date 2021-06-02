@@ -26,5 +26,5 @@ install:
 
 script:
   - export PYTHONPATH=".:$PYTHONPATH"
-  - python -m unittest discover -s test
+  - accelerate launch ./run_unittest.py
 
