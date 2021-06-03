@@ -1,7 +1,7 @@
 import unittest
 import os
 from taglets.scads import Scads
-from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation, ImageNetInstallation, COCO2014Installation, GoogleOpenImageInstallation, VOC2009Installation, DomainNetInstallation, HMDBInstallation, UCF101Installation
+from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation, ImageNetInstallation, COCO2014Installation, GoogleOpenImageInstallation, VOC2009Installation, DomainNetInstallation, HMDBInstallation, UCF101Installation, MarsSurfaceInstallation, MslCuriosityInstallation
 
 ROOT = os.path.dirname(os.path.realpath(__file__))
 ROOT = ROOT + "/../test_data/scads"
@@ -138,13 +138,23 @@ class TestSCADS(unittest.TestCase):
         self.assertTrue('domainnet/domainnet_full/train/clipart_270_000029.jpg'
                         in images)
 
+    def test_mars(self):
+        # MSL curiosity
+        node = Scads.get_node_by_conceptnet_id("/c/en/tray")
+        self.assertEqual(node.get_datasets(), ['ImageNet', 'MarsSurface'])
+        images = node.get_images()
+        self.assertEqual(len(images), 1461)
+        self.assertTrue('mars_surface_imgs/mars_surface_imgs_full/test/0571ML0023110000204852E01_DRCL.JPG'
+                        in images)
+
+
     def test_clips(self):
         """"""  
 
 
         # HMDB
         node = Scads.get_node_by_conceptnet_id("/c/en/run")
-        self.assertEqual(node.node.id, 29)
+        self.assertEqual(node.node.id, 38355)
         self.assertEqual(node.get_conceptnet_id(), "/c/en/run")
 
         self.assertEqual(node.get_datasets(images=False), ['HMDB'])
@@ -152,31 +162,33 @@ class TestSCADS(unittest.TestCase):
         images = node.get_images()
         self.assertEqual(len(images), 0)
         clips = node.get_clips()
-        self.assertEqual(len(clips), 19)
+        self.assertEqual(len(clips), 1)
         self.assertTrue('hmdb/hmdb_full/test'
                         in [x[0] for x in clips])
         clip = clips[0]
         self.assertEqual(clip[0], "hmdb/hmdb_full/train")
-        self.assertEqual(clip[1], 231465)
-        self.assertEqual(clip[2], 231565)
+        self.assertEqual(clip[1], 1109)
+        self.assertEqual(clip[2], 1212)
 
         # UCF101
         node1 = Scads.get_node_by_conceptnet_id("/c/en/jet_ski")
         self.assertEqual(node1.node.id, 125655)
         self.assertEqual(node1.get_conceptnet_id(), "/c/en/jet_ski")
 
-        #self.assertEqual(node1.get_datasets(images=False), ['UCF101'])
+        self.assertEqual(node.get_datasets(images=False), ['UCF101'])
 
-        #images = node.get_images()
-        #self.assertEqual(len(images), 0)
-        #clips = node.get_clips()
-        #self.assertEqual(len(clips), 19)
-        #self.assertTrue('hmdb/hmdb_full/test'
-        #                in [x[0] for x in clips])
-        #clip = clips[0]
-        #self.assertEqual(clip[0], "hmdb/hmdb_full/train")
-        #self.assertEqual(clip[1], 231465)
-        #self.assertEqual(clip[2], 231565)
+        images = node.get_images()
+        self.assertEqual(len(images), 166)
+        clips = node.get_clips()
+        self.assertEqual(len(clips), 1)
+        self.assertTrue('ucf101/ucf101_full/test'
+                        in [x[0] for x in clips])
+        clip = clips[0]
+        self.assertEqual(clip[0], "ucf101/ucf101_full/train")
+        self.assertEqual(clip[1], 23470)
+        self.assertEqual(clip[2], 23803)
+
+
 
     def test_undirected_relation(self):
         node = Scads.get_node_by_conceptnet_id("/c/en/zero")
@@ -219,6 +231,16 @@ class TestSCADS(unittest.TestCase):
         edges.sort(key=lambda x: x.get_relationship())
         self.assertEqual(edges[0].get_weight(), 2.5)
         self.assertEqual(edges[1].get_weight(), 1.0)
+
+    
+    def test_multiple_nodes(self):
+        # Try if name class is in conceptnet if not do the split
+        node = Scads.get_node_by_conceptnet_id("/c/en/toilet_tissue")
+        self.assertEqual(node.get_datasets(), ['ImageNet'])
+        images = node.get_images()
+        self.assertEqual(len(images), 2)
+        self.assertTrue(''
+                        in images)
 
     @classmethod
     def tearDownClass(cls):

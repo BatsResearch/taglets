@@ -134,8 +134,9 @@ class VideoClassificationInstaller(DatasetInstaller):
 
         all_clips = []
         for mode in modes:
-            base_path = os.path.join(dataset.path, f'{dataset.path}_' + size, mode)
-            #print(base_path)
+            base_path = os.path.join(dataset.path, dataset.path + '_' + size, mode)
+
+            #print(base_path, dataset.path, root)
             df = pd.read_feather(
                 os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
             if mode == "test":
@@ -159,22 +160,25 @@ class VideoClassificationInstaller(DatasetInstaller):
                 else: 
                     node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
                     if node:
-                        print(f"No need of splitting the class: {label}")
+                        #(f"No need of splitting the class: {label}")
                         node_id = node.id 
                         label_to_node_id[label] = node_id
 
+                        #print(row['id'])
                         clip = Clip(
                                     clip_id=row['id'],
                                     video_id=row['video_id'],
                                     base_path=base_path,
                                     start_frame=row['start_frame'],
                                     end_frame=row['end_frame'],
+                                    real_label=label,
                                     dataset_id=dataset.id,
                                     node_id=node_id
                                 )
                         all_clips.append(clip)
+                        
                     else:
-                        print(f"Need of splitting the class: {label}")
+                        #print(f"Need of splitting the class: {label}")
                         labels = self.composed_labels(label, dataset)
                         for l in labels:
                             if l in label_to_node_id:
@@ -188,23 +192,39 @@ class VideoClassificationInstaller(DatasetInstaller):
                                 print(f"Not able to assign a concept: {l}")
                                 continue
                             
+                            real = '_'.join(labels)
+                            #print(row['id'])
                             clip = Clip(
                                 clip_id=row['id'],
                                 video_id=row['video_id'],
                                 base_path=base_path,
                                 start_frame=row['start_frame'],
                                 end_frame=row['end_frame'],
+                                real_label=real,
                                 dataset_id=dataset.id,
                                 node_id=node_id
                             )
                             all_clips.append(clip)
+                
+                clip = Clip(
+                            clip_id=row['id'],
+                            video_id=row['video_id'],
+                            base_path=base_path,
+                            start_frame=row['start_frame'],
+                            end_frame=row['end_frame'],
+                            real_label=label,
+                            dataset_id=dataset.id,
+                            node_id=node_id
+                            )
+                all_clips.append(clip)
+                            
                 
                 # Scads is missing a missing conceptnet id
                 #if not node_id:
                 #    continue
 
                 
-
+        print(label_to_node_id)
         return all_clips
 
 
@@ -288,7 +308,26 @@ class MslCuriosityInstallation(ImageClassificationInstaller):
         return "MslCuriosity"
 
     def get_conceptnet_id(self, label):
-        pass
+        
+        exceptions = {'drill holes' : 'holes',
+                     'observation tray' : 'tray',
+                     'rover rear deck' : 'deck'}
+        if label in exceptions:
+            return "/c/en/" + exceptions[label]
+        return "/c/en/" + label.lower().replace(" ", "_").replace("-", "_")
+    
+class MarsSurfaceInstallation(ImageClassificationInstaller):
+    def get_name(self):
+        return "MarsSurface"
+
+    def get_conceptnet_id(self, label):
+        
+        exceptions = {'drill holes' : 'holes',
+                     'observation tray' : 'tray',
+                     'rover rear deck' : 'deck'}
+        if label in exceptions:
+            return "/c/en/" + exceptions[label]
+        return "/c/en/" + label.lower().replace(" ", "_").replace("-", "_")
 
 
 class VOC2009Installation(ObjectDetectionInstaller):
@@ -355,6 +394,7 @@ if __name__ == "__main__":
     parser.add_argument("--hmdb", type=str, help="Path to hmdb directory from the root")
     parser.add_argument("--ucf101", type=str, help="Path to ufc101 directory from the root")
     parser.add_argument("--msl_curiosity", type=str, help="Path to msl_curiosity directory from the root")
+    parser.add_argument("--mars_surface_imgs", type=str, help="Path to mars_surface_imgs directory from the root")
     
     args = parser.parse_args()
 
@@ -410,4 +450,9 @@ if __name__ == "__main__":
         if not args.root:
             raise RuntimeError("Must specify root directory.")
         installer.install_dataset(args.root, args.msl_curiosity, MslCuriosityInstallation())
+
+    if args.mars_surface_imgs:
+        if not args.root:
+            raise RuntimeError("Must specify root directory.")
+        installer.install_dataset(args.root, args.mars_surface_imgs, MarsSurfaceInstallation())
     

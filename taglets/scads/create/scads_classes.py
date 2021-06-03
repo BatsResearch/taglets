@@ -141,6 +141,7 @@ class Clip(Base):
     base_path = Column(String)
     start_frame = Column(Integer)
     end_frame = Column(Integer)
+    real_label = Column(String)
 
     dataset_id = Column(Integer, ForeignKey('datasets.id'))
     node_id = Column(Integer, ForeignKey('nodes.id'), index=True)

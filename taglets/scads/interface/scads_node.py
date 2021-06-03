@@ -29,7 +29,7 @@ class ScadsNode:
         Get all paths to images for this concept.
         :return: List of paths to images for this concept
         """
-        q = "SELECT images.path from images " \
+        q = "SELECT DISTINCT images.path from images " \
             "JOIN nodes ON images.node_id = nodes.id " \
             "JOIN datasets ON images.dataset_id = datasets.id " \
             "WHERE nodes.id = " + str(self.node.id) + ";"
