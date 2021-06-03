@@ -9,8 +9,6 @@ from torchvision import transforms
 from torchvision.datasets import ImageFolder
 import numpy as np
 import pandas as pd
-from accelerate import Accelerator
-accelerator = Accelerator()
 
 TEST_DATA = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../test_data/modules")
 DB_PATH = os.path.join(TEST_DATA, "test_module.db")
@@ -37,110 +35,110 @@ class TestModule:
     @classmethod
     def setUpClass(cls):
         # Sets up test SCADS
-        if accelerator.is_local_main_process:
-            # Generates database schema
-            engine = sa.create_engine('sqlite:///' + DB_PATH)
-            Session = sessionmaker(bind=engine)
-            session = Session()
-            session.execute('PRAGMA foreign_keys=ON')
-            Base.metadata.create_all(engine)
-    
-            # Creates relations
-            is_a = Relation(id=0, type="/r/IsA", is_directed=True)
-            related_to = Relation(id=1, type="/r/RelatedTo", is_directed=False)
-            session.add_all((is_a, related_to))
-    
-            # Creates nodes
-            airplane = Node(id=0, conceptnet_id="/c/en/airplane")
-            cat = Node(id=1, conceptnet_id="/c/en/cat")
-            dog = Node(id=2, conceptnet_id="/c/en/dog")
-            lion = Node(id=3, conceptnet_id="/c/en/lion")
-            propeller_plane = Node(id=4, conceptnet_id="/c/en/propeller_plane")
-            wolf = Node(id=5, conceptnet_id="/c/en/wolf")
-            session.add_all((airplane, cat, dog, lion, propeller_plane, wolf))
-    
-            # Creates edges
-            edge0 = Edge(id=0, weight=1.0)
-            edge0.relation = related_to
-            edge0.start_node = airplane.id
-            edge0.end_node = propeller_plane.id
-    
-            edge1 = Edge(id=1, weight=1.0)
-            edge1.relation = related_to
-            edge1.start_node = cat.id
-            edge1.end_node = lion.id
-    
-            edge2 = Edge(id=2, weight=2.0)
-            edge2.relation = related_to
-            edge2.start_node = dog.id
-            edge2.end_node = wolf.id
-    
-            edge3 = Edge(id=3, weight=0.5)
-            edge3.relation = related_to
-            edge3.start_node = lion.id
-            edge3.end_node = wolf.id
-    
-            edge4 = Edge(id=4, weight=1.0)
-            edge4.relation = is_a
-            edge4.start_node = propeller_plane.id
-            edge4.end_node = airplane.id
-    
-            session.add_all((edge0, edge1, edge2, edge3, edge4))
-    
-            # Creates dataset
-            related = Dataset(id=0, name="related", path=os.path.join(TEST_DATA, "related"))
-            session.add(related)
-    
-            # Creates images
-            images = {
-                (lion, "lion"):
-                    ["imagenet_n02129165_n02129165_1002.jpg",
-                     "imagenet_n02129165_n02129165_10000.jpg",
-                     "imagenet_n02129165_n02129165_10004.jpg",
-                     "imagenet_n02129165_n02129165_10019.jpg",
-                     "imagenet_n02129165_n02129165_10029.jpg"],
-                (propeller_plane, "propeller_plane"):
-                    ["imagenet_n04012084_n04012084_10003.jpg",
-                     "imagenet_n04012084_n04012084_10008.jpg",
-                     "imagenet_n04012084_n04012084_10010.jpg",
-                     "imagenet_n04012084_n04012084_10011.jpg",
-                     "imagenet_n04012084_n04012084_10015.jpg"],
-                (wolf, "wolf"):
-                    ["imagenet_n02114100_n02114100_10.jpg",
-                     "imagenet_n02114100_n02114100_10001.jpg",
-                     "imagenet_n02114100_n02114100_10011.jpg",
-                     "imagenet_n02114100_n02114100_10013.jpg",
-                     "imagenet_n02114100_n02114100_10019.jpg"]
-            }
-    
-            for (node, name), paths in images.items():
-                for path in paths:
-                    image = Image(path=os.path.join("related", name, path))
-                    image.dataset = related
-                    image.node = node
-                    session.add(image)
-    
-            # Commits data
-            session.commit()
-            
-            # Build ScadsEmbedding File
-            arr = np.asarray([
-                [1.0, 0.0, 0.0],
-                [0.9701425, 0.0, 0.24253563],
-                [0.0, 1.0, 0.0],
-                [0.0, 0.9701425, 0.24253563],
-                [0.0, 0.0, 1.0],
-                [0.24253563, 0.0, 0.9701425]
-            ])
-            label_list = ['/c/en/airplane',
-                          '/c/en/propeller_plane',
-                          '/c/en/cat',
-                          '/c/en/lion',
-                          '/c/en/dog',
-                          '/c/en/wolf']
-            df = pd.DataFrame(arr, index=label_list, dtype='f')
-            df.to_hdf(EMBEDDING_PATH, key='mat', mode='w')
-        accelerator.wait_for_everyone()
+
+        # Generates database schema
+        engine = sa.create_engine('sqlite:///' + DB_PATH)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+        session.execute('PRAGMA foreign_keys=ON')
+        Base.metadata.create_all(engine)
+
+        # Creates relations
+        is_a = Relation(id=0, type="/r/IsA", is_directed=True)
+        related_to = Relation(id=1, type="/r/RelatedTo", is_directed=False)
+        session.add_all((is_a, related_to))
+
+        # Creates nodes
+        airplane = Node(id=0, conceptnet_id="/c/en/airplane")
+        cat = Node(id=1, conceptnet_id="/c/en/cat")
+        dog = Node(id=2, conceptnet_id="/c/en/dog")
+        lion = Node(id=3, conceptnet_id="/c/en/lion")
+        propeller_plane = Node(id=4, conceptnet_id="/c/en/propeller_plane")
+        wolf = Node(id=5, conceptnet_id="/c/en/wolf")
+        session.add_all((airplane, cat, dog, lion, propeller_plane, wolf))
+
+        # Creates edges
+        edge0 = Edge(id=0, weight=1.0)
+        edge0.relation = related_to
+        edge0.start_node = airplane.id
+        edge0.end_node = propeller_plane.id
+
+        edge1 = Edge(id=1, weight=1.0)
+        edge1.relation = related_to
+        edge1.start_node = cat.id
+        edge1.end_node = lion.id
+
+        edge2 = Edge(id=2, weight=2.0)
+        edge2.relation = related_to
+        edge2.start_node = dog.id
+        edge2.end_node = wolf.id
+
+        edge3 = Edge(id=3, weight=0.5)
+        edge3.relation = related_to
+        edge3.start_node = lion.id
+        edge3.end_node = wolf.id
+
+        edge4 = Edge(id=4, weight=1.0)
+        edge4.relation = is_a
+        edge4.start_node = propeller_plane.id
+        edge4.end_node = airplane.id
+
+        session.add_all((edge0, edge1, edge2, edge3, edge4))
+
+        # Creates dataset
+        related = Dataset(id=0, name="related", path=os.path.join(TEST_DATA, "related"))
+        session.add(related)
+
+        # Creates images
+        images = {
+            (lion, "lion"):
+                ["imagenet_n02129165_n02129165_1002.jpg",
+                 "imagenet_n02129165_n02129165_10000.jpg",
+                 "imagenet_n02129165_n02129165_10004.jpg",
+                 "imagenet_n02129165_n02129165_10019.jpg",
+                 "imagenet_n02129165_n02129165_10029.jpg"],
+            (propeller_plane, "propeller_plane"):
+                ["imagenet_n04012084_n04012084_10003.jpg",
+                 "imagenet_n04012084_n04012084_10008.jpg",
+                 "imagenet_n04012084_n04012084_10010.jpg",
+                 "imagenet_n04012084_n04012084_10011.jpg",
+                 "imagenet_n04012084_n04012084_10015.jpg"],
+            (wolf, "wolf"):
+                ["imagenet_n02114100_n02114100_10.jpg",
+                 "imagenet_n02114100_n02114100_10001.jpg",
+                 "imagenet_n02114100_n02114100_10011.jpg",
+                 "imagenet_n02114100_n02114100_10013.jpg",
+                 "imagenet_n02114100_n02114100_10019.jpg"]
+        }
+
+        for (node, name), paths in images.items():
+            for path in paths:
+                image = Image(path=os.path.join("related", name, path))
+                image.dataset = related
+                image.node = node
+                session.add(image)
+
+        # Commits data
+        session.commit()
+        
+        # Build ScadsEmbedding File
+        arr = np.asarray([
+            [1.0, 0.0, 0.0],
+            [0.9701425, 0.0, 0.24253563],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.9701425, 0.24253563],
+            [0.0, 0.0, 1.0],
+            [0.24253563, 0.0, 0.9701425]
+        ])
+        label_list = ['/c/en/airplane',
+                      '/c/en/propeller_plane',
+                      '/c/en/cat',
+                      '/c/en/lion',
+                      '/c/en/dog',
+                      '/c/en/wolf']
+        df = pd.DataFrame(arr, index=label_list, dtype='f')
+        df.to_hdf(EMBEDDING_PATH, key='mat', mode='w')
+        
 
     def setUp(self):
         preprocess = transforms.Compose(

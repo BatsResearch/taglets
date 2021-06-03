@@ -7,8 +7,6 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
 from torchvision.datasets import MNIST
 from torchvision.models.resnet import ResNet, BasicBlock
-from accelerate import Accelerator
-accelerator = Accelerator()
 
 
 MNIST.resources = [
@@ -95,20 +93,19 @@ class TestTrainable(unittest.TestCase):
 
 
 def serial_predict(model, unlabeled_data):
-    unlabeled_data_loader = accelerator.prepare(torch.utils.data.DataLoader(
+    unlabeled_data_loader = torch.utils.data.DataLoader(
         dataset=unlabeled_data, batch_size=32, shuffle=False
-    ))
+    )
 
     model.eval()
     model = model.cpu()
-    model = accelerator.prepare(model)
 
     outputs = []
     for inputs in unlabeled_data_loader:
         with torch.set_grad_enabled(False):
             output = model(inputs)
-            outputs.append(torch.nn.functional.softmax(accelerator.gather(output.detach()).cpu(), 1))
-    return torch.cat(outputs).numpy()
+            outputs.append(torch.nn.functional.softmax(output, 1))
+    return torch.cat(outputs).detach().numpy()
 
 
 if __name__ == "__main__":
