@@ -77,6 +77,8 @@ class MultiTaskTaglet(ImageTaglet):
 
         self.img_per_related_class = 600 if not os.environ.get("CI") else 1
         self.num_related_class = 5
+        
+        self.batch_size = self.batch_size // 2 # This module uses more GPU memory than other modules
 
     def transform_image(self, train=True):
         """
