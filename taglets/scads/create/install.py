@@ -155,8 +155,11 @@ class VideoClassificationInstaller(DatasetInstaller):
                     label = row['class']
                 #for label in labels:
                     # Get node_id
+
+                
                 if label in label_to_node_id:
                     node_id = label_to_node_id[label]
+
                 else: 
                     node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
                     if node:
@@ -171,15 +174,16 @@ class VideoClassificationInstaller(DatasetInstaller):
                                     base_path=base_path,
                                     start_frame=row['start_frame'],
                                     end_frame=row['end_frame'],
-                                    real_label=label,
+                                    real_label=self.get_conceptnet_id(label).split('/')[-1],
                                     dataset_id=dataset.id,
                                     node_id=node_id
                                 )
                         all_clips.append(clip)
                         
                     else:
-                        #print(f"Need of splitting the class: {label}")
                         labels = self.composed_labels(label, dataset)
+                        #if label == 'BalanceBeam':
+                        #    print(f"Need of splitting the class: {label} and {labels}")
                         for l in labels:
                             if l in label_to_node_id:
                                 node_id = label_to_node_id[l]
@@ -200,7 +204,7 @@ class VideoClassificationInstaller(DatasetInstaller):
                                 base_path=base_path,
                                 start_frame=row['start_frame'],
                                 end_frame=row['end_frame'],
-                                real_label=real,
+                                real_label=self.get_conceptnet_id(real).split('/')[-1],
                                 dataset_id=dataset.id,
                                 node_id=node_id
                             )
@@ -212,18 +216,12 @@ class VideoClassificationInstaller(DatasetInstaller):
                             base_path=base_path,
                             start_frame=row['start_frame'],
                             end_frame=row['end_frame'],
-                            real_label=label,
+                            real_label=self.get_conceptnet_id(label).split('/')[-1],
                             dataset_id=dataset.id,
                             node_id=node_id
                             )
                 all_clips.append(clip)
-                            
-                
-                # Scads is missing a missing conceptnet id
-                #if not node_id:
-                #    continue
-
-                
+                                           
         print(label_to_node_id)
         return all_clips
 

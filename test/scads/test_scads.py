@@ -152,17 +152,18 @@ class TestSCADS(unittest.TestCase):
         """"""  
 
 
+        class_label = "/c/en/run"
         # HMDB
-        node = Scads.get_node_by_conceptnet_id("/c/en/run")
+        node = Scads.get_node_by_conceptnet_id(class_label)
         self.assertEqual(node.node.id, 38355)
-        self.assertEqual(node.get_conceptnet_id(), "/c/en/run")
+        self.assertEqual(node.get_conceptnet_id(), class_label)
 
         self.assertEqual(node.get_datasets(images=False), ['HMDB'])
 
         images = node.get_images()
         self.assertEqual(len(images), 0)
         clips = node.get_clips()
-        self.assertEqual(len(clips), 1)
+        self.assertEqual(len(clips), 233)
         self.assertTrue('hmdb/hmdb_full/test'
                         in [x[0] for x in clips])
         clip = clips[0]
@@ -171,22 +172,46 @@ class TestSCADS(unittest.TestCase):
         self.assertEqual(clip[2], 1212)
 
         # UCF101
-        node1 = Scads.get_node_by_conceptnet_id("/c/en/jet_ski")
+        class_label_2 = "/c/en/jet_ski"
+        node1 = Scads.get_node_by_conceptnet_id(class_label_2)
         self.assertEqual(node1.node.id, 125655)
-        self.assertEqual(node1.get_conceptnet_id(), "/c/en/jet_ski")
+        self.assertEqual(node1.get_conceptnet_id(), class_label_2)
 
         self.assertEqual(node.get_datasets(images=False), ['UCF101'])
 
         images = node.get_images()
         self.assertEqual(len(images), 166)
         clips = node.get_clips()
-        self.assertEqual(len(clips), 1)
+        self.assertEqual(len(clips), 101)
         self.assertTrue('ucf101/ucf101_full/test'
                         in [x[0] for x in clips])
         clip = clips[0]
         self.assertEqual(clip[0], "ucf101/ucf101_full/train")
         self.assertEqual(clip[1], 23470)
         self.assertEqual(clip[2], 23803)
+
+        # Multi-nodes
+        class_label_3 = "/c/en/playing_dhol"
+
+        node_multi = Scads.get_node_by_conceptnet_id(class_label_3)
+        if node_multi is None:
+            # Get single concepts
+            nodes = [w.strip() for w in class_label_3.split('_')]
+            objects_node = [Scads.get_node_by_conceptnet_id(n) for n in nodes]
+            
+            # Write the OR query to execute only one query for the label
+            query = ' '.join([f'nodes.id = {obj.id} OR' \
+                  for obj in objects_node[:-1]])
+            query = ' '.join([query, f'nodes.id = {objects_node[-1].id}'])
+
+            # Execute the query
+            clips = objects_node[0].get_clips_multiple(query)
+            self.assertEqual(len(clips), 738)
+        else:
+            clips = node_multi.get_clips()
+            
+        
+
 
 
 
@@ -232,15 +257,6 @@ class TestSCADS(unittest.TestCase):
         self.assertEqual(edges[0].get_weight(), 2.5)
         self.assertEqual(edges[1].get_weight(), 1.0)
 
-    
-    def test_multiple_nodes(self):
-        # Try if name class is in conceptnet if not do the split
-        node = Scads.get_node_by_conceptnet_id("/c/en/toilet_tissue")
-        self.assertEqual(node.get_datasets(), ['ImageNet'])
-        images = node.get_images()
-        self.assertEqual(len(images), 2)
-        self.assertTrue(''
-                        in images)
 
     @classmethod
     def tearDownClass(cls):
