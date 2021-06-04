@@ -148,26 +148,19 @@ class VideoClassificationInstaller(DatasetInstaller):
             for _, row in df.iterrows():
                 row = row.astype("object")
                 if mode == "test":
-                    #labels = self.composed_labels(df_label.loc[row['id']].idxmax(), dataset)
                     label = df_label.loc[row['id']].idxmax()
                 else:
-                    #labels = self.composed_labels(row['class'], dataset)
                     label = row['class']
-                #for label in labels:
-                    # Get node_id
-
                 
                 if label in label_to_node_id:
                     node_id = label_to_node_id[label]
 
                 else: 
                     node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                    # If the node related to the class doesn't exist
                     if node:
-                        #(f"No need of splitting the class: {label}")
                         node_id = node.id 
                         label_to_node_id[label] = node_id
-
-                        #print(row['id'])
                         clip = Clip(
                                     clip_id=row['id'],
                                     video_id=row['video_id'],
@@ -179,11 +172,10 @@ class VideoClassificationInstaller(DatasetInstaller):
                                     node_id=node_id
                                 )
                         all_clips.append(clip)
-                        
+                    # Else, we decompose the class name and check for concepts corresponding to each word
                     else:
                         labels = self.composed_labels(label, dataset)
-                        #if label == 'BalanceBeam':
-                        #    print(f"Need of splitting the class: {label} and {labels}")
+
                         for l in labels:
                             if l in label_to_node_id:
                                 node_id = label_to_node_id[l]
@@ -192,12 +184,11 @@ class VideoClassificationInstaller(DatasetInstaller):
                                 node_id = node.id if node else None
                                 label_to_node_id[l] = node_id
 
+                            # Handle the case when a classe, even decomposed, is not assign to any concept
                             if not node_id:
-                                print(f"Not able to assign a concept: {l}")
                                 continue
                             
                             real = '_'.join(labels)
-                            #print(row['id'])
                             clip = Clip(
                                 clip_id=row['id'],
                                 video_id=row['video_id'],
@@ -222,7 +213,6 @@ class VideoClassificationInstaller(DatasetInstaller):
                             )
                 all_clips.append(clip)
                                            
-        print(label_to_node_id)
         return all_clips
 
 
