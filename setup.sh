@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 pip install -r requirements.txt
+pip install -e .
 
 mkdir -p predefined
 mkdir -p predefined/embeddings
@@ -11,7 +12,7 @@ wget -nc https://storage.googleapis.com/taglets-public/scads.spring2021.sqlite3
 
 cd embeddings
 wget -nc https://storage.googleapis.com/taglets-public/embeddings/glove.840B.300d.txt.gz
-gunzip --force --keep glove.840B.300d.txt.gz
+gunzip --force < glove.840B.300d.txt.gz > glove.840B.300d.txt
 
 wget -nc https://storage.googleapis.com/taglets-public/embeddings/numberbatch-en19.08.txt.gz
 
