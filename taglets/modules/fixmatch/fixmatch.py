@@ -347,6 +347,7 @@ class FixMatchTaglet(ImageTaglet):
         val_loss_list = []
         val_acc_list = []
 
+        accelerator.wait_for_everyone()
         self.model, self.optimizer = accelerator.prepare(self.model, self.optimizer)
 
         # Iterates over epochs

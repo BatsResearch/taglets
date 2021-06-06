@@ -150,6 +150,7 @@ class Trainable:
         val_loss_list = []
         val_acc_list = []
 
+        accelerator.wait_for_everyone()
         self.model, self.optimizer = accelerator.prepare(self.model, self.optimizer)
 
         # Iterates over epochs
@@ -224,13 +225,10 @@ class Trainable:
         log.info('Beginning prediction')
         pred_classifier = self._get_pred_classifier()
         pred_classifier.eval()
-
-        data_loader = torch.utils.data.DataLoader(
-            dataset=data, batch_size=self.batch_size, shuffle=False,
-            num_workers=self.num_workers, pin_memory=True, sampler=None
-        )
         
-        data_loader = accelerator.prepare(data_loader)
+        data_loader = self._get_dataloader(data, False)
+        
+        accelerator.wait_for_everyone()
         self.model, self.optimizer = accelerator.prepare(self.model, self.optimizer)
         
         outputs, labels = self._predict_epoch(data_loader, pred_classifier)

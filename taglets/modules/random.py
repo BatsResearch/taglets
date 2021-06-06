@@ -34,6 +34,8 @@ class RandomTaglet(ImageTaglet):
                 inputs, targets = batch
                 labels.append(accelerator.gather(targets).cpu())
             labels = torch.cat(labels).numpy()
+            dataset_len = len(data_loader.dataset)
+            labels = labels[:dataset_len]
             return np.random.rand(len(data), len(self.task.classes)), labels
         else:
             return np.random.rand(len(data), len(self.task.classes))
