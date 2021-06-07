@@ -129,7 +129,7 @@ def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1,
             data_by_class[test_dataset.labels[idx]] = []
         data_by_class[test_dataset.labels[idx]].append(test_dataset.imgs[idx])
     label2word = test_dataset.get_label2word()
-    classes = np.asarray(list(set(label2word.values())))
+    classes = np.sort(np.asarray(list(set(label2word.values())))) # be careful, set is deterministic
     n_classes = len(classes)
     
     initial_model.fc = torch.nn.Identity()
