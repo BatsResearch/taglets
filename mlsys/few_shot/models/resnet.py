@@ -22,8 +22,7 @@ class DropBlock(nn.Module):
             block_mask = self._compute_block_mask(mask)
             
             if x.is_cuda:
-                device = torch.device('cuda:0')
-                block_mask = block_mask.to(device)
+                block_mask = block_mask.to(x.device)
             
             countM = block_mask.size()[0] * block_mask.size()[1] * block_mask.size()[2] * block_mask.size()[3]
             count_ones = block_mask.sum()
