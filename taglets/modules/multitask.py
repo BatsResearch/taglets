@@ -19,10 +19,9 @@ log = logging.getLogger(__name__)
 class MultiTaskModel(nn.Module):
     def __init__(self, model, num_target, num_source, input_shape):
         super().__init__()
-        self.model = model
         self.num_target= num_target
         self.num_source = num_source
-        self.base = nn.Sequential(*list(self.model.children())[:-1])
+        self.base = nn.Sequential(*list(model.children())[:-1])
         output_shape = self._get_model_output_shape(input_shape, self.base)
         self.fc_target = torch.nn.Linear(output_shape, self.num_target)
         self.fc_source = torch.nn.Linear(output_shape, self.num_source)
@@ -66,7 +65,7 @@ class MultiTaskTaglet(ImageTaglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'multitask'
-        self.num_epochs = 50 if not os.environ.get("CI") else 5
+        self.num_epochs = 4 if not os.environ.get("CI") else 5
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
@@ -76,17 +75,17 @@ class MultiTaskTaglet(ImageTaglet):
         self.source_data = None
 
         self.img_per_related_class = 600 if not os.environ.get("CI") else 1
-        self.num_related_class = 5
+        self.num_related_class = 10
         
-        self.batch_size = self.batch_size // 2 # This module uses more GPU memory than other modules
+        # self.batch_size = self.batch_size // 2 # This module uses more GPU memory than other modules
 
     def transform_image(self, train=True):
         """
         Get the transform to be used on an image.
         :return: A transform
         """
-        data_mean = [0.485, 0.456, 0.406]
-        data_std = [0.229, 0.224, 0.225]
+        data_mean = [0.5071, 0.4867, 0.4408]
+        data_std = [0.2675, 0.2565, 0.2761]
         
         if train:
             return transforms.Compose([
@@ -148,7 +147,7 @@ class MultiTaskTaglet(ImageTaglet):
             Cache.set('scads', self.task.classes,
                       (image_paths, image_labels, all_related_class))
 
-        transform = self.transform_image(train=True)
+        transform = self.transform_image(train=False)
         train_data = CustomImageDataset(image_paths,
                                         labels=image_labels,
                                         transform=transform)
@@ -173,25 +172,28 @@ class MultiTaskTaglet(ImageTaglet):
             if param.requires_grad:
                 params_to_update.append(param)
         self._params_to_update = params_to_update
-        self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+        self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.005, momentum=0.9)
+        self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[2,3], gamma=0.1)
         
         super(MultiTaskTaglet, self).train(train_data, val_data, unlabeled_data)
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):
         self.source_data_loader = self._get_dataloader(data=self.source_data, shuffle=True)
-
-        old_batch_size = self.batch_size
-        self.batch_size = max(int(old_batch_size/8), 8)
         super(MultiTaskTaglet, self)._do_train(train_data, val_data, unlabeled_data)
-        self.batch_size = old_batch_size
 
     def _train_epoch(self, train_data_loader, unlabeled_train_loader=None):
         self.model.train()
         running_loss = 0
         running_acc = 0
         total_len = 0
-        for source_batch, target_batch in zip(self.source_data_loader, train_data_loader):
+        data_iter = iter(train_data_loader)
+        for source_batch in self.source_data_loader:
+            try:
+                target_batch = next(data_iter)
+            except StopIteration:
+                data_iter = iter(train_data_loader)
+                target_batch = next(data_iter)
+
             source_inputs, source_labels = source_batch
             target_inputs, target_labels = target_batch
 
@@ -201,7 +203,8 @@ class MultiTaskTaglet(ImageTaglet):
                 target_outputs, source_outputs = outputs
                 source_loss = self.criterion(source_outputs, source_labels)
                 target_loss = self.criterion(target_outputs, target_labels)
-                loss = source_loss + target_loss
+                log.info(f'Loss: 8 * {source_loss} + {target_loss}')
+                loss = 8 * source_loss + target_loss
 
                 accelerator.backward(loss)
                 self.optimizer.step()

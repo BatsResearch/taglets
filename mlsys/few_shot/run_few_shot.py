@@ -132,9 +132,9 @@ def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1,
     label2word = test_dataset.get_label2word()
     classes = np.sort(np.asarray(list(set(label2word.values())))) # be careful, set is deterministic
     n_classes = len(classes)
-    
+
     initial_model.fc = torch.nn.Identity()
-    
+
     acc_list = []
     episode_range = range(*episodes)
     for episode in episode_range:
@@ -177,6 +177,9 @@ def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1,
         query_xs = query_xs.reshape((-1, height, width, channel))
         support_ys = support_ys.reshape(-1)
         query_ys = query_ys.reshape(-1)
+
+        support_xs = np.tile(support_xs, (128 * 4, 1, 1, 1))
+        support_ys = np.tile(support_ys, (128 * 4))
         
         episode_train_dataset = CustomImageDataset(support_xs, support_ys,
                                                    transform=test_dataset.aug_transform,
@@ -193,7 +196,8 @@ def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1,
                     None,
                     None,
                     scads_path='./predefined/scads.imagenet22k.sqlite3',
-                    scads_embedding_path='./predefined/embeddings/numberbatch-en19.08.txt.gz')
+                    scads_embedding_path='./predefined/embeddings/numberbatch-en19.08.txt.gz',
+                    batch_size=32)
         task.set_initial_model(initial_model)
         
         taglet_module = training_module(task)
