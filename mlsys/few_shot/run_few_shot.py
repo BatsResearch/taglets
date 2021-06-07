@@ -122,7 +122,8 @@ def pre_train(model, train_dataset):
     return model
 
 
-def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1, num_episodes=600, n_queries=15, **kwargs):
+def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1, n_queries=15, episodes=[0, 600],
+              **kwargs):
     data_by_class = {}
     for idx in range(len(test_dataset.imgs)):
         if test_dataset.labels[idx] not in data_by_class:
@@ -135,7 +136,8 @@ def meta_test(initial_model, training_module, test_dataset, n_ways=5, n_shots=1,
     initial_model.fc = torch.nn.Identity()
     
     acc_list = []
-    for episode in range(num_episodes):
+    episode_range = range(*episodes)
+    for episode in episode_range:
         log.info(f'Episode: {episode}')
         
         # ---------------------- Prepare data for the episode ----------------------------
@@ -231,8 +233,16 @@ def main():
     parser.add_argument('--model_path', type=str, help='path to pre-trained model')
     
     parser.add_argument('--scads_root_path', type=str, default='/users/wpiriyak/data/bats/datasets')
+
+    parser.add_argument('--episodes', type=str, help='which episodes to run')
     
     args = parser.parse_args()
+    
+    if args.episodes is not None:
+        iterations = args.episodes.split(',')
+        args.episodes = list([])
+        for it in iterations:
+            args.episodes.append(int(it))
     
     model_dict = {
         'resnet12': resnet12,
