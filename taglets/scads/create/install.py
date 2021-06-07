@@ -154,6 +154,17 @@ class VideoClassificationInstaller(DatasetInstaller):
                 
                 if label in label_to_node_id:
                     node_id = label_to_node_id[label]
+                    clip = Clip(
+                            clip_id=row['id'],
+                            video_id=row['video_id'],
+                            base_path=base_path,
+                            start_frame=row['start_frame'],
+                            end_frame=row['end_frame'],
+                            real_label=self.get_conceptnet_id(label).split('/')[-1],
+                            dataset_id=dataset.id,
+                            node_id=node_id
+                            )
+                    all_clips.append(clip)
 
                 else: 
                     node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
@@ -200,18 +211,6 @@ class VideoClassificationInstaller(DatasetInstaller):
                                 node_id=node_id
                             )
                             all_clips.append(clip)
-                
-                clip = Clip(
-                            clip_id=row['id'],
-                            video_id=row['video_id'],
-                            base_path=base_path,
-                            start_frame=row['start_frame'],
-                            end_frame=row['end_frame'],
-                            real_label=self.get_conceptnet_id(label).split('/')[-1],
-                            dataset_id=dataset.id,
-                            node_id=node_id
-                            )
-                all_clips.append(clip)
                                            
         return all_clips
 
