@@ -141,6 +141,7 @@ class Clip(Base):
     base_path = Column(String)
     start_frame = Column(Integer)
     end_frame = Column(Integer)
+    real_label = Column(String)
 
     dataset_id = Column(Integer, ForeignKey('datasets.id'))
     node_id = Column(Integer, ForeignKey('nodes.id'), index=True)
@@ -149,7 +150,7 @@ class Clip(Base):
     node = relationship("Node", back_populates="clips")
 
     def __repr__(self):
-        return "<Clip(id='%s', node='%s', base_path='%s', start_frame='%s', end_frame='%s'" % (
+        return "<Clip(id='%s', node='%s', base_path='%s', start_frame='%s', end_frame='%s')>" % (
             self.id,
             self.node_id,
             self.base_path,
