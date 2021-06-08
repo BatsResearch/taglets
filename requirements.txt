@@ -41,7 +41,7 @@ matplotlib==3.1.2
 murmurhash==1.0.5
 nltk==3.6.2
 numexpr==2.7.3
-numpy==1.17.4
+numpy==1.17.5
 numpydoc==1.1.0
 overrides==4.1.2
 packaging==20.9
