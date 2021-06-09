@@ -5,6 +5,7 @@ import logging
 import numpy as np
 import torchvision.transforms as transforms
 import torch.nn as nn
+from nltk.corpus import wordnet as wn
 from accelerate import Accelerator
 accelerator = Accelerator()
 
@@ -76,6 +77,7 @@ class MultiTaskTaglet(ImageTaglet):
 
         self.img_per_related_class = 600 if not os.environ.get("CI") else 1
         self.num_related_class = 10
+        self.prune = 0
         
         # self.batch_size = self.batch_size // 2 # This module uses more GPU memory than other modules
 
@@ -112,13 +114,27 @@ class MultiTaskTaglet(ImageTaglet):
             image_paths = []
             image_labels = []
             visited = set()
+            
+            target_synsets = []
+            for conceptnet_id in self.task.classes:
+                class_name = conceptnet_id[6:]
+                target_synsets = target_synsets + wn.synsets(class_name, pos='n')
 
             def get_images(node, label):
                 if node.get_conceptnet_id() not in visited:
                     visited.add(node.get_conceptnet_id())
+
+                    synsets = wn.synsets(node.get_conceptnet_id()[6:], pos='n')
+                    for synset in synsets:
+                        for target_synset in target_synsets:
+                            lch = synset.lowest_common_hypernyms(target_synset)[0]
+                            if target_synset.shortest_path_distance(lch) <= self.prune:
+                                return False
+                    
                     images = node.get_images_whitelist(self.task.whitelist)
                     if len(images) < self.img_per_related_class:
                         return False
+                    
                     images = random.sample(images, self.img_per_related_class)
                     images = [os.path.join(root_path, image) for image in images]
                     image_paths.extend(images)
@@ -135,13 +151,16 @@ class MultiTaskTaglet(ImageTaglet):
                     cur_related_class += 1
                     all_related_class += 1
 
-                neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
-                for neighbor in neighbors:
-                    if get_images(neighbor, all_related_class):
-                        cur_related_class += 1
-                        all_related_class += 1
-                        if cur_related_class >= self.num_related_class:
-                            break
+                ct = 1
+                while cur_related_class < self.num_related_class:
+                    neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 20 * ct)
+                    for neighbor in neighbors:
+                        if get_images(neighbor, all_related_class):
+                            cur_related_class += 1
+                            all_related_class += 1
+                            if cur_related_class >= self.num_related_class:
+                                break
+                    ct += 1
 
             Scads.close()
             Cache.set('scads', self.task.classes,
