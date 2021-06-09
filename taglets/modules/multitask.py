@@ -222,7 +222,6 @@ class MultiTaskTaglet(ImageTaglet):
                 target_outputs, source_outputs = outputs
                 source_loss = self.criterion(source_outputs, source_labels)
                 target_loss = self.criterion(target_outputs, target_labels)
-                log.info(f'Loss: 8 * {source_loss} + {target_loss}')
                 loss = 8 * source_loss + target_loss
 
                 accelerator.backward(loss)
