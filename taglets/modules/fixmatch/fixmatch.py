@@ -349,6 +349,8 @@ class FixMatchTaglet(ImageTaglet):
 
         accelerator.wait_for_everyone()
         self.model, self.optimizer = accelerator.prepare(self.model, self.optimizer)
+        if self.use_ema:
+            self.ema_model.ema = accelerator.prepare(self.ema_model.ema)
 
         # Iterates over epochs
         for epoch in range(self.num_epochs):
@@ -392,10 +394,14 @@ class FixMatchTaglet(ImageTaglet):
             if self.opt_type == Optimizer.ADAM:
                 self.lr_scheduler.step()
 
+        
         accelerator.wait_for_everyone()
+        self.optimizer = self.optimizer.optimizer
         self.model = accelerator.unwrap_model(self.model)
         if self.use_ema:
             self.ema_model.ema = accelerator.unwrap_model(self.ema_model.ema)
+        self.model.cpu()
+        accelerator.free_memory()
         
         if self.save_dir and accelerator.is_local_main_process:
             val_dic = {'train': train_loss_list, 'validation': val_loss_list}

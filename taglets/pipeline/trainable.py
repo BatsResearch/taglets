@@ -192,6 +192,8 @@ class Trainable:
         accelerator.wait_for_everyone()
         self.optimizer = self.optimizer.optimizer
         self.model = accelerator.unwrap_model(self.model)
+        self.model.cpu()
+        accelerator.free_memory()
 
         if self.save_dir and accelerator.is_local_main_process:
             val_dic = {'train': train_loss_list, 'validation': val_loss_list}
@@ -229,12 +231,14 @@ class Trainable:
         data_loader = self._get_dataloader(data, False)
         
         accelerator.wait_for_everyone()
-        self.model, self.optimizer = accelerator.prepare(self.model, self.optimizer)
+        self.model = accelerator.prepare(self.model)
         
         outputs, labels = self._predict_epoch(data_loader, pred_classifier)
 
-        self.optimizer = self.optimizer.optimizer
         self.model = accelerator.unwrap_model(self.model)
+        # Top: Not 100% sure why we need the following line, but if removed, there will be some leftover gpu tensors
+        # taking up some memory at the next checkpoint
+        accelerator.free_memory()
         
         if len(labels) > 0:
             return outputs, labels
