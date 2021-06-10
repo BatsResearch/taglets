@@ -34,29 +34,31 @@ class DannModel(nn.Module):
         super().__init__()
         self.base = nn.Sequential(*list(model.children())[:-1])
         output_shape = self._get_model_output_shape(input_shape, self.base)
-        self.hidden_source = torch.nn.Linear(output_shape, output_shape)
-        self.relu = torch.nn.ReLU()
-        self.fc_source = torch.nn.Linear(output_shape, num_source)
-        self.hidden_target = torch.nn.Linear(output_shape, output_shape)
-        self.fc_target = torch.nn.Linear(output_shape, num_target)
-        self.hidden_domain = torch.nn.Linear(output_shape, output_shape)
-        self.fc_domain = torch.nn.Linear(output_shape, 2)
+        self.fc_source = nn.Sequential(nn.Linear(output_shape, output_shape),
+                                       nn.ReLU(),
+                                       torch.nn.Linear(output_shape, num_source))
+        self.fc_target = nn.Sequential(nn.Linear(output_shape, output_shape),
+                                       nn.ReLU(),
+                                       torch.nn.Linear(output_shape, num_target))
+        self.fc_domain = nn.Sequential(nn.Linear(output_shape, output_shape),
+                                       nn.ReLU(),
+                                       torch.nn.Linear(output_shape, 2))
 
     def forward(self, target_input, source_input=None, unlabeled_input=None, alpha=1.0):
         x = self.base(target_input)
         x = torch.flatten(x, 1)
-        target_class = self.fc_target(self.relu(self.hidden_target(x)))
+        target_class = self.fc_target(x)
         if source_input is None:
             return target_class
         reverse_x = GradientReversalLayer.apply(x, alpha)
-        target_domain = self.fc_domain(self.relu(self.hidden_domain(reverse_x)))
+        target_domain = self.fc_domain(reverse_x)
         target_dist = (target_class, target_domain)
 
         x = self.base(source_input)
         x = torch.flatten(x, 1)
-        source_class = self.fc_source(self.relu(self.hidden_source(x)))
+        source_class = self.fc_source(x)
         reverse_x = GradientReversalLayer.apply(x, alpha)
-        source_domain = self.fc_domain(self.relu(self.hidden_domain(reverse_x)))
+        source_domain = self.fc_domain(reverse_x)
         source_dist = (source_class, source_domain)
         if unlabeled_input is None or not len(unlabeled_input):
             return target_dist, source_dist, None
@@ -64,7 +66,7 @@ class DannModel(nn.Module):
         x = self.base(unlabeled_input)
         x = torch.flatten(x, 1)
         reverse_x = GradientReversalLayer.apply(x, alpha)
-        unlabeled_domain = self.fc_domain(self.relu(self.hidden_domain(reverse_x)))
+        unlabeled_domain = self.fc_domain(reverse_x)
         return target_dist, source_dist, unlabeled_domain
 
     def _get_model_output_shape(self, in_size, mod):
@@ -80,9 +82,7 @@ class DannModel(nn.Module):
         return int(np.prod(f.size()[1:]))
 
     def _remove_extra_heads(self):
-        self.hidden_source = None
         self.fc_source = None
-        self.hidden_domain = None
         self.fc_domain = None
 
 
@@ -223,11 +223,8 @@ class DannTaglet(ImageTaglet):
     def _do_train(self, train_data, val_data, unlabeled_data=None):
         # batch_size = min(len(train_data) // num_batches, 256)
         if self.training_first_stage:
-            old_batch_size = self.batch_size
-            # Memory bottleneck if batch size is too large
-            self.batch_size = max(int(old_batch_size/8), 8) if not os.environ.get("CI") else 32
-            self.source_data_loader = self._get_dataloader(data=self.source_data, shuffle=True)
-            self.batch_size = old_batch_size
+            batch_size = max(int(self.batch_size/8), 8) if not os.environ.get("CI") else 32
+            self.source_data_loader = self._get_dataloader(data=self.source_data, shuffle=True, batch_size=batch_size)
         old_batch_size = self.batch_size
         self.batch_size = max(int(old_batch_size/8), 8)
         super(DannTaglet, self)._do_train(train_data, val_data, unlabeled_data)
