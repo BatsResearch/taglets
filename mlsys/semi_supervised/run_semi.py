@@ -1,9 +1,9 @@
 import os
+import sys
 import time
 import json
 import logging
 import argparse
-#import requests
 from pathlib import Path
 
 from accelerate import Accelerator
@@ -36,17 +36,14 @@ class JPL:
     """
     A class to interact with JPL-like APIs.
     """
-    def __init__(self, api_url, team_secret, gov_team_secret, dataset_type):
+    def __init__(self, dataset_type, root):
         """
         Create a new JPL object.
         """
-
-        #self.team_secret = team_secret
-        #self.gov_team_secret = gov_team_secret
-        self.url = ROOT # root that contains the folder with info 
+        self.url = root # root that contains the folder with info 
         self.session_token = ''
         self.data_type = dataset_type
-        self.labels_path = ''
+        self.labels_path = '/lwll/external/'
         self.saved_api_response_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saved_api_response')
 
     def get_available_tasks(self, problem_type):
@@ -54,9 +51,6 @@ class JPL:
         Get all available tasks.
         :return: A list of tasks (problems)
         """
-        #headers = {'user_secret': self.team_secret,
-        #           'govteam_secret': self.gov_team_secret
-        #           }
         r = json.load(open(self.url + '/list_task.json', 'r'))
         task_list = r['tasks']
 
@@ -74,9 +68,6 @@ class JPL:
         :param task_name: The name of the task (problem)
         :return: The task metadata
         """
-        #headers = {'user_secret': self.team_secret,
-        #           'govteam_secret': self.gov_team_secret}
-        
         r = json.load(open(self.url + '/task_metadata.json', 'r'))
         task_meta = r[task_name]
         return task_meta['task_metadata']
@@ -87,10 +78,6 @@ class JPL:
         :param task_name: The name of the task (problem
         :return: None
         """
-        #headers = {'user_secret': self.team_secret,
-        #           'govteam_secret': self.gov_team_secret}
-        #session_json = {'session_name': 'testing', 'data_type': self.data_type, 'task_id': task_name}
-        
         response = json.load(open(self.url + '/create_session.json', 'r'))
 
         session_token = response[task_name]
@@ -101,27 +88,20 @@ class JPL:
         Get the session status.
         :return: The session status
         """
-        # headers = {'user_secret': self.team_secret,
-        #            'govteam_secret': self.gov_team_secret,
-        #            'session_token': self.session_token}
         r = json.load(open(self.url + "/session_status.json", 'r'))[self.session_token]
         if 'Session_Status' in r:
             return r['Session_Status']
         else:
             return {}
 
-    def get_initial_seed_labels(self, video=False):
+    def get_initial_seed_labels(self, checkpoint, video=False):
         """
         Get seed labels.
         :return: A list of lists with name and label e.g., ['2', '1.png'], ['7', '2.png'], etc.
         """
 
         log.info('Request seed labels.')
-        # headers = {'user_secret': self.team_secret,
-        #            'govteam_secret': self.gov_team_secret,
-        #            'session_token': self.session_token}
-        #  log.debug(f"HEADERS: {headers}")
-        response = self.get_only_once("seed_labels")
+        response = self.get_only_once("seed_labels", checkpoint)
         labels = response['Labels']
 
         if video:
@@ -139,15 +119,16 @@ class JPL:
                 seed_labels.append([image["class"], image["id"]])
             return seed_labels, None
 
-    def deactivate_session(self, deactivate_session):
-        if accelerator.is_local_main_process:
-            headers_active_session = {'user_secret': self.team_secret,
-                                      'govteam_secret': self.gov_team_secret,
-                                      'session_token': self.session_token}
+    def deactivate_session(self): # deactivate_session
+        pass
+        # if accelerator.is_local_main_process:
+        #     headers_active_session = {'user_secret': self.team_secret,
+        #                               'govteam_secret': self.gov_team_secret,
+        #                               'session_token': self.session_token}
     
-            r = requests.post(self.url + "/deactivate_session",
-                              json={'session_token': deactivate_session},
-                              headers=headers_active_session)
+        #     r = requests.post(self.url + "/deactivate_session",
+        #                       json={'session_token': deactivate_session},
+        #                       headers=headers_active_session)
 
     def request_label(self, query, video=False):
         """
@@ -168,9 +149,6 @@ class JPL:
          [['7','56392.png'], ['8','3211.png'], ['4','19952.png']]
         """
         log.debug(f"Query for new labels: {type(query['example_ids'][0])}")
-        # headers = {'user_secret': self.team_secret,
-        #            'govteam_secret': self.gov_team_secret,
-        #            'session_token': self.session_token}
         response = self.post_only_once("query_labels", query)
         labels = response['Labels']
         log.debug(f"NUM OF NEW RAW RETRIEVED LABELS: {len(labels)}")
@@ -206,19 +184,21 @@ class JPL:
         return self.post_only_once('submit_predictions', headers, predictions_json)
         
     def deactivate_all_sessions(self):
-        headers_session = {'user_secret': self.team_secret,
-                           'govteam_secret': self.gov_team_secret}
-        r = requests.get(self.url + "/list_active_sessions", headers=headers_session)
-        active_sessions = r.json()['active_sessions']
-        for session_token in active_sessions:
-            self.deactivate_session(session_token)
+        pass
+        # headers_session = {'user_secret': self.team_secret,
+        #                    'govteam_secret': self.gov_team_secret}
+        # r = requests.get(self.url + "/list_active_sessions", headers=headers_session)
+        # active_sessions = r.json()['active_sessions']
+        # for session_token in active_sessions:
+        #     self.deactivate_session(session_token)
 
     def post_only_once(self, command, posting_json):
 
         if accelerator.is_local_main_process:
             # Get labels for query
-            dataset = json.load(open(self.url + "/session_status.json", 'r'))[self.session_token]['name']
-            df = pd.read_feather(f"{self.labels_path}/{dataset}/labels_{self.data_type}/labels_test.feather").set_index('id').loc[query['example_ids']]
+            status = json.load(open(self.url + "session_status.json", 'r'))
+            dataset = status[self.session_token]['Session_Status']['current_dataset']['name']
+            df = pd.read_feather(f"{self.labels_path}/{dataset}/labels_{self.data_type}/labels_test.feather").set_index('id').loc[posting_json['example_ids']]
             list_labels = []
             for row in df.iterrows():
                 list_labels += [{'id':row[0],
@@ -232,9 +212,9 @@ class JPL:
             response = json.load(f)
         return response
     
-    def get_only_once(self, command):
+    def get_only_once(self, command, checkpoint):
         if accelerator.is_local_main_process:
-            r = json.load(open(self.url + '/' + command + '.json', 'r'))
+            r = json.load(open(self.url + command + f'/checkpoint_{checkpoint}.json', 'r'))
             with open(os.path.join(self.saved_api_response_dir, command.replace("/", "_") + "_response.json"), "w") as f:
                 json.dump(r[self.session_token], f)
         accelerator.wait_for_everyone()
@@ -245,10 +225,655 @@ class JPL:
 
 
 
+class JPLStorage:
+    def __init__(self, task_name, metadata):
+        """
+        Create a new Task.
+        :param metadata: The metadata of the Task.
+        """
+        self.name = task_name
+        self.description = ''
+        self.problem_type = metadata['problem_type']
+        if self.problem_type == 'video_classification':
+            self.video = True
+            log.info("We are running the video classification task")
+        else: 
+            self.video = False
+            log.info("We are running the image classification task")
+        self.task_id = metadata['task_id']
+        self.classes = []
+        self.evaluation_meta_path = "path to meta data for test videos"
+        self.evaluation_image_path = "path to test images"
+        self.unlabeled_image_path = "path to unlabeled images"
+        self.unlabeled_meta_path = "path to meta data for train videos"
+        self.labeled_images = []  # A list of tuples with name and label e.g., ['1.png', '2'], ['2.png', '7'], etc.
+        self.dictionary_clips = None
+        self.number_of_channels = None
+        self.train_data_loader = None
+        self.phase = None  # base or adaptation
+        self.pretrained = None  # can load from pretrained models on ImageNet
+        self.whitelist = metadata['whitelist']
+
+        self.label_map = {}
+    
+    def add_labeled_images(self, new_labeled_images):
+        """
+        Add new labeled images to the Task.
+        :param new_labeled_images: A list of lists containing the name of an image and their labels
+        :return: None
+        """
+        self.labeled_images.extend(new_labeled_images)
+        
+    def set_image_path(self, dataset_dir, data_type, video=False):
+        """
+        Set self.evaluation_image_path and self.unlabeled_image_path with the given dataset_dir
+        :param dataset_dir: the directory to the dataset
+        :param data_type: 'sample' or 'full'
+        :return:
+        """
+        
+        self.unlabeled_image_path = os.path.join(dataset_dir,
+                                                 os.path.basename(dataset_dir) + "_" + data_type,
+                                                 "train")
+        log.debug(f"Unlabeled image PATH: {self.unlabeled_image_path}")
+        if video:
+            self.evaluation_image_path = os.path.join(dataset_dir,
+                                                      os.path.basename(dataset_dir) + "_" + data_type,
+                                                      "test")
+            self.evaluation_meta_path = os.path.join(dataset_dir,
+                                                     "labels" + "_" + data_type,
+                                                     "meta_test.feather")
+            self.unlabeled_meta_path = os.path.join(dataset_dir,
+                                                 "labels" + "_" + data_type,
+                                                 "meta_train.feather")
+
+        else:
+            self.evaluation_image_path = os.path.join(dataset_dir,
+                                                      os.path.basename(dataset_dir) + "_" + data_type,
+                                                      "test")
+    
+    def transform_image(self, train=True):
+        """
+        Get the transform to be used on an image.
+        :return: A transform
+        """
+        data_mean = [0.485, 0.456, 0.406]
+        data_std = [0.229, 0.224, 0.225]
+        # Remember to check it for video and eval
+        if train:
+            return transforms.Compose([
+                transforms.RandomResizedCrop((224, 224), scale=(0.8, 1.0)),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=data_mean, std=data_std)
+            ])
+        else:
+            return transforms.Compose([
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=data_mean, std=data_std)
+            ])
+
+    def get_labeled_images_list(self):
+        """get list of image names and labels"""
+
+        image_labels, image_names = list(zip(*self.labeled_images))
+
+        return image_names, image_labels
+
+    def get_unlabeled_image_names(self, dictionary_clips=None, video=False):
+        """return list of name of unlabeled images"""
+        
+        if video: 
+            labeled_clip_names = list(dictionary_clips.keys())
+            train_meta = pd.read_feather(self.unlabeled_meta_path)
+            unlabeled_clip_names = []
+            for clip in train_meta.iterrows(): 
+                row = clip[1]['id']
+                if row not in labeled_clip_names:
+                    unlabeled_clip_names.append(int(row))
+            return unlabeled_clip_names
+
+        else:
+            labeled_image_names = [img_name for label, img_name in self.labeled_images]
+            
+            unlabeled_image_names = []
+            for img in os.listdir(self.unlabeled_image_path):
+                if img not in labeled_image_names:
+                    unlabeled_image_names.append(img)
+            return unlabeled_image_names
+
+    def get_evaluation_image_names(self, video=False):
+
+        if video:
+            test_meta = pd.read_feather(self.evaluation_meta_path)
+            evaluation_image_names = test_meta['id'].tolist()
+        else:
+            evaluation_image_names = []
+            for img in os.listdir(self.evaluation_image_path):
+                evaluation_image_names.append(img)
+        return evaluation_image_names
+
+    def get_labeled_dataset(self, checkpoint_num, dictionary_clips, video=False):
+        """
+        Get training, validation, and testing data loaders from labeled data.
+        :return: Training, validation, and testing data loaders
+        """
+        
+        image_names, image_labels = self.get_labeled_images_list()
+        image_paths = [os.path.join(self.unlabeled_image_path, str(image_name)) for image_name in image_names]
+        
+        if video:
+            paths_dictionary_clips = {}
+            for clip, frames in dictionary_clips.items():
+                paths_dictionary_clips[clip] = [os.path.join(self.unlabeled_image_path, str(f)) for f in frames]
+            dictionary_clips = paths_dictionary_clips
+        else:
+            dictionary_clips = None
+        
+        image_paths = np.asarray(image_paths)
+        image_labels = np.asarray(image_labels)
+
+        if checkpoint_num >= 2:
+            # 80% for training, 20% for validation
+            train_percent = 0.8
+            num_data = len(image_paths)
+            indices = list(range(num_data))
+            train_split = int(np.floor(train_percent * num_data))
+            np.random.shuffle(indices)
+            train_idx = indices[:train_split]
+            val_idx = indices[train_split:]
+        else:
+            train_idx = list(range(len(image_paths)))
+            val_idx = []
+        
+        if self.video:
+            train_dataset = CustomVideoDataset(image_paths[train_idx],
+                                               labels=image_labels[train_idx],
+                                               label_map=self.label_map,
+                                               transform=self.transform_image(train=True),
+                                               clips_dictionary=dictionary_clips)
+            if len(val_idx) != 0:
+                val_dataset = CustomVideoDataset(image_paths[val_idx],
+                                                 labels=image_labels[val_idx],
+                                                 label_map=self.label_map,
+                                                 transform=self.transform_image(train=False),
+                                                 clips_dictionary=dictionary_clips)
+            else:
+                val_dataset = None
+        else:
+            train_dataset = CustomImageDataset(image_paths[train_idx],
+                                               labels=image_labels[train_idx],
+                                               label_map=self.label_map,
+                                               transform=self.transform_image(train=True))
+            if len(val_idx) != 0:
+                val_dataset = CustomImageDataset(image_paths[val_idx],
+                                                 labels=image_labels[val_idx],
+                                                 label_map=self.label_map,
+                                                 transform=self.transform_image(train=False))
+            else:
+                val_dataset = None
+
+        return train_dataset, val_dataset
+
+    def get_unlabeled_dataset(self, train=True, video=False):
+        """
+        Get a data loader from unlabeled data.
+        :return: A data loader containing unlabeled data
+        """
+        
+        transform = self.transform_image(train=train)
+        
+        if video:
+            image_paths = []
+            dictionary_clips = {}
+            train_meta = pd.read_feather(self.unlabeled_meta_path)
+            for clip in train_meta.iterrows():
+                row = clip[1]
+                action_frames = [os.path.join(self.unlabeled_image_path, str(i)+'.jpg')
+                                 for i in range(row['start_frame'], row['end_frame'])]
+                dictionary_clips[row["id"]] = action_frames
+                image_paths.append(os.path.join(self.unlabeled_image_path, str(row["id"])))
+        else:
+            image_names = self.get_unlabeled_image_names(None, video)
+            
+            image_paths = [os.path.join(self.unlabeled_image_path, image_name) for image_name in image_names]
+            dictionary_clips = None
+        
+        if len(image_paths) == 0:
+            return None
+        else:
+            if self.video:
+                return CustomVideoDataset(image_paths,
+                                          transform=transform,
+                                          clips_dictionary=dictionary_clips)
+            else:
+                return CustomImageDataset(image_paths,
+                                          transform=transform)
+
+    def get_evaluation_dataset(self, video=False):
+        """
+        Get a data loader from evaluation/test data.
+        :return: A data loader containing unlabeled data
+        """
+        transform = self.transform_image(train=False)
+        
+        if video:
+            image_paths = []
+            dictionary_clips = {}
+            test_meta = pd.read_feather(self.evaluation_meta_path)
+            for clip in test_meta.iterrows():
+                row = clip[1]
+                action_frames = [os.path.join(self.evaluation_image_path, str(i)+'.jpg')
+                                 for i in range(row['start_frame'], row['end_frame'])]
+                dictionary_clips[row["id"]] = action_frames
+                image_paths.append(os.path.join(self.evaluation_image_path, str(row["id"])))
+
+        else:
+            evaluation_image_names = []
+            for img in os.listdir(self.evaluation_image_path):
+                evaluation_image_names.append(img)
+            image_paths = [os.path.join(self.evaluation_image_path, image_name)
+                           for image_name in evaluation_image_names]
+            dictionary_clips = None
+        
+        if self.video:
+            return CustomVideoDataset(image_paths,
+                                      transform=transform,
+                                      clips_dictionary=dictionary_clips)
+        else:
+            return CustomImageDataset(image_paths,
+                                      transform=transform)
+
+
+
+class JPLRunner:
+    def __init__(self, dataset_type, problem_type, dataset_dir, api_url, problem_task,
+                 data_paths, simple_run, batch_size, testing=False):
+
+        self.dataset_dir = dataset_dir
+        self.problem_type = problem_type
+        if self.problem_type == 'video_classification':
+            self.video = True
+        else: 
+            self.video = False
+        self.api = JPL(dataset_type, api_url)
+        self.api.data_type = dataset_type
+        self.problem_task = problem_task
+        self.data_paths = data_paths
+        self.jpl_storage, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_jpl_information()
+        self.random_active_learning = RandomActiveLearning()
+        self.confidence_active_learning = LeastConfidenceActiveLearning()
+
+        self.initial_model = models.resnet50(pretrained=True)
+        self.initial_model.fc = torch.nn.Identity()
+
+        self.testing = testing
+        self.simple_run = simple_run
+        self.batch_size = batch_size
+
+    def get_jpl_information(self):
+        # Elaheh: (need change in eval) choose image classification task you would like. Now there are four tasks
+        image_classification_task = self.problem_task
+        jpl_task_name = image_classification_task
+        self.api.create_session(jpl_task_name)
+        jpl_task_metadata = self.api.get_task_metadata(jpl_task_name)
+        log.info(f"Task metadata: {jpl_task_metadata}")
+
+        if self.api.data_type == 'full':
+            num_base_checkpoints = len(jpl_task_metadata['base_label_budget_full'])
+            num_adapt_checkpoints = len(jpl_task_metadata['adaptation_label_budget_full'])
+        else:
+            num_base_checkpoints = len(jpl_task_metadata['base_label_budget_sample'])
+            num_adapt_checkpoints = len(jpl_task_metadata['adaptation_label_budget_sample'])
+
+        jpl_storage = JPLStorage(jpl_task_name, jpl_task_metadata)
+
+        return jpl_storage, num_base_checkpoints, num_adapt_checkpoints
+
+    def update_jpl_information(self):
+        session_status = self.api.get_session_status()
+
+        current_dataset = session_status['current_dataset']
+
+        self.jpl_storage.classes = current_dataset['classes']
+        self.jpl_storage.number_of_channels = current_dataset['number_of_channels']
+
+        label_map = {}
+        class_names = self.jpl_storage.classes
+        for idx, item in enumerate(class_names):
+            label_map[item] = idx
+
+        self.jpl_storage.label_map = label_map
+
+        self.jpl_storage.phase = session_status['pair_stage']
+        phase_dataset_dir = os.path.join(self.dataset_dir, current_dataset['name'])
+        self.jpl_storage.set_image_path(phase_dataset_dir, self.api.data_type, self.video)
+
+    def run_checkpoints(self):
+        try:
+            self.run_checkpoints_base()
+            self.run_checkpoints_adapt()
+        except Exception as ex:
+            #exc_type, exc_obj, tb = sys.exc_info()
+            #f = tb.tb_frame
+            #lineno = tb.tb_lineno
+            #filename = f.f_code.co_filename
+            #linecache.checkcache(filename)
+            #line = linecache.getline(filename, lineno, f.f_globals)
+            self.api.deactivate_session()
+
+            logging.exception('EXCEPTION has occured during joint training:')
+            #logging.info('exception has occured during joint training:')
+            #logging.info(ex)
+            #logging.info('EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj))
+
+    def run_checkpoints_base(self):
+        log.info("Enter checkpoint")
+        self.update_jpl_information()
+        for i in range(self.num_base_checkpoints):
+            self.run_one_checkpoint("Base", i)
+            
+    def run_checkpoints_adapt(self):
+        self.update_jpl_information()
+        for i in range(self.num_base_checkpoints):
+            self.run_one_checkpoint("Adapt", i)
+
+    def run_one_checkpoint(self, phase, checkpoint_num):
+        log.info('------------------------------------------------------------')
+        log.info('--------------------{} Checkpoint: {}'.format(phase, checkpoint_num)+'---------------------')
+        log.info('------------------------------------------------------------')
+
+        start_time = time.time()
+
+        available_budget = self.get_available_budget()
+        if checkpoint_num == 0:
+            self.jpl_storage.labeled_images, self.jpl_storage.dictionary_clips = \
+                self.api.get_initial_seed_labels(checkpoint_num, self.video)
+            log.info(f'Get initial seeds at {checkpoint_num} checkpoint')
+        elif 1 <= checkpoint_num <= 3:
+            new_labeled_images, new_dictionary_clips = self.api.get_initial_seed_labels(checkpoint_num, self.video)
+            self.jpl_storage.add_labeled_images(new_labeled_images)
+            if self.jpl_storage.dictionary_clips != None:
+                self.jpl_storage.dictionary_clips.update(new_dictionary_clips)
+            log.info(f'Get seeds at {checkpoint_num} checkpoints')
+        
+        # Get sets of unlabeled samples
+        unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names(self.jpl_storage.dictionary_clips,
+                                                                           self.video)
+        log.debug('Number of unlabeled data: {}'.format(len(unlabeled_image_names)))
+        
+        if checkpoint_num >= 4:
+            """ For the last evaluation we used to start asking for custom labels after the first 2 checkpoints.
+            Moreover we adopted randomActive learning for the first query. Do we want it?
+
+            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
+            self.request_labels(candidates)
+            """
+
+            """ For the hackathon we only use RandomActiveLearning - bring it back
+
+            candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
+            """
+            # Pick candidates from the list
+            """ To consider: we directly query for all the available budget, we have the option 
+            of gradually ask new labels untile we exhaust the budget.
+            """
+            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
+            log.debug(f"Candidates to query[0]: {candidates[0]}")
+            self.request_labels(candidates, self.video)
+
+        labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
+        unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True, self.video)
+        unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False, self.video)
+        # sys.exit()
+        task = Task(self.jpl_storage.name,
+                    labels_to_concept_ids(self.jpl_storage.classes),
+                    (224, 224), 
+                    labeled_dataset,
+                    unlabeled_train_dataset,
+                    val_dataset,
+                    self.batch_size,
+                    self.jpl_storage.whitelist,
+                    self.data_paths[0],
+                    self.data_paths[1],
+                    unlabeled_test_data=unlabeled_test_dataset,
+                    video_classification=self.video)
+        task.set_initial_model(self.initial_model)
+        controller = Controller(task, self.simple_run)
+        
+        log.info(f'Finished to run')
+        sys.exit()
+
+        end_model = controller.train_end_model()
+
+        evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.video)
+        outputs = end_model.predict(evaluation_dataset)
+        predictions = np.argmax(outputs, 1)
+        prediction_names = []
+        for p in predictions:
+            prediction_names.append([k for k, v in self.jpl_storage.label_map.items() if v == p][0])
+
+        predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(self.video), 'class': prediction_names}
+
+        self.submit_predictions(predictions_dict)
+
+        if unlabeled_test_dataset is not None:
+            outputs = end_model.predict(unlabeled_test_dataset)
+            confidences = np.max(outputs, 1)
+            candidates = np.argsort(confidences)
+            self.confidence_active_learning.set_candidates(candidates)
+
+        # update initial model
+        if checkpoint_num == 7:
+            self.initial_model = end_model.model
+            self.initial_model.fc = torch.nn.Identity()
+
+        log.info('{} Checkpoint: {} Elapsed Time =  {}'.format(phase,
+                                                               checkpoint_num,
+                                                               time.strftime("%H:%M:%S",
+                                                                             time.gmtime(time.time()-start_time))))
+
+    def get_available_budget(self):
+        session_status = self.api.get_session_status()
+        available_budget = session_status['budget_left_until_checkpoint']
+
+        if self.testing:
+            available_budget = available_budget // 10
+        return available_budget
+
+    def request_labels(self, examples, video=False):
+        query = {'example_ids': examples}
+        labeled_images, labeled_dictionary_clips = self.api.request_label(query, video)
+
+        self.jpl_storage.add_labeled_images(labeled_images)
+        if self.jpl_storage.dictionary_clips != None:
+            self.jpl_storage.dictionary_clips.update(labeled_dictionary_clips)
+        log.info("New labeled images: %s", len(labeled_images))
+        log.info("Total labeled images: %s", len(self.jpl_storage.labeled_images))
+
+    def submit_predictions(self, predictions):
+        log.info('**** session status after submit prediction  ****')
+        submit_status = self.api.submit_prediction(predictions)
+        log.info(submit_status)
+        # session_status = self.api.get_session_status()
+        session_status = submit_status
+        if 'checkpoint_scores' in session_status:
+            log.info("Checkpoint scores: %s", session_status['checkpoint_scores'])
+        if 'pair_stage' in session_status:
+            log.info("Phase: %s", session_status['pair_stage'])
+
+
+def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, data_paths,
+             simple_run, batch_size):
+    if problem_task == 'all':
+        log.info('Execute all tasks')
+        print(log.info('Execute all tasks'))
+        jpl = JPL(api_url, team_secret, gov_team_secret, dataset_type)
+        problem_task_list = jpl.get_available_tasks(problem_type)
+        for task in problem_task_list:
+            runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, task, 
+                               data_paths, simple_run, batch_size, testing=False)
+            runner.run_checkpoints()
+    else:
+        log.info("Execute a single task")
+        runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, problem_task, 
+                           data_paths, simple_run, batch_size, testing=False)
+        runner.run_checkpoints()
+
+def setup_production(simple_run):
+    """
+    This function returns the variables needed to launch the system in production.
+    """
+
+    dataset_type = os.environ.get('LWLL_TA1_DATASET_TYPE')
+    problem_type = os.environ.get('LWLL_TA1_PROB_TYPE')
+    dataset_dir = os.environ.get('LWLL_TA1_DATA_PATH')
+    log.debug(dataset_dir)
+    api_url = os.environ.get('LWLL_TA1_API_ENDPOINT')
+    problem_task = os.environ.get('LWLL_TA1_PROB_TASK')
+    gpu_list = os.environ.get('LWLL_TA1_GPUS')
+    run_time = os.environ.get('LWLL_TA1_HOURS')
+    #team_secret = os.environ.get('LWLL_TA1_TEAM_SECRET')
+    #gov_team_secret = os.environ.get('LWLL_TA1_GOVTEAM_SECRET')
+    data_paths = ('/tmp/predefined/scads.fall2020.sqlite3',
+                  '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz')
+
+    if simple_run:
+        log.info(f"Running production in simple mode, not all GPUs required")
+    else:   
+        # check gpus are all
+        if gpu_list != 'all':
+            raise Exception(f'all gpus are required')
+        
+    return dataset_type, problem_type, dataset_dir, api_url, problem_task, data_paths
+
+
+def setup_development():
+    """
+    This function returns the variables needed to launch the system in development.
+    """
+
+    # not sure this is very elegant. Let me know :)
+    import ssl_config
+
+    return (ssl_config.dataset_type, ssl_config.problem_type, ssl_config.dataset_dir, 
+            ssl_config.api_url, ssl_config.problem_task, ssl_config.data_paths)
+
+
 def main():
-    parser = argparse.ArgumentParser('argument for training')
+    
+    parser = argparse.ArgumentParser(description="Run JPL task")
+    parser.add_argument("--mode",
+                        type=str,
+                        default="prod",
+                        help="The mode to execute the system. prod: system eval, dev: system development")
+    parser.add_argument("--simple_version",
+                        type=str,
+                        default="true",
+                        help="Option to choose whether to execute or not the entire trining pipeline")
+    parser.add_argument("--folder",
+                        type=str,
+                        default="external",# development
+                        help="Option to choose the data folder")
+    parser.add_argument("--batch_size",
+                        type=int,
+                        default="128",
+                        help="Universal batch size")
     args = parser.parse_args()
+    
 
-    log.info("Setting things up")
+    if args.simple_version == 'true':
+        simple_run = True
+    else: 
+        simple_run = False
+    batch_size = args.batch_size
 
-    # Generate checkpoint labels
+    if args.mode == 'prod':
+        variables = setup_production(simple_run)
+    else:
+        variables = setup_development()
+
+    Scads.set_root_path(os.path.join(variables[2], 'external'))
+    
+    saved_api_response_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saved_api_response')
+    if not os.path.exists(saved_api_response_dir) and accelerator.is_local_main_process:
+        os.makedirs(saved_api_response_dir)
+    accelerator.wait_for_everyone()
+    
+    dataset_type = variables[0]
+    problem_type = variables[1]
+    log.info(f"Problem type: {problem_type}")
+    dataset_dir = os.path.join(variables[2], args.folder)
+    log.info(f"Dataset dir: {dataset_dir}")
+    api_url = variables[3]
+    problem_task = variables[4]
+    #team_secret = variables[5]
+    #gov_team_secret = variables[6]
+    data_paths = variables[5]
+    
+
+    valid_dataset_types = ['sample', 'full', 'all']
+    if dataset_type not in valid_dataset_types:
+        raise Exception(f'Invalid `dataset_type`, expected one of {valid_dataset_types}')
+
+    # Check problem type is valid
+    valid_problem_types = ['image_classification', 'object_detection', 'machine_translation', 'video_classification',
+                           'all']
+    if problem_type not in valid_problem_types:
+        raise Exception(f'Invalid `problem_type`, expected one of {valid_problem_types}')
+
+    # Check dataset directory exists
+    if not Path(dataset_dir).exists():
+        raise Exception('`dataset_dir` does not exist..')
+
+    #_logger = logging.getLogger(__name__)
+    #_logger.level = logging.DEBUG
+    #stream_handler = logging.StreamHandler(sys.stdout)
+    #stream_handler = logging.StreamHandler(logger.log)
+    #formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+    #stream_handler.setFormatter(formatter)
+    #_logger.addHandler(stream_handler)
+    
+    workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, data_paths,
+             simple_run, batch_size)
+    
+
+if __name__ == "__main__":
+    main()
+
+# def main():
+#     parser = argparse.ArgumentParser('argument for training')
+#     args = parser.parse_args()
+
+#     log.info("Setting things up")
+
+#     log.info(f"Try get_available_tasks")
+#     jpl = JPL('full', 'mlsys/semi_supervised/requests/')
+#     subset_tasks = jpl.get_available_tasks('image_classification')
+#     log.info(f"Subset tasks: {subset_tasks[0]}")
+
+#     task_metadata = jpl.get_task_metadata(subset_tasks[0])
+#     log.info(f"Task metadata: {task_metadata}")
+
+#     jpl.create_session(subset_tasks[0])
+#     log.info(f"Session token: {jpl.session_token}")
+
+#     session_status = jpl.get_session_status()
+#     log.info(f"Get session status: {session_status}")
+
+#     log.info(jpl.saved_api_response_dir)
+    
+    
+#     labels, d_clips = jpl.get_initial_seed_labels(checkpoint=0)
+#     log.info(f"Labels: {labels} -- dict: {d_clips}")
+
+#     query = {
+#             'example_ids': [
+#                 'ILSVRC2012_val_00049419.JPEG',
+#                 'ILSVRC2012_val_00049991.JPEG'
+#             ]
+#         }
+#     labels, d_clips = jpl.request_label(query)
+#     log.info(f"Labels: {labels} -- dict: {d_clips}")
+     
