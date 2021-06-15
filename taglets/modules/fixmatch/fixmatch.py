@@ -1,24 +1,20 @@
-from taglets.modules.module import Module
-from taglets.data.custom_dataset import CustomImageDataset
-from taglets.pipeline import Cache, ImageTaglet
-from taglets.scads import Scads, ScadsEmbedding
-
-from .utils import TransformFixMatch, is_grayscale
-from copy import deepcopy
-from enum import Enum
-
 import math
-import pickle
 import os
 import random
-
 import torch
 import logging
-import torch.nn as nn
-import torch.distributed as dist
 import torch.nn.functional as F
-
 import torchvision.transforms as transforms
+from copy import deepcopy
+from enum import Enum
+from accelerate import Accelerator
+accelerator = Accelerator()
+
+from ..module import Module
+from ...data.custom_dataset import CustomImageDataset
+from ...pipeline import Cache, ImageTaglet
+from ...scads import Scads, ScadsEmbedding
+from .utils import TransformFixMatch, is_grayscale
 
 log = logging.getLogger(__name__)
 
@@ -103,13 +99,6 @@ class FixMatchTaglet(ImageTaglet):
                  use_scads=True):
         self.name = 'fixmatch'
 
-        if os.getenv("LWLL_TA1_PROB_TASK") is not None:
-            self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
-        else:
-            self.save_dir = os.path.join('trained_models', self.name)
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
-
         self.steps_per_epoch = steps_per_epoch
         self.conf_thresh = conf_thresh
         self.lambda_u = lambda_u
@@ -146,6 +135,14 @@ class FixMatchTaglet(ImageTaglet):
             raise ValueError("unlabeled dataset is too small for FixMatch.")
 
         self.opt_type = optimizer
+        
+        if os.getenv("LWLL_TA1_PROB_TASK") is not None:
+            self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
+        else:
+            self.save_dir = os.path.join('trained_models', self.name)
+        if not os.path.exists(self.save_dir) and accelerator.is_local_main_process:
+            os.makedirs(self.save_dir)
+        accelerator.wait_for_everyone()
 
     def transform_image(self, train=True):
         """
@@ -262,7 +259,7 @@ class FixMatchTaglet(ImageTaglet):
             use_ema_copy = self.use_ema
 
             self.batch_size = 2 * self.batch_size
-            self.num_epochs = 25 if not os.environ.get("CI") else 5
+            self.num_epochs = 5
             self.use_ema = False
 
             super(FixMatchTaglet, self).train(scads_train_data, None, None)
@@ -284,9 +281,7 @@ class FixMatchTaglet(ImageTaglet):
         self._params_to_update = params_to_update
 
         if self.opt_type == Optimizer.SGD:
-            self.optimizer = torch.optim.SGD(self._params_to_update, lr=self.lr,
-                                                                     momentum=0.9,
-                                                                     nesterov=self.nesterov)
+            self.optimizer = torch.optim.SGD(self._params_to_update, lr=self.lr, momentum=0.9, nesterov=self.nesterov)
         else:
             self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=self.weight_decay)
 
@@ -300,7 +295,7 @@ class FixMatchTaglet(ImageTaglet):
         self._init_unlabeled_transform(unlabeled_data)
         super(FixMatchTaglet, self).train(train_data, val_data, unlabeled_data)
 
-    def _do_train(self, rank, q, train_data, val_data, unlabeled_data=None):
+    def _do_train(self, train_data, val_data, unlabeled_data=None):
         """
                One worker for training.
 
@@ -312,48 +307,17 @@ class FixMatchTaglet(ImageTaglet):
                :param unlabeled_data: A dataset containing unlabeled data
                :return:
                """
+        log.info('Beginning training')
 
-        if not self.use_scads and unlabeled_data is None:
-            raise ValueError("Cannot train FixMatch taglet without unlabeled data.")
-
-        if rank == 0:
-            log.info('Beginning training')
-
-        # Initializes distributed backend
-        backend = 'nccl' if self.use_gpu else 'gloo'
-        dist.init_process_group(
-            backend=backend, init_method='env://', world_size=self.n_proc, rank=rank
-        )
-
-        # Configures model to be distributed
-        if self.use_gpu:
-            self.model = self.model.cuda(rank)
-            self.model = nn.parallel.DistributedDataParallel(
-                self.model, device_ids=[rank]
-            )
-            if self.use_ema:
-                self.ema_model.ema = self.ema_model.ema.cuda(rank)
-        else:
-            self.model = self.model.cpu()
-            self.model = nn.parallel.DistributedDataParallel(
-                self.model, device_ids=None
-            )
-
-            if self.use_ema:
-                self.ema_model.ema = self.ema_model.ema.cpu()
-
-        # Creates distributed data loaders from datasets
-        train_sampler = self._get_train_sampler(train_data, n_proc=self.n_proc, rank=rank)
-        train_data_loader = self._get_dataloader(data=train_data, sampler=train_sampler,
+        train_data_loader = self._get_dataloader(data=train_data, shuffle=True,
                                                  batch_size=self.batch_size)
 
         if not self.use_scads:
             # batch size can't be larger than number of examples
             self.unlabeled_batch_size = min(self.unlabeled_batch_size, len(unlabeled_data))
-            unlabeled_sampler = self._get_train_sampler(unlabeled_data, n_proc=self.n_proc, rank=rank)
 
             unlabeled_data_loader = self._get_dataloader(data=unlabeled_data,
-                                                         sampler=unlabeled_sampler,
+                                                         shuffle=True,
                                                          batch_size=self.unlabeled_batch_size)
 
             if self.steps_per_epoch == -1:
@@ -371,11 +335,11 @@ class FixMatchTaglet(ImageTaglet):
         if val_data is None:
             val_data_loader = None
         else:
-            val_sampler = self._get_val_sampler(val_data, n_proc=self.n_proc, rank=rank)
-            val_data_loader = self._get_dataloader(data=val_data, sampler=val_sampler,
+            val_data_loader = self._get_dataloader(data=val_data, shuffle=False,
                                                    batch_size=self.batch_size)
 
         # Initializes statistics containers (will only be filled by lead process)
+        best_ema_model_to_save = None
         best_model_to_save = None
         best_val_acc = 0
         train_loss_list = []
@@ -383,90 +347,78 @@ class FixMatchTaglet(ImageTaglet):
         val_loss_list = []
         val_acc_list = []
 
+        accelerator.wait_for_everyone()
+        self.model, self.optimizer = accelerator.prepare(self.model, self.optimizer)
+        if self.use_ema:
+            self.ema_model.ema = accelerator.prepare(self.ema_model.ema)
+
         # Iterates over epochs
         for epoch in range(self.num_epochs):
-            if rank == 0:
-                log.info("Epoch {}: ".format(epoch + 1))
-
-            # this is necessary for shuffle to work
-            train_sampler.set_epoch(epoch)
+            log.info("Epoch {}: ".format(epoch + 1))
 
             # Trains on training data
-            train_loss, train_acc = self._train_epoch(rank, train_data_loader, unlabeled_data_loader)
+            train_loss, train_acc = self._train_epoch(train_data_loader, unlabeled_data_loader)
 
             # Evaluates on validation data
             if val_data_loader:
-                val_loss, val_acc = self._validate_epoch(rank, val_data_loader)
+                val_loss, val_acc = self._validate_epoch(val_data_loader)
             else:
                 val_loss = 0
                 val_acc = 0
 
-            # Gathers results statistics to lead process
-            summaries = [train_loss, train_acc, val_loss, val_acc]
-            summaries = torch.tensor(summaries, requires_grad=False)
-            if self.use_gpu:
-                summaries = summaries.cuda(rank)
-            else:
-                summaries = summaries.cpu()
-            dist.reduce(summaries, 0, op=dist.ReduceOp.SUM)
-            train_loss, train_acc, val_loss, val_acc = summaries
-
-            # Processes results if lead process
-            if rank == 0:
-                log.info('Train loss: {:.4f}'.format(train_loss))
-                log.info('Train acc: {:.4f}%'.format(train_acc * 100))
-                train_loss_list.append(train_loss)
-                train_acc_list.append(train_acc)
-                log.info('Validation loss: {:.4f}'.format(val_loss))
-                log.info('Validation acc: {:.4f}%'.format(val_acc * 100))
-                val_loss_list.append(val_loss)
-                val_acc_list.append(val_acc)
-                if val_acc > best_val_acc:
-                    log.debug("Deep copying new best model." +
-                              "(validation of {:.4f}%, over {:.4f}%)".format(
-                                  val_acc * 100, best_val_acc * 100))
-                    if self.use_ema:
-                        best_ema_model_to_save = deepcopy(self.ema_model.ema.module.state_dict())
-                        if self.save_dir:
-                            torch.save(best_ema_model_to_save, self.save_dir + '/ema_model.pth.tar')
-
-                    best_model_to_save = deepcopy(self.model.module.state_dict())
-                    best_val_acc = val_acc
+            log.info('Train loss: {:.4f}'.format(train_loss))
+            log.info('Train acc: {:.4f}%'.format(train_acc * 100))
+            train_loss_list.append(train_loss)
+            train_acc_list.append(train_acc)
+            log.info('Validation loss: {:.4f}'.format(val_loss))
+            log.info('Validation acc: {:.4f}%'.format(val_acc * 100))
+            val_loss_list.append(val_loss)
+            val_acc_list.append(val_acc)
+            if val_acc > best_val_acc:
+                accelerator.wait_for_everyone()
+                log.debug("Deep copying new best model." +
+                          "(validation of {:.4f}%, over {:.4f}%)".format(
+                              val_acc * 100, best_val_acc * 100))
+                if self.use_ema:
+                    unwrapped_ema_model = accelerator.unwrap_model(self.ema_model.ema)
+                    best_ema_model_to_save = deepcopy(unwrapped_ema_model.state_dict())
                     if self.save_dir:
-                        torch.save(best_model_to_save, self.save_dir + '/model.pth.tar')
+                        accelerator.save(best_ema_model_to_save, self.save_dir + '/ema_model.pth.tar')
+
+                unwrapped_model = accelerator.unwrap_model(self.model)
+                best_model_to_save = deepcopy(unwrapped_model.state_dict())
+                best_val_acc = val_acc
+                if self.save_dir:
+                    accelerator.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
             if self.opt_type == Optimizer.ADAM:
                 self.lr_scheduler.step()
 
-        # Lead process saves plots and returns best model
-        if rank == 0:
-            if self.save_dir:
-                val_dic = {'train': train_loss_list, 'validation': val_loss_list}
-                self.save_plot('loss', val_dic, self.save_dir)
-                val_dic = {'train': train_acc_list, 'validation': val_acc_list}
-                self.save_plot('accuracy', val_dic, self.save_dir)
-            if self.select_on_val and best_model_to_save is not None:
-                if self.use_ema and best_ema_model_to_save is not None:
-                    self.ema_model.ema.load_state_dict(best_ema_model_to_save)
-                self.model.module.load_state_dict(best_model_to_save)
-
-            self.model.cpu()
-            state_dict = self.model.module.state_dict()
-            state_dict = pickle.dumps(state_dict)
-            q.put(state_dict)
-
-        # Use a barrier to keep all workers alive until they all finish,
-        # due to shared CUDA tensors. See
-        # https://pytorch.org/docs/stable/multiprocessing.html#multiprocessing-cuda-sharing-details
-        dist.barrier()
-
+        
+        accelerator.wait_for_everyone()
+        self.optimizer = self.optimizer.optimizer
+        self.model = accelerator.unwrap_model(self.model)
+        if self.use_ema:
+            self.ema_model.ema = accelerator.unwrap_model(self.ema_model.ema)
+        self.model.cpu()
+        accelerator.free_memory()
+        
+        if self.save_dir and accelerator.is_local_main_process:
+            val_dic = {'train': train_loss_list, 'validation': val_loss_list}
+            self.save_plot('loss', val_dic, self.save_dir)
+            val_dic = {'train': train_acc_list, 'validation': val_acc_list}
+            self.save_plot('accuracy', val_dic, self.save_dir)
+        if self.select_on_val and best_model_to_save is not None:
+            if self.use_ema and best_ema_model_to_save is not None:
+                self.ema_model.ema.load_state_dict(best_ema_model_to_save)
+            self.model.load_state_dict(best_model_to_save)
         if unlabeled_data is not None:
             unlabeled_data.transform = self.org_unlabeled_transform
 
     def _get_pred_classifier(self):
         return self.ema_model.ema if self.use_ema else self.model
 
-    def _train_epoch(self, rank, train_data_loader, unlabeled_data_loader=None):
+    def _train_epoch(self, train_data_loader, unlabeled_data_loader=None):
         self.model.train()
 
         labeled_iter = iter(train_data_loader)
@@ -502,8 +454,6 @@ class FixMatchTaglet(ImageTaglet):
             else:
                 inputs = torch.cat((inputs_x, inputs_u_w, inputs_u_s))
 
-            inputs = inputs.cuda(rank) if self.use_gpu else inputs.cpu()
-            targets_x = targets_x.cuda(rank) if self.use_gpu else targets_x.cpu()
             labels = targets_x
 
             self.optimizer.zero_grad()
@@ -528,7 +478,7 @@ class FixMatchTaglet(ImageTaglet):
                     lu = (F.cross_entropy(logits_u_s, targets_u, reduction='none') * mask).mean()
                     loss = lx + self.lambda_u * lu
 
-                loss.backward()
+                accelerator.backward(loss)
                 self.optimizer.step()
 
             if self.opt_type == Optimizer.SGD:
@@ -536,15 +486,18 @@ class FixMatchTaglet(ImageTaglet):
             if self.use_ema:
                 self.ema_model.update(self.model)
 
+            logits_x = accelerator.gather(logits_x.detach())
+            labels = accelerator.gather(labels)
+
             running_loss += loss.item()
-            running_acc += self._get_train_acc(logits_x, labels)
+            running_acc += self._get_train_acc(logits_x, labels).item()
             acc_count += len(labels)
 
         epoch_loss = running_loss / self.steps_per_epoch
-        epoch_acc = running_acc.item() / acc_count
+        epoch_acc = running_acc / acc_count
         return epoch_loss, epoch_acc
 
-    def _validate_epoch(self, rank, val_data_loader):
+    def _validate_epoch(self, val_data_loader):
         """
         Validate for one epoch.
         :param val_data_loader: A dataloader containing validation data
@@ -558,17 +511,17 @@ class FixMatchTaglet(ImageTaglet):
         for batch in val_data_loader:
             inputs = batch[0]
             labels = batch[1]
-            if self.use_gpu:
-                inputs = inputs.cuda(rank)
-                labels = labels.cuda(rank)
             with torch.set_grad_enabled(False):
                 outputs = eval_model(inputs)
                 loss = torch.nn.functional.cross_entropy(outputs, labels)
                 _, preds = torch.max(outputs, 1)
 
+            preds = accelerator.gather(preds.detach())
+            labels = accelerator.gather(labels)
+
             running_loss += loss.item()
-            running_acc += torch.sum(preds == labels)
+            running_acc += torch.sum(preds == labels).item()
 
         epoch_loss = running_loss / len(val_data_loader.dataset)
-        epoch_acc = running_acc.item() / len(val_data_loader.dataset)
+        epoch_acc = running_acc / len(val_data_loader.dataset)
         return epoch_loss, epoch_acc
