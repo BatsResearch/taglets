@@ -379,7 +379,7 @@ class JPLStorage:
         image_paths = np.asarray(image_paths)
         image_labels = np.asarray(image_labels)
 
-        if checkpoint_num >= 2:
+        if checkpoint_num >= 4:
             # 80% for training, 20% for validation
             train_percent = 0.8
             num_data = len(image_paths)

@@ -118,6 +118,9 @@ class Controller:
             if val is not None and len(val) >= len(self.task.classes) * 10:
                 # Weight votes using development set
                 weights = [taglet.evaluate(val) for taglet in taglets]
+                log.info("Validation accuracies of each taglet:")
+                for w, taglet in zip(weights, taglets):
+                    log.info("Module {} - acc {:.4f}".format(taglet.name, w))
             else:
                 # Weight all votes equally
                 weights = [1.0] * len(taglets)
