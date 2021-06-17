@@ -101,7 +101,7 @@ class DannTaglet(ImageTaglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'dann'
-        self.num_epochs = 2 if not os.environ.get("CI") else 5
+        self.num_epochs = 10 if not os.environ.get("CI") else 5
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
@@ -204,12 +204,14 @@ class DannTaglet(ImageTaglet):
 
         # Domain adversarial training
         self._update_params()
+        self.num_epochs = 10 if not os.environ.get("CI") else 5
         super(DannTaglet, self).train(train_data, val_data, unlabeled_data)
 
         # Finetune target data
         self.training_first_stage = False
         self.model._remove_extra_heads()
         self._update_params()
+        self.num_epochs = 25 if not os.environ.get("CI") else 5
         super(DannTaglet, self).train(train_data, val_data, unlabeled_data)
 
     def _update_params(self):
