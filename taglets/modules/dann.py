@@ -253,10 +253,10 @@ class DannTaglet(ImageTaglet):
             iteration += 1
             source_inputs, source_labels = source_batch
             target_inputs, target_labels = target_batch
-            zeros = torch.zeros(len(source_inputs), dtype=torch.long)
-            ones = torch.ones(len(target_inputs), dtype=torch.long)
+            zeros = torch.zeros(len(source_inputs), dtype=torch.long, device=source_inputs.device)
+            ones = torch.ones(len(target_inputs), dtype=torch.long, device=target_inputs.device)
             if unlabeled_data_loader:
-                unlabeled_ones = torch.zeros(len(unlabeled_inputs), dtype=torch.long)
+                unlabeled_ones = torch.zeros(len(unlabeled_inputs), dtype=torch.long, device=unlabeled_inputs.device)
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
