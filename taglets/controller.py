@@ -113,6 +113,12 @@ class Controller:
             log.info("Executing taglets")
             vote_matrix = taglet_executor.execute(unlabeled)
             log.info("Finished executing taglets")
+            
+            if self.task.all_train_labels is not None:
+                log.info('Accuracies of each taglet on the unlabeled train data:')
+                for i in range(len(taglets)):
+                    acc = np.sum(vote_matrix[:, i] == self.task.all_train_labels) / len(self.task.all_train_labels)
+                    log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
 
             # Combines taglets' votes into soft labels
             if val is not None and len(val) >= len(self.task.classes) * 10:
@@ -126,6 +132,12 @@ class Controller:
                 weights = [1.0] * len(taglets)
 
             weak_labels = self._get_weighted_dist(vote_matrix, weights)
+            
+            if self.task.all_train_labels is not None:
+                log.info('Accuracy of the predictions of labelmodel (argmax of the weak labels):')
+                predictions = np.asarray([np.argmax(label) for label in weak_labels])
+                acc = np.sum(predictions == self.task.all_train_labels) / len(self.task.all_train_labels)
+                log.info('Acc {:.4f}'.format(acc))
             
             for label in weak_labels:
                 unlabeled_images_labels.append(torch.FloatTensor(label))
