@@ -412,6 +412,7 @@ class FixMatchTaglet(ImageTaglet):
             if self.use_ema and best_ema_model_to_save is not None:
                 self.ema_model.ema.load_state_dict(best_ema_model_to_save)
             self.model.load_state_dict(best_model_to_save)
+            accelerator.wait_for_everyone()
         if unlabeled_data is not None:
             unlabeled_data.transform = self.org_unlabeled_transform
 

@@ -202,6 +202,7 @@ class Trainable:
             self.save_plot('accuracy', val_dic, self.save_dir)
         if self.select_on_val and best_model_to_save is not None:
             self.model.load_state_dict(best_model_to_save)
+            accelerator.wait_for_everyone()
 
     def _train_epoch(self, train_data_loader, unlabeled_data_loader=None):
         raise NotImplementedError
