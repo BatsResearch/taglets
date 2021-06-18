@@ -514,7 +514,7 @@ class JPLStorage:
         labels_dict = df.to_dict()['class']
 
         # get a list of labels that corresponds to the unlabeled images
-        image_names = self.get_unlabeled_image_names
+        image_names = self.get_unlabeled_image_names()
         all_train_labels = [labels_dict[image_name] for image_name in image_names]
         return all_train_labels
 
