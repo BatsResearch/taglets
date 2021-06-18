@@ -134,7 +134,7 @@ class Controller:
             weak_labels = self._get_weighted_dist(vote_matrix, weights)
             
             if self.task.all_train_labels is not None:
-                log.info('Accuracy of the predictions of labelmodel (argmax of the weak labels):')
+                log.info('Accuracy of the labelmodel on the unlabeled train data:')
                 predictions = np.asarray([np.argmax(label) for label in weak_labels])
                 acc = np.sum(predictions == self.task.all_train_labels) / len(self.task.all_train_labels)
                 log.info('Acc {:.4f}'.format(acc))
@@ -156,6 +156,14 @@ class Controller:
             self.end_model = ImageEndModel(self.task)
         self.end_model.train(end_model_train_data, val)
         log.info("Finished training end model")
+
+        if self.task.all_train_labels is not None:
+            log.info('Accuracy of the end model on the unlabeled train data:')
+            outputs = self.end_model.predict(unlabeled)
+            predictions = np.argmax(outputs, 1)
+            acc = np.sum(predictions == self.task.all_train_labels) / len(self.task.all_train_labels)
+            log.info('Acc {:.4f}'.format(acc))
+        
         return self.end_model
 
     def _get_taglets_modules(self):
