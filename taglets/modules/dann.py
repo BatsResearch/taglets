@@ -101,7 +101,6 @@ class DannTaglet(ImageTaglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'dann'
-        self.num_epochs = 10 if not os.environ.get("CI") else 5
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
@@ -114,6 +113,9 @@ class DannTaglet(ImageTaglet):
         self.num_related_class = 5
         self.training_first_stage = True
         self.epoch = 0
+        
+        self.batch_size = self.batch_size // 4
+        self.unlabeled_batch_size = self.unlabeled_batch_size // 4
 
     def transform_image(self, train=True):
         """
@@ -229,12 +231,8 @@ class DannTaglet(ImageTaglet):
     def _do_train(self, train_data, val_data, unlabeled_data=None):
         # batch_size = min(len(train_data) // num_batches, 256)
         if self.training_first_stage:
-            batch_size = max(int(self.batch_size/8), 8) if not os.environ.get("CI") else 32
-            self.source_data_loader = self._get_dataloader(data=self.source_data, shuffle=True, batch_size=batch_size)
-        old_batch_size = self.batch_size
-        self.batch_size = max(int(old_batch_size/8), 8)
+            self.source_data_loader = self._get_dataloader(data=self.source_data, shuffle=True)
         super(DannTaglet, self)._do_train(train_data, val_data, unlabeled_data)
-        self.batch_size = old_batch_size
 
     def _train_epoch(self, train_data_loader, unlabeled_data_loader=None):
         if self.training_first_stage:

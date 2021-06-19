@@ -78,7 +78,7 @@ class MultiTaskTaglet(ImageTaglet):
         self.img_per_related_class = 600 if not os.environ.get("CI") else 1
         self.num_related_class = 5
         
-        self.batch_size = self.batch_size // 2 # This module uses more GPU memory than other modules
+        self.batch_size = self.batch_size // 2
 
     def transform_image(self, train=True):
         """
@@ -184,11 +184,7 @@ class MultiTaskTaglet(ImageTaglet):
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):
         self.source_data_loader = self._get_dataloader(data=self.source_data, shuffle=True)
-
-        old_batch_size = self.batch_size
-        self.batch_size = max(int(old_batch_size/8), 8)
         super(MultiTaskTaglet, self)._do_train(train_data, val_data, unlabeled_data)
-        self.batch_size = old_batch_size
 
     def _train_epoch(self, train_data_loader, unlabeled_train_loader=None):
         self.model.train()
