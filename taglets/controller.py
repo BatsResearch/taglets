@@ -82,11 +82,12 @@ class Controller:
         """
         # Gets datasets
         labeled = self.task.get_labeled_train_data()
-        unlabeled = self.task.get_unlabeled_data(False)
+        unlabeled_test = self.task.get_unlabeled_data(False) # augmentation is not applied
+        unlabeled_train = self.task.get_unlabeled_data(True) # augmentation is applied
         val = self.task.get_validation_data()
 
         unlabeled_images_labels = []
-        if unlabeled is not None:
+        if unlabeled_test is not None:
             # Creates taglets
             modules = self._get_taglets_modules()
             taglets = []
@@ -95,7 +96,7 @@ class Controller:
                     log.info("Initializing %s module", cls.__name__)
                     module = cls(task=self.task)
                     log.info("Training %s module", cls.__name__)
-                    module.train_taglets(labeled, val, unlabeled)
+                    module.train_taglets(labeled, val, unlabeled_train)
                     log.info("Finished training %s module", cls.__name__)
 
                     # Collects taglets
@@ -111,7 +112,7 @@ class Controller:
     
             # Executes taglets
             log.info("Executing taglets")
-            vote_matrix = taglet_executor.execute(unlabeled)
+            vote_matrix = taglet_executor.execute(unlabeled_test)
             log.info("Finished executing taglets")
             
             if self.task.all_train_labels is not None:
@@ -146,7 +147,7 @@ class Controller:
         log.info("Training end model")
 
         end_model_train_data = self._combine_soft_labels(unlabeled_images_labels,
-                                                         self.task.get_unlabeled_data(True),
+                                                         unlabeled_train,
                                                          self.task.get_labeled_train_data())
         if self.simple_run:
             self.end_model = RandomEndModel(self.task)
@@ -157,9 +158,9 @@ class Controller:
         self.end_model.train(end_model_train_data, val)
         log.info("Finished training end model")
 
-        if self.task.all_train_labels is not None:
+        if self.task.all_train_labels is not None and unlabeled_test is not None:
             log.info('Accuracy of the end model on the unlabeled train data:')
-            outputs = self.end_model.predict(unlabeled)
+            outputs = self.end_model.predict(unlabeled_test)
             predictions = np.argmax(outputs, 1)
             acc = np.sum(predictions == self.task.all_train_labels) / len(self.task.all_train_labels)
             log.info('Acc {:.4f}'.format(acc))
