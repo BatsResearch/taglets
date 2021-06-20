@@ -671,7 +671,7 @@ class JPLRunner:
         unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True, self.video)
         unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False, self.video)
         
-        all_train_labels = self.jpl_storage.get_true_labels('train', self.mode)
+        unlabeled_train_labels = self.jpl_storage.get_true_labels('train', self.mode)
         
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),
@@ -684,7 +684,7 @@ class JPLRunner:
                     self.data_paths[0],
                     self.data_paths[1],
                     unlabeled_test_data=unlabeled_test_dataset,
-                    all_train_labels=all_train_labels,
+                    unlabeled_train_labels=unlabeled_train_labels,
                     video_classification=self.video)
         task.set_initial_model(self.initial_model)
         controller = Controller(task, self.simple_run)
