@@ -115,10 +115,10 @@ class Controller:
             vote_matrix = taglet_executor.execute(unlabeled_test)
             log.info("Finished executing taglets")
             
-            if self.task.all_train_labels is not None:
+            if self.task.unlabeled_train_labels is not None:
                 log.info('Accuracies of each taglet on the unlabeled train data:')
                 for i in range(len(taglets)):
-                    acc = np.sum(vote_matrix[:, i] == self.task.all_train_labels) / len(self.task.all_train_labels)
+                    acc = np.sum(vote_matrix[:, i] == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
                     log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
 
             # Combines taglets' votes into soft labels
@@ -134,10 +134,10 @@ class Controller:
 
             weak_labels = self._get_weighted_dist(vote_matrix, weights)
             
-            if self.task.all_train_labels is not None:
+            if self.task.unlabeled_train_labels is not None:
                 log.info('Accuracy of the labelmodel on the unlabeled train data:')
                 predictions = np.asarray([np.argmax(label) for label in weak_labels])
-                acc = np.sum(predictions == self.task.all_train_labels) / len(self.task.all_train_labels)
+                acc = np.sum(predictions == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
                 log.info('Acc {:.4f}'.format(acc))
             
             for label in weak_labels:
@@ -158,11 +158,11 @@ class Controller:
         self.end_model.train(end_model_train_data, val)
         log.info("Finished training end model")
 
-        if self.task.all_train_labels is not None and unlabeled_test is not None:
+        if self.task.unlabeled_train_labels is not None and unlabeled_test is not None:
             log.info('Accuracy of the end model on the unlabeled train data:')
             outputs = self.end_model.predict(unlabeled_test)
             predictions = np.argmax(outputs, 1)
-            acc = np.sum(predictions == self.task.all_train_labels) / len(self.task.all_train_labels)
+            acc = np.sum(predictions == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
             log.info('Acc {:.4f}'.format(acc))
         
         return self.end_model
