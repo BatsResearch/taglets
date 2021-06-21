@@ -204,8 +204,8 @@ class DannTaglet(ImageTaglet):
 
         self.model = DannModel(self.model, len(self.task.classes), num_classes, self.task.input_shape)
         
-        if len(train_data) < self.task.classes * 50:
-            num_duplicates = ((self.task.classes * 50) // len(train_data)) + 1
+        if len(train_data) < len(self.task.classes) * 50:
+            num_duplicates = (len(self.task.classes) * 50 // len(train_data)) + 1
             train_data = torch.utils.data.ConcatDataset([train_data] * num_duplicates)
 
         # Domain adversarial training

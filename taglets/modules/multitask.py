@@ -176,8 +176,8 @@ class MultiTaskTaglet(ImageTaglet):
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
         
-        if len(train_data) < self.task.classes * 50:
-            num_duplicates = ((self.task.classes * 50) // len(train_data)) + 1
+        if len(train_data) < len(self.task.classes) * 50:
+            num_duplicates = (len(self.task.classes) * 50 // len(train_data)) + 1
             train_data = torch.utils.data.ConcatDataset([train_data] * num_duplicates)
         
         super(MultiTaskTaglet, self).train(train_data, val_data, unlabeled_data)
