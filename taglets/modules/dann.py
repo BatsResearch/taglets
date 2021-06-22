@@ -164,6 +164,8 @@ class DannTaglet(ImageTaglet):
                     log.debug("Source class found: {}".format(node.get_conceptnet_id()))
                     return True
                 return False
+            
+            # Unlike other methods, for Dann, the auxiliary classes for each target class are merged
 
             all_related_class = 0
             for conceptnet_id in self.task.classes:
@@ -171,15 +173,14 @@ class DannTaglet(ImageTaglet):
                 target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
                 if get_images(target_node, all_related_class):
                     cur_related_class += 1
-                    all_related_class += 1
 
                 neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
                 for neighbor in neighbors:
                     if get_images(neighbor, all_related_class):
                         cur_related_class += 1
-                        all_related_class += 1
                         if cur_related_class >= self.num_related_class:
                             break
+                all_related_class += 1
 
             Scads.close()
             Cache.set('scads', self.task.classes,
@@ -260,7 +261,7 @@ class DannTaglet(ImageTaglet):
             zeros = torch.zeros(len(source_inputs), dtype=torch.long, device=source_inputs.device)
             ones = torch.ones(len(target_inputs), dtype=torch.long, device=target_inputs.device)
             if unlabeled_data_loader:
-                unlabeled_ones = torch.zeros(len(unlabeled_inputs), dtype=torch.long, device=unlabeled_inputs.device)
+                unlabeled_ones = torch.ones(len(unlabeled_inputs), dtype=torch.long, device=unlabeled_inputs.device)
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
