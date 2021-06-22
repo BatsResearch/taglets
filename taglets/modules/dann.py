@@ -18,15 +18,18 @@ log = logging.getLogger(__name__)
 
 
 class GradientReversalLayer(autograd.Function):
-
+    
     @staticmethod
     def forward(ctx, x, alpha):
         ctx.alpha = alpha
-        return x
-
+        
+        return x.view_as(x)
+    
     @staticmethod
     def backward(ctx, grad_output):
-        return grad_output.neg() * ctx.alpha, None
+        output = grad_output.neg() * ctx.alpha
+        
+        return output, None
 
 
 class DannModel(nn.Module):
@@ -36,13 +39,13 @@ class DannModel(nn.Module):
         output_shape = self._get_model_output_shape(input_shape, self.base)
         self.fc_source = nn.Sequential(nn.Linear(output_shape, output_shape),
                                        nn.ReLU(),
-                                       torch.nn.Linear(output_shape, num_source))
+                                       nn.Linear(output_shape, num_source))
         self.fc_target = nn.Sequential(nn.Linear(output_shape, output_shape),
                                        nn.ReLU(),
-                                       torch.nn.Linear(output_shape, num_target))
+                                       nn.Linear(output_shape, num_target))
         self.fc_domain = nn.Sequential(nn.Linear(output_shape, output_shape),
                                        nn.ReLU(),
-                                       torch.nn.Linear(output_shape, 2))
+                                       nn.Linear(output_shape, 2))
 
     def forward(self, target_input, source_input=None, unlabeled_input=None, alpha=1.0):
         x = self.base(target_input)
@@ -282,12 +285,12 @@ class DannTaglet(ImageTaglet):
                 accelerator.backward(loss)
                 self.optimizer.step()
 
-            source_classes = accelerator.gather(source_classes.detach())
-            source_labels = accelerator.gather(source_labels)
+            target_classes = accelerator.gather(target_classes.detach())
+            target_labels = accelerator.gather(target_labels)
 
             running_loss += loss.item()
-            running_acc += self._get_train_acc(source_classes, source_labels).item()
-            total_len += len(source_labels)
+            running_acc += self._get_train_acc(target_classes, target_labels).item()
+            total_len += len(target_labels)
         self.epoch += 1
         if not len(train_data_loader.dataset):
             return 0, 0
