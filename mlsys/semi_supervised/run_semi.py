@@ -11,7 +11,7 @@ from taglets.task import Task
 from taglets.controller import Controller
 from taglets.task.utils import labels_to_concept_ids
 
-from .dataset_api import DatasetAPI
+from .dataset_api import FMD
 
 
 log = logging.getLogger(__name__)
@@ -22,7 +22,9 @@ class CheckpointRunner:
         self.dataset = dataset
         self.dataset_dir = dataset_dir
         self.batch_size = batch_size
-        self.dataset_api = DatasetAPI()
+        
+        dataset_dict = {'fmd': FMD}
+        self.dataset_api = dataset_dict[dataset](dataset_dir)
 
         self.initial_model = models.resnet50(pretrained=True)
         self.initial_model.fc = torch.nn.Identity()
@@ -72,8 +74,8 @@ class CheckpointRunner:
             log.info('Acc {:.4f}'.format(acc))
 
         log.info('Checkpoint: {} Elapsed Time =  {}'.format(checkpoint_num,
-                                                               time.strftime("%H:%M:%S",
-                                                                             time.gmtime(time.time()-start_time))))
+                                                            time.strftime("%H:%M:%S",
+                                                                          time.gmtime(time.time()-start_time))))
 
 
 def main():
