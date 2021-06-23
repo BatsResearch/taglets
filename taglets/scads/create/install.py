@@ -2,6 +2,7 @@ import argparse
 import os
 import pandas as pd
 import imagesize
+import nltk
 from nltk.corpus import wordnet as wn
 import numpy as np
 
@@ -210,6 +211,7 @@ class ImageNet22kInstallation(ImageClassificationInstaller):
         return "ImageNet22k"
 
     def get_data(self, dataset, session, root):
+        nltk.download('wordnet')
         all_images = []
         all_wnids = os.listdir(os.path.join(root, dataset.path))
         for wnid in all_wnids:

@@ -1,11 +1,12 @@
 import os
 import logging
-from logging import StreamHandler
 import sys
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, ConcatDataset
 import traceback
+import nltk
+from logging import StreamHandler
+from torch.utils.data import DataLoader, ConcatDataset
 from accelerate import Accelerator
 accelerator = Accelerator()
 
@@ -74,6 +75,7 @@ class Controller:
         self.task = task
         self.end_model = None
         self.simple_run = simple_run
+        nltk.download('wordnet')
 
     def train_end_model(self):
         """
