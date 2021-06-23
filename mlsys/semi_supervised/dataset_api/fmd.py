@@ -53,12 +53,23 @@ class FMD(DatasetAPI):
     
     def get_labeled_dataset(self, checkpoint_num):
         shot = self.checkpoint_shot[checkpoint_num]
-        checkpoint_indices = self.train_indices[:shot]
-        labeled_dataset = CustomImageDataset(self.img_paths[checkpoint_indices],
-                                             labels=self.labels[checkpoint_indices],
-                                             transform=self._get_transform_image(train=True))
-        return labeled_dataset
-        
+        if checkpoint_num <= 2:
+            checkpoint_indices = self.train_indices[:shot]
+            labeled_dataset = CustomImageDataset(self.img_paths[checkpoint_indices],
+                                                 labels=self.labels[checkpoint_indices],
+                                                 transform=self._get_transform_image(train=True))
+            return labeled_dataset, None
+        else:
+            train_checkpoint_indices = self.train_indices[:int(shot*0.8)]
+            val_checkpoint_indices = self.train_indices[int(shot * 0.8):shot]
+            labeled_dataset = CustomImageDataset(self.img_paths[train_checkpoint_indices],
+                                                 labels=self.labels[train_checkpoint_indices],
+                                                 transform=self._get_transform_image(train=True))
+            val_dataset = CustomImageDataset(self.img_paths[val_checkpoint_indices],
+                                             labels=self.labels[val_checkpoint_indices],
+                                             transform=self._get_transform_image(train=False))
+            return labeled_dataset, val_dataset
+            
     def get_unlabeled_dataset(self, checkpoint_num, train):
         shot = self.checkpoint_shot[checkpoint_num]
         checkpoint_indices = self.train_indices[shot:]
