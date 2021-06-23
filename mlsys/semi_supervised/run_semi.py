@@ -55,7 +55,7 @@ class CheckpointRunner:
                     val_dataset,
                     self.batch_size,
                     None,
-                    'predefined/scads.fall2020.sqlite3',
+                    'predefined/scads.imagenet22k.sqlite3',
                     'predefined/embeddings/numberbatch-en19.08.txt.gz',
                     unlabeled_test_data=unlabeled_test_dataset)
         task.set_initial_model(self.initial_model)
