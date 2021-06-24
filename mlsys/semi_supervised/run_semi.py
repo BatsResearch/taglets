@@ -10,6 +10,7 @@ import torchvision.models as models
 from taglets.task import Task
 from taglets.controller import Controller
 from taglets.task.utils import labels_to_concept_ids
+from taglets.scads import Scads
 
 from .dataset_api import FMD
 
@@ -91,7 +92,12 @@ def main():
                         type=int,
                         default="128",
                         help="Universal batch size")
+    parser.add_argument('--scads_root_path', 
+                        type=str,
+                        default='/users/wpiriyak/data/bats/datasets')
     args = parser.parse_args()
+
+    Scads.set_root_path(args.scads_root_path)
 
     runner = CheckpointRunner(args.dataset, args.dataset_dir, args.batch_size)
     runner.run_checkpoints()
