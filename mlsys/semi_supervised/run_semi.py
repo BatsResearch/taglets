@@ -14,7 +14,7 @@ from taglets.controller import Controller
 from taglets.task.utils import labels_to_concept_ids
 from taglets.scads import Scads
 
-from .dataset_api import FMD
+from .dataset_api import FMD, Places
 
 
 log = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ class CheckpointRunner:
         self.dataset_dir = dataset_dir
         self.batch_size = batch_size
         
-        dataset_dict = {'fmd': FMD}
+        dataset_dict = {'fmd': FMD, 'places': Places}
         self.dataset_api = dataset_dict[dataset](dataset_dir)
 
         self.initial_model = models.resnet50(pretrained=True)
@@ -86,7 +86,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset",
                         type=str,
-                        default="places365")
+                        default="places")
     parser.add_argument("--dataset_dir",
                         type=str,
                         default="true",
