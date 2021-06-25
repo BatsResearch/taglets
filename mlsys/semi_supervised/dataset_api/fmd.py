@@ -1,6 +1,5 @@
 import os
 import numpy as np
-import random
 
 from .dataset_api import DatasetAPI
 
@@ -39,10 +38,6 @@ class FMD(DatasetAPI):
         
         # shuffle for checkpoints
         np.random.shuffle(self.train_indices)
-
-    def _init_random(self):
-        np.random.seed(self.seed)
-        random.seed(self.seed)
         
     def get_num_checkpoints(self):
         return len(self.checkpoint_shot)

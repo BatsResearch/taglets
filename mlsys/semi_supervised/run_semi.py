@@ -41,7 +41,7 @@ class CheckpointRunner:
 
     def run_one_checkpoint(self, checkpoint_num):
         log.info('------------------------------------------------------------')
-        log.info('--------------------Checkpoint: {}'.format(checkpoint_num)+'---------------------')
+        log.info('--------------------Checkpoint: {}'.format(checkpoint_num)+'---------------------------')
         log.info('------------------------------------------------------------')
 
         start_time = time.time()
