@@ -9,10 +9,9 @@ from taglets.data import CustomImageDataset
 
 class FMD(DatasetAPI):
     def __init__(self, dataset_dir, seed=0):
+        super().__init__(os.path.join(dataset_dir, 'image'), seed)
+        
         self.checkpoint_shot = [1, 5, 20, 50]
-        self.dataset_dir = os.path.join(dataset_dir, 'image')
-        self.seed = seed
-
         self.classes = np.asarray(['fabric', 'foliage', 'glass', 'leather', 'metal', 'paper', 'plastic', 'stone',
                                    'water', 'wood'])
         self.img_paths = []
@@ -29,7 +28,7 @@ class FMD(DatasetAPI):
 
         self._init_random()
         
-        self.test_indices = np.zeros(500)
+        self.test_indices = np.zeros(500, dtype=np.int)
         for i in range(10):
             self.test_indices[50*i:50*(i+1)] = np.random.choice(100, 50, replace=False) + (100 * i)
         self.train_indices = []

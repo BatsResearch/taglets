@@ -1,11 +1,13 @@
 import time
 import logging
 import argparse
-from accelerate import Accelerator
-accelerator = Accelerator()
 import torch
 import numpy as np
 import torchvision.models as models
+import warnings
+from accelerate import Accelerator
+accelerator = Accelerator()
+
 
 from taglets.task import Task
 from taglets.controller import Controller
@@ -16,6 +18,7 @@ from .dataset_api import FMD
 
 
 log = logging.getLogger(__name__)
+warnings.filterwarnings("ignore", "(Possibly )?corrupt EXIF data", UserWarning)
 
 
 class CheckpointRunner:

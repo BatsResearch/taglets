@@ -1,7 +1,13 @@
+import numpy as np
+import random
 import torchvision.transforms as transforms
 
 
 class DatasetAPI:
+    def __init__(self, dataset_dir, seed=0):
+        self.dataset_dir = dataset_dir
+        self.seed = seed
+    
     def _get_transform_image(self, train=True):
         """
         Get the transform to be used on an image.
@@ -23,6 +29,10 @@ class DatasetAPI:
                 transforms.ToTensor(),
                 transforms.Normalize(mean=data_mean, std=data_std)
             ])
+        
+    def _init_random(self):
+        np.random.seed(self.seed)
+        random.seed(self.seed)
     
     def get_num_checkpoints(self):
         raise NotImplementedError
