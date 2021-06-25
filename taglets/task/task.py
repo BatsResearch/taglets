@@ -9,7 +9,7 @@ class Task:
     """
     def __init__(self, name, classes, input_shape, labeled_train_data, unlabeled_train_data, validation_data,
                  batch_size=128, whitelist=None, scads_path=None, scads_embedding_path=None, unlabeled_test_data=None,
-                 video_classification=False):
+                 unlabeled_train_labels=None, video_classification=False):
         """
         Create a new Task
 
@@ -30,6 +30,7 @@ class Task:
         self.scads_path = scads_path
         self.scads_embedding_path = scads_embedding_path
         self.unlabeled_test_data = unlabeled_test_data
+        self.unlabeled_train_labels = unlabeled_train_labels
         self.video_classification = video_classification
 
         self.initial = models.resnet50(pretrained=True)

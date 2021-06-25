@@ -1,7 +1,7 @@
 import unittest
 import os
 from taglets.scads import Scads
-from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation, ImageNetInstallation, COCO2014Installation, GoogleOpenImageInstallation, VOC2009Installation, DomainNetInstallation, HMDBInstallation
+from taglets.scads.create.install import Installer, CifarInstallation, MnistInstallation, ImageNetInstallation, COCO2014Installation, GoogleOpenImageInstallation, VOC2009Installation, DomainNetInstallation, HMDBInstallation, UCF101Installation, MarsSurfaceInstallation, MslCuriosityInstallation
 
 ROOT = os.path.dirname(os.path.realpath(__file__))
 ROOT = ROOT + "/../test_data/scads"
@@ -13,9 +13,11 @@ IMAGENET_PATH = "imagenet_1k"
 COCO2014_PATH = "coco2014"
 GOOGLE_OPEN_IMAGE_PATH = "google_open_image"
 VOC2009_PATH = "voc2009"
-domainnet_PATH = "domainnet"
-hmdb_PATH = "hmdb"
-
+DOMAINNET_PATH = "domainnet"
+HMDB_PATH = "hmdb"
+UCF101_PATH = "ucf101"
+MARS_SURFACE_PATH = "mars_surface_imgs"
+MSL_CURIOSITY_PATH = "msl_curiosity_imgs"
 
 class TestSCADS(unittest.TestCase):
 
@@ -29,8 +31,11 @@ class TestSCADS(unittest.TestCase):
         installer.install_dataset(ROOT, COCO2014_PATH, COCO2014Installation())
         installer.install_dataset(ROOT, GOOGLE_OPEN_IMAGE_PATH, GoogleOpenImageInstallation())
         installer.install_dataset(ROOT, VOC2009_PATH, VOC2009Installation())
-        installer.install_dataset(ROOT, domainnet_PATH, DomainNetInstallation('clipart'))
-        installer.install_dataset(ROOT, hmdb_PATH, HMDBInstallation())
+        installer.install_dataset(ROOT, DOMAINNET_PATH, DomainNetInstallation('clipart'))
+        installer.install_dataset(ROOT, HMDB_PATH, HMDBInstallation())
+        installer.install_dataset(ROOT, UCF101_PATH, UCF101Installation())
+        installer.install_dataset(ROOT, MARS_SURFACE_PATH, MarsSurfaceInstallation())
+        installer.install_dataset(ROOT, MSL_CURIOSITY_PATH, MslCuriosityInstallation())
 
         Scads.open(DB_PATH)
 
@@ -136,10 +141,26 @@ class TestSCADS(unittest.TestCase):
         self.assertTrue('domainnet/domainnet_full/train/clipart_270_000029.jpg'
                         in images)
 
+    def test_mars(self):
+        # MSL curiosity
+        node = Scads.get_node_by_conceptnet_id("/c/en/tray")
+        print(node.get_datasets())
+        self.assertTrue('MarsSurface' in node.get_datasets())
+        images = node.get_images()
+        self.assertEqual(len(images), 5)
+        self.assertTrue('mars_surface_imgs/mars_surface_imgs_full/test/0572ML0023150000204990I01_DRCL.JPG'
+                        in images)
+
+
     def test_clips(self):
-        node = Scads.get_node_by_conceptnet_id("/c/en/run")
+        """"""  
+
+
+        class_label = "/c/en/run"
+        # HMDB
+        node = Scads.get_node_by_conceptnet_id(class_label)
         self.assertEqual(node.node.id, 29)
-        self.assertEqual(node.get_conceptnet_id(), "/c/en/run")
+        self.assertEqual(node.get_conceptnet_id(), class_label)
 
         self.assertEqual(node.get_datasets(images=False), ['HMDB'])
 
@@ -153,6 +174,53 @@ class TestSCADS(unittest.TestCase):
         self.assertEqual(clip[0], "hmdb/hmdb_full/train")
         self.assertEqual(clip[1], 231465)
         self.assertEqual(clip[2], 231565)
+
+        # UCF101
+        class_label_2 = "/c/en/jet_ski"
+        node1 = Scads.get_node_by_conceptnet_id(class_label_2)
+        self.assertEqual(node1.node.id, 30)
+        self.assertEqual(node1.get_conceptnet_id(), class_label_2)
+
+        self.assertEqual(node1.get_datasets(images=False), ['UCF101'])
+
+        images = node1.get_images()
+        self.assertEqual(len(images), 0)
+        clips = node1.get_clips()
+        self.assertEqual(len(clips), 100)
+        self.assertTrue('ucf101/ucf101_full/test'
+                        in [x[0] for x in clips])
+        clip = clips[0]
+        self.assertEqual(clip[0], "ucf101/ucf101_full/train")
+        self.assertEqual(clip[1], 23470)
+        self.assertEqual(clip[2], 23803)
+
+        # Multi-nodes
+        class_label_3 = "/c/en/playing_dhol"
+
+        try:
+            node_multi = Scads.get_node_by_conceptnet_id(class_label_3)
+            clips = node_multi.get_clips()
+        except:
+            # Get single concepts
+            label = class_label_3.split('/')[-1]
+            nodes = [f"/c/en/{w.strip()}" for w in label.split('_')]
+            objects_node = [Scads.get_node_by_conceptnet_id(n) for n in nodes]
+
+            # Write the OR query to execute only one query for the label
+            query = ' '.join([f'nodes.id = {obj.node.id} OR' \
+                  for obj in objects_node[:-1]])
+            query = ' '.join([query, f'nodes.id = {objects_node[-1].node.id}'])
+
+            # Execute the query
+            clips = objects_node[0].get_clips_multiple(query)
+            self.assertEqual(len(clips), 1267)
+        
+            
+            
+        
+
+
+
 
     def test_undirected_relation(self):
         node = Scads.get_node_by_conceptnet_id("/c/en/zero")
@@ -195,6 +263,7 @@ class TestSCADS(unittest.TestCase):
         edges.sort(key=lambda x: x.get_relationship())
         self.assertEqual(edges[0].get_weight(), 2.5)
         self.assertEqual(edges[1].get_weight(), 1.0)
+
 
     @classmethod
     def tearDownClass(cls):

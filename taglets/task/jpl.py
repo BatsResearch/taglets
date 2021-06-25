@@ -269,7 +269,7 @@ class JPLStorage:
         """
         self.labeled_images.extend(new_labeled_images)
         
-    def set_image_path(self, dataset_dir, data_type, video=False):
+    def set_image_path(self, dataset_dir, dataset_name, data_type, video=False):
         """
         Set self.evaluation_image_path and self.unlabeled_image_path with the given dataset_dir
         :param dataset_dir: the directory to the dataset
@@ -278,23 +278,39 @@ class JPLStorage:
         """
         
         self.unlabeled_image_path = os.path.join(dataset_dir,
-                                                 os.path.basename(dataset_dir) + "_" + data_type,
+                                                 dataset_name,
+                                                 dataset_name + "_" + data_type,
                                                  "train")
-        log.debug(f"Unlabeled image PATH: {self.unlabeled_image_path}")
+        self.all_train_labels_path = os.path.join(dataset_dir,
+                                            '..',
+                                            'external',
+                                            dataset_name,
+                                            "labels" + "_" + data_type,
+                                            "labels_train.feather")
+        self.test_labels_path = os.path.join(dataset_dir,
+                                                  '..',
+                                                  'external',
+                                                  dataset_name,
+                                                  "labels" + "_" + data_type,
+                                                  "labels_test.feather")
         if video:
             self.evaluation_image_path = os.path.join(dataset_dir,
-                                                      os.path.basename(dataset_dir) + "_" + data_type,
+                                                      dataset_name,
+                                                      dataset_name + "_" + data_type,
                                                       "test")
             self.evaluation_meta_path = os.path.join(dataset_dir,
+                                                     dataset_name,
                                                      "labels" + "_" + data_type,
                                                      "meta_test.feather")
             self.unlabeled_meta_path = os.path.join(dataset_dir,
-                                                 "labels" + "_" + data_type,
-                                                 "meta_train.feather")
+                                                    dataset_name,
+                                                    "labels" + "_" + data_type,
+                                                    "meta_train.feather")
 
         else:
             self.evaluation_image_path = os.path.join(dataset_dir,
-                                                      os.path.basename(dataset_dir) + "_" + data_type,
+                                                      dataset_name,
+                                                      dataset_name + "_" + data_type,
                                                       "test")
     
     def transform_image(self, train=True):
@@ -379,7 +395,7 @@ class JPLStorage:
         image_paths = np.asarray(image_paths)
         image_labels = np.asarray(image_labels)
 
-        if checkpoint_num >= 2:
+        if checkpoint_num >= 4:
             # 80% for training, 20% for validation
             train_percent = 0.8
             num_data = len(image_paths)
@@ -489,11 +505,35 @@ class JPLStorage:
         else:
             return CustomImageDataset(image_paths,
                                       transform=transform)
+        
+    def get_true_labels(self, split, mode):
+        if mode == 'prod':
+            return None
+        if split == 'train':
+            df = pd.read_feather(self.all_train_labels_path)
+        else:
+            df = pd.read_feather(self.test_labels_path)
+        
+        # convert string labels to int labels
+        mapped_label_col = df['class'].map(self.label_map)
+        df['class'] = mapped_label_col
+        
+        # turn Dataframe into a dict
+        df = df.set_index('id')
+        labels_dict = df.to_dict()['class']
+
+        # get a list of corresponding labels
+        if split == 'train':
+            image_names = self.get_unlabeled_image_names()
+        else:
+            image_names = self.get_evaluation_image_names()
+        labels = [labels_dict[image_name] for image_name in image_names]
+        return labels
 
 
 class JPLRunner:
     def __init__(self, dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
-                 data_paths, simple_run, batch_size, testing=False):
+                 data_paths, mode, simple_run, batch_size, testing=False):
 
         self.dataset_dir = dataset_dir
         self.problem_type = problem_type
@@ -513,6 +553,7 @@ class JPLRunner:
         self.initial_model.fc = torch.nn.Identity()
 
         self.testing = testing
+        self.mode = mode
         self.simple_run = simple_run
         self.batch_size = batch_size
 
@@ -551,8 +592,7 @@ class JPLRunner:
         self.jpl_storage.label_map = label_map
 
         self.jpl_storage.phase = session_status['pair_stage']
-        phase_dataset_dir = os.path.join(self.dataset_dir, current_dataset['name'])
-        self.jpl_storage.set_image_path(phase_dataset_dir, self.api.data_type, self.video)
+        self.jpl_storage.set_image_path(self.dataset_dir, current_dataset['name'], self.api.data_type, self.video)
 
     def run_checkpoints(self):
         try:
@@ -630,7 +670,9 @@ class JPLRunner:
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
         unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True, self.video)
         unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False, self.video)
-        # sys.exit()
+        
+        unlabeled_train_labels = self.jpl_storage.get_true_labels('train', self.mode)
+        
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),
                     (224, 224), 
@@ -642,17 +684,23 @@ class JPLRunner:
                     self.data_paths[0],
                     self.data_paths[1],
                     unlabeled_test_data=unlabeled_test_dataset,
+                    unlabeled_train_labels=unlabeled_train_labels,
                     video_classification=self.video)
         task.set_initial_model(self.initial_model)
         controller = Controller(task, self.simple_run)
-        
-        # sys.exit()
 
         end_model = controller.train_end_model()
 
         evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.video)
         outputs = end_model.predict(evaluation_dataset)
         predictions = np.argmax(outputs, 1)
+        
+        test_labels = self.jpl_storage.get_true_labels('test', self.mode)
+        if test_labels is not None:
+            log.info('Accuracy of taglets on this checkpoint:')
+            acc = np.sum(predictions == test_labels) / len(test_labels)
+            log.info('Acc {:.4f}'.format(acc))
+        
         prediction_names = []
         for p in predictions:
             prediction_names.append([k for k, v in self.jpl_storage.label_map.items() if v == p][0])
@@ -708,7 +756,7 @@ class JPLRunner:
 
 
 def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths,
-             simple_run, batch_size):
+             mode, simple_run, batch_size):
     if problem_task == 'all':
         log.info('Execute all tasks')
         print(log.info('Execute all tasks'))
@@ -716,12 +764,12 @@ def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, tea
         problem_task_list = jpl.get_available_tasks(problem_type)
         for task in problem_task_list:
             runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, task, team_secret, gov_team_secret,
-                               data_paths, simple_run, batch_size, testing=False)
+                               data_paths, mode, simple_run, batch_size, testing=False)
             runner.run_checkpoints()
     else:
         log.info("Execute a single task")
         runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
-                           data_paths, simple_run, batch_size, testing=False)
+                           data_paths, mode, simple_run, batch_size, testing=False)
         runner.run_checkpoints()
 
 
@@ -797,6 +845,7 @@ def main():
         variables = setup_production(simple_run)
     else:
         variables = setup_development()
+    mode = args.mode
 
     Scads.set_root_path(os.path.join(variables[2], 'external'))
     
@@ -840,7 +889,7 @@ def main():
     #_logger.addHandler(stream_handler)
     
     workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths,
-             simple_run, batch_size)
+             mode, simple_run, batch_size)
     
 
 if __name__ == "__main__":

@@ -259,7 +259,7 @@ class FixMatchTaglet(ImageTaglet):
             use_ema_copy = self.use_ema
 
             self.batch_size = 2 * self.batch_size
-            self.num_epochs = 25 if not os.environ.get("CI") else 5
+            self.num_epochs = 5
             self.use_ema = False
 
             super(FixMatchTaglet, self).train(scads_train_data, None, None)
@@ -412,6 +412,7 @@ class FixMatchTaglet(ImageTaglet):
             if self.use_ema and best_ema_model_to_save is not None:
                 self.ema_model.ema.load_state_dict(best_ema_model_to_save)
             self.model.load_state_dict(best_model_to_save)
+            accelerator.wait_for_everyone()
         if unlabeled_data is not None:
             unlabeled_data.transform = self.org_unlabeled_transform
 

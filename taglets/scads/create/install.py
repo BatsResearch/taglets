@@ -5,6 +5,7 @@ import imagesize
 import nltk
 from nltk.corpus import wordnet as wn
 import numpy as np
+import re
 
 from ..create.scads_classes import Node, Image, Clip
 from ..create.create_scads import add_conceptnet
@@ -122,6 +123,14 @@ class VideoClassificationInstaller(DatasetInstaller):
     def get_name(self):
         raise NotImplementedError()
 
+    def composed_labels(self, string, dataset):
+        if dataset.name == 'HMDB':
+            return [w.strip() for w in string.split('_')]
+        elif dataset.name == 'UCF101':
+            list_words = re.findall('[A-Z][^A-Z]*', string)
+            return [w.lower().strip() for w in list_words]
+
+    
     def get_data(self, dataset, session, root):
         size = "full"
         modes = ['train', 'test']
@@ -129,7 +138,9 @@ class VideoClassificationInstaller(DatasetInstaller):
 
         all_clips = []
         for mode in modes:
-            base_path = os.path.join(dataset.path, f'{dataset.path}_' + size, mode)
+            base_path = os.path.join(dataset.path, dataset.path + '_' + size, mode)
+
+            #print(base_path, dataset.path, root)
             df = pd.read_feather(
                 os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
             if mode == "test":
@@ -144,28 +155,67 @@ class VideoClassificationInstaller(DatasetInstaller):
                     label = df_label.loc[row['id']].idxmax()
                 else:
                     label = row['class']
-                # Get node_id
+                
                 if label in label_to_node_id:
                     node_id = label_to_node_id[label]
-                else:
+                    clip = Clip(
+                            clip_id=row['id'],
+                            video_id=row['video_id'],
+                            base_path=base_path,
+                            start_frame=row['start_frame'],
+                            end_frame=row['end_frame'],
+                            real_label=self.get_conceptnet_id(label).split('/')[-1],
+                            dataset_id=dataset.id,
+                            node_id=node_id
+                            )
+                    all_clips.append(clip)
+
+                else: 
                     node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
-                    node_id = node.id if node else None
-                    label_to_node_id[label] = node_id
+                    # If the node related to the class doesn't exist
+                    if node:
+                        node_id = node.id 
+                        label_to_node_id[label] = node_id
+                        clip = Clip(
+                                    clip_id=row['id'],
+                                    video_id=row['video_id'],
+                                    base_path=base_path,
+                                    start_frame=row['start_frame'],
+                                    end_frame=row['end_frame'],
+                                    real_label=self.get_conceptnet_id(label).split('/')[-1],
+                                    dataset_id=dataset.id,
+                                    node_id=node_id
+                                )
+                        all_clips.append(clip)
+                    # Else, we decompose the class name and check for concepts corresponding to each word
+                    else:
+                        labels = self.composed_labels(label, dataset)
 
-                # Scads is missing a missing conceptnet id
-                if not node_id:
-                    continue
+                        for l in labels:
+                            if l in label_to_node_id:
+                                node_id = label_to_node_id[l]
+                            else: 
+                                node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(l)).first()
+                                node_id = node.id if node else None
+                                label_to_node_id[l] = node_id
 
-                clip = Clip(
-                    clip_id=row['id'],
-                    video_id=row['video_id'],
-                    base_path=base_path,
-                    start_frame=row['start_frame'],
-                    end_frame=row['end_frame'],
-                    dataset_id=dataset.id,
-                    node_id=node_id
-                )
-                all_clips.append(clip)
+                            # Handle the case when a classe, even decomposed, is not assign to any concept
+                            if not node_id:
+                                continue
+                            
+                            real = '_'.join(labels)
+                            clip = Clip(
+                                clip_id=row['id'],
+                                video_id=row['video_id'],
+                                base_path=base_path,
+                                start_frame=row['start_frame'],
+                                end_frame=row['end_frame'],
+                                real_label=self.get_conceptnet_id(real).split('/')[-1],
+                                dataset_id=dataset.id,
+                                node_id=node_id
+                            )
+                            all_clips.append(clip)
+                                           
         return all_clips
 
 
@@ -276,6 +326,32 @@ class DomainNetInstallation(ImageClassificationInstaller):
             return "/c/en/" + exceptions[label]
         return "/c/en/" + label.lower().replace(" ", "_").replace("-", "_")
 
+class MslCuriosityInstallation(ImageClassificationInstaller):
+    def get_name(self):
+        return "MslCuriosity"
+
+    def get_conceptnet_id(self, label):
+        
+        exceptions = {'drill holes' : 'holes',
+                     'observation tray' : 'tray',
+                     'rover rear deck' : 'deck'}
+        if label in exceptions:
+            return "/c/en/" + exceptions[label]
+        return "/c/en/" + label.lower().replace(" ", "_").replace("-", "_")
+    
+class MarsSurfaceInstallation(ImageClassificationInstaller):
+    def get_name(self):
+        return "MarsSurface"
+
+    def get_conceptnet_id(self, label):
+        
+        exceptions = {'drill holes' : 'holes',
+                     'observation tray' : 'tray',
+                     'rover rear deck' : 'deck'}
+        if label in exceptions:
+            return "/c/en/" + exceptions[label]
+        return "/c/en/" + label.lower().replace(" ", "_").replace("-", "_")
+
 
 class VOC2009Installation(ObjectDetectionInstaller):
     def get_name(self):
@@ -298,6 +374,20 @@ class GoogleOpenImageInstallation(ObjectDetectionInstaller):
 class HMDBInstallation(VideoClassificationInstaller):
     def get_name(self):
         return "HMDB"
+
+class UCF101Installation(VideoClassificationInstaller):
+    def get_name(self):
+        return "UCF101"
+    def get_conceptnet_id(self, label):
+        exceptions = {'Skijet': 'jet_ski'}
+        if label in exceptions:
+            return "/c/en/" + exceptions[label]
+        else:
+            label_clean = '_'.join([i.lower() for i in re.findall('[A-Z][^A-Z]*', label)])
+            if len(label_clean) != 0:
+                return "/c/en/" + label_clean#label.lower().replace(" ", "_")#.replace("-", "_")
+            else:
+                return "/c/en/" + label.lower()
 
 
 class Installer:
@@ -326,6 +416,10 @@ if __name__ == "__main__":
     parser.add_argument("--googleopenimage", type=str, help="Path to googleopenimage directory from the root")
     parser.add_argument("--domainnet", nargs="+")
     parser.add_argument("--hmdb", type=str, help="Path to hmdb directory from the root")
+    parser.add_argument("--ucf101", type=str, help="Path to ufc101 directory from the root")
+    parser.add_argument("--msl_curiosity", type=str, help="Path to msl_curiosity directory from the root")
+    parser.add_argument("--mars_surface_imgs", type=str, help="Path to mars_surface_imgs directory from the root")
+    
     args = parser.parse_args()
 
     # Install SCADS
@@ -354,3 +448,19 @@ if __name__ == "__main__":
             installer.install_dataset(args.root, domain, DomainNetInstallation(name))
     if args.hmdb:
         installer.install_dataset(args.root, args.hmdb, HMDBInstallation())
+
+    if args.ucf101:
+        if not args.root:
+            raise RuntimeError("Must specify root directory.")
+        installer.install_dataset(args.root, args.ucf101, UCF101Installation())
+
+    if args.msl_curiosity:
+        if not args.root:
+            raise RuntimeError("Must specify root directory.")
+        installer.install_dataset(args.root, args.msl_curiosity, MslCuriosityInstallation())
+
+    if args.mars_surface_imgs:
+        if not args.root:
+            raise RuntimeError("Must specify root directory.")
+        installer.install_dataset(args.root, args.mars_surface_imgs, MarsSurfaceInstallation())
+    

@@ -84,11 +84,12 @@ class Controller:
         """
         # Gets datasets
         labeled = self.task.get_labeled_train_data()
-        unlabeled = self.task.get_unlabeled_data(False)
+        unlabeled_test = self.task.get_unlabeled_data(False) # augmentation is not applied
+        unlabeled_train = self.task.get_unlabeled_data(True) # augmentation is applied
         val = self.task.get_validation_data()
 
         unlabeled_images_labels = []
-        if unlabeled is not None:
+        if unlabeled_test is not None:
             # Creates taglets
             modules = self._get_taglets_modules()
             taglets = []
@@ -97,7 +98,7 @@ class Controller:
                     log.info("Initializing %s module", cls.__name__)
                     module = cls(task=self.task)
                     log.info("Training %s module", cls.__name__)
-                    module.train_taglets(labeled, val, unlabeled)
+                    module.train_taglets(labeled, val, unlabeled_train)
                     log.info("Finished training %s module", cls.__name__)
 
                     # Collects taglets
@@ -113,18 +114,33 @@ class Controller:
     
             # Executes taglets
             log.info("Executing taglets")
-            vote_matrix = taglet_executor.execute(unlabeled)
+            vote_matrix = taglet_executor.execute(unlabeled_test)
             log.info("Finished executing taglets")
+            
+            if self.task.unlabeled_train_labels is not None:
+                log.info('Accuracies of each taglet on the unlabeled train data:')
+                for i in range(len(taglets)):
+                    acc = np.sum(vote_matrix[:, i] == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
+                    log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
 
             # Combines taglets' votes into soft labels
             if val is not None and len(val) >= len(self.task.classes) * 10:
                 # Weight votes using development set
                 weights = [taglet.evaluate(val) for taglet in taglets]
+                log.info("Validation accuracies of each taglet:")
+                for w, taglet in zip(weights, taglets):
+                    log.info("Module {} - acc {:.4f}".format(taglet.name, w))
             else:
                 # Weight all votes equally
                 weights = [1.0] * len(taglets)
 
             weak_labels = self._get_weighted_dist(vote_matrix, weights)
+            
+            if self.task.unlabeled_train_labels is not None:
+                log.info('Accuracy of the labelmodel on the unlabeled train data:')
+                predictions = np.asarray([np.argmax(label) for label in weak_labels])
+                acc = np.sum(predictions == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
+                log.info('Acc {:.4f}'.format(acc))
             
             for label in weak_labels:
                 unlabeled_images_labels.append(torch.FloatTensor(label))
@@ -133,7 +149,7 @@ class Controller:
         log.info("Training end model")
 
         end_model_train_data = self._combine_soft_labels(unlabeled_images_labels,
-                                                         self.task.get_unlabeled_data(True),
+                                                         unlabeled_train,
                                                          self.task.get_labeled_train_data())
         if self.simple_run:
             self.end_model = RandomEndModel(self.task)
@@ -143,6 +159,14 @@ class Controller:
             self.end_model = ImageEndModel(self.task)
         self.end_model.train(end_model_train_data, val)
         log.info("Finished training end model")
+
+        if self.task.unlabeled_train_labels is not None and unlabeled_test is not None:
+            log.info('Accuracy of the end model on the unlabeled train data:')
+            outputs = self.end_model.predict(unlabeled_test)
+            predictions = np.argmax(outputs, 1)
+            acc = np.sum(predictions == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
+            log.info('Acc {:.4f}'.format(acc))
+        
         return self.end_model
 
     def _get_taglets_modules(self):
