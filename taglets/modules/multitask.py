@@ -86,8 +86,8 @@ class MultiTaskTaglet(ImageTaglet):
         Get the transform to be used on an image.
         :return: A transform
         """
-        data_mean = [0.5071, 0.4867, 0.4408]
-        data_std = [0.2675, 0.2565, 0.2761]
+        data_mean = [0.485, 0.456, 0.406]
+        data_std = [0.229, 0.224, 0.225]
         
         if train:
             return transforms.Compose([
