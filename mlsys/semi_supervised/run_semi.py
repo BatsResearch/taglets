@@ -49,8 +49,7 @@ class CheckpointRunner:
         class_names = self.dataset_api.get_class_names()
 
         labeled_dataset, val_dataset = self.dataset_api.get_labeled_dataset(checkpoint_num)
-        unlabeled_train_dataset = self.dataset_api.get_unlabeled_dataset(checkpoint_num, True)
-        unlabeled_test_dataset = self.dataset_api.get_unlabeled_dataset(checkpoint_num, False)
+        unlabeled_train_dataset, unlabeled_test_dataset = self.dataset_api.get_unlabeled_dataset(checkpoint_num)
         task = Task(self.dataset,
                     labels_to_concept_ids(class_names),
                     (224, 224), 

@@ -13,31 +13,30 @@ class FMD(DatasetAPI):
         self.checkpoint_shot = [1, 5, 20, 50]
         self.classes = np.asarray(['fabric', 'foliage', 'glass', 'leather', 'metal', 'paper', 'plastic', 'stone',
                                    'water', 'wood'])
-        self.img_paths = []
-        self.labels = []
-        for idx, class_name in enumerate(self.classes):
+        self.all_img_paths = []
+        for class_name in self.classes:
+            img_paths = []
             class_dir = os.path.join(self.dataset_dir, class_name)
             for img in os.listdir(class_dir):
                 if not img.endswith('.jpg'):
                     continue
-                self.img_paths.append(os.path.join(class_dir, img))
-                self.labels.append(idx)
-        self.img_paths = np.asarray(self.img_paths)
-        self.labels = np.asarray(self.labels)
+                img_paths.append(os.path.join(class_dir, img))
+            self.all_img_paths.append(np.asarray(img_paths))
+        self.all_img_paths = np.asarray(self.all_img_paths)
 
         self._init_random()
         
-        self.test_indices = np.zeros(500, dtype=np.int)
-        for i in range(10):
-            self.test_indices[50*i:50*(i+1)] = np.random.choice(100, 50, replace=False) + (100 * i)
+        self.test_indices = np.asarray([np.random.choice(100, 50, replace=False) for _ in range(10)])
         self.train_indices = []
-        for i in range(1000):
-            if i not in self.test_indices:
-                self.train_indices.append(i)
+        for i in range(10):
+            class_test_indices = []
+            for j in range(100):
+                if j not in self.test_indices[i]:
+                    class_test_indices.append(j)
+            class_test_indices = np.asarray(class_test_indices)
+            np.random.shuffle(class_test_indices)
+            self.train_indices.append(class_test_indices)
         self.train_indices = np.asarray(self.train_indices)
-        
-        # shuffle for checkpoints
-        np.random.shuffle(self.train_indices)
         
     def get_num_checkpoints(self):
         return len(self.checkpoint_shot)
@@ -47,34 +46,69 @@ class FMD(DatasetAPI):
     
     def get_labeled_dataset(self, checkpoint_num):
         shot = self.checkpoint_shot[checkpoint_num]
+        img_paths = []
+        labels = []
+        for i in range(10):
+            checkpoint_indices = self.train_indices[i][:shot]
+            img_paths = img_paths + self.all_img_paths[i][checkpoint_indices]
+            labels = labels + ([i] * len(checkpoint_indices))
+        img_paths = np.asarray(img_paths)
+        labels = np.asarray(labels)
+        
+        
         if checkpoint_num <= 2:
-            checkpoint_indices = self.train_indices[:shot]
-            labeled_dataset = CustomImageDataset(self.img_paths[checkpoint_indices],
-                                                 labels=self.labels[checkpoint_indices],
+            labeled_dataset = CustomImageDataset(img_paths,
+                                                 labels=labels,
                                                  transform=self._get_transform_image(train=True))
             return labeled_dataset, None
         else:
-            train_checkpoint_indices = self.train_indices[:int(shot*0.8)]
-            val_checkpoint_indices = self.train_indices[int(shot * 0.8):shot]
-            labeled_dataset = CustomImageDataset(self.img_paths[train_checkpoint_indices],
-                                                 labels=self.labels[train_checkpoint_indices],
+            indices = list(range(len(labels)))
+            train_split = int(np.floor(0.8 * len(labels)))
+            np.random.shuffle(indices)
+            train_idx = indices[:train_split]
+            val_idx = indices[train_split:]
+            labeled_dataset = CustomImageDataset(img_paths[train_idx],
+                                                 labels=labels[train_idx],
                                                  transform=self._get_transform_image(train=True))
-            val_dataset = CustomImageDataset(self.img_paths[val_checkpoint_indices],
-                                             labels=self.labels[val_checkpoint_indices],
+            val_dataset = CustomImageDataset(img_paths[val_idx],
+                                             labels=labels[val_idx],
                                              transform=self._get_transform_image(train=False))
             return labeled_dataset, val_dataset
             
-    def get_unlabeled_dataset(self, checkpoint_num, train):
+    def get_unlabeled_dataset(self, checkpoint_num):
+        if checkpoint_num == len(self.checkpoint_shot)-1:
+            return None
+
         shot = self.checkpoint_shot[checkpoint_num]
-        checkpoint_indices = self.train_indices[shot:]
-        unlabeled_dataset = CustomImageDataset(self.img_paths[checkpoint_indices],
-                                               transform=self._get_transform_image(train=train))
-        return unlabeled_dataset
+        img_paths = []
+        labels = []
+        for i in range(10):
+            checkpoint_indices = self.train_indices[i][shot:]
+            img_paths = img_paths + self.all_img_paths[i][checkpoint_indices]
+            labels = labels + ([i] * len(checkpoint_indices))
+        img_paths = np.asarray(img_paths)
+        labels = np.asarray(labels)
+
+        unlabeled_train_dataset = CustomImageDataset(img_paths,
+                                             labels=labels,
+                                             transform=self._get_transform_image(train=True))
+        unlabeled_test_dataset = CustomImageDataset(img_paths,
+                                               labels=labels,
+                                               transform=self._get_transform_image(train=False))
+        return unlabeled_train_dataset, unlabeled_test_dataset
     
     def get_test_dataset(self):
-        test_dataset = CustomImageDataset(self.img_paths[self.test_indices],
+        img_paths = []
+        for i in range(10):
+            img_paths = img_paths + self.all_img_paths[i][self.test_indices[i]]
+        img_paths = np.asarray(img_paths)
+        test_dataset = CustomImageDataset(img_paths,
                                           transform=self._get_transform_image(train=False))
         return test_dataset
     
     def get_test_labels(self):
-        return self.labels[self.test_indices]
+        labels = []
+        for i in range(10):
+            labels = labels + ([i] * self.test_indices[i])
+        labels = np.asarray(labels)
+        return labels
