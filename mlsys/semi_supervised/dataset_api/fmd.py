@@ -21,7 +21,8 @@ class FMD(DatasetAPI):
                 if not img.endswith('.jpg'):
                     continue
                 img_paths.append(os.path.join(class_dir, img))
-            self.all_img_paths.append(img_paths)
+            self.all_img_paths.append(np.asarray(img_paths))
+        self.all_img_paths = np.asarray(self.all_img_paths)
 
         self._init_random()
         
@@ -49,9 +50,9 @@ class FMD(DatasetAPI):
         labels = []
         for i in range(10):
             checkpoint_indices = self.train_indices[i][:shot]
-            img_paths = img_paths + self.all_img_paths[i][checkpoint_indices]
+            img_paths.append(self.all_img_paths[i][checkpoint_indices])
             labels = labels + ([i] * len(checkpoint_indices))
-        img_paths = np.asarray(img_paths)
+        img_paths = np.concatenate(img_paths)
         labels = np.asarray(labels)
         
         
@@ -82,8 +83,8 @@ class FMD(DatasetAPI):
         img_paths = []
         for i in range(10):
             checkpoint_indices = self.train_indices[i][shot:]
-            img_paths = img_paths + self.all_img_paths[i][checkpoint_indices]
-        img_paths = np.asarray(img_paths)
+            img_paths.append(self.all_img_paths[i][checkpoint_indices])
+        img_paths = np.concatenate(img_paths)
 
         unlabeled_train_dataset = CustomImageDataset(img_paths,
                                                      transform=self._get_transform_image(train=True))
@@ -106,8 +107,8 @@ class FMD(DatasetAPI):
     def get_test_dataset(self):
         img_paths = []
         for i in range(10):
-            img_paths = img_paths + self.all_img_paths[i][self.test_indices[i]]
-        img_paths = np.asarray(img_paths)
+            img_paths.append(self.all_img_paths[i][self.test_indices[i]])
+        img_paths = np.concatenate(img_paths)
         test_dataset = CustomImageDataset(img_paths,
                                           transform=self._get_transform_image(train=False))
         return test_dataset
