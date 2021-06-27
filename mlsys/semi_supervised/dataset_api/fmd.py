@@ -21,8 +21,7 @@ class FMD(DatasetAPI):
                 if not img.endswith('.jpg'):
                     continue
                 img_paths.append(os.path.join(class_dir, img))
-            self.all_img_paths.append(np.asarray(img_paths))
-        self.all_img_paths = np.asarray(self.all_img_paths)
+            self.all_img_paths.append(img_paths)
 
         self._init_random()
         
