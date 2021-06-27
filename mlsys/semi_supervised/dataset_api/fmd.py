@@ -81,21 +81,28 @@ class FMD(DatasetAPI):
 
         shot = self.checkpoint_shot[checkpoint_num]
         img_paths = []
-        labels = []
         for i in range(10):
             checkpoint_indices = self.train_indices[i][shot:]
             img_paths = img_paths + self.all_img_paths[i][checkpoint_indices]
-            labels = labels + ([i] * len(checkpoint_indices))
         img_paths = np.asarray(img_paths)
-        labels = np.asarray(labels)
 
         unlabeled_train_dataset = CustomImageDataset(img_paths,
-                                             labels=labels,
-                                             transform=self._get_transform_image(train=True))
+                                                     transform=self._get_transform_image(train=True))
         unlabeled_test_dataset = CustomImageDataset(img_paths,
-                                               labels=labels,
-                                               transform=self._get_transform_image(train=False))
+                                                    transform=self._get_transform_image(train=False))
         return unlabeled_train_dataset, unlabeled_test_dataset
+    
+    def get_unlabeled_labels(self, checkpoint_num):
+        if checkpoint_num == len(self.checkpoint_shot)-1:
+            return None
+
+        shot = self.checkpoint_shot[checkpoint_num]
+        labels = []
+        for i in range(10):
+            checkpoint_indices = self.train_indices[i][shot:]
+            labels = labels + ([i] * len(checkpoint_indices))
+        labels = np.asarray(labels)
+        return labels
     
     def get_test_dataset(self):
         img_paths = []
@@ -109,6 +116,6 @@ class FMD(DatasetAPI):
     def get_test_labels(self):
         labels = []
         for i in range(10):
-            labels = labels + ([i] * self.test_indices[i])
+            labels = labels + ([i] * len(self.test_indices[i]))
         labels = np.asarray(labels)
         return labels

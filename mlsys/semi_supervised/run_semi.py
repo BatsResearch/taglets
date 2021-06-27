@@ -47,7 +47,7 @@ class CheckpointRunner:
         start_time = time.time()
         
         class_names = self.dataset_api.get_class_names()
-
+        unlabeled_train_labels = self.dataset_api.get_unlabeled_labels(checkpoint_num)
         labeled_dataset, val_dataset = self.dataset_api.get_labeled_dataset(checkpoint_num)
         unlabeled_train_dataset, unlabeled_test_dataset = self.dataset_api.get_unlabeled_dataset(checkpoint_num)
         task = Task(self.dataset,
@@ -60,7 +60,8 @@ class CheckpointRunner:
                     None,
                     'predefined/scads.imagenet22k.sqlite3',
                     'predefined/embeddings/numberbatch-en19.08.txt.gz',
-                    unlabeled_test_data=unlabeled_test_dataset)
+                    unlabeled_test_data=unlabeled_test_dataset,
+                    unlabeled_train_labels=unlabeled_train_labels)
         task.set_initial_model(self.initial_model)
         controller = Controller(task)
 

@@ -45,6 +45,9 @@ class DatasetAPI:
         
     def get_unlabeled_dataset(self, checkpoint_num):
         raise NotImplementedError
+
+    def get_unlabeled_labels(self, checkpoint_num):
+        raise NotImplementedError
         
     def get_test_dataset(self):
         raise NotImplementedError
