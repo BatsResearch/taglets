@@ -77,7 +77,7 @@ class FMD(DatasetAPI):
             
     def get_unlabeled_dataset(self, checkpoint_num):
         if checkpoint_num == len(self.checkpoint_shot)-1:
-            return None
+            return None, None
 
         shot = self.checkpoint_shot[checkpoint_num]
         img_paths = []
