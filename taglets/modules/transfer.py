@@ -157,7 +157,7 @@ class TransferTaglet(ImageTaglet):
             if param.requires_grad:
                 params_to_update.append(param)
         self._params_to_update = params_to_update
-        self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
+        self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.005, momentum=0.9)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
     def train(self, train_data, val_data, unlabeled_data=None):
@@ -169,7 +169,7 @@ class TransferTaglet(ImageTaglet):
             return
 
         orig_num_epochs = self.num_epochs
-        self.num_epochs = 5 if not os.environ.get("CI") else 5
+        self.num_epochs = 10 if not os.environ.get("CI") else 5
         self._set_num_classes(scads_num_classes)
         super(TransferTaglet, self).train(scads_train_data, scads_val_data, unlabeled_data)
         self.num_epochs = orig_num_epochs
