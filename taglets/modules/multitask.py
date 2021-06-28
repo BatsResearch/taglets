@@ -70,10 +70,6 @@ class MultiTaskTaglet(ScadsImageTaglet):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
         self.source_data = None
-
-        self.img_per_related_class = 600 if not os.environ.get("CI") else 1
-        self.num_related_class = 10
-        self.prune = 0
         
         # self.batch_size = self.batch_size // 2 # This module uses more GPU memory than other modules
 

@@ -111,9 +111,7 @@ class DannTaglet(ScadsImageTaglet):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
         self.source_data = None
-
-        self.img_per_related_class = 600 if not os.environ.get("CI") else 1
-        self.num_related_class = 5
+        
         self.training_first_stage = True
         self.epoch = 0
         

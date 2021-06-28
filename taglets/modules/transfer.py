@@ -33,9 +33,6 @@ class TransferTaglet(ScadsImageTaglet):
             
         self.freeze = freeze
         self.is_norm = is_norm
-        self.img_per_related_class = 600 if not os.environ.get("CI") else 1
-        self.num_related_class = 10
-        self.prune = 0
 
     def transform_image(self, train=True):
         """

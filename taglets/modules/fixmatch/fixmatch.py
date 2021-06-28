@@ -103,9 +103,6 @@ class FixMatchTaglet(ScadsImageTaglet):
         self.mu = mu
         self.use_scads = use_scads
 
-        self.img_per_related_class = 600 if not os.environ.get("CI") else 1
-        self.num_related_class = 5
-
         # temp used to sharpen logits
         self.temp = temp
         self.use_ema = use_ema
