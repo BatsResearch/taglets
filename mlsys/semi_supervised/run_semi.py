@@ -47,9 +47,13 @@ class CheckpointRunner:
         start_time = time.time()
         
         class_names = self.dataset_api.get_class_names()
+        
         unlabeled_train_labels = self.dataset_api.get_unlabeled_labels(checkpoint_num)
         labeled_dataset, val_dataset = self.dataset_api.get_labeled_dataset(checkpoint_num)
         unlabeled_train_dataset, unlabeled_test_dataset = self.dataset_api.get_unlabeled_dataset(checkpoint_num)
+
+        evaluation_dataset = self.dataset_api.get_test_dataset()
+        test_labels = self.dataset_api.get_test_labels()
         task = Task(self.dataset,
                     labels_to_concept_ids(class_names),
                     (224, 224), 
@@ -61,17 +65,17 @@ class CheckpointRunner:
                     'predefined/scads.imagenet22k.sqlite3',
                     'predefined/embeddings/numberbatch-en19.08.txt.gz',
                     unlabeled_test_data=unlabeled_test_dataset,
-                    unlabeled_train_labels=unlabeled_train_labels)
+                    unlabeled_train_labels=unlabeled_train_labels,
+                    test_data=evaluation_dataset,
+                    test_labels=test_labels)
         task.set_initial_model(self.initial_model)
         controller = Controller(task)
 
         end_model = controller.train_end_model()
-
-        evaluation_dataset = self.dataset_api.get_test_dataset()
+        
         outputs = end_model.predict(evaluation_dataset)
         predictions = np.argmax(outputs, 1)
-
-        test_labels = self.dataset_api.get_test_labels()
+        
         if test_labels is not None:
             log.info('Accuracy of taglets on this checkpoint:')
             acc = np.sum(predictions == test_labels) / len(test_labels)
