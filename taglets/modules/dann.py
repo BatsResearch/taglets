@@ -214,7 +214,7 @@ class DannTaglet(ImageTaglet):
 
         # Domain adversarial training
         self._update_params(self.training_first_stage)
-        self.num_epochs = 200 if not os.environ.get("CI") else 5
+        self.num_epochs = 50 if not os.environ.get("CI") else 5
         super(DannTaglet, self).train(train_data, val_data, unlabeled_data)
 
         # Finetune target data
