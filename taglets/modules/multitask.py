@@ -62,7 +62,7 @@ class MultiTaskTaglet(ScadsImageTaglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'multitask'
-        self.num_epochs = 4 if not os.environ.get("CI") else 5
+        self.num_epochs = 50 if not os.environ.get("CI") else 5
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
@@ -71,7 +71,7 @@ class MultiTaskTaglet(ScadsImageTaglet):
             os.makedirs(self.save_dir)
         self.source_data = None
         
-        # self.batch_size = self.batch_size // 2 # This module uses more GPU memory than other modules
+        self.batch_size = self.batch_size // 2
 
     def transform_image(self, train=True):
         """
@@ -100,22 +100,26 @@ class MultiTaskTaglet(ScadsImageTaglet):
         self.source_data, num_classes = self._get_scads_data()
         log.info("Source classes found: {}".format(num_classes))
         log.info("Number of source training images: {}".format(len(self.source_data)))
-        
+    
         if num_classes == 0:
             self.valid = False
             return
-
+    
         self.model = MultiTaskModel(self.model, len(self.task.classes),
                                     num_classes, self.task.input_shape)
-
+    
         params_to_update = []
         for param in self.model.parameters():
             if param.requires_grad:
                 params_to_update.append(param)
         self._params_to_update = params_to_update
-        self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.005, momentum=0.9)
-        self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[2,3], gamma=0.1)
-        
+        self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
+        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+    
+        if len(train_data) < len(self.task.classes) * 50:
+            num_duplicates = (len(self.task.classes) * 50 // len(train_data)) + 1
+            train_data = torch.utils.data.ConcatDataset([train_data] * num_duplicates)
+    
         super(MultiTaskTaglet, self).train(train_data, val_data, unlabeled_data)
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):
@@ -127,43 +131,36 @@ class MultiTaskTaglet(ScadsImageTaglet):
         running_loss = 0
         running_acc = 0
         total_len = 0
-        data_iter = iter(train_data_loader)
-        for source_batch in self.source_data_loader:
-            try:
-                target_batch = next(data_iter)
-            except StopIteration:
-                data_iter = iter(train_data_loader)
-                target_batch = next(data_iter)
-
+        for source_batch, target_batch in zip(self.source_data_loader, train_data_loader):
             source_inputs, source_labels = source_batch
             target_inputs, target_labels = target_batch
-
+        
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
                 outputs = self.model(target_inputs, source_inputs)
                 target_outputs, source_outputs = outputs
                 source_loss = self.criterion(source_outputs, source_labels)
                 target_loss = self.criterion(target_outputs, target_labels)
-                loss = 8 * source_loss + target_loss
-
+                loss = source_loss + target_loss
+            
                 accelerator.backward(loss)
                 self.optimizer.step()
-
+        
             source_outputs = accelerator.gather(source_outputs.detach())
             source_labels = accelerator.gather(source_labels)
             target_outputs = accelerator.gather(target_outputs.detach())
             target_labels = accelerator.gather(target_labels)
-
+        
             running_loss += loss.item()
             running_acc += self._get_train_acc(source_outputs, source_labels).item()
             running_acc += self._get_train_acc(target_outputs, target_labels).item()
             total_len += len(source_labels)
             total_len += len(target_labels)
-
+    
         if not len(train_data_loader):
             return 0, 0
-
+    
         epoch_loss = running_loss / len(train_data_loader)
         epoch_acc = running_acc / total_len
-
+    
         return epoch_loss, epoch_acc
