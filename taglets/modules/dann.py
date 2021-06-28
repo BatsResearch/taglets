@@ -18,15 +18,18 @@ log = logging.getLogger(__name__)
 
 
 class GradientReversalLayer(autograd.Function):
-
+    
     @staticmethod
     def forward(ctx, x, alpha):
         ctx.alpha = alpha
-        return x
-
+        
+        return x.view_as(x)
+    
     @staticmethod
     def backward(ctx, grad_output):
-        return grad_output.neg() * ctx.alpha, None
+        output = grad_output.neg() * ctx.alpha
+        
+        return output, None
 
 
 class DannModel(nn.Module):
@@ -36,13 +39,13 @@ class DannModel(nn.Module):
         output_shape = self._get_model_output_shape(input_shape, self.base)
         self.fc_source = nn.Sequential(nn.Linear(output_shape, output_shape),
                                        nn.ReLU(),
-                                       torch.nn.Linear(output_shape, num_source))
+                                       nn.Linear(output_shape, num_source))
         self.fc_target = nn.Sequential(nn.Linear(output_shape, output_shape),
                                        nn.ReLU(),
-                                       torch.nn.Linear(output_shape, num_target))
+                                       nn.Linear(output_shape, num_target))
         self.fc_domain = nn.Sequential(nn.Linear(output_shape, output_shape),
                                        nn.ReLU(),
-                                       torch.nn.Linear(output_shape, 2))
+                                       nn.Linear(output_shape, 2))
 
     def forward(self, target_input, source_input=None, unlabeled_input=None, alpha=1.0):
         x = self.base(target_input)
@@ -101,7 +104,6 @@ class DannTaglet(ImageTaglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'dann'
-        self.num_epochs = 10 if not os.environ.get("CI") else 5
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
@@ -114,6 +116,9 @@ class DannTaglet(ImageTaglet):
         self.num_related_class = 5
         self.training_first_stage = True
         self.epoch = 0
+        
+        self.batch_size = self.batch_size // 4
+        self.unlabeled_batch_size = self.unlabeled_batch_size // 4
 
     def transform_image(self, train=True):
         """
@@ -162,6 +167,8 @@ class DannTaglet(ImageTaglet):
                     log.debug("Source class found: {}".format(node.get_conceptnet_id()))
                     return True
                 return False
+            
+            # Unlike other methods, for Dann, the auxiliary classes for each target class are merged
 
             all_related_class = 0
             for conceptnet_id in self.task.classes:
@@ -169,15 +176,14 @@ class DannTaglet(ImageTaglet):
                 target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
                 if get_images(target_node, all_related_class):
                     cur_related_class += 1
-                    all_related_class += 1
 
                 neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
                 for neighbor in neighbors:
                     if get_images(neighbor, all_related_class):
                         cur_related_class += 1
-                        all_related_class += 1
                         if cur_related_class >= self.num_related_class:
                             break
+                all_related_class += 1
 
             Scads.close()
             Cache.set('scads', self.task.classes,
@@ -201,36 +207,40 @@ class DannTaglet(ImageTaglet):
             return
 
         self.model = DannModel(self.model, len(self.task.classes), num_classes, self.task.input_shape)
+        
+        if len(train_data) < len(self.task.classes) * 50:
+            num_duplicates = (len(self.task.classes) * 50 // len(train_data)) + 1
+            train_data = torch.utils.data.ConcatDataset([train_data] * num_duplicates)
 
         # Domain adversarial training
-        self._update_params()
-        self.num_epochs = 10 if not os.environ.get("CI") else 5
+        self._update_params(self.training_first_stage)
+        self.num_epochs = 200 if not os.environ.get("CI") else 5
         super(DannTaglet, self).train(train_data, val_data, unlabeled_data)
 
         # Finetune target data
         self.training_first_stage = False
         self.model._remove_extra_heads()
-        self._update_params()
-        self.num_epochs = 25 if not os.environ.get("CI") else 5
+        self._update_params(self.training_first_stage)
+        self.num_epochs = 30 if not os.environ.get("CI") else 5
         super(DannTaglet, self).train(train_data, val_data, unlabeled_data)
 
-    def _update_params(self):
+    def _update_params(self, training_first_stage):
         self.params_to_update = []
         for param in self.model.parameters():
             if param.requires_grad:
                 self.params_to_update.append(param)
-        self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+        if training_first_stage:
+            self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.001, momentum=0.9, weight_decay=1e-4)
+            self.lr_scheduler = None
+        else:
+            self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
+            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):
         # batch_size = min(len(train_data) // num_batches, 256)
         if self.training_first_stage:
-            batch_size = max(int(self.batch_size/8), 8) if not os.environ.get("CI") else 32
-            self.source_data_loader = self._get_dataloader(data=self.source_data, shuffle=True, batch_size=batch_size)
-        old_batch_size = self.batch_size
-        self.batch_size = max(int(old_batch_size/8), 8)
+            self.source_data_loader = self._get_dataloader(data=self.source_data, shuffle=True)
         super(DannTaglet, self)._do_train(train_data, val_data, unlabeled_data)
-        self.batch_size = old_batch_size
 
     def _train_epoch(self, train_data_loader, unlabeled_data_loader=None):
         if self.training_first_stage:
@@ -258,7 +268,7 @@ class DannTaglet(ImageTaglet):
             zeros = torch.zeros(len(source_inputs), dtype=torch.long, device=source_inputs.device)
             ones = torch.ones(len(target_inputs), dtype=torch.long, device=target_inputs.device)
             if unlabeled_data_loader:
-                unlabeled_ones = torch.zeros(len(unlabeled_inputs), dtype=torch.long, device=unlabeled_inputs.device)
+                unlabeled_ones = torch.ones(len(unlabeled_inputs), dtype=torch.long, device=unlabeled_inputs.device)
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
@@ -266,7 +276,7 @@ class DannTaglet(ImageTaglet):
                     target_inputs,
                     source_inputs,
                     unlabeled_inputs,
-                    alpha
+                    0.1 * alpha
                 )
                 source_class_loss = self.criterion(source_classes, source_labels)
                 target_class_loss = self.criterion(target_classes, target_labels)
@@ -279,12 +289,12 @@ class DannTaglet(ImageTaglet):
                 accelerator.backward(loss)
                 self.optimizer.step()
 
-            source_classes = accelerator.gather(source_classes.detach())
-            source_labels = accelerator.gather(source_labels)
+            target_classes = accelerator.gather(target_classes.detach())
+            target_labels = accelerator.gather(target_labels)
 
             running_loss += loss.item()
-            running_acc += self._get_train_acc(source_classes, source_labels).item()
-            total_len += len(source_labels)
+            running_acc += self._get_train_acc(target_classes, target_labels).item()
+            total_len += len(target_labels)
         self.epoch += 1
         if not len(train_data_loader.dataset):
             return 0, 0
