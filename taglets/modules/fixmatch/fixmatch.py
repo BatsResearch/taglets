@@ -1,6 +1,5 @@
 import math
 import os
-import random
 import torch
 import logging
 import torch.nn.functional as F
@@ -11,9 +10,7 @@ from accelerate import Accelerator
 accelerator = Accelerator()
 
 from ..module import Module
-from ...data.custom_dataset import CustomImageDataset
-from ...pipeline import Cache, ImageTaglet
-from ...scads import Scads, ScadsEmbedding
+from ...pipeline import ScadsImageTaglet
 from .utils import TransformFixMatch, is_grayscale
 
 log = logging.getLogger(__name__)
@@ -84,7 +81,7 @@ class FixMatchModule(Module):
         self.taglets = [FixMatchTaglet(task, optimizer=Optimizer.ADAM, use_ema=False, verbose=False)]
 
 
-class FixMatchTaglet(ImageTaglet):
+class FixMatchTaglet(ScadsImageTaglet):
     def __init__(self, task, steps_per_epoch=-1,
                  conf_thresh=0.95,
                  lambda_u=1,
@@ -165,59 +162,6 @@ class FixMatchTaglet(ImageTaglet):
                 transforms.ToTensor(),
                 transforms.Normalize(mean=data_mean, std=data_std)
             ])
-
-    def _get_scads_data(self):
-        data = Cache.get("scads", self.task.classes)
-        if data is not None:
-            image_paths, image_labels, all_related_class = data
-        else:
-            root_path = Scads.get_root_path()
-            Scads.open(self.task.scads_path)
-            ScadsEmbedding.load(self.task.scads_embedding_path)
-            image_paths = []
-            image_labels = []
-            visited = set()
-
-            def get_images(node, label):
-                if node.get_conceptnet_id() not in visited:
-                    visited.add(node.get_conceptnet_id())
-                    images = node.get_images_whitelist(self.task.whitelist)
-                    if len(images) < self.img_per_related_class:
-                        return False
-                    images = random.sample(images, self.img_per_related_class)
-                    images = [os.path.join(root_path, image) for image in images]
-                    image_paths.extend(images)
-                    image_labels.extend([label] * len(images))
-                    log.debug("Source class found: {}".format(node.get_conceptnet_id()))
-                    return True
-                return False
-
-            all_related_class = 0
-            for conceptnet_id in self.task.classes:
-                cur_related_class = 0
-                target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
-                if get_images(target_node, all_related_class):
-                    cur_related_class += 1
-                    all_related_class += 1
-
-                neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
-                for neighbor in neighbors:
-                    if get_images(neighbor, all_related_class):
-                        cur_related_class += 1
-                        all_related_class += 1
-                        if cur_related_class >= self.num_related_class:
-                            break
-
-            Scads.close()
-            Cache.set('scads', self.task.classes,
-                      (image_paths, image_labels, all_related_class))
-
-        transform = self.transform_image(train=True)
-        train_dataset = CustomImageDataset(image_paths,
-                                            labels=image_labels,
-                                            transform=transform)
-
-        return train_dataset, all_related_class
 
     def _init_unlabeled_transform(self, unlabeled_data):
         if not hasattr(unlabeled_data, "transform"):
