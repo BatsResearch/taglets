@@ -213,24 +213,28 @@ class DannTaglet(ImageTaglet):
             train_data = torch.utils.data.ConcatDataset([train_data] * num_duplicates)
 
         # Domain adversarial training
-        self._update_params()
-        self.num_epochs = 10 if not os.environ.get("CI") else 5
+        self._update_params(self.training_first_stage)
+        self.num_epochs = 200 if not os.environ.get("CI") else 5
         super(DannTaglet, self).train(train_data, val_data, unlabeled_data)
 
         # Finetune target data
         self.training_first_stage = False
         self.model._remove_extra_heads()
-        self._update_params()
-        self.num_epochs = 25 if not os.environ.get("CI") else 5
+        self._update_params(self.training_first_stage)
+        self.num_epochs = 30 if not os.environ.get("CI") else 5
         super(DannTaglet, self).train(train_data, val_data, unlabeled_data)
 
-    def _update_params(self):
+    def _update_params(self, training_first_stage):
         self.params_to_update = []
         for param in self.model.parameters():
             if param.requires_grad:
                 self.params_to_update.append(param)
-        self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+        if training_first_stage:
+            self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.001, momentum=0.9, weight_decay=1e-4)
+            self.lr_scheduler = None
+        else:
+            self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
+            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):
         # batch_size = min(len(train_data) // num_batches, 256)
@@ -272,7 +276,7 @@ class DannTaglet(ImageTaglet):
                     target_inputs,
                     source_inputs,
                     unlabeled_inputs,
-                    alpha
+                    0.1 * alpha
                 )
                 source_class_loss = self.criterion(source_classes, source_labels)
                 target_class_loss = self.criterion(target_classes, target_labels)
