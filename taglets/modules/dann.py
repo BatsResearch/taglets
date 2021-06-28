@@ -13,6 +13,7 @@ import numpy as np
 import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.autograd as autograd
+from nltk.corpus import wordnet as wn
 
 log = logging.getLogger(__name__)
 
