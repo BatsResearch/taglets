@@ -78,7 +78,7 @@ class TransferTaglet(ScadsImageTaglet):
             return
 
         orig_num_epochs = self.num_epochs
-        self.num_epochs = 10 if not os.environ.get("CI") else 5
+        self.num_epochs = 5 if not os.environ.get("CI") else 5
         self._set_num_classes(scads_num_classes)
         super(TransferTaglet, self).train(scads_train_data, None, None)
         self.num_epochs = orig_num_epochs
