@@ -129,7 +129,7 @@ class FixMatchTaglet(ImageTaglet):
         self.weight_decay = weight_decay
         
         # ratio of labeled data and unlabeled data is one-to-one
-        self.batch_size = 8
+        self.batch_size = self.batch_size // 2
         self.unlabeled_batch_size = math.floor(self.mu * self.batch_size)
         if self.unlabeled_batch_size == 0:
             raise ValueError("unlabeled dataset is too small for FixMatch.")
@@ -259,7 +259,7 @@ class FixMatchTaglet(ImageTaglet):
             use_ema_copy = self.use_ema
 
             self.batch_size = 2 * self.batch_size
-            self.num_epochs = 10
+            self.num_epochs = 5
             self.use_ema = False
 
             super(FixMatchTaglet, self).train(scads_train_data, None, None)
@@ -292,8 +292,14 @@ class FixMatchTaglet(ImageTaglet):
         unlabeled_data = deepcopy(unlabeled_data)
 
         # replace default transform with FixMatch Transform
+        old_batch_size = self.batch_size
+        old_unlabeled_batch_size = self.unlabeled_batch_size
+        self.batch_size = 8
+        self.unlabeled_batch_size = 8
         self._init_unlabeled_transform(unlabeled_data)
         super(FixMatchTaglet, self).train(train_data, val_data, unlabeled_data)
+        self.batch_size = old_batch_size
+        self.unlabeled_batch_size = old_unlabeled_batch_size
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):
         """
