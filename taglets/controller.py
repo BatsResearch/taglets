@@ -8,7 +8,7 @@ import nltk
 from logging import StreamHandler
 from torch.utils.data import DataLoader, ConcatDataset
 from accelerate import Accelerator
-accelerator = Accelerator()
+accelerator = Accelerator(split_batches=True)
 
 from .data import SoftLabelDataset
 from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
@@ -17,7 +17,7 @@ from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecut
 
 ####################################################################
 # We configure logging in the main class of the application so that
-# subprocesses inherit the same configuration. This would have to be
+# subprocesses inherit the same configuratfion. This would have to be
 # redesigned if used as part of a larger application with its own
 # logging configuration
 ####################################################################
