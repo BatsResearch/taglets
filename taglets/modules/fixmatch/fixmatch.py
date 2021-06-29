@@ -8,7 +8,7 @@ import torchvision.transforms as transforms
 from copy import deepcopy
 from enum import Enum
 from accelerate import Accelerator
-accelerator = Accelerator()
+accelerator = Accelerator(split_batches=True)
 
 from ..module import Module
 from ...data.custom_dataset import CustomImageDataset
@@ -291,15 +291,9 @@ class FixMatchTaglet(ImageTaglet):
         # copy unlabeled dataset to prevent adverse side effects
         unlabeled_data = deepcopy(unlabeled_data)
 
-        # replace default transform with FixMatch Transform
-        old_batch_size = self.batch_size
-        old_unlabeled_batch_size = self.unlabeled_batch_size
-        self.batch_size = 8
-        self.unlabeled_batch_size = 8
+        # replace default transform with FixMatch Transform\
         self._init_unlabeled_transform(unlabeled_data)
-        super(FixMatchTaglet, self).train(train_data, val_data, unlabeled_data)
-        self.batch_size = old_batch_size
-        self.unlabeled_batch_size = old_unlabeled_batch_size
+        super(FixMatchTaglet, self).train(train_data, val_data, unlabeled_data)\
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):
         """

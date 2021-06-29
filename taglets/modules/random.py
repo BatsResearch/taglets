@@ -2,7 +2,7 @@ from .module import Module
 from ..pipeline import ImageTaglet
 
 from accelerate import Accelerator
-accelerator = Accelerator()
+accelerator = Accelerator(split_batches=True)
 import logging
 import numpy as np
 import torch

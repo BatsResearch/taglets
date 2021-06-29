@@ -7,7 +7,7 @@ import requests
 from pathlib import Path
 
 from accelerate import Accelerator
-accelerator = Accelerator()
+accelerator = Accelerator(split_batches=True)
 import torch
 import numpy as np
 import pandas as pd
@@ -830,7 +830,7 @@ def main():
                         help="Option to choose the data folder")
     parser.add_argument("--batch_size",
                         type=int,
-                        default="128",
+                        default="256",
                         help="Universal batch size")
     args = parser.parse_args()
     
