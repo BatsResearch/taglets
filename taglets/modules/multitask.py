@@ -5,7 +5,7 @@ import numpy as np
 import torchvision.transforms as transforms
 import torch.nn as nn
 from accelerate import Accelerator
-accelerator = Accelerator()
+accelerator = Accelerator(split_batches=True)
 
 from .module import Module
 from ..pipeline import ScadsImageTaglet
