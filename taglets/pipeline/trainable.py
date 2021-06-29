@@ -115,6 +115,7 @@ class Trainable:
         np.random.seed(seed)
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
+        accelerator.wait_for_everyone()
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):
         """

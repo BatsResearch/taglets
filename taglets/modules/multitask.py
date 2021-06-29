@@ -71,7 +71,7 @@ class MultiTaskTaglet(ScadsImageTaglet):
             os.makedirs(self.save_dir)
         self.source_data = None
         
-        # self.batch_size = self.batch_size // 2 # This module uses more GPU memory than other modules
+        self.batch_size = self.batch_size // 2
 
     def transform_image(self, train=True):
         """
