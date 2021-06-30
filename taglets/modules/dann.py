@@ -177,12 +177,16 @@ class DannTaglet(ImageTaglet):
                 if get_images(target_node, all_related_class):
                     cur_related_class += 1
 
-                neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
-                for neighbor in neighbors:
-                    if get_images(neighbor, all_related_class):
-                        cur_related_class += 1
-                        if cur_related_class >= self.num_related_class:
-                            break
+                # need to have at least one related class for each target class
+                ct = 1
+                while cur_related_class == 0:
+                    neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100 * ct)
+                    for neighbor in neighbors:
+                        if get_images(neighbor, all_related_class):
+                            cur_related_class += 1
+                            if cur_related_class >= self.num_related_class:
+                                break
+                    ct += 1
                 all_related_class += 1
                 
             # make all classes have the same amount of data
