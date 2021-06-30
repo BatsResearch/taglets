@@ -113,7 +113,7 @@ class DannTaglet(ImageTaglet):
         self.source_data = None
 
         self.img_per_related_class = 600 if not os.environ.get("CI") else 1
-        self.num_related_class = 5
+        self.num_related_class = 3
         self.training_first_stage = True
         self.epoch = 0
         
@@ -143,7 +143,7 @@ class DannTaglet(ImageTaglet):
             ])
 
     def _get_scads_data(self):
-        data = Cache.get("scads", self.task.classes)
+        data = Cache.get("scads-dann", self.task.classes)
         if data is not None:
             image_paths, image_labels, all_related_class = data
         else:
@@ -184,9 +184,19 @@ class DannTaglet(ImageTaglet):
                         if cur_related_class >= self.num_related_class:
                             break
                 all_related_class += 1
-
+                
+            # make all classes have the same amount of data
+            old_image_paths = np.asarray(image_paths)
+            old_image_labels = np.asarray(image_labels)
+            image_paths = []
+            image_labels = []
+            for i in range(all_related_class):
+                indices = np.nonzero(old_image_labels == i)
+                new_indices = np.random.choice(indices, self.img_per_related_class, replace=False)
+                image_paths.extend(list(old_image_paths[new_indices]))
+                image_labels.extend([i] * self.img_per_related_class)
             Scads.close()
-            Cache.set('scads', self.task.classes,
+            Cache.set('scads-dann', self.task.classes,
                       (image_paths, image_labels, all_related_class))
 
         transform = self.transform_image(train=True)
