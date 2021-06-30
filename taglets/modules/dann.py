@@ -196,6 +196,9 @@ class DannTaglet(ScadsImageTaglet):
                         cur_related_class += 1
                         if cur_related_class >= self.num_related_class:
                             break
+                
+                if cur_related_class == 0:
+                    log.info(f"No related class for {conceptnet_id}")
                 all_related_class += 1
                 
             # make all classes have the same amount of data
@@ -205,6 +208,8 @@ class DannTaglet(ScadsImageTaglet):
             image_labels = []
             for i in range(all_related_class):
                 indices = np.nonzero(old_image_labels == i)[0]
+                if len(indices) == 0:
+                    continue
                 new_indices = np.random.choice(indices, self.img_per_related_class, replace=False)
                 image_paths.extend(list(old_image_paths[new_indices]))
                 image_labels.extend([i] * self.img_per_related_class)
