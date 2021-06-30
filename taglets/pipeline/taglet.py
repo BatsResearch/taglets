@@ -77,17 +77,14 @@ class ScadsTagletMixin:
                 if get_images(target_node, all_related_class):
                     cur_related_class += 1
                     all_related_class += 1
-            
-                ct = 1
-                while cur_related_class < self.num_related_class:
-                    neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 20 * ct)
-                    for neighbor in neighbors:
-                        if get_images(neighbor, all_related_class):
-                            cur_related_class += 1
-                            all_related_class += 1
-                            if cur_related_class >= self.num_related_class:
-                                break
-                    ct += 1
+                    
+                neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
+                for neighbor in neighbors:
+                    if get_images(neighbor, all_related_class):
+                        cur_related_class += 1
+                        all_related_class += 1
+                        if cur_related_class >= self.num_related_class:
+                            break
         
             Scads.close()
             Cache.set('scads', self.task.classes,
