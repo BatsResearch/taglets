@@ -27,7 +27,7 @@ class ScadsTagletMixin:
     def __init__(self, task):
         super().__init__(task)
         self.img_per_related_class = 600 if not os.environ.get("CI") else 1
-        self.num_related_class = 10
+        self.num_related_class = 5
         self.prune = 0
 
     def _get_scads_data(self):
