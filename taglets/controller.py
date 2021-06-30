@@ -10,6 +10,7 @@ from accelerate import Accelerator
 accelerator = Accelerator()
 
 from .data import SoftLabelDataset
+from .labelmodel import UnweightedVote, WeightedVote
 from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
     RandomModule, DannModule
 from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor
@@ -128,11 +129,13 @@ class Controller:
                 log.info("Validation accuracies of each taglet:")
                 for w, taglet in zip(weights, taglets):
                     log.info("Module {} - acc {:.4f}".format(taglet.name, w))
+
+                lm = WeightedVote(len(self.task.classes))
+                weak_labels = lm.get_weak_labels(vote_matrix, weights)
             else:
                 # Weight all votes equally
-                weights = [1.0] * len(taglets)
-
-            weak_labels = self._get_weighted_dist(vote_matrix, weights)
+                lm = UnweightedVote(len(self.task.classes))
+                weak_labels = lm.get_weak_labels(vote_matrix)
             
             if self.task.unlabeled_train_labels is not None:
                 log.info('Accuracy of the labelmodel on the unlabeled train data:')
@@ -196,15 +199,6 @@ class Controller:
             end_model_train_data = ConcatDataset([new_labeled_dataset, new_unlabeled_dataset])
 
         return end_model_train_data
-
-    def _get_weighted_dist(self, vote_matrix, weights):
-        weak_labels = []
-        for row in vote_matrix:
-            weak_label = np.zeros((len(self.task.classes),))
-            for i in range(len(row)):
-                weak_label[row[i]] += weights[i]
-            weak_labels.append(weak_label / weak_label.sum())
-        return weak_labels
 
     def _to_soft_one_hot(self, l):
         soh = [0.1 / len(self.task.classes)] * len(self.task.classes)
