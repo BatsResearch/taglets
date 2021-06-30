@@ -74,6 +74,7 @@ class Controller:
     def __init__(self, task, simple_run=False):
         self.task = task
         self.end_model = None
+        self.vote_matrix = None
         self.simple_run = simple_run
 
     def train_end_model(self):
@@ -113,13 +114,13 @@ class Controller:
     
             # Executes taglets
             log.info("Executing taglets")
-            vote_matrix = taglet_executor.execute(unlabeled_test)
+            self.vote_matrix = taglet_executor.execute(unlabeled_test)
             log.info("Finished executing taglets")
             
             if self.task.unlabeled_train_labels is not None:
                 log.info('Accuracies of each taglet on the unlabeled train data:')
                 for i in range(len(taglets)):
-                    acc = np.sum(vote_matrix[:, i] == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
+                    acc = np.sum(self.vote_matrix[:, i] == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
                     log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
 
             # Combines taglets' votes into soft labels
@@ -184,6 +185,9 @@ class Controller:
                         FineTuneModule,
                         FixMatchModule]
             return [FineTuneModule, FixMatchModule]
+    
+    def get_vote_matrix(self):
+        return self.vote_matrix
 
     def _combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
         labeled = DataLoader(labeled_dataset, batch_size=1, shuffle=False)
