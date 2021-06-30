@@ -195,6 +195,8 @@ class DannTaglet(ImageTaglet):
             image_labels = []
             for i in range(all_related_class):
                 indices = np.nonzero(old_image_labels == i)[0]
+                if len(indices) == 0:
+                    continue
                 new_indices = np.random.choice(indices, self.img_per_related_class, replace=False)
                 image_paths.extend(list(old_image_paths[new_indices]))
                 image_labels.extend([i] * self.img_per_related_class)
