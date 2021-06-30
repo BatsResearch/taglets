@@ -13,6 +13,8 @@ import numpy as np
 import pandas as pd
 import torchvision.models as models
 import torchvision.transforms as transforms
+import pytorchvideo.transforms as video_transform
+import torchvision.transforms._transforms_video as transform_video
 
 from ..task import Task
 from ..data import CustomImageDataset, CustomVideoDataset
@@ -20,6 +22,7 @@ from ..controller import Controller
 from .utils import labels_to_concept_ids
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
 from ..scads import Scads
+from ..modules.videos.utils import PackPathway
 
 
 gpu_list = os.getenv("LWLL_TA1_GPUS")
@@ -125,7 +128,7 @@ class JPL:
             seed_labels = []
             dictionary_clips = {}
             for clip in labels:
-                action_frames = [str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'])]
+                action_frames = [str(clip['id']) + '/' + str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'])]
                 dictionary_clips[clip["id"]] = action_frames
                 seed_labels.append([clip["class"], clip["id"]])
             return seed_labels, dictionary_clips
@@ -313,7 +316,7 @@ class JPLStorage:
                                                       dataset_name + "_" + data_type,
                                                       "test")
     
-    def transform_image(self, train=True):
+    def transform_image(self, train=True, video=False):
         """
         Get the transform to be used on an image.
         :return: A transform
@@ -321,6 +324,9 @@ class JPLStorage:
         data_mean = [0.485, 0.456, 0.406]
         data_std = [0.229, 0.224, 0.225]
         # Remember to check it for video and eval
+        if video:
+            return transforms.Compose([transforms.ToTensor()])
+        
         if train:
             return transforms.Compose([
                 transforms.RandomResizedCrop((224, 224), scale=(0.8, 1.0)),
@@ -334,6 +340,26 @@ class JPLStorage:
                 transforms.ToTensor(),
                 transforms.Normalize(mean=data_mean, std=data_std)
             ])
+
+    def transformer_video(self):   
+        """Trasformation valid for SlowFast"""
+        side_size = 256
+        mean = [0.45, 0.45, 0.45]
+        std = [0.225, 0.225, 0.225]
+        crop_size = 256
+        num_frames = 32
+        alpha = 4
+
+        return  video_transform.ApplyTransformToKey(key="video",
+                                    transform=transforms.Compose([
+                                        video_transform.UniformTemporalSubsample(num_frames),
+                                        transforms.Lambda(lambda x: x/255.0),
+                                        transform_video.NormalizeVideo(mean, std),
+                                        video_transform.ShortSideScale(size=side_size),
+                                        transform_video.CenterCropVideo(crop_size),
+                                        PackPathway(alpha)
+                                    ])
+                                    )
 
     def get_labeled_images_list(self):
         """get list of image names and labels"""
@@ -409,16 +435,19 @@ class JPLStorage:
             val_idx = []
         
         if self.video:
+            #log.info(f"Disctionary clip: {dictionary_clips}")
             train_dataset = CustomVideoDataset(image_paths[train_idx],
                                                labels=image_labels[train_idx],
                                                label_map=self.label_map,
-                                               transform=self.transform_image(train=True),
+                                               transform_img=self.transform_image(video=self.video),
+                                               transform_vid=self.transformer_video(),
                                                clips_dictionary=dictionary_clips)
             if len(val_idx) != 0:
                 val_dataset = CustomVideoDataset(image_paths[val_idx],
                                                  labels=image_labels[val_idx],
                                                  label_map=self.label_map,
-                                                 transform=self.transform_image(train=False),
+                                                 transform_img=self.transform_image(video=self.video),
+                                                 transform_vid=self.transformer_video(),
                                                  clips_dictionary=dictionary_clips)
             else:
                 val_dataset = None
@@ -466,7 +495,8 @@ class JPLStorage:
         else:
             if self.video:
                 return CustomVideoDataset(image_paths,
-                                          transform=transform,
+                                          transform_img=self.transform_image(train=train, video=self.video),
+                                          transform_vid=self.transformer_video(),
                                           clips_dictionary=dictionary_clips)
             else:
                 return CustomImageDataset(image_paths,
@@ -500,7 +530,8 @@ class JPLStorage:
         
         if self.video:
             return CustomVideoDataset(image_paths,
-                                      transform=transform,
+                                      transform_img=self.transform_image(train=False, video=self.video),
+                                      transform_vid=self.transformer_video(),
                                       clips_dictionary=dictionary_clips)
         else:
             return CustomImageDataset(image_paths,
@@ -549,8 +580,13 @@ class JPLRunner:
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
 
-        self.initial_model = models.resnet50(pretrained=True)
-        self.initial_model.fc = torch.nn.Identity()
+        if self.video:
+            self.initial_model = torch.hub.load("facebookresearch/pytorchvideo", 
+                                            model='slowfast_r50', 
+                                            pretrained=True)
+        else:
+            self.initial_model = models.resnet50(pretrained=True)
+            self.initial_model.fc = torch.nn.Identity()
 
         self.testing = testing
         self.mode = mode
@@ -826,7 +862,7 @@ def main():
                         help="Option to choose whether to execute or not the entire trining pipeline")
     parser.add_argument("--folder",
                         type=str,
-                        default="evaluation",# development
+                        default="external",# development, evaluation
                         help="Option to choose the data folder")
     parser.add_argument("--batch_size",
                         type=int,

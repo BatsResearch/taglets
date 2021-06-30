@@ -33,8 +33,11 @@ class Task:
         self.unlabeled_train_labels = unlabeled_train_labels
         self.video_classification = video_classification
 
-        self.initial = models.resnet50(pretrained=True)
-        self.initial.fc = torch.nn.Identity()
+        if self.video_classification:
+            self.initial = torch.hub.load("facebookresearch/pytorchvideo", model='slowfast_r50', pretrained=True)
+        else:
+            self.initial = models.resnet50(pretrained=True)
+            self.initial.fc = torch.nn.Identity()
         self.whitelist = whitelist
 
     def get_labeled_train_data(self):

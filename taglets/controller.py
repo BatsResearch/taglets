@@ -11,7 +11,7 @@ accelerator = Accelerator()
 
 from .data import SoftLabelDataset
 from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
-    RandomModule, DannModule
+    RandomModule, DannModule, BaselineVideoModule
 from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
 ####################################################################
@@ -171,7 +171,7 @@ class Controller:
         if self.simple_run:
              return [RandomModule]
         elif self.task.video_classification:
-             return [NaiveVideoModule]
+             return [BaselineVideoModule]#NaiveVideoModule]
         else:
             if self.task.scads_path is not None:
                 return [DannModule, 

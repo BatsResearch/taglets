@@ -7,3 +7,4 @@ from .dann import DannModule
 from .fixmatch import FixMatchModule
 from .naive_video import NaiveVideoModule
 from .random import RandomModule
+from .videos import BaselineVideoModule

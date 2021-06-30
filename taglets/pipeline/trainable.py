@@ -375,15 +375,17 @@ class VideoTrainable(Trainable):
         for batch in train_data_loader:
             inputs = batch[0]
             labels = batch[1]
-            num_videos = inputs.size(0)
-            num_frames = inputs.size(1)
-            inputs = inputs.flatten(start_dim=0, end_dim=1)
+            inputs = inputs["video"]
+            #inputs = [i.to(device)[None, ...] for i in inputs]
+            #num_videos = inputs.size(0)
+            #num_frames = inputs.size(1)
+            #inputs = inputs.flatten(start_dim=0, end_dim=1)
             
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
                 outputs = self.model(inputs)
-                aggregated_outputs = torch.mean(outputs.view(num_videos, num_frames, -1), dim=1)
-                loss = self.criterion(aggregated_outputs, labels)
+                # aggregated_outputs = torch.mean(outputs.view(num_videos, num_frames, -1), dim=1)
+                loss = self.criterion(outputs, labels)
                 accelerator.backward(loss)
                 self.optimizer.step()
 
