@@ -3,7 +3,9 @@ import logging
 import random
 import os
 import torch.nn as nn
+import torch.nn.functional as F
 import torchvision.transforms as transforms
+
 
 log = logging.getLogger(__name__)
 
@@ -29,17 +31,50 @@ class Encoder(IntEnum):
     SIMCLR_50_X2 = 2
 
 
+class Metric(IntEnum):
+    COSINE = 0
+    SQRT = 1
+    DOT = 2
+
+
 class NearestNeighborClassifier(nn.Module):
-    def __init__(self, cls_prototypes, encoder):
+    def __init__(self, cls_prototypes, encoder, metric=Metric.COSINE):
         super().__init__()
         self.cls_prototypes = cls_prototypes
         self.encoder = encoder
+        self.metric = metric
 
     def forward(self, x):
         """
         x: (batch, c, h, w) -[encoder]-> (batch, encoding_dim) -[NN Classifier]-> (batch, logits)
         """
-        pass
+
+        if self.metric == Metric.COSINE:
+            self.cls_prototypes = F.normalize(self.cls_prototypes, dim=-1)
+            x = F.normalize(x, dim=-1)
+
+        logits = None
+        if x.dim() == 2:
+            if self.metric == Metric.DOT:
+                logits = torch.mm(x, self.cls_prototypes.t())
+            elif self.metric == Metric.COSINE:
+                logits = torch.mm(F.normalize(x, dim=-1),
+                                  F.normalize(self.cls_prototypes, dim=-1).t())
+            elif self.metric == Metric.SQRT:
+                logits = -(x.unsqueeze(1) -
+                           self.cls_prototypes.unsqueeze(0)).pow(2).sum(dim=-1)
+        elif x.dim() == 3:
+            if self.metric == Metric.DOT:
+                logits = torch.bmm(x, self.cls_prototypes.permute(0, 2, 1))
+            elif self.metric == Metric.COSINE:
+                logits = torch.bmm(F.normalize(x, dim=-1),
+                                   F.normalize(self.cls_prototypes, dim=-1).permute(0, 2, 1))
+            elif self.metric == Metric.SQRT:
+                logits = -(self.x.unsqueeze(2) -
+                           self.cls_prototypes.unsqueeze(1)).pow(2).sum(dim=-1)
+        else:
+            raise ValueError('Too many dims!')
+        return logits
 
 
 class PSModule(Module):
