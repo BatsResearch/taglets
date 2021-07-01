@@ -21,7 +21,7 @@ class TransferModule(Module):
 
 
 class TransferTaglet(ScadsImageTaglet):
-    def __init__(self, task, freeze=True, is_norm=True):
+    def __init__(self, task, freeze=False, is_norm=False):
         super().__init__(task)
         self.name = 'transfer'
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
