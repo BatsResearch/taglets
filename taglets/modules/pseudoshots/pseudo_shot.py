@@ -234,7 +234,7 @@ class PseudoShotTaglet(ImageTaglet):
                     'dropblock_size': 5,
                     'inplanes': self.img_encoder.out_dim * 2}
             masking_module = MultimoduleMasking(**args)
-            masking_module.load_state_dict(torch.load('pretrained/resnet12_mask.pth')['multi-block-masking_sd'])
+            masking_module.load_state_dict(torch.load('predefined/resnet12_mask.pth')['multi-block-masking_sd'])
             masking_module.eval()
             return masking_module
 
@@ -246,7 +246,7 @@ class PseudoShotTaglet(ImageTaglet):
     def _set_img_encoder(self, img_encoder_type):
         if self.dev_test:
             encoder = resnet12(**{'avg_pool': False, 'drop_rate': 0.1, 'dropblock_size': 5})
-            encoder.load_state_dict(torch.load('pretrained/resnet12.pth')['resnet12_sd'])
+            encoder.load_state_dict(torch.load('predefined/resnet12.pth')['resnet12_sd'])
             encoder.eval()
             return encoder
 
