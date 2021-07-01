@@ -95,15 +95,16 @@ def multi_block_masking(**kwargs):
 
 
 class MaskingHead(nn.Module):
-    def __init__(self, encoder_dim, masking_module_args):
+    def __init__(self, masking_model):
         super().__init__()
-        masking_module_args['inplanes'] = encoder_dim * 2
-        self.masking_model = multi_block_masking(**masking_module_args)
+        self.masking_model = masking_model
 
     def forward(self, data_dict):
         # note: masking-layer assumes that image encodings are given as input
         embedding = data_dict['embed']
+        pseudo = data_dict['pseudo']
+
         batch_shape = embedding.shape[:1]
         mask = self.masking_model(embedding)
         mask = mask.view(*batch_shape, *mask.shape[1:])
-        return {'mask': torch.mul(embedding, mask)}
+        return {'pseudo': torch.mul(pseudo, mask)}

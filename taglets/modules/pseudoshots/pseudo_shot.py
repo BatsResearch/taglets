@@ -16,6 +16,8 @@ from .masking_model import MaskingHead, MultimoduleMasking
 from .utils import freeze_module, get_total_size
 from ...scads import Scads, ScadsEmbedding
 
+from .resnet12 import resnet12
+
 accelerator = Accelerator()
 
 
@@ -52,6 +54,7 @@ class PSModule(Module):
         ps_args['n_pseudo'] = 15
 
         ps_args['img_encoder_type'] = Encoder.RESNET_50
+        ps_args['img_encoder_ckpt_path'] = None
         ps_args['masking_ckpt_path'] = 'predefined/pseudoshots/masking_module.pt'
         ps_args['masking_args'] = {
             'channels': [640, 320, 1],
@@ -83,6 +86,7 @@ class PseudoShotTaglet(ImageTaglet):
         img_encoder_type = kwargs.get('img_encoder_type', Encoder.RESNET_50)
         self.img_encoder = self._set_img_encoder(img_encoder_type)
         self.masking_module = self._load_masking_module(masking_ckpt_path, **masking_args)
+        self.masking_head = MaskingHead(self.masking_module)
 
         self.lr = kwargs.get('lr', self.lr)
         self._params_to_update = []
@@ -90,6 +94,10 @@ class PseudoShotTaglet(ImageTaglet):
         backbone = torch.nn.Sequential(*list(self.img_encoder.children())[:-1])
         im_encoder_shape = self._get_model_output_shape(self.task.input_shape, backbone)
         self.support_embeddings = torch.zeros((len(self.task.classes), get_total_size(im_encoder_shape)))
+
+        # only for development purposes
+        self.dev_test = True
+        self.dev_shape = (3, 84, 84)
 
     def transform_image(self):
         """
@@ -99,6 +107,12 @@ class PseudoShotTaglet(ImageTaglet):
         data_mean = [0.485, 0.456, 0.406]
         data_std = [0.229, 0.224, 0.225]
 
+        if self.dev_test:
+            return transforms.Compose([
+                transforms.Resize(self.dev_shape),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=data_mean, std=data_std)
+            ])
         return transforms.Compose([
                 transforms.Resize(self.task.input_shape),
                 transforms.ToTensor(),
@@ -175,15 +189,32 @@ class PseudoShotTaglet(ImageTaglet):
                                            transform=transform)
         return train_dataset, all_related_class
 
-    @staticmethod
-    def _load_masking_module(ckpt_path, **kwargs):
+    def _load_masking_module(self, ckpt_path, **kwargs):
         # TODO: determine how to sync encoder dim and masking module dim
+        if self.dev_test:
+            args = {'channels': [640, 320, 1],
+                    'final_relu': False,
+                    'max_pool': False,
+                    'activation': 'sigmoid',
+                    'dropblock_size': 5,
+                    'inplanes': self.img_encoder.out_dim * 2}
+            masking_module = MultimoduleMasking(**args)
+            masking_module.load_state_dict(torch.load('pretrained/resnet12_mask.pth')['multi-block-masking_sd'])
+            masking_module.eval()
+            return masking_module
+
         masking_module = MultimoduleMasking(**kwargs)
         masking_module.load_state_dict(torch.load(ckpt_path))
         masking_module.eval()
         return masking_module
 
     def _set_img_encoder(self, img_encoder_type):
+        if self.dev_test:
+            encoder = resnet12(**{'avg_pool': False, 'drop_rate': 0.1, 'dropblock_size': 5})
+            encoder.load_state_dict(torch.load('pretrained/resnet12.pth')['resnet12_sd'])
+            encoder.eval()
+            return encoder
+
         if img_encoder_type == Encoder.RESNET_50:
             return self.model
         elif img_encoder_type == Encoder.SIMCLR_50_X1:
@@ -218,11 +249,14 @@ class PseudoShotTaglet(ImageTaglet):
         3. For each class, compute
         """
 
+        if self.dev_test:
+            train_data_loader.dataset.transform = self.transform_image()
+
         main_dev = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
         with torch.no_grad():
             if accelerator.is_local_main_process:
                 img_encoder = self.img_encoder.to(main_dev)
-                masking_module = self.masking_module.to(main_dev)
+                masking_head = self.masking_head.to(main_dev)
                 support_embeddings = self.support_embeddings.to(main_dev)
 
                 # first comp = existence bit; second comp = hit count
@@ -273,7 +307,7 @@ class PseudoShotTaglet(ImageTaglet):
 
                         # only use masking module for classes with aux data
                         idx_mask = torch.where(aux_counts[i * self.mask_batch_size: upper] > 0, True, False)
-                        masked_embed = masking_module({'embed': embed[idx_mask], 'pseudo': pseudo[idx_mask]})['pseudo']
+                        masked_embed = masking_head({'embed': embed[idx_mask], 'pseudo': pseudo[idx_mask]})['pseudo']
                         aux_embeddings[idx_mask] = masked_embed.reshape((pseudo.shape[0], -1))
 
                     counts = supp_counts + aux_counts
