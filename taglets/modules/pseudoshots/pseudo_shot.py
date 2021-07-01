@@ -77,7 +77,7 @@ class NearestNeighborClassifier(nn.Module):
         return logits
 
 
-class PSModule(Module):
+class PseudoShotModule(Module):
     def __init__(self, task):
         super().__init__(task)
         ps_args = {}

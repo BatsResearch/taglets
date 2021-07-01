@@ -11,7 +11,7 @@ accelerator = Accelerator()
 
 from .data import SoftLabelDataset
 from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
-    RandomModule, DannModule
+    RandomModule, DannModule, PseudoShotModule
 from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
 ####################################################################
@@ -174,12 +174,8 @@ class Controller:
              return [NaiveVideoModule]
         else:
             if self.task.scads_path is not None:
-                return [DannModule, 
-                        MultiTaskModule,
-                        ZSLKGModule,
-                        TransferModule,
-                        FineTuneModule,
-                        FixMatchModule]
+                return [
+                        PseudoShotModule]
             return [FineTuneModule, FixMatchModule]
 
     def _combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
