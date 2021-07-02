@@ -11,7 +11,7 @@ class Places205(DatasetAPI):
     def __init__(self, dataset_dir, seed=0):
         super().__init__(dataset_dir, seed)
 
-        self.checkpoint_shot = [1, 5, 20, 50]
+        self.checkpoint_shot = [1, 5, 20, 50, 100, 500]
 
         self.classes = []
         self.all_img_paths = []
