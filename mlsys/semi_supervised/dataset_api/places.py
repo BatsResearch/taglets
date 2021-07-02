@@ -35,6 +35,27 @@ class Places205(DatasetAPI):
                 img_paths.append(os.path.join(data_dir, row[0]))
         self.all_img_paths = np.asarray(self.all_img_paths)
         self.classes = np.asarray(self.classes)
+        
+        fix_class_dict = {'bakery/shop': 'bakery',
+                          'desert/sand': 'desert_sand',
+                          'desert/vegetation': 'vegetation',
+                          'dinette/home': 'dinette',
+                          'field/cultivated': 'cultivated_field',
+                          'field/wild': 'wild',
+                          'stadium/baseball': 'baseball_stadium',
+                          'stadium/football': 'football_stadium',
+                          'temple/east_asia': 'hindu_temple',
+                          'temple/south_asia': 'buddhist_temple',
+                          'train_station/platform': 'train_platform',
+                          'underwater/coral_reef': 'coral_reef'}
+        for i in range(len(self.classes)):
+            if self.classes[i].endswith('/outdoor'):
+                self.classes[i] = self.classes[i][:-8]
+            if self.classes[i].endswith('/indoor'):
+                self.classes[i] = self.classes[i][:-7]
+            if self.classes[i] in fix_class_dict:
+                self.classes[i] = fix_class_dict[self.classes[i]]
+
 
         self.test_img_paths = []
         self.test_labels = []
