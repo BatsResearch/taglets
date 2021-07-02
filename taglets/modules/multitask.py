@@ -66,7 +66,7 @@ class MultiTaskTaglet(ImageTaglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'multitask'
-        self.num_epochs = 50 if not os.environ.get("CI") else 5
+        self.num_epochs = 8 if not os.environ.get("CI") else 5
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
@@ -173,11 +173,11 @@ class MultiTaskTaglet(ImageTaglet):
             if param.requires_grad:
                 params_to_update.append(param)
         self._params_to_update = params_to_update
-        self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+        self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.003, momentum=0.9)
+        self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[4, 6], gamma=0.1)
         
-        if len(train_data) < len(self.task.classes) * 50:
-            num_duplicates = (len(self.task.classes) * 50 // len(train_data)) + 1
+        if len(train_data) < 1024:
+            num_duplicates = (1024 // len(train_data)) + 1
             train_data = torch.utils.data.ConcatDataset([train_data] * num_duplicates)
         
         super(MultiTaskTaglet, self).train(train_data, val_data, unlabeled_data)
@@ -191,7 +191,14 @@ class MultiTaskTaglet(ImageTaglet):
         running_loss = 0
         running_acc = 0
         total_len = 0
-        for source_batch, target_batch in zip(self.source_data_loader, train_data_loader):
+        data_iter = iter(train_data_loader)
+        for source_batch in self.source_data_loader:
+            try:
+                target_batch = next(data_iter)
+            except StopIteration:
+                data_iter = iter(train_data_loader)
+                target_batch = next(data_iter)
+
             source_inputs, source_labels = source_batch
             target_inputs, target_labels = target_batch
 
