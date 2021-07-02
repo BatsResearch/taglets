@@ -2,6 +2,8 @@ import numpy as np
 import random
 import torchvision.transforms as transforms
 
+from taglets.data import CustomImageDataset
+
 
 class DatasetAPI:
     def __init__(self, dataset_dir, seed=0):
@@ -33,24 +35,76 @@ class DatasetAPI:
     def _init_random(self):
         np.random.seed(self.seed)
         random.seed(self.seed)
-    
+
     def get_num_checkpoints(self):
-        raise NotImplementedError
-    
+        return len(self.checkpoint_shot)
+
     def get_class_names(self):
-        raise NotImplementedError
-    
+        return self.classes
+
     def get_labeled_dataset(self, checkpoint_num):
-        raise NotImplementedError
-        
+        shot = self.checkpoint_shot[checkpoint_num]
+        img_paths = []
+        labels = []
+        for i in range(10):
+            checkpoint_indices = self.train_indices[i][:shot]
+            img_paths.append(self.all_img_paths[i][checkpoint_indices])
+            labels = labels + ([i] * len(checkpoint_indices))
+        img_paths = np.concatenate(img_paths)
+        labels = np.asarray(labels)
+    
+        if checkpoint_num <= 2:
+            labeled_dataset = CustomImageDataset(img_paths,
+                                                 labels=labels,
+                                                 transform=self._get_transform_image(train=True))
+            return labeled_dataset, None
+        else:
+            indices = list(range(len(labels)))
+            train_split = int(np.floor(0.8 * len(labels)))
+            np.random.shuffle(indices)
+            train_idx = indices[:train_split]
+            val_idx = indices[train_split:]
+            labeled_dataset = CustomImageDataset(img_paths[train_idx],
+                                                 labels=labels[train_idx],
+                                                 transform=self._get_transform_image(train=True))
+            val_dataset = CustomImageDataset(img_paths[val_idx],
+                                             labels=labels[val_idx],
+                                             transform=self._get_transform_image(train=False))
+            return labeled_dataset, val_dataset
+
     def get_unlabeled_dataset(self, checkpoint_num):
-        raise NotImplementedError
+        if checkpoint_num == len(self.checkpoint_shot) - 1:
+            return None, None
+    
+        shot = self.checkpoint_shot[checkpoint_num]
+        img_paths = []
+        for i in range(10):
+            checkpoint_indices = self.train_indices[i][shot:]
+            img_paths.append(self.all_img_paths[i][checkpoint_indices])
+        img_paths = np.concatenate(img_paths)
+    
+        unlabeled_train_dataset = CustomImageDataset(img_paths,
+                                                     transform=self._get_transform_image(train=True))
+        unlabeled_test_dataset = CustomImageDataset(img_paths,
+                                                    transform=self._get_transform_image(train=False))
+        return unlabeled_train_dataset, unlabeled_test_dataset
 
     def get_unlabeled_labels(self, checkpoint_num):
-        raise NotImplementedError
-        
+        if checkpoint_num == len(self.checkpoint_shot) - 1:
+            return None
+    
+        shot = self.checkpoint_shot[checkpoint_num]
+        labels = []
+        for i in range(10):
+            checkpoint_indices = self.train_indices[i][shot:]
+            labels = labels + ([i] * len(checkpoint_indices))
+        labels = np.asarray(labels)
+        return labels
+
     def get_test_dataset(self):
-        raise NotImplementedError
-        
+        test_dataset = CustomImageDataset(self.test_img_paths,
+                                          transform=self._get_transform_image(train=False))
+        return test_dataset
+
     def get_test_labels(self):
-        raise NotImplementedError
+        return self.test_labels
