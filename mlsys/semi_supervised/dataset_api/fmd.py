@@ -20,7 +20,6 @@ class FMD(DatasetAPI):
                     continue
                 img_paths.append(os.path.join(class_dir, img))
             self.all_img_paths.append(np.asarray(img_paths))
-        self.all_img_paths = np.asarray(self.all_img_paths)
 
         self._init_random()
         
@@ -34,5 +33,6 @@ class FMD(DatasetAPI):
             self.all_img_paths[i] = self.all_img_paths[i][indices[50:]]
         self.test_img_paths = np.concatenate(np.asarray(self.test_img_paths))
         self.test_labels = np.asarray(self.test_labels)
+        self.all_img_paths = np.asarray(self.all_img_paths)
         
         self.train_indices = [np.random.permutation(50) for _ in range(10)]
