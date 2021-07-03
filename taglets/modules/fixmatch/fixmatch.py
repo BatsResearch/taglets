@@ -81,7 +81,7 @@ def get_cosine_schedule_with_warmup(optimizer,
 class FixMatchModule(Module):
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [FixMatchTaglet(task, optimizer=Optimizer.ADAM, use_ema=False, verbose=False)]
+        self.taglets = [FixMatchTaglet(task, optimizer=Optimizer.SGD, use_ema=False, verbose=False)]
 
 
 class FixMatchTaglet(ImageTaglet):
