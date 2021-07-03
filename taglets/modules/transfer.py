@@ -5,7 +5,7 @@ import torchvision.transforms as transforms
 import torch.nn as nn
 
 from .module import Module
-from ..pipeline import ScadsImageTaglet
+from ..pipeline import ImageTagletWithAuxData
 
 log = logging.getLogger(__name__)
 
@@ -20,8 +20,8 @@ class TransferModule(Module):
         self.taglets = [TransferTaglet(task)]
 
 
-class TransferTaglet(ScadsImageTaglet):
-    def __init__(self, task, freeze=True, is_norm=True):
+class TransferTaglet(ImageTagletWithAuxData):
+    def __init__(self, task, freeze=False, is_norm=False):
         super().__init__(task)
         self.name = 'transfer'
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
@@ -66,8 +66,8 @@ class TransferTaglet(ScadsImageTaglet):
             if param.requires_grad:
                 params_to_update.append(param)
         self._params_to_update = params_to_update
-        self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.005, momentum=0.9)
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+        self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.003, momentum=0.9)
+        self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[20, 30], gamma=0.1)
 
     def train(self, train_data, val_data, unlabeled_data=None):
         scads_train_data, scads_num_classes = self._get_scads_data()
@@ -89,7 +89,7 @@ class TransferTaglet(ScadsImageTaglet):
                 param.requires_grad = False
 
         orig_num_epochs = self.num_epochs
-        self.num_epochs = 25 if not os.environ.get("CI") else 5
+        self.num_epochs = 40 if not os.environ.get("CI") else 5
         self._set_num_classes(len(self.task.classes))
         super(TransferTaglet, self).train(train_data, val_data, unlabeled_data)
         self.num_epochs = orig_num_epochs

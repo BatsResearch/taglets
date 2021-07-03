@@ -8,7 +8,7 @@ from accelerate import Accelerator
 accelerator = Accelerator(split_batches=True)
 
 from .module import Module
-from ..pipeline import ScadsImageTaglet
+from ..pipeline import ImageTagletWithAuxData
 
 log = logging.getLogger(__name__)
 
@@ -58,11 +58,11 @@ class MultiTaskModule(Module):
         self.taglets = [MultiTaskTaglet(task)]
 
 
-class MultiTaskTaglet(ScadsImageTaglet):
+class MultiTaskTaglet(ImageTagletWithAuxData):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'multitask'
-        self.num_epochs = 4 if not os.environ.get("CI") else 5
+        self.num_epochs = 8 if not os.environ.get("CI") else 5
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
@@ -113,8 +113,12 @@ class MultiTaskTaglet(ScadsImageTaglet):
             if param.requires_grad:
                 params_to_update.append(param)
         self._params_to_update = params_to_update
-        self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.005, momentum=0.9)
-        self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[2,3], gamma=0.1)
+        self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.003, momentum=0.9)
+        self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[4, 6], gamma=0.1)
+        
+        if len(train_data) < 1024:
+            num_duplicates = (1024 // len(train_data)) + 1
+            train_data = torch.utils.data.ConcatDataset([train_data] * num_duplicates)
         
         super(MultiTaskTaglet, self).train(train_data, val_data, unlabeled_data)
 
@@ -144,7 +148,7 @@ class MultiTaskTaglet(ScadsImageTaglet):
                 target_outputs, source_outputs = outputs
                 source_loss = self.criterion(source_outputs, source_labels)
                 target_loss = self.criterion(target_outputs, target_labels)
-                loss = 8 * source_loss + target_loss
+                loss = source_loss + target_loss
 
                 accelerator.backward(loss)
                 self.optimizer.step()

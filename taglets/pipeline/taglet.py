@@ -21,9 +21,9 @@ class TagletMixin:
         """
         outputs = self.predict(unlabeled_data)
         return np.argmax(outputs, 1)
-    
 
-class ScadsTagletMixin:
+
+class AuxDataMixin:
     def __init__(self, task):
         super().__init__(task)
         self.img_per_related_class = 600 if not os.environ.get("CI") else 1
@@ -105,9 +105,9 @@ class ImageTaglet(TagletMixin, ImageTrainable):
     """
     A trainable model that produces votes for unlabeled images
     """
-
-
-class ScadsImageTaglet(ScadsTagletMixin, TagletMixin, ImageTrainable):
+    
+    
+class ImageTagletWithAuxData(AuxDataMixin, TagletMixin, ImageTrainable):
     """
     A trainable model that produces votes for unlabeled images and uses ScadsEmbedding to get auxiliary data
     """

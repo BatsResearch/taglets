@@ -1,6 +1,6 @@
 from .module import Module
 from ..data.custom_dataset import CustomImageDataset
-from ..pipeline import Cache, ScadsImageTaglet
+from ..pipeline import Cache, ImageTagletWithAuxData
 from ..scads import Scads, ScadsEmbedding
 
 from accelerate import Accelerator
@@ -101,7 +101,7 @@ class DannModule(Module):
         self.taglets = [DannTaglet(task)]
 
 
-class DannTaglet(ScadsImageTaglet):
+class DannTaglet(ImageTagletWithAuxData):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'dann'
@@ -112,9 +112,8 @@ class DannTaglet(ScadsImageTaglet):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
         self.source_data = None
-        
+
         self.num_related_class = 3
-        
         self.training_first_stage = True
         self.epoch = 0
         
@@ -208,14 +207,16 @@ class DannTaglet(ScadsImageTaglet):
             image_labels = []
             for i in range(all_related_class):
                 indices = np.nonzero(old_image_labels == i)[0]
+                if len(indices) == 0:
+                    continue
                 new_indices = np.random.choice(indices, self.img_per_related_class, replace=False)
                 image_paths.extend(list(old_image_paths[new_indices]))
                 image_labels.extend([i] * self.img_per_related_class)
             Scads.close()
             Cache.set('scads-dann', self.task.classes,
                       (image_paths, image_labels, all_related_class))
-    
-        transform = self.transform_image(train=False)
+
+        transform = self.transform_image(train=True)
         train_data = CustomImageDataset(image_paths,
                                         labels=image_labels,
                                         transform=transform)
@@ -233,14 +234,14 @@ class DannTaglet(ScadsImageTaglet):
             return
 
         self.model = DannModel(self.model, len(self.task.classes), num_classes, self.task.input_shape)
-        
-        if len(train_data) < len(self.task.classes) * 50:
-            num_duplicates = (len(self.task.classes) * 50 // len(train_data)) + 1
+
+        if len(train_data) < 1024:
+            num_duplicates = (1024 // len(train_data)) + 1
             train_data = torch.utils.data.ConcatDataset([train_data] * num_duplicates)
 
         # Domain adversarial training
         self._update_params(self.training_first_stage)
-        self.num_epochs = 50 if not os.environ.get("CI") else 5
+        self.num_epochs = 10 if not os.environ.get("CI") else 5
         super(DannTaglet, self).train(train_data, val_data, unlabeled_data)
 
         # Finetune target data
@@ -278,15 +279,18 @@ class DannTaglet(ScadsImageTaglet):
         running_loss = 0
         running_acc = 0
         total_len = 0
-        if unlabeled_data_loader:
-            data_loader = zip(self.source_data_loader, train_data_loader, unlabeled_data_loader)
-            dataloader_len = min(len(self.source_data_loader), len(train_data_loader), len(unlabeled_data_loader))
-        else:
-            data_loader = zip(self.source_data_loader, train_data_loader)
-            dataloader_len = min(len(self.source_data_loader), len(train_data_loader))
         iteration = 0
-        for source_batch, target_batch, unlabeled_inputs in data_loader:
-            p = (iteration + self.epoch * dataloader_len) / (self.num_epochs * dataloader_len)
+        data_iter = iter(train_data_loader)
+        if unlabeled_data_loader:
+            unlabeled_data_iter = iter(unlabeled_data_loader)
+        unlabled_inputs = None
+        for source_batch in self.source_data_loader:
+            try:
+                target_batch = next(data_iter)
+            except StopIteration:
+                data_iter = iter(train_data_loader)
+                target_batch = next(data_iter)
+            p = (iteration + self.epoch * len(self.source_data_loader)) / (self.num_epochs * len(self.source_data_loader))
             alpha = 2 / (1 + np.exp(-10 * p)) - 1
             iteration += 1
             source_inputs, source_labels = source_batch
@@ -294,6 +298,11 @@ class DannTaglet(ScadsImageTaglet):
             zeros = torch.zeros(len(source_inputs), dtype=torch.long, device=source_inputs.device)
             ones = torch.ones(len(target_inputs), dtype=torch.long, device=target_inputs.device)
             if unlabeled_data_loader:
+                try:
+                    unlabeled_inputs = next(unlabeled_data_iter)
+                except StopIteration:
+                    unlabeled_data_iter = iter(unlabeled_data_loader)
+                    unlabeled_inputs = next(unlabeled_data_iter)
                 unlabeled_ones = torch.ones(len(unlabeled_inputs), dtype=torch.long, device=unlabeled_inputs.device)
 
             self.optimizer.zero_grad()

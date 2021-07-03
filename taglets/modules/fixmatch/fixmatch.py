@@ -10,7 +10,7 @@ from accelerate import Accelerator
 accelerator = Accelerator(split_batches=True)
 
 from ..module import Module
-from ...pipeline import ScadsImageTaglet
+from ...pipeline import ImageTagletWithAuxData
 from .utils import TransformFixMatch, is_grayscale
 
 log = logging.getLogger(__name__)
@@ -78,10 +78,10 @@ def get_cosine_schedule_with_warmup(optimizer,
 class FixMatchModule(Module):
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [FixMatchTaglet(task, optimizer=Optimizer.ADAM, use_ema=False, verbose=False)]
+        self.taglets = [FixMatchTaglet(task, optimizer=Optimizer.SGD, use_ema=False, verbose=False)]
 
 
-class FixMatchTaglet(ScadsImageTaglet):
+class FixMatchTaglet(ImageTagletWithAuxData):
     def __init__(self, task, steps_per_epoch=-1,
                  conf_thresh=0.95,
                  lambda_u=1,
