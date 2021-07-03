@@ -1,6 +1,6 @@
 from .module import Module
 from ..data.custom_dataset import CustomImageDataset
-from ..pipeline import Cache, ImageTaglet
+from ..pipeline import Cache, ImageTagletWithAuxData
 from ..scads import Scads, ScadsEmbedding
 
 from accelerate import Accelerator
@@ -100,7 +100,7 @@ class DannModule(Module):
         self.taglets = [DannTaglet(task)]
 
 
-class DannTaglet(ImageTaglet):
+class DannTaglet(ImageTagletWithAuxData):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'dann'
@@ -112,7 +112,6 @@ class DannTaglet(ImageTaglet):
             os.makedirs(self.save_dir)
         self.source_data = None
 
-        self.img_per_related_class = 600 if not os.environ.get("CI") else 1
         self.num_related_class = 3
         self.training_first_stage = True
         self.epoch = 0
