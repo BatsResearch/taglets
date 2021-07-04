@@ -192,8 +192,8 @@ class FixMatchTaglet(ImageTagletWithAuxData):
                 if param.requires_grad:
                     params_to_update.append(param)
             self._params_to_update = params_to_update
-            self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
-            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+            self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.003, momentum=0.9)
+            self.lr_scheduler = None
 
             batch_size_copy = self.batch_size
             num_epochs_copy = self.num_epochs
@@ -232,9 +232,9 @@ class FixMatchTaglet(ImageTagletWithAuxData):
         # copy unlabeled dataset to prevent adverse side effects
         unlabeled_data = deepcopy(unlabeled_data)
 
-        # replace default transform with FixMatch Transform\
+        # replace default transform with FixMatch Transform
         self._init_unlabeled_transform(unlabeled_data)
-        super(FixMatchTaglet, self).train(train_data, val_data, unlabeled_data)\
+        super(FixMatchTaglet, self).train(train_data, val_data, unlabeled_data)
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):
         """
@@ -332,7 +332,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
                 if self.save_dir:
                     accelerator.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
-            if self.opt_type == Optimizer.ADAM:
+            if self.opt_type == Optimizer.ADAM and self.lr_scheduler is not None:
                 self.lr_scheduler.step()
 
         
@@ -423,7 +423,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
                 accelerator.backward(loss)
                 self.optimizer.step()
 
-            if self.opt_type == Optimizer.SGD:
+            if self.opt_type == Optimizer.SGD and self.lr_scheduler is not None:
                 self.lr_scheduler.step()
             if self.use_ema:
                 self.ema_model.update(self.model)
