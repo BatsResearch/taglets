@@ -139,7 +139,7 @@ class PseudoShotTaglet(ImageTaglet):
         #log.info(im_encoder_shape)
         self.support_embeddings = torch.zeros((len(self.task.classes), im_encoder_shape))
 
-        self.model = NearestNeighborClassifier(None, img_encoder, kwargs.get('metric', Metric.COSINE))
+        self.model = NearestNeighborClassifier(None, self.img_encoder, kwargs.get('metric', Metric.COSINE))
 
     def transform_image(self):
         """
