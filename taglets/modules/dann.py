@@ -4,7 +4,7 @@ from ..pipeline import Cache, ImageTagletWithAuxData
 from ..scads import Scads, ScadsEmbedding
 
 from accelerate import Accelerator
-accelerator = Accelerator(split_batches=True)
+accelerator = Accelerator()
 import os
 import random
 import torch

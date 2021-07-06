@@ -7,7 +7,7 @@ import torchvision.transforms as transforms
 from copy import deepcopy
 from enum import Enum
 from accelerate import Accelerator
-accelerator = Accelerator(split_batches=True)
+accelerator = Accelerator()
 
 from ..module import Module
 from ...pipeline import ImageTagletWithAuxData
