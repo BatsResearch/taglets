@@ -44,6 +44,9 @@ class NearestNeighborClassifier(nn.Module):
         self.encoder = encoder
         self.metric = metric
 
+    def set_prototypes(self, proto):
+        self.cls_prototypes = proto
+
     def forward(self, x):
         """
         x: (batch, c, h, w) -[encoder]-> (batch, encoding_dim) -[NN Classifier]-> (batch, logits)
@@ -99,6 +102,7 @@ class PseudoShotModule(Module):
             'dropblock_size': 5
         }
 
+        ps_args['metric'] = Metric.COSINE
         self.taglets = [PseudoShotTaglet(task, **ps_args)]
 
 
@@ -129,6 +133,8 @@ class PseudoShotTaglet(ImageTaglet):
         backbone = torch.nn.Sequential(*list(self.img_encoder.children())[:-1])
         im_encoder_shape = self._get_model_output_shape(self.task.input_shape, backbone)
         self.support_embeddings = torch.zeros((len(self.task.classes), get_total_size(im_encoder_shape)))
+
+        self.model = NearestNeighborClassifier(None, img_encoder, kwargs.get('metric', Metric.COSINE))
 
         # only for development purposes
         self.dev_test = True
@@ -265,10 +271,11 @@ class PseudoShotTaglet(ImageTaglet):
     @staticmethod
     def _group_encodings(encodings, labels, cls_mat, group_mat):
         for i in range(cls_mat.shape[0]):
-            cls_mask = torch.where(labels == i, True, False)
+            cls_mask = labels == i
             masked_embeds = encodings[cls_mask]
 
             if masked_embeds.nelement() > 0:
+                # add to class prototype & update hit and count
                 group_mat[i] += encodings[cls_mask].sum(dim=0).reshape(-1)
                 cls_mat[i, 0] = 1
                 cls_mat[i, 1] += masked_embeds.shape[0]
@@ -311,9 +318,16 @@ class PseudoShotTaglet(ImageTaglet):
 
                 # normalize summations
                 supp_counts = supp_cls_matrix[:, 1].reshape(-1)
-                norm_support_embeddings = support_embeddings * torch.where(supp_counts > 0, 1.0 / supp_counts, 1.0)
+                norm_factor = torch.where(supp_counts > 0, 1.0 / supp_counts, 1.0)
+                # expand norms across row so that norm_factor.shape == support_embeddings.shape
+                norm_factor = norm_factor.unsqueeze(-1).expand(support_embeddings.shape)
+                norm_support_embeddings = support_embeddings * norm_factor
 
-                scads_train_data, all_related_class = self._get_scads_data(train_data_loader.dataset.label_map)
+                if hasattr(train_data_loader, 'dataset') and hasattr(train_data_loader.dataset, 'label_map'):
+                    scads_train_data, all_related_class = self._get_scads_data(train_data_loader.dataset.label_map)
+                else:
+                    log.warning('label_map does not exist; reverting to basic protonet.')
+                    all_related_class = 0
 
                 if all_related_class > 0:
                     aux_embeddings = torch.zeros(support_embeddings.shape, dtype=torch.int32).to(main_dev)
@@ -328,7 +342,9 @@ class PseudoShotTaglet(ImageTaglet):
                                                                                            aux_embeddings)
 
                     aux_counts = aux_cls_matrix[:, 1].reshape(-1)
-                    norm_aux_embeddings = aux_embeddings * torch.where(aux_counts > 0, 1.0 / aux_counts, 1.0)
+                    norm_factor = torch.where(aux_counts > 0, 1.0 / aux_counts, 1.0)
+                    norm_factor = norm_factor.unsqueeze(-1).expand(aux_embeddings.shape)
+                    norm_aux_embeddings = aux_embeddings * norm_factor
 
                     # generate masks
                     joint_embeddings = torch.cat((norm_support_embeddings, norm_aux_embeddings), dim=1)
@@ -341,17 +357,19 @@ class PseudoShotTaglet(ImageTaglet):
                         pseudo = aux_embeddings[i * self.mask_batch_size: upper]
 
                         # only use masking module for classes with aux data
-                        idx_mask = torch.where(aux_counts[i * self.mask_batch_size: upper] > 0, True, False)
+                        idx_mask = aux_counts[i * self.mask_batch_size: upper] > 0
                         masked_embed = masking_head({'embed': embed[idx_mask], 'pseudo': pseudo[idx_mask]})['pseudo']
                         aux_embeddings[idx_mask] = masked_embed.reshape((pseudo.shape[0], -1))
 
                     counts = supp_counts + aux_counts
                     unnorm_prototypes = support_embeddings + aux_embeddings
-                    prototypes = unnorm_prototypes * torch.where(counts > 0, 1.0 / counts, 1.0)
+                    norm_factor = torch.where(counts > 0, 1.0 / counts, 1.0)
+                    norm_factor = norm_factor.unsqueeze(-1).expand(unnorm_prototypes.shape)
+                    prototypes = unnorm_prototypes * norm_factor
                 else:
                     prototypes = norm_support_embeddings
 
-                self.model = NearestNeighborClassifier(prototypes, img_encoder)
+                self.model.set_prototypes(prototypes)
 
     def _train(self):
         # Pretrain Masking Module
