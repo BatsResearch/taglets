@@ -26,7 +26,7 @@ class AuxDataMixin:
     def __init__(self, task):
         super().__init__(task)
         self.img_per_related_class = 600 if not os.environ.get("CI") else 1
-        self.num_related_class = 5
+        self.num_related_class = 10 if len(self.task.classes) < 100 else (5 if len(self.task.classes) < 300 else 3)
     
     def _get_scads_data(self):
         data = Cache.get("scads", self.task.classes)

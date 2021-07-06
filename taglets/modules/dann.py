@@ -112,7 +112,7 @@ class DannTaglet(ImageTagletWithAuxData):
             os.makedirs(self.save_dir)
         self.source_data = None
 
-        self.num_related_class = 3
+        self.num_related_class = 5 if len(self.task.classes) < 100 else (3 if len(self.task.classes) < 300 else 1)
         self.training_first_stage = True
         self.epoch = 0
         
