@@ -136,8 +136,8 @@ class PseudoShotTaglet(ImageTaglet):
 
         backbone = torch.nn.Sequential(*list(self.img_encoder.children())[:-1])
         im_encoder_shape = self._get_model_output_shape(self.dev_shape, backbone)
-        log.info(im_encoder_shape)
-        self.support_embeddings = torch.zeros((len(self.task.classes), get_total_size(im_encoder_shape)))
+        #log.info(im_encoder_shape)
+        self.support_embeddings = torch.zeros((len(self.task.classes), im_encoder_shape))
 
         self.model = NearestNeighborClassifier(None, img_encoder, kwargs.get('metric', Metric.COSINE))
 
