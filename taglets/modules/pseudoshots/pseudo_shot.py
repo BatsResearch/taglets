@@ -134,10 +134,10 @@ class PseudoShotTaglet(ImageTaglet):
         self.lr = kwargs.get('lr', self.lr)
         self._params_to_update = []
 
-        backbone = torch.nn.Sequential(*list(self.img_encoder.children())[:-1])
-        im_encoder_shape = self._get_model_output_shape(self.dev_shape, backbone)
+        #backbone = torch.nn.Sequential(*list(self.img_encoder.children())[:-1])
+        #im_encoder_shape = self._get_model_output_shape(self.dev_shape, backbone)
         #log.info(im_encoder_shape)
-        self.support_embeddings = torch.zeros((len(self.task.classes), im_encoder_shape))
+        self.support_embeddings = torch.zeros((len(self.task.classes), 640*25))
 
         self.model = NearestNeighborClassifier(None, self.img_encoder, kwargs.get('metric', Metric.COSINE))
 
@@ -151,7 +151,7 @@ class PseudoShotTaglet(ImageTaglet):
 
         if self.dev_test:
             return transforms.Compose([
-                transforms.Resize(self.dev_shape),
+                transforms.Resize(self.dev_shape[1:]),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=data_mean, std=data_std)
             ])
@@ -282,7 +282,7 @@ class PseudoShotTaglet(ImageTaglet):
                 cls_mat[i, 1] += masked_embeds.shape[0]
         return cls_mat, group_mat
 
-    def train(self, train_data_loader, val_data_loader, unlabeled_data_loader=None):
+    def train(self, train_data, val_data, unlabeled_data=None):
         """
         Note: train is somewhat of a misnomer because the nearest neighbor classifier is parameter-free.
 
@@ -291,9 +291,12 @@ class PseudoShotTaglet(ImageTaglet):
         2. Compute the encoding of each training example and save it to a list.
         3. For each class, compute
         """
+        log.info('Beginning training')
+
+        train_data_loader = self._get_dataloader(data=train_data, shuffle=True)
 
         if self.dev_test:
-            train_data_loader.dataset.transform = self.transform_image()
+            train_data.transform = self.transform_image()
 
         main_dev = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
         with torch.no_grad():
@@ -324,8 +327,8 @@ class PseudoShotTaglet(ImageTaglet):
                 norm_factor = norm_factor.unsqueeze(-1).expand(support_embeddings.shape)
                 norm_support_embeddings = support_embeddings * norm_factor
 
-                if hasattr(train_data_loader, 'dataset') and hasattr(train_data_loader.dataset, 'label_map'):
-                    scads_train_data, all_related_class = self._get_scads_data(train_data_loader.dataset.label_map)
+                if hasattr(train_data, 'label_map'):
+                    scads_train_data, all_related_class = self._get_scads_data(train_data.label_map)
                 else:
                     log.warning('label_map does not exist; reverting to basic protonet.')
                     all_related_class = 0
