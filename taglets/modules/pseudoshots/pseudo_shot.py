@@ -14,7 +14,7 @@ from accelerate import Accelerator
 from ..module import Module
 from ...pipeline import Cache, ImageTaglet
 from enum import IntEnum
-from .masking_model import MaskingHead, MultimoduleMasking
+from .masking_model import MaskingHead, multi_block_masking
 from .utils import freeze_module, get_total_size
 from ...scads import Scads, ScadsEmbedding
 
@@ -239,12 +239,12 @@ class PseudoShotTaglet(ImageTaglet):
                     'activation': 'sigmoid',
                     'dropblock_size': 5,
                     'inplanes': self.img_encoder.out_dim * 2}
-            masking_module = MultimoduleMasking(**args)
+            masking_module = multi_block_masking(**args)
             masking_module.load_state_dict(torch.load('predefined/pseudoshots/resnet12_mask.pth')['multi-block-masking_sd'])
             masking_module.eval()
             return masking_module
 
-        masking_module = MultimoduleMasking(**kwargs)
+        masking_module = multi_block_masking(**kwargs)
         masking_module.load_state_dict(torch.load(ckpt_path))
         masking_module.eval()
         return masking_module
