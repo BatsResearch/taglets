@@ -135,7 +135,7 @@ class PseudoShotTaglet(ImageTaglet):
         self._params_to_update = []
 
         backbone = torch.nn.Sequential(*list(self.img_encoder.children())[:-1])
-        im_encoder_shape = self._get_model_output_shape(self.task.input_shape, backbone)
+        im_encoder_shape = self._get_model_output_shape(self.dev_shape, backbone)
         log.info(im_encoder_shape)
         self.support_embeddings = torch.zeros((len(self.task.classes), get_total_size(im_encoder_shape)))
 
