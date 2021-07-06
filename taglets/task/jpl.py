@@ -683,6 +683,7 @@ class JPLRunner:
                     self.jpl_storage.whitelist,
                     self.data_paths[0],
                     self.data_paths[1],
+                    self.data_paths[2],
                     unlabeled_test_data=unlabeled_test_dataset,
                     unlabeled_train_labels=unlabeled_train_labels,
                     video_classification=self.video)

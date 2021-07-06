@@ -148,12 +148,14 @@ class DannTaglet(ImageTagletWithAuxData):
         else:
             root_path = Scads.get_root_path()
             Scads.open(self.task.scads_path)
-            ScadsEmbedding.load(self.task.scads_embedding_path)
+            ScadsEmbedding.load(self.task.scads_embedding_path, self.task.processed_scads_embedding_path)
             image_paths = []
             image_labels = []
             visited = set()
 
-            def get_images(node, label):
+            def get_images(node, label, is_neighbor):
+                if is_neighbor and node.get_conceptnet_id() in self.task.classes:
+                    return False
                 if node.get_conceptnet_id() not in visited:
                     visited.add(node.get_conceptnet_id())
                     images = node.get_images_whitelist(self.task.whitelist)
@@ -173,32 +175,21 @@ class DannTaglet(ImageTagletWithAuxData):
             for conceptnet_id in self.task.classes:
                 cur_related_class = 0
                 target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
-                if get_images(target_node, all_related_class):
+                if get_images(target_node, all_related_class, False):
                     cur_related_class += 1
 
-                neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
-                for neighbor in neighbors:
-                    if get_images(neighbor, all_related_class):
-                        cur_related_class += 1
-                        if cur_related_class >= self.num_related_class:
-                            break
-                
-                if cur_related_class == 0:
-                    log.info(f"No related class for {conceptnet_id}")
+                ct = 1
+                while cur_related_class < self.num_related_class:
+                    neighbors = ScadsEmbedding.get_related_nodes(target_node,
+                                                                 limit=self.num_related_class * 10 * ct,
+                                                                 only_with_images=True)
+                    for neighbor in neighbors:
+                        if get_images(neighbor, all_related_class, True):
+                            cur_related_class += 1
+                            if cur_related_class >= self.num_related_class:
+                                break
+                    ct = ct * 2
                 all_related_class += 1
-                
-            # make all classes have the same amount of data
-            old_image_paths = np.asarray(image_paths)
-            old_image_labels = np.asarray(image_labels)
-            image_paths = []
-            image_labels = []
-            for i in range(all_related_class):
-                indices = np.nonzero(old_image_labels == i)[0]
-                if len(indices) == 0:
-                    continue
-                new_indices = np.random.choice(indices, self.img_per_related_class, replace=False)
-                image_paths.extend(list(old_image_paths[new_indices]))
-                image_labels.extend([i] * self.img_per_related_class)
             Scads.close()
             Cache.set('scads-dann', self.task.classes,
                       (image_paths, image_labels, all_related_class))
