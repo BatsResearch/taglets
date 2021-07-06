@@ -110,6 +110,10 @@ class PseudoShotTaglet(ImageTaglet):
     def __init__(self, task, masking_ckpt_path, masking_args, **kwargs):
         super().__init__(task)
 
+        # only for development purposes
+        self.dev_test = True
+        self.dev_shape = (3, 84, 84)
+
         # training only parameters
         self.n_shot = kwargs.get('n_shot', 5)
         self.n_way = kwargs.get('n_way', 15)
@@ -135,10 +139,6 @@ class PseudoShotTaglet(ImageTaglet):
         self.support_embeddings = torch.zeros((len(self.task.classes), get_total_size(im_encoder_shape)))
 
         self.model = NearestNeighborClassifier(None, img_encoder, kwargs.get('metric', Metric.COSINE))
-
-        # only for development purposes
-        self.dev_test = True
-        self.dev_shape = (3, 84, 84)
 
     def transform_image(self):
         """
