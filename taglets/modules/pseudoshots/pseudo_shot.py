@@ -293,7 +293,7 @@ class PseudoShotTaglet(ImageTaglet):
         """
         log.info('Beginning training')
 
-        train_data_loader = self._get_dataloader(data=train_data, shuffle=True)
+        train_data_loader = self._get_dataloader(data=train_data, shuffle=False)
 
         if self.dev_test:
             train_data.transform = self.transform_image()
@@ -307,7 +307,8 @@ class PseudoShotTaglet(ImageTaglet):
 
                 # first comp = existence bit; second comp = hit count
                 supp_cls_matrix = torch.zeros((support_embeddings.shape[0], 2), dtype=torch.int32).to(main_dev)
-                for x, y in train_data_loader:
+                for batch in train_data_loader:
+                    x, y = batch[0], batch[1]
                     x, y = x.to(main_dev), y.to(main_dev)
                     x_embeds = img_encoder(x)
 
@@ -372,8 +373,8 @@ class PseudoShotTaglet(ImageTaglet):
                     prototypes = unnorm_prototypes * norm_factor
                 else:
                     prototypes = norm_support_embeddings
-
                 self.model.set_prototypes(prototypes)
+            accelerator.wait_for_everyone()
 
     def _train(self):
         # Pretrain Masking Module
