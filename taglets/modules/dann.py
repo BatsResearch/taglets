@@ -180,9 +180,10 @@ class DannTaglet(ImageTagletWithAuxData):
 
                 ct = 1
                 while cur_related_class < self.num_related_class:
+                    processed_embeddings_exist = (self.task.processed_scads_embedding_path is not None)
                     neighbors = ScadsEmbedding.get_related_nodes(target_node,
                                                                  limit=self.num_related_class * 10 * ct,
-                                                                 only_with_images=True)
+                                                                 only_with_images=processed_embeddings_exist)
                     for neighbor in neighbors:
                         if get_images(neighbor, all_related_class, True):
                             cur_related_class += 1
