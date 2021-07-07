@@ -1,11 +1,11 @@
 import numpy as np
 import pandas as pd
 import pickle
-from amcl_helper import compute_constraints_with_loss, Brier_loss_linear, linear_combination_labeler
-from amcl_helper import compute_constraints_with_loss2, Brier_Score_AMCL, linear_combination_labeler
-from amcl_helper import projectToSimplex, projectToBall, projectCC 
-from amcl_helper import subGradientMethod, subGradientMethod2
-from label_model import LabelModel
+from .amcl_helper import compute_constraints_with_loss, Brier_loss_linear, linear_combination_labeler
+from .amcl_helper import compute_constraints_with_loss2, Brier_Score_AMCL, linear_combination_labeler
+from .amcl_helper import projectToSimplex, projectToBall, projectCC
+from .amcl_helper import subGradientMethod, subGradientMethod2
+from .label_model import LabelModel
 
 
 class AMCLWeightedVote(LabelModel):
@@ -14,8 +14,8 @@ class AMCLWeightedVote(LabelModel):
     """
 
     def __init__(self, num_classes):
+        super().__init__(num_classes)
         self.theta = None
-        self.num_classes = num_classes
     
     def train(self, labeled_vote_matrix, labels, unlabeled_vote_matrix):
         '''
@@ -57,7 +57,7 @@ class AMCLWeightedVote(LabelModel):
         # self.theta = subGradientMethod2(unlabeled_vote_matrix, Y, constraints, Brier_loss_linear, linear_combination_labeler, 
                                         # projectToSimplex, self.theta, T, h, N, num_unlab, self.num_classes)
 
-    def get_weak_labels(self, vote_matrix):
+    def get_weak_labels(self, vote_matrix, *args):
         
         # This should aggregate the votes from various taglets and output labels for the unlabeled data
 
