@@ -7,7 +7,7 @@ import torchvision.transforms as transforms
 from copy import deepcopy
 from enum import Enum
 from accelerate import Accelerator
-accelerator = Accelerator(split_batches=True)
+accelerator = Accelerator()
 
 from ..module import Module
 from ...pipeline import ImageTagletWithAuxData
@@ -234,6 +234,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
 
         # replace default transform with FixMatch Transform
         self._init_unlabeled_transform(unlabeled_data)
+        self.steps_per_epoch = -1
         super(FixMatchTaglet, self).train(train_data, val_data, unlabeled_data)
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):

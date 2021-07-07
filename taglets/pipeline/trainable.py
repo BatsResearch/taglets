@@ -7,7 +7,7 @@ import random
 import torch
 import torch.multiprocessing as mp
 from accelerate import Accelerator
-accelerator = Accelerator(split_batches=True)
+accelerator = Accelerator()
 
 log = logging.getLogger(__name__)
 

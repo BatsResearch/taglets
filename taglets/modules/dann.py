@@ -4,7 +4,7 @@ from ..pipeline import Cache, ImageTagletWithAuxData
 from ..scads import Scads, ScadsEmbedding
 
 from accelerate import Accelerator
-accelerator = Accelerator(split_batches=True)
+accelerator = Accelerator()
 import os
 import random
 import torch
@@ -113,7 +113,7 @@ class DannTaglet(ImageTagletWithAuxData):
             os.makedirs(self.save_dir)
         self.source_data = None
 
-        self.num_related_class = 3
+        self.num_related_class = 5 if len(self.task.classes) < 100 else (3 if len(self.task.classes) < 300 else 1)
         self.training_first_stage = True
         self.epoch = 0
         
@@ -149,17 +149,19 @@ class DannTaglet(ImageTagletWithAuxData):
         else:
             root_path = Scads.get_root_path()
             Scads.open(self.task.scads_path)
-            ScadsEmbedding.load(self.task.scads_embedding_path)
+            ScadsEmbedding.load(self.task.scads_embedding_path, self.task.processed_scads_embedding_path)
             image_paths = []
             image_labels = []
             visited = set()
-        
+
             target_synsets = []
             for conceptnet_id in self.task.classes:
                 class_name = conceptnet_id[6:]
                 target_synsets = target_synsets + wn.synsets(class_name, pos='n')
-        
-            def get_images(node, label):
+
+            def get_images(node, label, is_neighbor):
+                if is_neighbor and node.get_conceptnet_id() in self.task.classes:
+                    return False
                 if node.get_conceptnet_id() not in visited:
                     visited.add(node.get_conceptnet_id())
                 
@@ -181,37 +183,28 @@ class DannTaglet(ImageTagletWithAuxData):
                     log.debug("Source class found: {}".format(node.get_conceptnet_id()))
                     return True
                 return False
-        
+            
+            # Unlike other methods, for Dann, the auxiliary classes for each target class are merged
+
             all_related_class = 0
             for conceptnet_id in self.task.classes:
                 cur_related_class = 0
                 target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
-                if get_images(target_node, all_related_class):
+                if get_images(target_node, all_related_class, False):
                     cur_related_class += 1
-            
+
                 ct = 1
                 while cur_related_class < self.num_related_class:
-                    neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 20 * ct)
+                    neighbors = ScadsEmbedding.get_related_nodes(target_node,
+                                                                 limit=self.num_related_class * 10 * ct,
+                                                                 only_with_images=True)
                     for neighbor in neighbors:
-                        if get_images(neighbor, all_related_class):
+                        if get_images(neighbor, all_related_class, True):
                             cur_related_class += 1
                             if cur_related_class >= self.num_related_class:
                                 break
-                    ct += 1
+                    ct = ct * 2
                 all_related_class += 1
-                
-            # make all classes have the same amount of data
-            old_image_paths = np.asarray(image_paths)
-            old_image_labels = np.asarray(image_labels)
-            image_paths = []
-            image_labels = []
-            for i in range(all_related_class):
-                indices = np.nonzero(old_image_labels == i)[0]
-                if len(indices) == 0:
-                    continue
-                new_indices = np.random.choice(indices, self.img_per_related_class, replace=False)
-                image_paths.extend(list(old_image_paths[new_indices]))
-                image_labels.extend([i] * self.img_per_related_class)
             Scads.close()
             Cache.set('scads-dann', self.task.classes,
                       (image_paths, image_labels, all_related_class))
@@ -220,7 +213,7 @@ class DannTaglet(ImageTagletWithAuxData):
         train_data = CustomImageDataset(image_paths,
                                         labels=image_labels,
                                         transform=transform)
-    
+
         return train_data, all_related_class
 
     def train(self, train_data, val_data, unlabeled_data=None):

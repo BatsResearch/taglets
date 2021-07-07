@@ -7,7 +7,7 @@ import requests
 from pathlib import Path
 
 from accelerate import Accelerator
-accelerator = Accelerator(split_batches=True)
+accelerator = Accelerator()
 import torch
 import numpy as np
 import pandas as pd
@@ -683,6 +683,7 @@ class JPLRunner:
                     self.jpl_storage.whitelist,
                     self.data_paths[0],
                     self.data_paths[1],
+                    self.data_paths[2],
                     unlabeled_test_data=unlabeled_test_dataset,
                     unlabeled_train_labels=unlabeled_train_labels,
                     video_classification=self.video)
@@ -830,7 +831,7 @@ def main():
                         help="Option to choose the data folder")
     parser.add_argument("--batch_size",
                         type=int,
-                        default="256",
+                        default="32",
                         help="Universal batch size")
     args = parser.parse_args()
     

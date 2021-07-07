@@ -8,7 +8,7 @@ import json
 import logging
 
 from accelerate import Accelerator
-accelerator = Accelerator(split_batches=True)
+accelerator = Accelerator()
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
