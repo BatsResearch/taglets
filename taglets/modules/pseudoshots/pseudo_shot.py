@@ -5,6 +5,7 @@ import os
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
+import copy 
 
 
 log = logging.getLogger(__name__)
@@ -51,33 +52,59 @@ class NearestNeighborClassifier(nn.Module):
         """
         x: (batch, c, h, w) -[encoder]-> (batch, encoding_dim) -[NN Classifier]-> (batch, logits)
         """
+        x = self.encoder(x)
+        cls_prototypes = self.cls_prototypes
 
+        log.error(cls_prototypes)
+        log.error('in forward')
+
+        #log.error('in forward')
         if self.metric == Metric.COSINE:
-            self.cls_prototypes = F.normalize(self.cls_prototypes, dim=-1)
+            #log.error('nroamlizing protos')
+            cls_prototypes = F.normalize(cls_prototypes, dim=-1)
+            #log.error('setting x')
+            #log.error(x)
             x = F.normalize(x, dim=-1)
+            #log.error('done')
 
+        #log.error('computing logits')
         logits = None
+        
+        x = x.reshape((x.shape[0], -1))
         if x.dim() == 2:
             if self.metric == Metric.DOT:
-                logits = torch.mm(x, self.cls_prototypes.t())
+                logits = torch.mm(x, cls_prototypes.t())
             elif self.metric == Metric.COSINE:
-                logits = torch.mm(F.normalize(x, dim=-1),
-                                  F.normalize(self.cls_prototypes, dim=-1).t())
+                #log.error('comp!')
+                #log.error(x.shape)
+                #log.error(cls_prototypes.shape)
+                a = F.normalize(x, dim=-1).type(torch.FloatTensor)
+                b = F.normalize(cls_prototypes, dim=-1).t().type(torch.FloatTensor)
+                #log.error(a.shape)
+                #log.error(b.shape)
+                #log.error(a.device)
+                #log.error(b.device)
+                #log.error(a.dtype)
+                #log.error(b.dtype)
+                logits = torch.matmul(a, b)
+                #log.error('!!!')
             elif self.metric == Metric.SQRT:
                 logits = -(x.unsqueeze(1) -
-                           self.cls_prototypes.unsqueeze(0)).pow(2).sum(dim=-1)
+                           cls_prototypes.unsqueeze(0)).pow(2).sum(dim=-1)
         elif x.dim() == 3:
             if self.metric == Metric.DOT:
-                logits = torch.bmm(x, self.cls_prototypes.permute(0, 2, 1))
+                logits = torch.bmm(x, cls_prototypes.permute(0, 2, 1))
             elif self.metric == Metric.COSINE:
                 logits = torch.bmm(F.normalize(x, dim=-1),
-                                   F.normalize(self.cls_prototypes, dim=-1).permute(0, 2, 1))
+                                   F.normalize(cls_prototypes, dim=-1).permute(0, 2, 1))
             elif self.metric == Metric.SQRT:
                 logits = -(self.x.unsqueeze(2) -
-                           self.cls_prototypes.unsqueeze(1)).pow(2).sum(dim=-1)
+                           cls_prototypes.unsqueeze(1)).pow(2).sum(dim=-1)
         else:
             raise ValueError('Too many dims!')
-        return logits
+        #log.error('returning')
+
+        return logits.to(x.device)
 
 
 class PseudoShotModule(Module):
@@ -139,7 +166,16 @@ class PseudoShotTaglet(ImageTaglet):
         #log.info(im_encoder_shape)
         self.support_embeddings = torch.zeros((len(self.task.classes), 640*25))
 
+
+        if os.getenv("LWLL_TA1_PROB_TASK") is not None:
+            self.test_path = '/home/tagletuser/trained_models/pseudoshots'
+        else:
+            self.test_path = 'trained_models/pseudoshots'
+        if not os.path.exists(self.test_path):
+            os.makedirs(self.test_path)
+
         self.model = NearestNeighborClassifier(None, self.img_encoder, kwargs.get('metric', Metric.COSINE))
+        self.proto_file = os.path.join(self.test_path, f'test_protos.pth')
 
     def transform_image(self):
         """
@@ -193,13 +229,13 @@ class PseudoShotTaglet(ImageTaglet):
 
             all_related_class = 0
             aux_budget = self.n_pseudo
-            for conceptnet_id in self.task.classes:
-                try:
-                    cls_label = label_map[conceptnet_id]
-                except KeyError:
-                    logging.error('label_map is not well-defined. No auxiliary data will be used.')
-                    return
-
+            k = 0
+            log.error('task classes: ')
+            log.error(self.task.classes)
+            log.error('label_map: ')
+            log.error(label_map)
+            for i, conceptnet_id in enumerate(self.task.classes):
+                cls_label = i
                 cur_related_class = 0
                 target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
 
@@ -221,6 +257,7 @@ class PseudoShotTaglet(ImageTaglet):
                 if aux_budget > 0:
                     logging.warning('aux budget for %s is positive.' % conceptnet_id)
 
+            log.error(f'misses: %d' % k)
             Scads.close()
             Cache.set('pseudoshots', self.task.classes,
                       (image_paths, image_labels, all_related_class))
@@ -295,11 +332,13 @@ class PseudoShotTaglet(ImageTaglet):
 
         #train_data_loader = self._get_dataloader(data=train_data, shuffle=False)
 
-        if self.dev_test:
-            train_data.transform = self.transform_image()
-
         main_dev = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
         if accelerator.is_local_main_process:
+            train_data = copy.deepcopy(train_data)
+
+            if self.dev_test:
+                train_data.transform = self.transform_image()
+
             img_encoder = self.img_encoder.to(main_dev)
             masking_head = self.masking_head.to(main_dev)
             support_embeddings = self.support_embeddings.to(main_dev)
@@ -319,27 +358,34 @@ class PseudoShotTaglet(ImageTaglet):
                                                                                         supp_cls_matrix,
                                                                                         support_embeddings)
                 log.error('hi!!')
+            log.error('yo')
             if supp_cls_matrix[:, 0].sum() != supp_cls_matrix.shape[0]:
                 self.valid = False
                 log.error('FSL ERROR: Number of classes in dataset not equal to number of task classes.')
                 return
 
+            log.error('supp_counts')
             # normalize summations
-            supp_counts = supp_cls_matrix[:, 1].reshape(-1)
-            norm_factor = torch.where(supp_counts > 0, 1.0 / supp_counts, 1.0)
+            supp_counts = supp_cls_matrix[:, 1].reshape(-1).type(torch.DoubleTensor).to(main_dev)
+            log.error('norm_factor')
+            log.error(supp_counts)
+            eps = 0.5
+            norm_factor = torch.where(supp_counts > eps, 1.0 / supp_counts, 1.0)
             # expand norms across row so that norm_factor.shape == support_embeddings.shape
+            log.error('expand norm_factor')
             norm_factor = norm_factor.unsqueeze(-1).expand(support_embeddings.shape)
+            log.error('norm_support_embeddings')
+            log.error(norm_factor)
+            log.error(support_embeddings)
             norm_support_embeddings = support_embeddings * norm_factor
 
-            if hasattr(train_data, 'label_map'):
-                scads_train_data, all_related_class = self._get_scads_data(train_data.label_map)
-                scads_data_loader = torch.utils.data.DataLoader(
+            log.error('looking at label map')
+            scads_train_data, all_related_class = self._get_scads_data(train_data.label_map)
+            scads_data_loader = torch.utils.data.DataLoader(
                     dataset=scads_train_data, batch_size=self.batch_size, shuffle=False,
-                    num_workers=self.num_workers, pin_memory=True)
-            else:
-                log.warning('label_map does not exist; reverting to basic protonet.')
-                all_related_class = 0
+                    num_workers=0, pin_memory=True)
 
+            log.error('scads grouping')
             # TODO: removing after debugging segfault
             all_related_class = 0
             if all_related_class > 0:
@@ -355,7 +401,7 @@ class PseudoShotTaglet(ImageTaglet):
                                                                                            aux_embeddings)
 
                 aux_counts = aux_cls_matrix[:, 1].reshape(-1)
-                norm_factor = torch.where(aux_counts > 0, 1.0 / aux_counts, 1.0)
+                norm_factor = torch.where(aux_counts > 0, 1.0 / aux_counts.type(torch.DoubleTensor), 1.0)
                 norm_factor = norm_factor.unsqueeze(-1).expand(aux_embeddings.shape)
                 norm_aux_embeddings = aux_embeddings * norm_factor
 
@@ -376,13 +422,78 @@ class PseudoShotTaglet(ImageTaglet):
 
                 counts = supp_counts + aux_counts
                 unnorm_prototypes = support_embeddings + aux_embeddings
-                norm_factor = torch.where(counts > 0, 1.0 / counts, 1.0)
+                norm_factor = torch.where(counts > 0, 1.0 / counts.type(torch.DoubleTensor), 1.0)
                 norm_factor = norm_factor.unsqueeze(-1).expand(unnorm_prototypes.shape)
                 prototypes = unnorm_prototypes * norm_factor
             else:
                 prototypes = norm_support_embeddings
-            self.model.set_prototypes(prototypes)
+            
+            log.error('setting protos')
+            #self.model.set_prototypes(prototypes)
+            torch.save({'protos': prototypes}, self.proto_file)
+            
         accelerator.wait_for_everyone()
+        protos = torch.load(self.proto_file)['protos']
+        self.model.set_prototypes(protos)
+
+    def _get_dataloader(self, data, shuffle, batch_size=None):
+        if batch_size is None:
+            batch_size = self.batch_size
+        return accelerator.prepare(torch.utils.data.DataLoader(
+            dataset=data, batch_size=batch_size, shuffle=shuffle,
+            num_workers=0, pin_memory=True
+        ))
+
+    def _predict_epoch(self, data_loader, pred_classifier):
+        outputs = []
+        labels = []
+        
+        data_loader.dataset.transform = self.transform_image()
+        for batch in data_loader:
+            if isinstance(batch, list):
+                inputs, targets = batch
+            else:
+                inputs, targets = batch, None
+            
+            with torch.set_grad_enabled(False):
+                output = pred_classifier(inputs)
+                log.error('out')
+                log.error(output.device)
+                log.error('a')
+                a = output.detach()
+                log.error('b')
+
+                b = accelerator.gather(a)
+                log.error('c')
+                c = b.cpu()
+                log.error('d')
+                d = F.softmax(c, 1)
+                log.error('append')
+                outputs.append(d)
+                
+                log.error('targets')
+
+                if targets is not None:
+                    labels.append(accelerator.gather(targets.detach()).cpu())
+        
+        log.error('to-numpy')
+
+        outputs = torch.cat(outputs).numpy()
+        if len(labels) > 0:
+            labels = torch.cat(labels).numpy()
+            
+        # Accelerate pads the dataset if its length is not divisible by the "actual" batch size
+        # so we need to remove the extra elements
+
+        log.error(outputs)
+        dataset_len = len(data_loader.dataset)
+        log.error(len(data_loader.dataset))
+        outputs = outputs[:dataset_len]
+        labels = labels[:dataset_len]
+        log.error('pred-ret')
+        log.error(outputs)
+        log.error(labels)
+        return outputs, labels
 
     def _train(self):
         # Pretrain Masking Module

@@ -176,7 +176,7 @@ class Controller:
             if self.task.scads_path is not None:
                 return [
                         PseudoShotModule]
-            return [FineTuneModule, FixMatchModule, PseudoShotModule]
+            return [PseudoShotModule]
 
     def _combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
         labeled = DataLoader(labeled_dataset, batch_size=1, shuffle=False)
