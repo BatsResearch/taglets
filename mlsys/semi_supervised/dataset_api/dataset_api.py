@@ -46,7 +46,7 @@ class DatasetAPI:
         shot = self.checkpoint_shot[checkpoint_num]
         img_paths = []
         labels = []
-        for i in range(10):
+        for i in range(len(self.classes)):
             checkpoint_indices = self.train_indices[i][:shot]
             img_paths.append(self.all_img_paths[i][checkpoint_indices])
             labels = labels + ([i] * len(checkpoint_indices))
@@ -78,7 +78,7 @@ class DatasetAPI:
     
         shot = self.checkpoint_shot[checkpoint_num]
         img_paths = []
-        for i in range(10):
+        for i in range(len(self.classes)):
             checkpoint_indices = self.train_indices[i][shot:]
             img_paths.append(self.all_img_paths[i][checkpoint_indices])
         img_paths = np.concatenate(img_paths)
@@ -95,7 +95,7 @@ class DatasetAPI:
     
         shot = self.checkpoint_shot[checkpoint_num]
         labels = []
-        for i in range(10):
+        for i in range(len(self.classes)):
             checkpoint_indices = self.train_indices[i][shot:]
             labels = labels + ([i] * len(checkpoint_indices))
         labels = np.asarray(labels)
