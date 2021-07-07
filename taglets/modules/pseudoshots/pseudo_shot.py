@@ -293,88 +293,96 @@ class PseudoShotTaglet(ImageTaglet):
         """
         log.info('Beginning training')
 
-        train_data_loader = self._get_dataloader(data=train_data, shuffle=False)
+        #train_data_loader = self._get_dataloader(data=train_data, shuffle=False)
 
         if self.dev_test:
             train_data.transform = self.transform_image()
 
         main_dev = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
-        with torch.no_grad():
-            if accelerator.is_local_main_process:
-                img_encoder = self.img_encoder.to(main_dev)
-                masking_head = self.masking_head.to(main_dev)
-                support_embeddings = self.support_embeddings.to(main_dev)
+        if accelerator.is_local_main_process:
+            img_encoder = self.img_encoder.to(main_dev)
+            masking_head = self.masking_head.to(main_dev)
+            support_embeddings = self.support_embeddings.to(main_dev)
+            train_data_loader = torch.utils.data.DataLoader(
+                dataset=train_data, batch_size=self.batch_size, shuffle=False,
+                num_workers=self.num_workers, pin_memory=True)
 
-                # first comp = existence bit; second comp = hit count
-                supp_cls_matrix = torch.zeros((support_embeddings.shape[0], 2), dtype=torch.int32).to(main_dev)
-                for batch in train_data_loader:
-                    x, y = batch[0], batch[1]
+            # first comp = existence bit; second comp = hit count
+            supp_cls_matrix = torch.zeros((support_embeddings.shape[0], 2), dtype=torch.int32).to(main_dev)
+            for batch in train_data_loader:
+                x, y = batch[0], batch[1]
+                x, y = x.to(main_dev), y.to(main_dev)
+                x_embeds = img_encoder(x)
+
+                supp_cls_matrix, support_embeddings = PseudoShotTaglet._group_encodings(x_embeds,
+                                                                                        y,
+                                                                                        supp_cls_matrix,
+                                                                                        support_embeddings)
+                log.error('hi!!')
+            if supp_cls_matrix[:, 0].sum() != supp_cls_matrix.shape[0]:
+                self.valid = False
+                log.error('FSL ERROR: Number of classes in dataset not equal to number of task classes.')
+                return
+
+            # normalize summations
+            supp_counts = supp_cls_matrix[:, 1].reshape(-1)
+            norm_factor = torch.where(supp_counts > 0, 1.0 / supp_counts, 1.0)
+            # expand norms across row so that norm_factor.shape == support_embeddings.shape
+            norm_factor = norm_factor.unsqueeze(-1).expand(support_embeddings.shape)
+            norm_support_embeddings = support_embeddings * norm_factor
+
+            if hasattr(train_data, 'label_map'):
+                scads_train_data, all_related_class = self._get_scads_data(train_data.label_map)
+                scads_data_loader = torch.utils.data.DataLoader(
+                    dataset=scads_train_data, batch_size=self.batch_size, shuffle=False,
+                    num_workers=self.num_workers, pin_memory=True)
+            else:
+                log.warning('label_map does not exist; reverting to basic protonet.')
+                all_related_class = 0
+
+            # TODO: removing after debugging segfault
+            all_related_class = 0
+            if all_related_class > 0:
+                aux_embeddings = torch.zeros(support_embeddings.shape, dtype=torch.int32).to(main_dev)
+                aux_cls_matrix = torch.zeros(supp_cls_matrix.shape, dtype=torch.int32).to(main_dev)
+                for x, y in scads_data_loader:
                     x, y = x.to(main_dev), y.to(main_dev)
                     x_embeds = img_encoder(x)
 
-                    supp_cls_matrix, support_embeddings = PseudoShotTaglet._group_encodings(x_embeds,
-                                                                                            y,
-                                                                                            supp_cls_matrix,
-                                                                                            self.support_embeddings)
-                if supp_cls_matrix[:, 0].sum() != supp_cls_matrix.shape[0]:
-                    self.valid = False
-                    log.error('FSL ERROR: Number of classes in dataset not equal to number of task classes.')
-                    return
-
-                # normalize summations
-                supp_counts = supp_cls_matrix[:, 1].reshape(-1)
-                norm_factor = torch.where(supp_counts > 0, 1.0 / supp_counts, 1.0)
-                # expand norms across row so that norm_factor.shape == support_embeddings.shape
-                norm_factor = norm_factor.unsqueeze(-1).expand(support_embeddings.shape)
-                norm_support_embeddings = support_embeddings * norm_factor
-
-                if hasattr(train_data, 'label_map'):
-                    scads_train_data, all_related_class = self._get_scads_data(train_data.label_map)
-                else:
-                    log.warning('label_map does not exist; reverting to basic protonet.')
-                    all_related_class = 0
-
-                if all_related_class > 0:
-                    aux_embeddings = torch.zeros(support_embeddings.shape, dtype=torch.int32).to(main_dev)
-                    aux_cls_matrix = torch.zeros(supp_cls_matrix.shape, dtype=torch.int32).to(main_dev)
-                    for x, y in scads_train_data:
-                        x, y = x.to(main_dev), y.to(main_dev)
-                        x_embeds = img_encoder(x)
-
-                        aux_cls_matrix, aux_embeddings = PseudoShotTaglet._group_encodings(x_embeds,
+                    aux_cls_matrix, aux_embeddings = PseudoShotTaglet._group_encodings(x_embeds,
                                                                                            y,
                                                                                            aux_cls_matrix,
                                                                                            aux_embeddings)
 
-                    aux_counts = aux_cls_matrix[:, 1].reshape(-1)
-                    norm_factor = torch.where(aux_counts > 0, 1.0 / aux_counts, 1.0)
-                    norm_factor = norm_factor.unsqueeze(-1).expand(aux_embeddings.shape)
-                    norm_aux_embeddings = aux_embeddings * norm_factor
+                aux_counts = aux_cls_matrix[:, 1].reshape(-1)
+                norm_factor = torch.where(aux_counts > 0, 1.0 / aux_counts, 1.0)
+                norm_factor = norm_factor.unsqueeze(-1).expand(aux_embeddings.shape)
+                norm_aux_embeddings = aux_embeddings * norm_factor
 
-                    # generate masks
-                    joint_embeddings = torch.cat((norm_support_embeddings, norm_aux_embeddings), dim=1)
+                # generate masks
+                joint_embeddings = torch.cat((norm_support_embeddings, norm_aux_embeddings), dim=1)
 
-                    n_batches = joint_embeddings.shape[0] // self.mask_batch_size
-                    assert joint_embeddings.shape[0] == aux_embeddings.shape[0]
-                    for i in range(max(n_batches, 1)):
-                        upper = min((i + 1) * self.mask_batch_size, joint_embeddings.shape[0])
-                        embed = joint_embeddings[i * self.mask_batch_size: upper]
-                        pseudo = aux_embeddings[i * self.mask_batch_size: upper]
+                n_batches = joint_embeddings.shape[0] // self.mask_batch_size
+                assert joint_embeddings.shape[0] == aux_embeddings.shape[0]
+                for i in range(max(n_batches, 1)):
+                    upper = min((i + 1) * self.mask_batch_size, joint_embeddings.shape[0])
+                    embed = joint_embeddings[i * self.mask_batch_size: upper]
+                    pseudo = aux_embeddings[i * self.mask_batch_size: upper]
 
-                        # only use masking module for classes with aux data
-                        idx_mask = aux_counts[i * self.mask_batch_size: upper] > 0
-                        masked_embed = masking_head({'embed': embed[idx_mask], 'pseudo': pseudo[idx_mask]})['pseudo']
-                        aux_embeddings[idx_mask] = masked_embed.reshape((pseudo.shape[0], -1))
+                    # only use masking module for classes with aux data
+                    idx_mask = aux_counts[i * self.mask_batch_size: upper] > 0
+                    masked_embed = masking_head({'embed': embed[idx_mask], 'pseudo': pseudo[idx_mask]})['pseudo']
+                    aux_embeddings[idx_mask] = masked_embed.reshape((pseudo.shape[0], -1))
 
-                    counts = supp_counts + aux_counts
-                    unnorm_prototypes = support_embeddings + aux_embeddings
-                    norm_factor = torch.where(counts > 0, 1.0 / counts, 1.0)
-                    norm_factor = norm_factor.unsqueeze(-1).expand(unnorm_prototypes.shape)
-                    prototypes = unnorm_prototypes * norm_factor
-                else:
-                    prototypes = norm_support_embeddings
-                self.model.set_prototypes(prototypes)
-            accelerator.wait_for_everyone()
+                counts = supp_counts + aux_counts
+                unnorm_prototypes = support_embeddings + aux_embeddings
+                norm_factor = torch.where(counts > 0, 1.0 / counts, 1.0)
+                norm_factor = norm_factor.unsqueeze(-1).expand(unnorm_prototypes.shape)
+                prototypes = unnorm_prototypes * norm_factor
+            else:
+                prototypes = norm_support_embeddings
+            self.model.set_prototypes(prototypes)
+        accelerator.wait_for_everyone()
 
     def _train(self):
         # Pretrain Masking Module
