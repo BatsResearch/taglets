@@ -10,7 +10,7 @@ from accelerate import Accelerator
 accelerator = Accelerator()
 
 from .data import SoftLabelDataset
-from .labelmodel import UnweightedVote, WeightedVote
+from .labelmodel import UnweightedVote, WeightedVote, AMCLWeightedVote
 from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
     RandomModule, DannModule
 from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor
@@ -123,20 +123,23 @@ class Controller:
                     acc = np.sum(self.vote_matrix[:, i] == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
                     log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
 
-            # Combines taglets' votes into soft labels
-            if val is not None and len(val) >= len(self.task.classes) * 10:
-                # Weight votes using development set
-                weights = [taglet.evaluate(val) for taglet in taglets]
-                log.info("Validation accuracies of each taglet:")
-                for w, taglet in zip(weights, taglets):
-                    log.info("Module {} - acc {:.4f}".format(taglet.name, w))
+            lm = AMCLWeightedVote(len(self.task.classes))
+            weak_labels = lm.get_weak_labels(self.vote_matrix)
 
-                lm = WeightedVote(len(self.task.classes))
-                weak_labels = lm.get_weak_labels(vote_matrix, weights)
-            else:
-                # Weight all votes equally
-                lm = UnweightedVote(len(self.task.classes))
-                weak_labels = lm.get_weak_labels(vote_matrix)
+            # # Combines taglets' votes into soft labels
+            # if val is not None and len(val) >= len(self.task.classes) * 10:
+            #     # Weight votes using development set
+            #     weights = [taglet.evaluate(val) for taglet in taglets]
+            #     log.info("Validation accuracies of each taglet:")
+            #     for w, taglet in zip(weights, taglets):
+            #         log.info("Module {} - acc {:.4f}".format(taglet.name, w))
+            #
+            #     lm = WeightedVote(len(self.task.classes))
+            #     weak_labels = lm.get_weak_labels(self.vote_matrix, weights)
+            # else:
+            #     # Weight all votes equally
+            #     lm = UnweightedVote(len(self.task.classes))
+            #     weak_labels = lm.get_weak_labels(self.vote_matrix)
             
             if self.task.unlabeled_train_labels is not None:
                 log.info('Accuracy of the labelmodel on the unlabeled train data:')
