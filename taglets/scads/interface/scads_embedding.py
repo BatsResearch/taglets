@@ -16,8 +16,12 @@ class ScadsEmbedding:
     small_k = None
     path = ''
 
+    frame_processed = None
+    small_frame_processed = None
+    path_processed = ''
+
     @staticmethod
-    def load(path_to_embeddings):
+    def load(path_to_embeddings, path_to_processed_embeddings=None):
         """
         Load all embeddings into main memory
         
@@ -58,6 +62,13 @@ class ScadsEmbedding:
             ScadsEmbedding.frame = df
             ScadsEmbedding.small_frame = df.iloc[:, : ScadsEmbedding.small_k].copy()
             ScadsEmbedding._trie = marisa_trie.Trie(list(df.index))
+
+        if path_to_processed_embeddings is not None and \
+                ScadsEmbedding.path_processed != os.path.abspath(path_to_processed_embeddings):
+            df = pd.read_hdf(path_to_processed_embeddings, 'mat', encoding='utf-8')
+            ScadsEmbedding.path_processed = os.path.abspath(path_to_processed_embeddings)
+            ScadsEmbedding.frame_processed = df
+            ScadsEmbedding.small_frame_processed = df.iloc[:, : ScadsEmbedding.small_k].copy()
     
     @staticmethod
     def get_vector(node, is_node=True):
@@ -77,7 +88,7 @@ class ScadsEmbedding:
         return normalized_vec
     
     @staticmethod
-    def get_related_nodes(node, limit=50, is_node=True):
+    def get_related_nodes(node, limit=50, is_node=True, only_with_images=False):
         """
         Get the related nodes based on the cosine similarity of their embeddings
 
@@ -87,11 +98,21 @@ class ScadsEmbedding:
         :return: list of ScadsNode if is_node is True, else, list of ConceptNet IDs
         """
         vec = ScadsEmbedding.get_vector(node, is_node)
+        
+        if only_with_images:
+            if ScadsEmbedding.frame_processed is None:
+                raise RuntimeError("Processed embeddings are not loaded")
+            small_frame = ScadsEmbedding.small_frame_processed
+            frame = ScadsEmbedding.frame_processed
+        else:
+            small_frame = ScadsEmbedding.small_frame
+            frame = ScadsEmbedding.frame
+        
         small_vec = vec[: ScadsEmbedding.small_k]
-        search_frame = ScadsEmbedding.small_frame
+        search_frame = small_frame
         similar_sloppy = ScadsEmbedding._similar_to_vec(search_frame, small_vec, limit=limit * 50)
         similar_choices = ScadsEmbedding._l2_normalize_rows(
-            ScadsEmbedding.frame.loc[similar_sloppy.index].astype('f')
+            frame.loc[similar_sloppy.index].astype('f')
         )
 
         similar = ScadsEmbedding._similar_to_vec(similar_choices, vec, limit=limit)
