@@ -38,15 +38,9 @@ class DannModel(nn.Module):
         super().__init__()
         self.base = nn.Sequential(*list(model.children())[:-1])
         output_shape = self._get_model_output_shape(input_shape, self.base)
-        self.fc_source = nn.Sequential(nn.Linear(output_shape, output_shape),
-                                       nn.ReLU(),
-                                       nn.Linear(output_shape, num_source))
-        self.fc_target = nn.Sequential(nn.Linear(output_shape, output_shape),
-                                       nn.ReLU(),
-                                       nn.Linear(output_shape, num_target))
-        self.fc_domain = nn.Sequential(nn.Linear(output_shape, output_shape),
-                                       nn.ReLU(),
-                                       nn.Linear(output_shape, 2))
+        self.fc_target = torch.nn.Linear(output_shape, num_target)
+        self.fc_source = torch.nn.Linear(output_shape, num_source)
+        self.fc_domain = torch.nn.Linear(output_shape, 2)
 
     def forward(self, target_input, source_input=None, unlabeled_input=None, alpha=1.0):
         x = self.base(target_input)
@@ -105,6 +99,7 @@ class DannTaglet(ImageTagletWithAuxData):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'dann'
+        self.num_epochs = 8 if not os.environ.get("CI") else 5
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
@@ -222,53 +217,32 @@ class DannTaglet(ImageTagletWithAuxData):
         self.source_data, num_classes = self._get_scads_data()
         log.info("Source classes found: {}".format(num_classes))
         log.info("Number of source training images: {}".format(len(self.source_data)))
-
+    
         if num_classes == 0:
             self.valid = False
             return
 
         self.model = DannModel(self.model, len(self.task.classes), num_classes, self.task.input_shape)
 
+        params_to_update = []
+        for param in self.model.parameters():
+            if param.requires_grad:
+                params_to_update.append(param)
+        self._params_to_update = params_to_update
+        self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.003, momentum=0.9)
+        self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[4, 6], gamma=0.1)
+
         if len(train_data) < 1024:
             num_duplicates = (1024 // len(train_data)) + 1
             train_data = torch.utils.data.ConcatDataset([train_data] * num_duplicates)
-
-        # Domain adversarial training
-        self._update_params(self.training_first_stage)
-        self.num_epochs = 10 if not os.environ.get("CI") else 5
+        
         super(DannTaglet, self).train(train_data, val_data, unlabeled_data)
-
-        # Finetune target data
-        self.training_first_stage = False
-        self.model._remove_extra_heads()
-        self._update_params(self.training_first_stage)
-        self.num_epochs = 30 if not os.environ.get("CI") else 5
-        super(DannTaglet, self).train(train_data, val_data, unlabeled_data)
-
-    def _update_params(self, training_first_stage):
-        self.params_to_update = []
-        for param in self.model.parameters():
-            if param.requires_grad:
-                self.params_to_update.append(param)
-        if training_first_stage:
-            self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.001, momentum=0.9, weight_decay=1e-4)
-            self.lr_scheduler = None
-        else:
-            self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
-            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):
-        # batch_size = min(len(train_data) // num_batches, 256)
-        if self.training_first_stage:
-            self.source_data_loader = self._get_dataloader(data=self.source_data, shuffle=True)
+        self.source_data_loader = self._get_dataloader(data=self.source_data, shuffle=True)
         super(DannTaglet, self)._do_train(train_data, val_data, unlabeled_data)
 
     def _train_epoch(self, train_data_loader, unlabeled_data_loader=None):
-        if self.training_first_stage:
-            return self._adapt(train_data_loader, unlabeled_data_loader)
-        return super(DannTaglet, self)._train_epoch(train_data_loader, unlabeled_data_loader)
-
-    def _adapt(self, train_data_loader, unlabeled_data_loader):
         self.model.train()
         running_loss = 0
         running_acc = 0
@@ -305,7 +279,7 @@ class DannTaglet(ImageTagletWithAuxData):
                     target_inputs,
                     source_inputs,
                     unlabeled_inputs,
-                    0.1 * alpha
+                    alpha
                 )
                 source_class_loss = self.criterion(source_classes, source_labels)
                 target_class_loss = self.criterion(target_classes, target_labels)
