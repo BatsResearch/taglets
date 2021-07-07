@@ -5,6 +5,7 @@ import pandas as pd
 import os
 
 from .scads import Scads
+from ..create import Node
 
 class ScadsEmbedding:
     """
@@ -228,6 +229,27 @@ class ScadsEmbedding:
     
         return pd.Series(data=vec, index=frame.columns, dtype='f')
     
+    @staticmethod
+    def process_embeddings():
+        df = ScadsEmbedding.frame
+        
+        # remove concepts with no images
+        query_res = Scads.session.query(Node).all()
+        concepts_with_no_images = [node.conceptnet_id for node in query_res if len(node.images) == 0]
+        to_drop = [conceptnet_id for conceptnet_id in df.index if conceptnet_id in concepts_with_no_images]
+        df = df.drop(to_drop)
+
+        # remove concepts not in Scads
+        to_drop2 = []
+        for conceptnet_id in df.index:
+            try:
+                Scads.get_node_by_conceptnet_id(conceptnet_id)
+            except:
+                to_drop2.append(conceptnet_id)
+        df = df.drop(to_drop2)
+        
+        df.to_hdf('predefined/embeddings/processed_numberbatch.h5', key='mat')
+
 
 if __name__ == '__main__':
     dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
