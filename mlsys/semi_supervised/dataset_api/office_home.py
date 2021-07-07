@@ -49,4 +49,4 @@ class OfficeHome(DatasetAPI):
 
         self.train_indices = []
         for i in range(len(self.classes)):
-            self.train_indices.append(np.random.permutation(len(self.all_img_paths)))
+            self.train_indices.append(np.random.permutation(len(self.all_img_paths[i])))
