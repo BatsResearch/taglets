@@ -30,7 +30,7 @@ class DannModel(nn.Module):
                                        nn.ReLU(),
                                        nn.Linear(output_shape // 4, 1))
 
-    def forward(self, source_inputs, target_inputs, unlabeled_inputs, step='generator'):
+    def forward(self, target_inputs, source_inputs=None, unlabeled_inputs=None, step='predict'):
         if step == 'generator':
             x = self.base(source_inputs)
             x = torch.flatten(x, 1)
@@ -45,7 +45,7 @@ class DannModel(nn.Module):
             x = torch.flatten(x, 1)
             unlabeled_target_domains = self.fc_domain(x)
             return source_classes, target_classes, target_domains.view(-1), unlabeled_target_domains.view(-1)
-        else:
+        elif step == 'discriminator':
             x = self.base(source_inputs)
             x = torch.flatten(x, 1)
             source_domains = self.fc_domain(x)
@@ -58,6 +58,12 @@ class DannModel(nn.Module):
             x = torch.flatten(x, 1)
             unlabeled_target_domains = self.fc_domain(x)
             return source_domains.view(-1), target_domains.view(-1), unlabeled_target_domains.view(-1)
+        else:
+            x = self.base(target_inputs)
+            x = torch.flatten(x, 1)
+            target_classes = self.fc_target(x)
+            return target_classes
+            
 
     def _get_model_output_shape(self, in_size, mod):
         """
@@ -269,8 +275,8 @@ class DannTaglet(ImageTagletWithAuxData):
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
-                source_classes, target_classes, target_domains, unlabeled_target_domains = self.model(source_inputs,
-                                                                                                      target_inputs,
+                source_classes, target_classes, target_domains, unlabeled_target_domains = self.model(target_inputs,
+                                                                                                      source_inputs,
                                                                                                       unlabeled_inputs,
                                                                                                       'generator')
                 source_class_loss = self.criterion(source_classes, source_labels)
@@ -291,8 +297,8 @@ class DannTaglet(ImageTagletWithAuxData):
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
-                source_domains, target_domains, unlabeled_target_domains = self.model(source_inputs,
-                                                                                      target_inputs,
+                source_domains, target_domains, unlabeled_target_domains = self.model(target_inputs,
+                                                                                      source_inputs,
                                                                                       unlabeled_inputs,
                                                                                       'discriminator')
                 source_domain_loss = domain_criterion(source_domains, source_zeros)
