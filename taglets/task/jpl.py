@@ -707,7 +707,6 @@ class JPLRunner:
             checkpoint_dict = {'labeled_images_names': image_names,
                                'labeled_images_labels': image_labels,
                                'unlabeled_images_names': self.jpl_storage.get_unlabeled_image_names(),
-                               'unlabeled_images_labels': unlabeled_train_labels,
                                'unlabeled_images_votes': vote_matrix}
             self.vote_matrix_dict[f'{phase} {checkpoint_num}'] = checkpoint_dict
             with open(self.vote_matrix_save_path, 'wb') as f:

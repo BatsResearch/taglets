@@ -26,6 +26,15 @@ class AMCLWeightedVote(LabelModel):
         labels - true labels on labeled data
         unlabeled_vote_matrix - outputs on unlabeled data (# wls, # ul data, # classes)
         '''
+        # pre process vote matrix
+        # convert votes to one hot
+        labeled_vote_matrix = np.eye(self.num_classes)[labeled_vote_matrix]
+        unlabeled_vote_matrix = np.eye(self.num_classes)[unlabeled_vote_matrix]
+
+        labeled_vote_matrix = np.transpose(labeled_vote_matrix, (1, 0, 2))
+        unlabeled_vote_matrix = np.transpose(unlabeled_vote_matrix, (1, 0, 2))
+        
+        labels = np.eye(self.num_classes)[labels]
 
         # hyperparameters
         N = 4 # of wls
@@ -152,14 +161,7 @@ def main():
 
     num_unlab = len(ul_names)
 
-    # converting votes to one-hots
-    l_votes = np.eye(num_classes)[l_votes]
-    ul_votes = np.eye(num_classes)[ul_votes]
-
-    l_votes = np.transpose(l_votes, (1, 0, 2))
-    ul_votes = np.transpose(ul_votes, (1, 0, 2))
-
-    print(np.shape(ul_votes)    )
+    print(np.shape(ul_votes))
 
     clipart_classes = pickle.load(open("./domain_net-clipart_classes.pkl", "rb"))
     sketch_classes = pickle.load(open("./domain_net-sketch_classes.pkl", "rb"))
@@ -173,10 +175,6 @@ def main():
     else:
         l_labels = [adapt_class_to_ind[x] for x in l_labels]
         ul_labels = [adapt_class_to_ind[x] for x in ul_labels]
-
-
-    l_labels = np.eye(num_classes)[l_labels]
-    ul_labels = np.eye(num_classes)[ul_labels]
 
     # print("Num Labeled: %d" % (num_labeled_data))
     # print("Num Unlabeled: %d" % (num_unlab))

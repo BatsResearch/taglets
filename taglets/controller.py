@@ -123,8 +123,17 @@ class Controller:
                     acc = np.sum(self.vote_matrix[:, i] == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
                     log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
 
+            # Train a labelmodel and get weak labels
+            log.info("Training labelmodel")
+            labeled = DataLoader(labeled, batch_size=1, shuffle=False)
+            labeled_labels = [image_labels for _, image_labels in labeled]
+            
+            labeled_vote_matrix = taglet_executor.execute(labeled)
+
             lm = AMCLWeightedVote(len(self.task.classes))
+            lm.train(labeled_vote_matrix, labeled_labels, self.vote_matrix)
             weak_labels = lm.get_weak_labels(self.vote_matrix)
+            log.info("Finished training labelmodel")
 
             # # Combines taglets' votes into soft labels
             # if val is not None and len(val) >= len(self.task.classes) * 10:
