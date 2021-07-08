@@ -44,7 +44,7 @@ class DannModel(nn.Module):
             x = self.base(unlabeled_inputs)
             x = torch.flatten(x, 1)
             unlabeled_target_domains = self.fc_domain(x)
-            return source_classes, target_classes, target_domains, unlabeled_target_domains
+            return source_classes, target_classes, target_domains.view(-1), unlabeled_target_domains.view(-1)
         else:
             x = self.base(source_inputs)
             x = torch.flatten(x, 1)
@@ -57,7 +57,7 @@ class DannModel(nn.Module):
             x = self.base(unlabeled_inputs)
             x = torch.flatten(x, 1)
             unlabeled_target_domains = self.fc_domain(x)
-            return source_domains, target_domains, unlabeled_target_domains
+            return source_domains.view(-1), target_domains.view(-1), unlabeled_target_domains.view(-1)
 
     def _get_model_output_shape(self, in_size, mod):
         """
