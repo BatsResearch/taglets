@@ -12,7 +12,6 @@ import logging
 import numpy as np
 import torchvision.transforms as transforms
 import torch.nn as nn
-import torch.autograd as autograd
 from nltk.corpus import wordnet as wn
 
 log = logging.getLogger(__name__)
@@ -27,16 +26,34 @@ class DannModel(nn.Module):
         self.fc_source = torch.nn.Linear(output_shape, num_source)
         self.fc_domain = torch.nn.Linear(output_shape, 2)
 
-    def forward(self, input, fc='target'):
-        x = self.base(input)
-        x = torch.flatten(x, 1)
-        if fc == 'target':
-            output = self.fc_target(x)
-        elif fc == 'source':
-            output = self.fc_source(x)
+    def forward(self, source_inputs, target_inputs, unlabeled_inputs, step='generator'):
+        if step == 'generator':
+            x = self.base(source_inputs)
+            x = torch.flatten(x, 1)
+            source_classes = self.fc_source(x)
+
+            x = self.base(target_inputs)
+            x = torch.flatten(x, 1)
+            target_classes = self.fc_target(x)
+            target_domains = self.fc_domain(x)
+
+            x = self.base(unlabeled_inputs)
+            x = torch.flatten(x, 1)
+            unlabeled_target_domains = self.fc_domain(x)
+            return source_classes, target_classes, target_domains, unlabeled_target_domains
         else:
-            output = self.fc_domain(x)
-        return output
+            x = self.base(source_inputs)
+            x = torch.flatten(x, 1)
+            source_domains = self.fc_domain(x)
+    
+            x = self.base(target_inputs)
+            x = torch.flatten(x, 1)
+            target_domains = self.fc_domain(x)
+    
+            x = self.base(unlabeled_inputs)
+            x = torch.flatten(x, 1)
+            unlabeled_target_domains = self.fc_domain(x)
+            return source_domains, target_domains, unlabeled_target_domains
 
     def _get_model_output_shape(self, in_size, mod):
         """
@@ -216,8 +233,7 @@ class DannTaglet(ImageTagletWithAuxData):
         total_len = 0
         iteration = 0
         data_iter = iter(train_data_loader)
-        if unlabeled_data_loader:
-            unlabeled_data_iter = iter(unlabeled_data_loader)
+        unlabeled_data_iter = iter(unlabeled_data_loader)
         for source_batch in self.source_data_loader:
             try:
                 target_batch = next(data_iter)
@@ -232,14 +248,14 @@ class DannTaglet(ImageTagletWithAuxData):
             source_zeros = torch.zeros(len(source_inputs), dtype=torch.long, device=source_inputs.device)
             target_zeros = torch.zeros(len(target_inputs), dtype=torch.long, device=target_inputs.device)
             target_ones = torch.ones(len(target_inputs), dtype=torch.long, device=target_inputs.device)
-            if unlabeled_data_loader:
-                try:
-                    unlabeled_inputs = next(unlabeled_data_iter)
-                except StopIteration:
-                    unlabeled_data_iter = iter(unlabeled_data_loader)
-                    unlabeled_inputs = next(unlabeled_data_iter)
-                unlabeled_zeros = torch.zeros(len(unlabeled_inputs), dtype=torch.long, device=unlabeled_inputs.device)
-                unlabeled_ones = torch.ones(len(unlabeled_inputs), dtype=torch.long, device=unlabeled_inputs.device)
+            
+            try:
+                unlabeled_inputs = next(unlabeled_data_iter)
+            except StopIteration:
+                unlabeled_data_iter = iter(unlabeled_data_loader)
+                unlabeled_inputs = next(unlabeled_data_iter)
+            unlabeled_zeros = torch.zeros(len(unlabeled_inputs), dtype=torch.long, device=unlabeled_inputs.device)
+            unlabeled_ones = torch.ones(len(unlabeled_inputs), dtype=torch.long, device=unlabeled_inputs.device)
 
             for param in self.model.module.base.parameters():
                 param.requires_grad = True
@@ -248,15 +264,14 @@ class DannTaglet(ImageTagletWithAuxData):
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
-                source_classes = self.model(source_inputs, fc='source')
-                target_classes = self.model(target_inputs, fc='target')
-                target_domains = self.model(target_inputs, fc='domain')
+                source_classes, target_classes, target_domains, unlabeled_target_domains = self.model(source_inputs,
+                                                                                                      target_inputs,
+                                                                                                      unlabeled_inputs,
+                                                                                                      'generator')
                 source_class_loss = self.criterion(source_classes, source_labels)
                 target_class_loss = self.criterion(target_classes, target_labels)
-                adv_target_domain_loss = self.criterion(target_domains, target_zeros)
-                if unlabeled_data_loader:
-                    unlabeled_target_domains = self.model(unlabeled_inputs, fc='domain')
-                    adv_target_domain_loss += self.criterion(unlabeled_target_domains, unlabeled_zeros)
+                adv_target_domain_loss = self.criterion(target_domains, target_zeros) + \
+                                         self.criterion(unlabeled_target_domains, unlabeled_zeros)
                 loss = source_class_loss + target_class_loss + adv_target_domain_loss
 
                 accelerator.backward(loss)
@@ -269,13 +284,13 @@ class DannTaglet(ImageTagletWithAuxData):
 
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
-                source_domains = self.model(source_inputs, fc='domain')
-                target_domains = self.model(target_inputs, fc='domain')
+                source_domains, target_domains, unlabeled_target_domains = self.model(source_inputs,
+                                                                                      target_inputs,
+                                                                                      unlabeled_inputs,
+                                                                                      'discriminator')
                 source_domain_loss = self.criterion(source_domains, source_zeros)
-                target_domain_loss = self.criterion(target_domains, target_ones)
-                if unlabeled_data_loader:
-                    unlabeled_target_domains = self.model(unlabeled_inputs, fc='domain')
-                    target_domain_loss += self.criterion(unlabeled_target_domains, unlabeled_ones)
+                target_domain_loss = self.criterion(target_domains, target_ones) + \
+                                     self.criterion(unlabeled_target_domains, unlabeled_ones)
                 loss = source_domain_loss + target_domain_loss
     
                 accelerator.backward(loss)
