@@ -562,8 +562,8 @@ class JPLRunner:
         self.vote_matrix_dict = {}
         self.vote_matrix_save_path = os.path.join('saved_vote_matrices',
                                                   datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
-        if not os.path.exists(self.vote_matrix_save_dir) and accelerator.is_local_main_process:
-            os.makedirs(self.vote_matrix_save_dir)
+        if not os.path.exists(self.vote_matrix_save_path) and accelerator.is_local_main_process:
+            os.makedirs(self.vote_matrix_save_path)
         accelerator.wait_for_everyone()
 
     def get_jpl_information(self):
@@ -707,6 +707,7 @@ class JPLRunner:
             checkpoint_dict = {'labeled_images_names': image_names,
                                'labeled_images_labels': image_labels,
                                'unlabeled_images_names': self.jpl_storage.get_unlabeled_image_names(),
+                               'unlabeled_images_labels': unlabeled_train_labels,
                                'unlabeled_images_votes': vote_matrix}
             self.vote_matrix_dict[f'{phase} {checkpoint_num}'] = checkpoint_dict
             with open(self.vote_matrix_save_path, 'wb') as f:
