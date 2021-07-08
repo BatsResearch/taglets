@@ -22,9 +22,13 @@ class DannModel(nn.Module):
         super().__init__()
         self.base = nn.Sequential(*list(model.children())[:-1])
         output_shape = self._get_model_output_shape(input_shape, self.base)
-        self.fc_target = torch.nn.Linear(output_shape, num_target)
-        self.fc_source = torch.nn.Linear(output_shape, num_source)
-        self.fc_domain = torch.nn.Linear(output_shape, 2)
+        self.fc_target = nn.Linear(output_shape, num_target)
+        self.fc_source = nn.Linear(output_shape, num_source)
+        self.fc_domain = nn.Sequential(nn.Linear(output_shape, output_shape // 2),
+                                       nn.ReLU(),
+                                       nn.Linear(output_shape // 2, output_shape // 4),
+                                       nn.ReLU(),
+                                       nn.Linear(output_shape // 4, 1))
 
     def forward(self, source_inputs, target_inputs, unlabeled_inputs, step='generator'):
         if step == 'generator':
@@ -234,6 +238,7 @@ class DannTaglet(ImageTagletWithAuxData):
         iteration = 0
         data_iter = iter(train_data_loader)
         unlabeled_data_iter = iter(unlabeled_data_loader)
+        domain_criterion = nn.BCEWithLogitsLoss()
         for source_batch in self.source_data_loader:
             try:
                 target_batch = next(data_iter)
@@ -245,17 +250,17 @@ class DannTaglet(ImageTagletWithAuxData):
             iteration += 1
             source_inputs, source_labels = source_batch
             target_inputs, target_labels = target_batch
-            source_zeros = torch.zeros(len(source_inputs), dtype=torch.long, device=source_inputs.device)
-            target_zeros = torch.zeros(len(target_inputs), dtype=torch.long, device=target_inputs.device)
-            target_ones = torch.ones(len(target_inputs), dtype=torch.long, device=target_inputs.device)
+            source_zeros = torch.zeros(len(source_inputs), dtype=torch.float, device=source_inputs.device)
+            target_zeros = torch.zeros(len(target_inputs), dtype=torch.float, device=target_inputs.device)
+            target_ones = torch.ones(len(target_inputs), dtype=torch.float, device=target_inputs.device)
             
             try:
                 unlabeled_inputs = next(unlabeled_data_iter)
             except StopIteration:
                 unlabeled_data_iter = iter(unlabeled_data_loader)
                 unlabeled_inputs = next(unlabeled_data_iter)
-            unlabeled_zeros = torch.zeros(len(unlabeled_inputs), dtype=torch.long, device=unlabeled_inputs.device)
-            unlabeled_ones = torch.ones(len(unlabeled_inputs), dtype=torch.long, device=unlabeled_inputs.device)
+            unlabeled_zeros = torch.zeros(len(unlabeled_inputs), dtype=torch.float, device=unlabeled_inputs.device)
+            unlabeled_ones = torch.ones(len(unlabeled_inputs), dtype=torch.float, device=unlabeled_inputs.device)
 
             for param in self.model.module.base.parameters():
                 param.requires_grad = True
@@ -270,8 +275,8 @@ class DannTaglet(ImageTagletWithAuxData):
                                                                                                       'generator')
                 source_class_loss = self.criterion(source_classes, source_labels)
                 target_class_loss = self.criterion(target_classes, target_labels)
-                adv_target_domain_loss = self.criterion(target_domains, target_zeros) + \
-                                         self.criterion(unlabeled_target_domains, unlabeled_zeros)
+                adv_target_domain_loss = domain_criterion(target_domains, target_zeros) + \
+                                         domain_criterion(unlabeled_target_domains, unlabeled_zeros)
                 loss = source_class_loss + target_class_loss + adv_target_domain_loss
 
                 accelerator.backward(loss)
@@ -288,9 +293,9 @@ class DannTaglet(ImageTagletWithAuxData):
                                                                                       target_inputs,
                                                                                       unlabeled_inputs,
                                                                                       'discriminator')
-                source_domain_loss = self.criterion(source_domains, source_zeros)
-                target_domain_loss = self.criterion(target_domains, target_ones) + \
-                                     self.criterion(unlabeled_target_domains, unlabeled_ones)
+                source_domain_loss = domain_criterion(source_domains, source_zeros)
+                target_domain_loss = domain_criterion(target_domains, target_ones) + \
+                                     domain_criterion(unlabeled_target_domains, unlabeled_ones)
                 loss = source_domain_loss + target_domain_loss
     
                 accelerator.backward(loss)
