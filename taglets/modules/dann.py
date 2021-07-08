@@ -241,9 +241,9 @@ class DannTaglet(ImageTagletWithAuxData):
                 unlabeled_zeros = torch.zeros(len(unlabeled_inputs), dtype=torch.long, device=unlabeled_inputs.device)
                 unlabeled_ones = torch.ones(len(unlabeled_inputs), dtype=torch.long, device=unlabeled_inputs.device)
 
-            for param in self.model.backbone.parameters():
+            for param in self.model.module.base.parameters():
                 param.requires_grad = True
-            for param in self.model.fc_domain.parameters():
+            for param in self.model.module.fc_domain.parameters():
                 param.requires_grad = False
 
             self.optimizer.zero_grad()
@@ -262,9 +262,9 @@ class DannTaglet(ImageTagletWithAuxData):
                 accelerator.backward(loss)
                 self.optimizer.step()
                 
-            for param in self.model.backbone.parameters():
+            for param in self.model.module.base.parameters():
                 param.requires_grad = False
-            for param in self.model.fc_domain.parameters():
+            for param in self.model.module.fc_domain.parameters():
                 param.requires_grad = True
 
             self.optimizer.zero_grad()
