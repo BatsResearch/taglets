@@ -6,8 +6,9 @@ import os
 import random
 import torch
 import torch.multiprocessing as mp
-from accelerate import Accelerator
-accelerator = Accelerator()
+from accelerate import Accelerator, DistributedDataParallelKwargs
+ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+accelerator = Accelerator(kwargs_handlers=[ddp_kwargs])
 
 log = logging.getLogger(__name__)
 

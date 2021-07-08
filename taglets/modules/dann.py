@@ -278,6 +278,8 @@ class DannTaglet(ImageTagletWithAuxData):
                 adv_target_domain_loss = domain_criterion(target_domains, target_zeros) + \
                                          domain_criterion(unlabeled_target_domains, unlabeled_zeros)
                 loss = source_class_loss + target_class_loss + adv_target_domain_loss
+                log.info(f'{source_class_loss} {target_class_loss} {adv_target_domain_loss}')
+                log.info(f'{target_domains} {unlabeled_target_domains}')
 
                 accelerator.backward(loss)
                 self.optimizer.step()
@@ -297,6 +299,8 @@ class DannTaglet(ImageTagletWithAuxData):
                 target_domain_loss = domain_criterion(target_domains, target_ones) + \
                                      domain_criterion(unlabeled_target_domains, unlabeled_ones)
                 loss = source_domain_loss + target_domain_loss
+                log.info(f'{source_domain_loss} {target_domain_loss}')
+                log.info(f'{source_domains} {target_domains}')
     
                 accelerator.backward(loss)
                 self.optimizer.step()
