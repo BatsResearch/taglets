@@ -313,6 +313,7 @@ class DannTaglet(ImageTagletWithAuxData):
 
                 accelerator.backward(loss)
                 self.optimizer.step()
+                self.optimizer_domain.step()
 
             target_classes = accelerator.gather(target_classes.detach())
             target_labels = accelerator.gather(target_labels)
