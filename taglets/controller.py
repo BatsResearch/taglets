@@ -125,8 +125,8 @@ class Controller:
 
             # Train a labelmodel and get weak labels
             log.info("Training labelmodel")
-            labeled = DataLoader(labeled, batch_size=1, shuffle=False)
-            labeled_labels = [image_labels for _, image_labels in labeled]
+            labeled_loader = DataLoader(labeled, batch_size=1, shuffle=False)
+            labeled_labels = [image_labels for _, image_labels in labeled_loader]
             
             labeled_vote_matrix = taglet_executor.execute(labeled)
 
