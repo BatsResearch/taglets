@@ -15,6 +15,7 @@ from taglets.task.utils import labels_to_concept_ids
 from taglets.scads import Scads
 
 from .dataset_api import FMD, Places205, OfficeHome
+from .models import KNOWN_MODELS
 
 
 log = logging.getLogger(__name__)
@@ -30,8 +31,11 @@ class CheckpointRunner:
         dataset_dict = {'fmd': FMD, 'places205': Places205, 'office_home': OfficeHome}
         self.dataset_api = dataset_dict[dataset](dataset_dir)
 
-        self.initial_model = models.resnet50(pretrained=True)
-        self.initial_model.fc = torch.nn.Identity()
+        model = KNOWN_MODELS['BiT-M-R50x1'](head_size=len(self.dataset_api.get_class_names()),
+                                            zero_head=True)
+        model.load_from(np.load("BiT-M-R50x1.npz"))
+        model.head.conv = torch.nn.Identity()
+        self.initial_model = model
 
     def run_checkpoints(self):
         log.info("Enter checkpoint")
