@@ -114,9 +114,9 @@ class Controller:
             taglet_executor.set_taglets(taglets)
     
             # Executes taglets
-            log.info("Executing taglets")
+            log.info("Executing taglets on unlabeled data")
             self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test)
-            log.info("Finished executing taglets")
+            log.info("Finished executing taglets on unlabeled data")
             
             if self.task.unlabeled_train_labels is not None:
                 log.info('Accuracies of each taglet on the unlabeled train data:')
@@ -124,12 +124,14 @@ class Controller:
                     acc = np.sum(self.unlabeled_vote_matrix[:, i] == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
                     log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
 
+            log.info("Executing taglets on labeled data")
+            self.labeled_vote_matrix = taglet_executor.execute(labeled)
+            log.info("Finished executing taglets on labeled data")
+
             # Train a labelmodel and get weak labels
             log.info("Training labelmodel")
             labeled_loader = DataLoader(labeled, batch_size=1, shuffle=False)
             labeled_labels = [image_labels for _, image_labels in labeled_loader]
-            
-            self.labeled_vote_matrix = taglet_executor.execute(labeled)
 
             lm = AMCLWeightedVote(len(self.task.classes))
             lm.train(self.labeled_vote_matrix, labeled_labels, self.unlabeled_vote_matrix)
