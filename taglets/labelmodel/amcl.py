@@ -5,14 +5,13 @@ from .amcl_helper import compute_constraints_with_loss, Brier_loss_linear, linea
 from .amcl_helper import compute_constraints_with_loss2, Brier_Score_AMCL, linear_combination_labeler
 from .amcl_helper import projectToSimplex, projectToBall, projectCC
 from .amcl_helper import subGradientMethod, subGradientMethod2
-from .label_model import LabelModel
+from .weighted import UnweightedVote
 
 
-class AMCLWeightedVote(LabelModel):
+class AMCLWeightedVote(UnweightedVote):
     """
     Class representing a weighted vote of supervision sources trained through AMCL
     """
-
     def __init__(self, num_classes):
         super().__init__(num_classes)
         self.theta = None
@@ -67,16 +66,8 @@ class AMCLWeightedVote(LabelModel):
                                         # projectToSimplex, self.theta, T, h, N, num_unlab, self.num_classes)
 
     def get_weak_labels(self, vote_matrix, *args):
-        
-        # This should aggregate the votes from various taglets and output labels for the unlabeled data
-
-        num_unlab = np.shape(vote_matrix)[1]
-        preds = np.zeros((num_unlab, self.num_classes))
-
-        for i in range(self.num_wls):
-            preds += self.theta[i] * vote_matrix[i, :, :]
-
-        return np.argmax(preds, axis=1)
+        return self._get_weighted_dist(vote_matrix, self.theta)
+ 
  
 def get_data(num, base=True):
     '''
