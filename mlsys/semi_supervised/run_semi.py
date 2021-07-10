@@ -64,6 +64,7 @@ class CheckpointRunner:
                     None,
                     'predefined/scads.imagenet22k.sqlite3',
                     'predefined/embeddings/numberbatch-en19.08.txt.gz',
+                    'predefined/embeddings/imagenet22k_processed_numberbatch.h5',
                     unlabeled_test_data=unlabeled_test_dataset,
                     unlabeled_train_labels=unlabeled_train_labels,
                     test_data=evaluation_dataset,
