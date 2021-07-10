@@ -14,7 +14,7 @@ class UnweightedVote(LabelModel):
         :return: m x k matrix, where each row is a distribution over the k
                  possible labels
         """
-        weights = [1.0] * len(vote_matrix.shape[1])
+        weights = [1.0] * vote_matrix.shape[1]
         return self._get_weighted_dist(vote_matrix, weights)
 
     def _get_weighted_dist(self, vote_matrix, weights):
