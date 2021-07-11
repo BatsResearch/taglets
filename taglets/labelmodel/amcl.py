@@ -69,24 +69,17 @@ class AMCLWeightedVote(UnweightedVote):
         return self._get_weighted_dist(vote_matrix, self.theta)
  
  
-def get_data(num, base=True):
+def get_data(num):
     '''
     Function to get the data from the DARPA task
     '''
 
-    data = pickle.load(open("./ta2.pkl", "rb"))  
+    data = pickle.load(open("./saved_vote_matrices/cifar-1chkpnt.pkl", "rb"))
 
-    if base:
-        data_dict = data["Base %d" % (num)]
-        df = pd.read_feather("./domain_net-clipart_labels_train.feather")
-    
-        print("Running Base %d" % (num))
-    
-    else:
-        data_dict = data["Adapt %d" % (num)]
-        df = pd.read_feather("./domain_net-sketch_labels_train.feather")
-    
-        print("Running Adapt %d" % (num))
+    data_dict = data["Base %d" % (num)]
+    df = pd.read_feather("./cifar-labels_train.feather")
+
+    print("Running Base %d" % (num))
 
     l_names = data_dict["labeled_images_names"]
     l_labels = data_dict["labeled_images_labels"]
@@ -124,13 +117,12 @@ def main():
 
     '''
 
-    num_classes = 345
+    num_classes = 100
     labelmodel = AMCLWeightedVote(num_classes)
-    base = True
 
     # loading last year's DARPA eval data for testing [MultiTaskModule, TransferModule, FineTuneModule, ZSLKGModule]
-    l_names, l_labels, ul_names, ul_votes, id_class_dict = get_data(1, base=True)
-    test_names, test_votes, test_labels = get_test_data(1, base=True)
+    l_names, l_labels, ul_names, ul_votes, id_class_dict = get_data(1)
+    # test_names, test_votes, test_labels = get_test_data(1, base=True)
 
     ul_labels = [id_class_dict[x] for x in ul_names]
     
@@ -138,7 +130,7 @@ def main():
 
     # cutting off how much data we use
     num_labeled_data = 100
-    end_ind = 150
+    end_ind = 100 + 1000
 
     # using the same amount of labeled data from unlabeled data since we don't have votes on original labeled data 
     l_labels = ul_labels[:num_labeled_data]
@@ -154,19 +146,22 @@ def main():
 
     print(np.shape(ul_votes))
 
-    clipart_classes = pickle.load(open("./domain_net-clipart_classes.pkl", "rb"))
-    sketch_classes = pickle.load(open("./domain_net-sketch_classes.pkl", "rb"))
+    cifar_classes = ['couch', 'otter', 'crab', 'boy', 'aquarium_fish', 'chimpanzee', 'telephone', 'cup', 'sweet_pepper',
+                     'poppy', 'man', 'mountain', 'house', 'road', 'sunflower', 'sea', 'crocodile', 'rose',
+                     'willow_tree', 'flatfish', 'possum', 'tractor', 'chair', 'bridge', 'wolf', 'elephant', 'fox',
+                     'keyboard', 'beaver', 'tiger', 'baby', 'plate', 'rocket', 'turtle', 'streetcar', 'woman',
+                     'caterpillar', 'forest', 'mouse', 'cattle', 'tulip', 'camel', 'pear', 'bicycle', 'lion', 'cloud',
+                     'shrew', 'squirrel', 'porcupine', 'castle', 'clock', 'lizard', 'dolphin', 'orchid', 'television',
+                     'snake', 'skyscraper', 'bee', 'trout', 'beetle', 'worm', 'lamp', 'tank', 'maple_tree', 'whale',
+                     'kangaroo', 'orange', 'table', 'bed', 'lobster', 'palm_tree', 'raccoon', 'pickup_truck',
+                     'pine_tree', 'butterfly', 'lawn_mower', 'dinosaur', 'ray', 'can', 'mushroom', 'motorcycle',
+                     'apple', 'seal', 'hamster', 'shark', 'skunk', 'plain', 'bowl', 'train', 'bear', 'leopard', 'girl',
+                     'cockroach', 'spider', 'rabbit', 'bottle', 'snail', 'bus', 'oak_tree', 'wardrobe']
 
-    base_class_to_ind = {x: i for i, x in enumerate(clipart_classes)}
-    adapt_class_to_ind =  {x: i for i, x in enumerate(sketch_classes)}
-
-    if base == 1:
-        l_labels = [base_class_to_ind[x] for x in l_labels]
-        ul_labels = [base_class_to_ind[x] for x in ul_labels]
-    else:
-        l_labels = [adapt_class_to_ind[x] for x in l_labels]
-        ul_labels = [adapt_class_to_ind[x] for x in ul_labels]
-
+    class_to_ind = {x: i for i, x in enumerate(cifar_classes)}
+    
+    l_labels = [class_to_ind[x] for x in l_labels]
+    ul_labels = [class_to_ind[x] for x in ul_labels]
     # print("Num Labeled: %d" % (num_labeled_data))
     # print("Num Unlabeled: %d" % (num_unlab))
     # print("L Votes", np.shape(l_votes))
