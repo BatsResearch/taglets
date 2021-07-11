@@ -193,8 +193,7 @@ class Controller:
              return [NaiveVideoModule]
         else:
             if self.task.scads_path is not None:
-                return [DannModule, 
-                        MultiTaskModule,
+                return [MultiTaskModule,
                         ZSLKGModule,
                         TransferModule,
                         FineTuneModule,

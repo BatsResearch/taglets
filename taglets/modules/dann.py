@@ -39,7 +39,13 @@ class DannModel(nn.Module):
         output_shape = self._get_model_output_shape(input_shape, self.base)
         self.fc_target = torch.nn.Linear(output_shape, num_target)
         self.fc_source = torch.nn.Linear(output_shape, num_source)
-        self.fc_domain = torch.nn.Linear(output_shape, 2)
+        self.fc_domain = nn.Sequential(nn.Linear(output_shape, output_shape // 2),
+                                       nn.ReLU(),
+                                       nn.Dropout(0.5),
+                                       nn.Linear(output_shape // 2, output_shape // 2),
+                                       nn.ReLU(),
+                                       nn.Dropout(0.5),
+                                       nn.Linear(output_shape // 2, 1))
 
     def forward(self, target_input, source_input=None, unlabeled_input=None, alpha=1.0):
         x = self.base(target_input)
@@ -49,14 +55,14 @@ class DannModel(nn.Module):
             return target_class
         reverse_x = GradientReversalLayer.apply(x, alpha)
         target_domain = self.fc_domain(reverse_x)
-        target_dist = (target_class, target_domain)
+        target_dist = (target_class, target_domain.view(-1))
 
         x = self.base(source_input)
         x = torch.flatten(x, 1)
         source_class = self.fc_source(x)
         reverse_x = GradientReversalLayer.apply(x, alpha)
         source_domain = self.fc_domain(reverse_x)
-        source_dist = (source_class, source_domain)
+        source_dist = (source_class, source_domain.view(-1))
         if unlabeled_input is None or not len(unlabeled_input):
             return target_dist, source_dist, None
 
@@ -64,7 +70,7 @@ class DannModel(nn.Module):
         x = torch.flatten(x, 1)
         reverse_x = GradientReversalLayer.apply(x, alpha)
         unlabeled_domain = self.fc_domain(reverse_x)
-        return target_dist, source_dist, unlabeled_domain
+        return target_dist, source_dist, unlabeled_domain.view(-1)
 
     def _get_model_output_shape(self, in_size, mod):
         """
@@ -107,7 +113,10 @@ class DannTaglet(ImageTagletWithAuxData):
             os.makedirs(self.save_dir)
         self.source_data = None
 
-        self.num_related_class = 5 if len(self.task.classes) < 100 else (3 if len(self.task.classes) < 300 else 1)
+        if os.environ.get("CI"):
+            self.num_related_class = 1
+        else:
+            self.num_related_class = 5 if len(self.task.classes) < 100 else (3 if len(self.task.classes) < 300 else 1)
         self.training_first_stage = True
         self.epoch = 0
         
@@ -206,25 +215,41 @@ class DannTaglet(ImageTagletWithAuxData):
         if num_classes == 0:
             self.valid = False
             return
-
+    
         self.model = DannModel(self.model, len(self.task.classes), num_classes, self.task.input_shape)
-
+    
         params_to_update = []
-        for param in self.model.parameters():
+        for param in self.model.base.parameters():
+            if param.requires_grad:
+                params_to_update.append(param)
+        for param in self.model.fc_target.parameters():
+            if param.requires_grad:
+                params_to_update.append(param)
+        for param in self.model.fc_source.parameters():
             if param.requires_grad:
                 params_to_update.append(param)
         self._params_to_update = params_to_update
         self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.003, momentum=0.9)
         self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[4, 6], gamma=0.1)
-
+    
+        params_to_update = []
+        for param in self.model.fc_domain.parameters():
+            if param.requires_grad:
+                params_to_update.append(param)
+        self.optimizer_domain = torch.optim.SGD(params_to_update, lr=0.03, momentum=0.9)
+        self.lr_scheduler_domain = torch.optim.lr_scheduler.MultiStepLR(self.optimizer_domain,
+                                                                        milestones=[4, 6],
+                                                                        gamma=0.1)
+    
         if len(train_data) < 1024:
             num_duplicates = (1024 // len(train_data)) + 1
             train_data = torch.utils.data.ConcatDataset([train_data] * num_duplicates)
-        
+    
         super(DannTaglet, self).train(train_data, val_data, unlabeled_data)
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):
         self.source_data_loader = self._get_dataloader(data=self.source_data, shuffle=True)
+        self.optimizer_domain = accelerator.prepare(self.optimizer_domain)
         super(DannTaglet, self)._do_train(train_data, val_data, unlabeled_data)
 
     def _train_epoch(self, train_data_loader, unlabeled_data_loader=None):
@@ -234,33 +259,36 @@ class DannTaglet(ImageTagletWithAuxData):
         total_len = 0
         iteration = 0
         data_iter = iter(train_data_loader)
-        if unlabeled_data_loader:
-            unlabeled_data_iter = iter(unlabeled_data_loader)
-        unlabled_inputs = None
+        unlabeled_data_iter = iter(unlabeled_data_loader)
+    
+        domain_criterion = nn.BCEWithLogitsLoss()
         for source_batch in self.source_data_loader:
             try:
                 target_batch = next(data_iter)
             except StopIteration:
                 data_iter = iter(train_data_loader)
                 target_batch = next(data_iter)
-            p = (iteration + self.epoch * len(self.source_data_loader)) / (self.num_epochs * len(self.source_data_loader))
+            p = (iteration + self.epoch * len(self.source_data_loader)) / (
+                        self.num_epochs * len(self.source_data_loader))
             alpha = 2 / (1 + np.exp(-10 * p)) - 1
             iteration += 1
             source_inputs, source_labels = source_batch
             target_inputs, target_labels = target_batch
-            zeros = torch.zeros(len(source_inputs), dtype=torch.long, device=source_inputs.device)
-            ones = torch.ones(len(target_inputs), dtype=torch.long, device=target_inputs.device)
-            if unlabeled_data_loader:
-                try:
-                    unlabeled_inputs = next(unlabeled_data_iter)
-                except StopIteration:
-                    unlabeled_data_iter = iter(unlabeled_data_loader)
-                    unlabeled_inputs = next(unlabeled_data_iter)
-                unlabeled_ones = torch.ones(len(unlabeled_inputs), dtype=torch.long, device=unlabeled_inputs.device)
-
+            zeros = torch.zeros(len(source_inputs), dtype=torch.float, device=source_inputs.device)
+            ones = torch.ones(len(target_inputs), dtype=torch.float, device=target_inputs.device)
+        
+            try:
+                unlabeled_inputs = next(unlabeled_data_iter)
+            except StopIteration:
+                unlabeled_data_iter = iter(unlabeled_data_loader)
+                unlabeled_inputs = next(unlabeled_data_iter)
+            unlabeled_ones = torch.ones(len(unlabeled_inputs), dtype=torch.float, device=unlabeled_inputs.device)
+        
             self.optimizer.zero_grad()
+            self.optimizer_domain.zero_grad()
             with torch.set_grad_enabled(True):
-                (target_classes, target_domains), (source_classes, source_domains), unlabeled_target_domains = self.model(
+                (target_classes, target_domains), (
+                source_classes, source_domains), unlabeled_target_domains = self.model(
                     target_inputs,
                     source_inputs,
                     unlabeled_inputs,
@@ -268,26 +296,27 @@ class DannTaglet(ImageTagletWithAuxData):
                 )
                 source_class_loss = self.criterion(source_classes, source_labels)
                 target_class_loss = self.criterion(target_classes, target_labels)
-                source_domain_loss = self.criterion(source_domains, zeros)
-                target_domain_loss = self.criterion(target_domains, ones)
-                if unlabeled_target_domains is not None:
-                    target_domain_loss += self.criterion(unlabeled_target_domains, unlabeled_ones)
+                source_domain_loss = domain_criterion(source_domains, zeros)
+                target_domain_loss = (domain_criterion(target_domains, ones) +
+                                      domain_criterion(unlabeled_target_domains, unlabeled_ones)) / 2
                 loss = source_class_loss + target_class_loss + source_domain_loss + target_domain_loss
-
+            
                 accelerator.backward(loss)
                 self.optimizer.step()
-
+                self.optimizer_domain.step()
+        
             target_classes = accelerator.gather(target_classes.detach())
             target_labels = accelerator.gather(target_labels)
-
+        
             running_loss += loss.item()
             running_acc += self._get_train_acc(target_classes, target_labels).item()
             total_len += len(target_labels)
         self.epoch += 1
+        self.lr_scheduler_domain.step()
         if not len(train_data_loader.dataset):
             return 0, 0
-
+    
         epoch_loss = running_loss / len(train_data_loader)
         epoch_acc = running_acc / total_len
-
+    
         return epoch_loss, epoch_acc
