@@ -120,7 +120,7 @@ def main(num_unlab, num_classes):
     labelmodel = AMCLWeightedVote(num_classes)
 
     # loading last year's DARPA eval data for testing [MultiTaskModule, TransferModule, FineTuneModule, ZSLKGModule]
-    l_names, l_labels, ul_names, ul_votes, id_class_dict = get_data(1)
+    l_names, l_labels, ul_names, ul_votes, id_class_dict = get_data(0)
     # test_names, test_votes, test_labels = get_test_data(1, base=True)
 
     ul_labels = [id_class_dict[x] for x in ul_names]
@@ -147,6 +147,7 @@ def main(num_unlab, num_classes):
     
     # restrict num classes
     ul_votes = np.minimum(ul_votes, num_classes - 1)
+    l_votes = np.minimum(l_votes, num_classes - 1)
 
     cifar_classes = ['couch', 'otter', 'crab', 'boy', 'aquarium_fish', 'chimpanzee', 'telephone', 'cup', 'sweet_pepper',
                      'poppy', 'man', 'mountain', 'house', 'road', 'sunflower', 'sea', 'crocodile', 'rose',
@@ -169,12 +170,17 @@ def main(num_unlab, num_classes):
     # print("L Votes", np.shape(l_votes))
     # print("UL Votes", np.shape(ul_votes))
 
+    print('Training...', flush=True)
     labelmodel.train(l_votes, l_labels, ul_votes)
     preds = labelmodel.get_weak_labels(ul_votes)
     print("Acc %f" % (np.mean(preds == np.argmax(ul_labels, 1))))
     print(np.shape(preds), np.shape(ul_labels))
 
 if __name__ == "__main__":
+    import time
     for num_unlab in [1000]:
-        for num_classes in [100]:
+        for num_classes in np.arange(10, 101, 10):
+            st = time.time()
+            print(f'-------------- {num_unlab} unlabeled images and {num_classes} classes --------------------', flush=True)
             main(num_unlab, num_classes)
+            print(f'-------------- Elapsed: {(time.time - st) / 60.0} mins -----------------------------', flush=True)
