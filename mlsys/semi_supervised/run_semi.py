@@ -98,7 +98,7 @@ def main():
                         help="Option to choose whether to execute or not the entire trining pipeline")
     parser.add_argument("--batch_size",
                         type=int,
-                        default="256",
+                        default="32",
                         help="Universal batch size")
     parser.add_argument('--scads_root_path', 
                         type=str,
