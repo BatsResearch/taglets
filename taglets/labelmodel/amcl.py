@@ -107,7 +107,7 @@ def get_test_data(num, base=True):
     return test_names, test_votes, test_labels
 
    
-def main():
+def main(num_unlab, num_classes):
     '''
     Dylan's test script for evaluating AMCL (w/ convex combination of labelers + Briar score)
 
@@ -117,7 +117,6 @@ def main():
 
     '''
 
-    num_classes = 100
     labelmodel = AMCLWeightedVote(num_classes)
 
     # loading last year's DARPA eval data for testing [MultiTaskModule, TransferModule, FineTuneModule, ZSLKGModule]
@@ -130,7 +129,7 @@ def main():
 
     # cutting off how much data we use
     num_labeled_data = 100
-    end_ind = 100 + 1000
+    end_ind = 100 + num_unlab
 
     # using the same amount of labeled data from unlabeled data since we don't have votes on original labeled data 
     l_labels = ul_labels[:num_labeled_data]
@@ -145,6 +144,9 @@ def main():
     num_unlab = len(ul_names)
 
     print(np.shape(ul_votes))
+    
+    # restrict num classes
+    ul_votes = np.minimum(ul_votes, num_classes - 1)
 
     cifar_classes = ['couch', 'otter', 'crab', 'boy', 'aquarium_fish', 'chimpanzee', 'telephone', 'cup', 'sweet_pepper',
                      'poppy', 'man', 'mountain', 'house', 'road', 'sunflower', 'sea', 'crocodile', 'rose',
@@ -173,4 +175,6 @@ def main():
     print(np.shape(preds), np.shape(ul_labels))
 
 if __name__ == "__main__":
-    main()
+    for num_unlab in [1000]:
+        for num_classes in [100]:
+            main(num_unlab, num_classes)
