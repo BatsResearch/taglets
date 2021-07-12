@@ -148,6 +148,7 @@ def main(num_unlab, num_classes):
     # restrict num classes
     ul_votes = np.minimum(ul_votes, num_classes - 1)
     l_votes = np.minimum(l_votes, num_classes - 1)
+    l_labels = np.minimum(l_labels, num_classes - 1)
 
     cifar_classes = ['couch', 'otter', 'crab', 'boy', 'aquarium_fish', 'chimpanzee', 'telephone', 'cup', 'sweet_pepper',
                      'poppy', 'man', 'mountain', 'house', 'road', 'sunflower', 'sea', 'crocodile', 'rose',
