@@ -354,9 +354,9 @@ class JPLStorage:
                                     transform=transforms.Compose([
                                         video_transform.UniformTemporalSubsample(num_frames),
                                         transforms.Lambda(lambda x: x/255.0),
-                                        transform_video.NormalizeVideo(mean, std),
+                                        transform_video.NormalizeVideo(mean, std),# transform_video
                                         video_transform.ShortSideScale(size=side_size),
-                                        transform_video.CenterCropVideo(crop_size),
+                                        transform_video.CenterCropVideo(crop_size),# transform_video
                                         PackPathway(alpha)
                                     ])
                                     )
@@ -537,9 +537,11 @@ class JPLStorage:
             return CustomImageDataset(image_paths,
                                       transform=transform)
         
-    def get_true_labels(self, split, mode):
+    def get_true_labels(self, split, mode, dict_clips=None,video=False):
         if mode == 'prod':
             return None
+
+        log.info(f"Path for feather {self.all_train_labels_path}")
         if split == 'train':
             df = pd.read_feather(self.all_train_labels_path)
         else:
@@ -548,16 +550,20 @@ class JPLStorage:
         # convert string labels to int labels
         mapped_label_col = df['class'].map(self.label_map)
         df['class'] = mapped_label_col
-        
+        log.info(f"Dataframe: {df.head()}")
+        log.info(f"Label map: {self.label_map}")
         # turn Dataframe into a dict
         df = df.set_index('id')
         labels_dict = df.to_dict()['class']
+        log.info(f"Label dict: {self.label_map}")
 
         # get a list of corresponding labels
         if split == 'train':
-            image_names = self.get_unlabeled_image_names()
+            image_names = self.get_unlabeled_image_names(dictionary_clips=dict_clips, video=video)
         else:
             image_names = self.get_evaluation_image_names()
+
+        #log.info(f"Images names:{image_names}")
         labels = [labels_dict[image_name] for image_name in image_names]
         return labels
 
@@ -705,9 +711,10 @@ class JPLRunner:
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
         unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True, self.video)
+        log.info(f"Name video files: {unlabeled_train_dataset.filepaths}")
         unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False, self.video)
         
-        unlabeled_train_labels = self.jpl_storage.get_true_labels('train', self.mode)
+        unlabeled_train_labels = self.jpl_storage.get_true_labels('train', self.mode, dict_clips=self.jpl_storage.dictionary_clips, video=self.video)
         
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),
@@ -731,7 +738,7 @@ class JPLRunner:
         outputs = end_model.predict(evaluation_dataset)
         predictions = np.argmax(outputs, 1)
         
-        test_labels = self.jpl_storage.get_true_labels('test', self.mode)
+        test_labels = self.jpl_storage.get_true_labels('test', self.mode, dict_clips=self.jpl_storage.dictionary_clips, video=self.video)
         if test_labels is not None:
             log.info('Accuracy of taglets on this checkpoint:')
             acc = np.sum(predictions == test_labels) / len(test_labels)
