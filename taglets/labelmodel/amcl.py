@@ -148,7 +148,6 @@ def main(num_unlab, num_classes):
     # restrict num classes
     ul_votes = np.minimum(ul_votes, num_classes - 1)
     l_votes = np.minimum(l_votes, num_classes - 1)
-    l_labels = np.minimum(l_labels, num_classes - 1)
 
     cifar_classes = ['couch', 'otter', 'crab', 'boy', 'aquarium_fish', 'chimpanzee', 'telephone', 'cup', 'sweet_pepper',
                      'poppy', 'man', 'mountain', 'house', 'road', 'sunflower', 'sea', 'crocodile', 'rose',
@@ -166,6 +165,8 @@ def main(num_unlab, num_classes):
     
     l_labels = [class_to_ind[x] for x in l_labels]
     ul_labels = [class_to_ind[x] for x in ul_labels]
+    l_labels = np.minimum(l_labels, num_classes - 1)
+    ul_labels = np.minimum(ul_labels, num_classes - 1)
     # print("Num Labeled: %d" % (num_labeled_data))
     # print("Num Unlabeled: %d" % (num_unlab))
     # print("L Votes", np.shape(l_votes))
