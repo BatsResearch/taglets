@@ -1,0 +1,30 @@
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on:ubuntu-latest
+
+    steps: 
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+      - name: Setup Conda
+        run: |
+          wget https://repo.continuum.io/miniconda/Miniconda3-4.5.1-Linux-x86_64.sh --output-document=download/miniconda.sh
+          bash download/miniconda.sh -b -p $HOME/miniconda
+          source $HOME/miniconda/etc/profile.d/conda.sh
+          conda config --set always_yes yes --set changeps1 no
+          conda info --all
+      - name: Install TAGLETS
+        run: |
+          chmod u+x ./setup.sh
+          ./setup.sh 
+      - name: Run tests
+        run: |
+          export PYTHONPATH=".:$PYTHONPATH"
+          accelerate launch --config_file ./accelerate_unittest_config.yml ./run_unittest.py
+
