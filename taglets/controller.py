@@ -1,3 +1,4 @@
+import pickle
 import os
 import logging
 from logging import StreamHandler
@@ -130,12 +131,22 @@ class Controller:
 
             # Train a labelmodel and get weak labels
             log.info("Training labelmodel")
-            labeled_loader = DataLoader(labeled, batch_size=1, shuffle=False)
-            labeled_labels = [image_labels for _, image_labels in labeled_loader]
+            if accelerator.is_local_main_process:
+                labeled_loader = DataLoader(labeled, batch_size=1, shuffle=False)
+                labeled_labels = [image_labels for _, image_labels in labeled_loader]
+    
+                lm = AMCLWeightedVote(len(self.task.classes))
+                lm.train(self.labeled_vote_matrix, labeled_labels, self.unlabeled_vote_matrix)
+                weak_labels = lm.get_weak_labels(self.unlabeled_vote_matrix)
 
-            lm = AMCLWeightedVote(len(self.task.classes))
-            lm.train(self.labeled_vote_matrix, labeled_labels, self.unlabeled_vote_matrix)
-            weak_labels = lm.get_weak_labels(self.unlabeled_vote_matrix)
+                with open('tmp_labelmodel_output.pkl', 'wb') as f:
+                    pickle.dump(weak_labels, f)
+            accelerator.wait_for_everyone()
+            with open('tmp_labelmodel_output.pkl', 'rb') as f:
+                weak_labels = pickle.load(f)
+            accelerator.wait_for_everyone()
+            if accelerator.is_local_main_process:
+                os.remove('tmp_labelmodel_output.pkl')
             log.info("Finished training labelmodel")
 
             # # Combines taglets' votes into soft labels
