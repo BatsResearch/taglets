@@ -175,14 +175,16 @@ def main(num_unlab, num_classes):
     print('Training...', flush=True)
     labelmodel.train(l_votes, l_labels, ul_votes)
     preds = labelmodel.get_weak_labels(ul_votes)
-    print("Acc %f" % (np.mean(preds == np.argmax(ul_labels, 1))))
+    predictions = np.asarray([np.argmax(pred) for pred in preds])
+    print("Acc %f" % (np.mean(predictions == ul_labels)))
     print(np.shape(preds), np.shape(ul_labels))
 
 if __name__ == "__main__":
     import time
     for num_unlab in [1000]:
         for num_classes in np.arange(10, 101, 10):
-            st = time.time()
-            print(f'-------------- {num_unlab} unlabeled images and {num_classes} classes --------------------', flush=True)
-            main(num_unlab, num_classes)
-            print(f'-------------- Elapsed: {(time.time - st) / 60.0} mins -----------------------------', flush=True)
+            for chkpnt in [0]:
+                st = time.time()
+                print(f'-------------- {num_unlab} unlabeled images and {num_classes} classes at chkpont {chkpnt}---------------', flush=True)
+                main(num_unlab, num_classes)
+                print(f'-------------- Elapsed: {(time.time - st) / 60.0} mins -----------------------------', flush=True)
