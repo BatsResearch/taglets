@@ -16,7 +16,7 @@ from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecut
 
 ####################################################################
 # We configure logging in the main class of the application so that
-# subprocesses inherit the same configuration. This would have to be
+# subprocesses inherit the same configuratfion. This would have to be
 # redesigned if used as part of a larger application with its own
 # logging configuration
 ####################################################################
@@ -174,8 +174,7 @@ class Controller:
              return [NaiveVideoModule]
         else:
             if self.task.scads_path is not None:
-                return [DannModule, 
-                        MultiTaskModule,
+                return [MultiTaskModule,
                         ZSLKGModule,
                         TransferModule,
                         FineTuneModule,
