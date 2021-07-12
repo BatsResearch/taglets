@@ -53,7 +53,7 @@ class ImageClassificationInstaller(DatasetInstaller):
                     label_to_node_id[label] = node_id
                 
                 # Scads is missing a missing conceptnet id
-                if not node_id:
+                if node_id is None:
                     continue
                 
                 img = Image(dataset_id=dataset.id,

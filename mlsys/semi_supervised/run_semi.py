@@ -68,6 +68,7 @@ class CheckpointRunner:
                     None,
                     'predefined/scads.imagenet22k.sqlite3',
                     'predefined/embeddings/numberbatch-en19.08.txt.gz',
+                    'predefined/embeddings/imagenet22k_processed_numberbatch.h5',
                     unlabeled_test_data=unlabeled_test_dataset,
                     unlabeled_train_labels=unlabeled_train_labels,
                     test_data=evaluation_dataset,
@@ -101,7 +102,7 @@ def main():
                         help="Option to choose whether to execute or not the entire trining pipeline")
     parser.add_argument("--batch_size",
                         type=int,
-                        default="256",
+                        default="32",
                         help="Universal batch size")
     parser.add_argument('--scads_root_path', 
                         type=str,
