@@ -20,19 +20,17 @@ class MultiTaskModel(nn.Module):
         self.num_source = num_source
         self.base = nn.Sequential(*list(model.children())[:-1])
         output_shape = self._get_model_output_shape(input_shape, self.base)
-        self.fc_target = torch.nn.Linear(output_shape, self.num_target)
-        self.fc_source = torch.nn.Linear(output_shape, self.num_source)
+        self.fc_target = nn.Conv2d(2048, self.num_target, kernel_size=1, bias=True)
+        self.fc_source = nn.Conv2d(2048, self.num_source, kernel_size=1, bias=True)
 
     def forward(self, target_inputs, source_inputs=None):
         x = self.base(target_inputs)
-        x = torch.flatten(x, 1)
-        target_outputs = self.fc_target(x)
+        target_outputs = self.fc_target(x)[...,0,0]
         if source_inputs is None:
             return target_outputs
         else:
             x = self.base(source_inputs)
-            x = torch.flatten(x, 1)
-            source_outputs = self.fc_source(x)
+            source_outputs = self.fc_source(x)[...,0,0]
             return target_outputs, source_outputs
 
     def _get_model_output_shape(self, in_size, mod):

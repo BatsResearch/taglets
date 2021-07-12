@@ -154,7 +154,7 @@ class ResNetV2(nn.Module):
   def forward(self, x):
     x = self.fc(self.head(self.body(self.root(x))))
     assert x.shape[-2:] == (1, 1)  # We should have no spatial shape left.
-    return x[...,0,0]
+    return x
 
   def load_from(self, weights, prefix='resnet/'):
     with torch.no_grad():
