@@ -187,4 +187,4 @@ if __name__ == "__main__":
                 st = time.time()
                 print(f'-------------- {num_unlab} unlabeled images and {num_classes} classes at chkpont {chkpnt}---------------', flush=True)
                 main(num_unlab, num_classes)
-                print(f'-------------- Elapsed: {(time.time - st) / 60.0} mins -----------------------------', flush=True)
+                print(f'-------------- Elapsed: {(time.time() - st) / 60.0} mins -----------------------------', flush=True)
