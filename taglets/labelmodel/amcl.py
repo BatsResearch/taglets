@@ -126,28 +126,6 @@ def main(num_unlab, num_classes):
 
     l_labels = [id_class_dict[x] for x in l_names]
     ul_labels = [id_class_dict[x] for x in ul_names]
-    
-    num_labeled_data = len(l_names)
-
-    # cutting off how much data we use
-    num_labeled_data = 100
-    end_ind = 100 + num_unlab
-    
-    ul_labels, ul_votes, ul_names = np.asarray(ul_labels), np.asarray(ul_votes), np.asarray(ul_names)
-    indices = np.arange(len(ul_labels))
-    np.random.shuffle(indices)
-
-    ul_labels = ul_labels[indices[num_labeled_data:end_ind]]
-    ul_votes = ul_votes[indices[num_labeled_data:end_ind]]
-    ul_names = ul_names[indices[num_labeled_data:end_ind]]
-
-    num_unlab = len(ul_names)
-
-    print(np.shape(ul_votes))
-    
-    # restrict num classes
-    ul_votes = np.minimum(ul_votes, num_classes - 1)
-    l_votes = np.minimum(l_votes, num_classes - 1)
 
     cifar_classes = ['couch', 'otter', 'crab', 'boy', 'aquarium_fish', 'chimpanzee', 'telephone', 'cup', 'sweet_pepper',
                      'poppy', 'man', 'mountain', 'house', 'road', 'sunflower', 'sea', 'crocodile', 'rose',
@@ -162,18 +140,29 @@ def main(num_unlab, num_classes):
                      'cockroach', 'spider', 'rabbit', 'bottle', 'snail', 'bus', 'oak_tree', 'wardrobe']
 
     class_to_ind = {x: i for i, x in enumerate(cifar_classes)}
-    
+
     l_labels = [class_to_ind[x] for x in l_labels]
     ul_labels = [class_to_ind[x] for x in ul_labels]
+
+    # cutting off how much data we use
+    num_labeled_data = 100
+    end_ind = 100 + num_unlab
+    
+    ul_labels, ul_votes, ul_names = np.asarray(ul_labels), np.asarray(ul_votes), np.asarray(ul_names)
+    indices = np.arange(len(ul_labels))
+    np.random.shuffle(indices)
+
+    sampled_ul_votes = ul_votes[indices[num_labeled_data:end_ind]]
+
+    print(np.shape(ul_votes))
+    
+    # restrict num classes
+    sampled_ul_votes = np.minimum(sampled_ul_votes, num_classes - 1)
+    l_votes = np.minimum(l_votes, num_classes - 1)
     l_labels = np.minimum(l_labels, num_classes - 1)
-    ul_labels = np.minimum(ul_labels, num_classes - 1)
-    # print("Num Labeled: %d" % (num_labeled_data))
-    # print("Num Unlabeled: %d" % (num_unlab))
-    # print("L Votes", np.shape(l_votes))
-    # print("UL Votes", np.shape(ul_votes))
 
     print('Training...', flush=True)
-    labelmodel.train(l_votes, l_labels, ul_votes)
+    labelmodel.train(l_votes, l_labels, sampled_ul_votes)
     preds = labelmodel.get_weak_labels(ul_votes)
     predictions = np.asarray([np.argmax(pred) for pred in preds])
     print("Acc %f" % (np.mean(predictions == ul_labels)))
