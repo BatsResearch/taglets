@@ -60,6 +60,9 @@ class TransferTaglet(ImageTagletWithAuxData):
         m = torch.nn.Sequential(*list(self.model.children())[:-1])
         output_shape = self._get_model_output_shape(self.task.input_shape, m)
         self.model.fc = torch.nn.Conv2d(2048, num_classes, kernel_size=1, bias=True)
+        with torch.no_grad():
+            torch.nn.init.zeros_(self.model.fc.weight)
+            torch.nn.init.zeros_(self.model.fc.bias)
 
         params_to_update = []
         for param in self.model.parameters():

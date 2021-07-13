@@ -15,6 +15,9 @@ class EndModelMixin():
         m = torch.nn.Sequential(*list(self.model.children())[:-1])
         output_shape = self._get_model_output_shape(self.task.input_shape, m)
         self.model.fc = torch.nn.Conv2d(2048, len(self.task.classes), kernel_size=1, bias=True)
+        with torch.no_grad():
+            torch.nn.init.zeros_(self.model.fc.weight)
+            torch.nn.init.zeros_(self.model.fc.bias)
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:

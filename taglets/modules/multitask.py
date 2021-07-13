@@ -22,6 +22,9 @@ class MultiTaskModel(nn.Module):
         output_shape = self._get_model_output_shape(input_shape, self.base)
         self.fc_target = nn.Conv2d(2048, self.num_target, kernel_size=1, bias=True)
         self.fc_source = nn.Conv2d(2048, self.num_source, kernel_size=1, bias=True)
+        with torch.no_grad():
+            torch.nn.init.zeros_(self.fc_target.weight)
+            torch.nn.init.zeros_(self.fc_source.bias)
 
     def forward(self, target_inputs, source_inputs=None):
         x = self.base(target_inputs)
