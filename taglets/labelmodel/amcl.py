@@ -82,12 +82,13 @@ def get_data(num):
     print("Running Base %d" % (num))
 
     l_names = data_dict["labeled_images_names"]
+    l_votes = data_dict["labeled_images_votes"]
     l_labels = data_dict["labeled_images_labels"]
     ul_names = data_dict["unlabeled_images_names"]
     ul_votes = data_dict["unlabeled_images_votes"]
     id_class_dict = pd.Series(df["class"].values, index=df.id.values).to_dict()
 
-    return l_names, l_labels, ul_names, ul_votes, id_class_dict
+    return l_names, l_votes, l_labels, ul_names, ul_votes, id_class_dict
 
 def get_test_data(num, base=True):
 
@@ -120,9 +121,10 @@ def main(num_unlab, num_classes):
     labelmodel = AMCLWeightedVote(num_classes)
 
     # loading last year's DARPA eval data for testing [MultiTaskModule, TransferModule, FineTuneModule, ZSLKGModule]
-    l_names, l_labels, ul_names, ul_votes, id_class_dict = get_data(0)
+    l_names, l_votes, l_labels, ul_names, ul_votes, id_class_dict = get_data(0)
     # test_names, test_votes, test_labels = get_test_data(1, base=True)
 
+    l_labels = [id_class_dict[x] for x in l_names]
     ul_labels = [id_class_dict[x] for x in ul_names]
     
     num_labeled_data = len(l_names)
@@ -134,12 +136,6 @@ def main(num_unlab, num_classes):
     ul_labels, ul_votes, ul_names = np.asarray(ul_labels), np.asarray(ul_votes), np.asarray(ul_names)
     indices = np.arange(len(ul_labels))
     np.random.shuffle(indices)
-
-    # using the same amount of labeled data from unlabeled data since we don't have votes on original labeled data 
-    l_labels = ul_labels[indices[:num_labeled_data]]
-    l_votes = ul_votes[indices[:num_labeled_data]]
-    l_names = ul_names[indices[:num_labeled_data]]
-
 
     ul_labels = ul_labels[indices[num_labeled_data:end_ind]]
     ul_votes = ul_votes[indices[num_labeled_data:end_ind]]
