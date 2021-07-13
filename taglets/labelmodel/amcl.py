@@ -130,16 +130,20 @@ def main(num_unlab, num_classes):
     # cutting off how much data we use
     num_labeled_data = 100
     end_ind = 100 + num_unlab
+    
+    ul_labels, ul_votes, ul_names = np.asarray(ul_labels), np.asarray(ul_votes), np.asarray(ul_names)
+    indices = np.arange(len(ul_labels))
+    np.random.shuffle(indices)
 
     # using the same amount of labeled data from unlabeled data since we don't have votes on original labeled data 
-    l_labels = ul_labels[:num_labeled_data]
-    l_votes = ul_votes[:num_labeled_data]
-    l_names = ul_names[:num_labeled_data]
+    l_labels = ul_labels[indices[:num_labeled_data]]
+    l_votes = ul_votes[indices[:num_labeled_data]]
+    l_names = ul_names[indices[:num_labeled_data]]
 
 
-    ul_labels = ul_labels[num_labeled_data:end_ind]
-    ul_votes = ul_votes[num_labeled_data:end_ind]
-    ul_names = ul_names[num_labeled_data:end_ind]
+    ul_labels = ul_labels[indices[num_labeled_data:end_ind]]
+    ul_votes = ul_votes[indices[num_labeled_data:end_ind]]
+    ul_names = ul_names[indices[num_labeled_data:end_ind]]
 
     num_unlab = len(ul_names)
 
