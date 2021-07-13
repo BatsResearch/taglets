@@ -76,10 +76,17 @@ class Trainable:
     def _get_dataloader(self, data, shuffle, batch_size=None):
         if batch_size is None:
             batch_size = self.batch_size
-        return accelerator.prepare(torch.utils.data.DataLoader(
-            dataset=data, batch_size=batch_size, shuffle=shuffle,
-            num_workers=self.num_workers, pin_memory=True
-        ))
+        if shuffle:
+            return accelerator.prepare(torch.utils.data.DataLoader(
+                dataset=data, batch_size=batch_size,
+                num_workers=self.num_workers, pin_memory=True,
+                sampler=torch.utils.data.RandomSampler(data, replacement=True, num_samples=batch_size)
+            ))
+        else:
+            return accelerator.prepare(torch.utils.data.DataLoader(
+                dataset=data, batch_size=batch_size, shuffle=shuffle,
+                num_workers=self.num_workers, pin_memory=True
+            ))
 
     def _get_pred_classifier(self):
         return self.model
