@@ -35,6 +35,6 @@ class FineTuneTaglet(ImageTaglet):
                 params_to_update.append(param)
         self._params_to_update = params_to_update
         self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.003, momentum=0.9)
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=150, gamma=0.1)
+        self.lr_scheduler = None
         self.num_epochs = 500
 
