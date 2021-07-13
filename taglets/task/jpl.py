@@ -1,9 +1,11 @@
 import os
+import datetime
 import time
 import logging
 import argparse
 import json
 import requests
+import pickle
 from pathlib import Path
 
 from accelerate import Accelerator
@@ -556,6 +558,13 @@ class JPLRunner:
         self.mode = mode
         self.simple_run = simple_run
         self.batch_size = batch_size
+        
+        if not os.path.exists('saved_vote_matrices') and accelerator.is_local_main_process:
+            os.makedirs('saved_vote_matrices')
+        accelerator.wait_for_everyone()
+        self.vote_matrix_dict = {}
+        self.vote_matrix_save_path = os.path.join('saved_vote_matrices',
+                                                  datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
 
     def get_jpl_information(self):
         # Elaheh: (need change in eval) choose image classification task you would like. Now there are four tasks
@@ -691,6 +700,18 @@ class JPLRunner:
         controller = Controller(task, self.simple_run)
 
         end_model = controller.train_end_model()
+        
+        if self.vote_matrix_save_path is not None:
+            labeled_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
+            image_names, image_labels = self.jpl_storage.get_labeled_images_list()
+            checkpoint_dict = {'labeled_images_names': image_names,
+                               'labeled_images_votes': labeled_vote_matrix,
+                               'labeled_images_labels': image_labels,
+                               'unlabeled_images_names': self.jpl_storage.get_unlabeled_image_names(),
+                               'unlabeled_images_votes': unlabeled_vote_matrix}
+            self.vote_matrix_dict[f'{phase} {checkpoint_num}'] = checkpoint_dict
+            with open(self.vote_matrix_save_path, 'wb') as f:
+                pickle.dump(self.vote_matrix_dict, f)
 
         evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.video)
         outputs = end_model.predict(evaluation_dataset)

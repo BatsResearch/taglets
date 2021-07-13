@@ -20,6 +20,8 @@ class TagletMixin:
         :return: A 1-d NumPy array of predicted labels
         """
         outputs = self.predict(unlabeled_data)
+        if isinstance(outputs, tuple):
+            outputs, _ = outputs
         return np.argmax(outputs, 1)
 
 
