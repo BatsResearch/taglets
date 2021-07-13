@@ -108,7 +108,7 @@ def get_test_data(num, base=True):
     return test_names, test_votes, test_labels
 
    
-def main(num_unlab, num_classes):
+def main(num_unlab, num_classes, chkpnt):
     '''
     Dylan's test script for evaluating AMCL (w/ convex combination of labelers + Briar score)
 
@@ -121,7 +121,7 @@ def main(num_unlab, num_classes):
     labelmodel = AMCLWeightedVote(num_classes)
 
     # loading last year's DARPA eval data for testing [MultiTaskModule, TransferModule, FineTuneModule, ZSLKGModule]
-    l_names, l_votes, l_labels, ul_names, ul_votes, id_class_dict = get_data(0)
+    l_names, l_votes, l_labels, ul_names, ul_votes, id_class_dict = get_data(chkpnt)
     # test_names, test_votes, test_labels = get_test_data(1, base=True)
 
     l_labels = [id_class_dict[x] for x in l_names]
@@ -172,8 +172,8 @@ if __name__ == "__main__":
     import time
     for num_unlab in [1000]:
         for num_classes in np.arange(10, 101, 10):
-            for chkpnt in [0]:
+            for chkpnt in [0, 1, 2, 3]:
                 st = time.time()
                 print(f'-------------- {num_unlab} unlabeled images and {num_classes} classes at chkpont {chkpnt}---------------', flush=True)
-                main(num_unlab, num_classes)
+                main(num_unlab, num_classes, chkpnt)
                 print(f'-------------- Elapsed: {(time.time() - st) / 60.0} mins -----------------------------', flush=True)
