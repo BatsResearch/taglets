@@ -112,6 +112,7 @@ class Controller:
     
             # Executes taglets
             log.info("Executing taglets")
+            #log.info(f"FILEPATHS TEST {unlabeled_test.filepaths}")
             vote_matrix = taglet_executor.execute(unlabeled_test)
             log.info("Finished executing taglets")
             

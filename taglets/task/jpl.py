@@ -378,7 +378,7 @@ class JPLStorage:
             for clip in train_meta.iterrows(): 
                 row = clip[1]['id']
                 if row not in labeled_clip_names:
-                    unlabeled_clip_names.append(int(row))
+                    unlabeled_clip_names.append(str(row))
             return unlabeled_clip_names
 
         else:
@@ -387,7 +387,7 @@ class JPLStorage:
             unlabeled_image_names = []
             for img in os.listdir(self.unlabeled_image_path):
                 if img not in labeled_image_names:
-                    unlabeled_image_names.append(img)
+                    unlabeled_image_names.append(str(img))
             return unlabeled_image_names
 
     def get_evaluation_image_names(self, video=False):
@@ -480,8 +480,8 @@ class JPLStorage:
             train_meta = pd.read_feather(self.unlabeled_meta_path)
             for clip in train_meta.iterrows():
                 row = clip[1]
-                action_frames = [os.path.join(self.unlabeled_image_path, str(i)+'.jpg')
-                                 for i in range(row['start_frame'], row['end_frame'])]
+                action_frames = [os.path.join(self.unlabeled_image_path, str(row['id'])) + '/' + str(i)+'.jpg'
+                                 for i in range(row['start_frame'], row['end_frame'])] # os.path.join(self.unlabeled_image_path, str(i)+'.jpg')
                 dictionary_clips[row["id"]] = action_frames
                 image_paths.append(os.path.join(self.unlabeled_image_path, str(row["id"])))
         else:
@@ -515,8 +515,8 @@ class JPLStorage:
             test_meta = pd.read_feather(self.evaluation_meta_path)
             for clip in test_meta.iterrows():
                 row = clip[1]
-                action_frames = [os.path.join(self.evaluation_image_path, str(i)+'.jpg')
-                                 for i in range(row['start_frame'], row['end_frame'])]
+                action_frames = [os.path.join(self.evaluation_image_path, str(row['id'])) + '/' + str(i)+'.jpg'
+                                 for i in range(row['start_frame'], row['end_frame'])] #os.path.join(self.evaluation_image_path, str(i)+'.jpg')
                 dictionary_clips[row["id"]] = action_frames
                 image_paths.append(os.path.join(self.evaluation_image_path, str(row["id"])))
 
@@ -550,18 +550,18 @@ class JPLStorage:
         # convert string labels to int labels
         mapped_label_col = df['class'].map(self.label_map)
         df['class'] = mapped_label_col
-        log.info(f"Dataframe: {df.head()}")
-        log.info(f"Label map: {self.label_map}")
+        #log.info(f"Dataframe: {df.head()}")
+        #log.info(f"Label map: {self.label_map}")
         # turn Dataframe into a dict
         df = df.set_index('id')
         labels_dict = df.to_dict()['class']
-        log.info(f"Label dict: {self.label_map}")
+        #log.info(f"Label dict: {labels_dict}")
 
         # get a list of corresponding labels
         if split == 'train':
             image_names = self.get_unlabeled_image_names(dictionary_clips=dict_clips, video=video)
         else:
-            image_names = self.get_evaluation_image_names()
+            image_names = self.get_evaluation_image_names(video=video)
 
         #log.info(f"Images names:{image_names}")
         labels = [labels_dict[image_name] for image_name in image_names]
@@ -711,9 +711,9 @@ class JPLRunner:
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
         unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True, self.video)
-        log.info(f"Name video files: {unlabeled_train_dataset.filepaths}")
+        #log.info(f"unlabeled_train_dataset.filepaths: {unlabeled_train_dataset.filepaths}")
         unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False, self.video)
-        
+        #log.info(f"unlabeled_test_dataset: {unlabeled_test_dataset.filepaths}")
         unlabeled_train_labels = self.jpl_storage.get_true_labels('train', self.mode, dict_clips=self.jpl_storage.dictionary_clips, video=self.video)
         
         task = Task(self.jpl_storage.name,
@@ -869,11 +869,11 @@ def main():
                         help="Option to choose whether to execute or not the entire trining pipeline")
     parser.add_argument("--folder",
                         type=str,
-                        default="external",# development, evaluation
+                        default="external",# external, evaluation
                         help="Option to choose the data folder")
     parser.add_argument("--batch_size",
                         type=int,
-                        default="128",
+                        default="8",
                         help="Universal batch size")
     args = parser.parse_args()
     

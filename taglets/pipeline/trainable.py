@@ -229,6 +229,7 @@ class Trainable:
         pred_classifier = self._get_pred_classifier()
         pred_classifier.eval()
         
+        #log.info(f"Data dataLoader {data.filepaths}")
         data_loader = self._get_dataloader(data, False)
         
         accelerator.wait_for_everyone()
@@ -389,7 +390,7 @@ class VideoTrainable(Trainable):
                 accelerator.backward(loss)
                 self.optimizer.step()
 
-            aggregated_outputs = accelerator.gather(aggregated_outputs.detach())
+            aggregated_outputs = accelerator.gather(outputs.detach())
             labels = accelerator.gather(labels)
             
             running_loss += loss.item()
@@ -416,15 +417,17 @@ class VideoTrainable(Trainable):
         for batch in val_data_loader:
             inputs = batch[0]
             labels = batch[1]
-            num_videos = inputs.size(0)
-            num_frames = inputs.size(1)
-            inputs = inputs.flatten(start_dim=0, end_dim=1)
+            inputs = inputs["video"]
+            #num_videos = inputs.size(0)
+            #num_frames = inputs.size(1)
+            #inputs = inputs.flatten(start_dim=0, end_dim=1)
             
             with torch.set_grad_enabled(False):
                 outputs = self.model(inputs)
-                aggregated_outputs = torch.mean(outputs.view(num_videos, num_frames, -1), dim=1)
-                loss = self.criterion(aggregated_outputs, labels)
-                _, preds = torch.max(aggregated_outputs, 1)
+                #log.info(outputs)
+                #aggregated_outputs = torch.mean(outputs.view(num_videos, num_frames, -1), dim=1)
+                loss = self.criterion(outputs, labels)
+                _, preds = torch.max(outputs, 1)
 
             preds  = accelerator.gather(preds.detach())
             labels = accelerator.gather(labels)
@@ -441,19 +444,22 @@ class VideoTrainable(Trainable):
         outputs = []
         labels = []
         for batch in data_loader:
+            #log.info(batch)
             if isinstance(batch, list):
                 inputs, targets = batch
             else:
                 inputs, targets = batch, None
             
-            num_videos = inputs.size(0)
-            num_frames = inputs.size(1)
-            inputs = inputs.flatten(start_dim=0, end_dim=1)
+            #num_videos = inputs.size(0)
+            #num_frames = inputs.size(1)
+            #inputs = inputs.flatten(start_dim=0, end_dim=1)
+            inputs = inputs["video"] 
             
             with torch.set_grad_enabled(False):
                 output = pred_classifier(inputs)
-                aggregated_output = torch.mean(output.view(num_videos, num_frames, -1), dim=1)
-                outputs.append(torch.nn.functional.softmax(accelerator.gather(aggregated_output.detach()).cpu(), 1))
+                #aggregated_output = torch.mean(output.view(num_videos, num_frames, -1), dim=1)
+                #outputs.append(torch.nn.functional.softmax(accelerator.gather(aggregated_output.detach()).cpu(), 1))
+                outputs.append(accelerator.gather(output.detach()).cpu())
                 if targets is not None:
                     labels.append(accelerator.gather(targets.detach()).cpu())
         

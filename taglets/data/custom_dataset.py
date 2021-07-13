@@ -67,7 +67,7 @@ class CustomVideoDataset(Dataset):
     def __getitem__(self, index):
         clip_id = int(os.path.basename(self.filepaths[index]))  # chech what path you have/want
         frames_paths = self.clips_dictionary[str(clip_id)]
-        # print(f"FRAMES list[:2]: {frames_paths[:2]} and number of frames {len(frames_paths)}")
+        #print(f"FRAMES list[:2]: {frames_paths[:2]} and number of frames {len(frames_paths)}")
         
         frames = []
         for f in frames_paths[:10]:  # get same size clips - random pick for eval
