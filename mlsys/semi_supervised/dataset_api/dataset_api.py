@@ -15,21 +15,21 @@ class DatasetAPI:
         Get the transform to be used on an image.
         :return: A transform
         """
-        precrop, crop = (512, 480)
+        data_mean = [0.485, 0.456, 0.406]
+        data_std = [0.229, 0.224, 0.225]
         # Remember to check it for video and eval
         if train:
             return transforms.Compose([
-                transforms.Resize((precrop, precrop)),
-                transforms.RandomCrop((crop, crop)),
+                transforms.RandomResizedCrop((224, 224), scale=(0.8, 1.0)),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                transforms.Normalize(mean=data_mean, std=data_std)
             ])
         else:
             return transforms.Compose([
-                transforms.Resize((crop, crop)),
+                transforms.Resize((224, 224)),
                 transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                transforms.Normalize(mean=data_mean, std=data_std)
             ])
         
     def _init_random(self):
