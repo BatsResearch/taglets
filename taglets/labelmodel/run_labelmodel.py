@@ -119,12 +119,12 @@ def main():
     args = parser.parse_args()
     
     for num_unlab in [1000]:
-        for num_classes in np.arange(10, 101, 10):
+        for num_classes in [100]:
             for chkpnt in [0, 1, 2, 3]:
                 st = time.time()
                 print(
                     f'-------------- {num_unlab} unlabeled images and {num_classes} classes at chkpont {chkpnt}---------------',
                     flush=True)
-                run_one_checkpoint(num_unlab, num_classes, chkpnt)
+                run_one_checkpoint(num_unlab, num_classes, chkpnt, args.labelmodel)
                 print(f'-------------- Elapsed: {(time.time() - st) / 60.0} mins -----------------------------',
                       flush=True)
