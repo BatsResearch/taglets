@@ -128,3 +128,7 @@ def main():
                 run_one_checkpoint(num_unlab, num_classes, chkpnt, args.labelmodel)
                 print(f'-------------- Elapsed: {(time.time() - st) / 60.0} mins -----------------------------',
                       flush=True)
+                
+
+if __name__ == '__main__':
+    main()
