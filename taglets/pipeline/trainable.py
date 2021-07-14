@@ -31,7 +31,7 @@ class Trainable:
         self.lr = 0.0005
         self.criterion = torch.nn.CrossEntropyLoss()
         self.seed = 0
-        self.num_epochs = 30 if not os.environ.get("CI") else 5
+        self.num_epochs = 3#30 if not os.environ.get("CI") else 5
         self.batch_size = task.batch_size if not os.environ.get("CI") else 32
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
@@ -377,6 +377,7 @@ class VideoTrainable(Trainable):
             inputs = batch[0]
             labels = batch[1]
             inputs = inputs["video"]
+            log.info(f"Look at inputs' size {inputs[0].size()}")
             #inputs = [i.to(device)[None, ...] for i in inputs]
             #num_videos = inputs.size(0)
             #num_frames = inputs.size(1)

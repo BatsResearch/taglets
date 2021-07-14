@@ -718,7 +718,7 @@ class JPLRunner:
         
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),
-                    (224, 224), 
+                    (256, 256),#(224, 224), 
                     labeled_dataset,
                     unlabeled_train_dataset,
                     val_dataset,

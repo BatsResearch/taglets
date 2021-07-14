@@ -47,7 +47,8 @@ class CustomVideoDataset(Dataset):
         A custom dataset used to create dataloaders.
         """
     
-    def __init__(self, filepaths, labels=None, label_map=None, transform_img=None, transform_vid=None, clips_dictionary=None):
+    def __init__(self, filepaths, labels=None, label_map=None, 
+                transform_img=None, transform_vid=None, clips_dictionary=None):
         """
         Create a new CustomVideoDataset.
 
@@ -70,7 +71,7 @@ class CustomVideoDataset(Dataset):
         #print(f"FRAMES list[:2]: {frames_paths[:2]} and number of frames {len(frames_paths)}")
         
         frames = []
-        for f in frames_paths[:10]:  # get same size clips - random pick for eval
+        for f in frames_paths[:10]:#[:10]:  # get same size clips - random pick for eval
             frame = Image.open(f).convert('RGB')
             #if self.transform is not None:  # BE CAREFUL TRANSFORMATION MIGHT NEED TO CHANGE FOR VIDEO EVAL!!!!!
             frame = self.transform_img(frame)
