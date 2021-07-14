@@ -46,7 +46,7 @@ def get_test_data(num, base=True):
     return test_names, test_votes, test_labels
 
 
-def run_one_checkpoint(num_unlab, num_classes, chkpnt, labelmodel='amcl'):
+def run_one_checkpoint(num_unlab, num_classes, chkpnt, labelmodel_type='amcl'):
     '''
     Dylan's test script for evaluating AMCL (w/ convex combination of labelers + Briar score)
 
@@ -55,7 +55,7 @@ def run_one_checkpoint(num_unlab, num_classes, chkpnt, labelmodel='amcl'):
     You can change the amount of labeled data and unlabeled data by changing num_labeled_data and end_ind params.
 
     '''
-    if labelmodel == 'amcl':
+    if labelmodel_type == 'amcl':
         labelmodel = AMCLWeightedVote(num_classes)
     else:
         labelmodel = NaiveBayes(num_classes)
@@ -103,7 +103,7 @@ def run_one_checkpoint(num_unlab, num_classes, chkpnt, labelmodel='amcl'):
     l_labels = np.minimum(l_labels, num_classes - 1)
     
     print('Training...', flush=True)
-    if labelmodel == 'amcl':
+    if labelmodel_type == 'amcl':
         labelmodel.train(l_votes, l_labels, sampled_ul_votes)
     preds = labelmodel.get_weak_labels(ul_votes)
     predictions = np.asarray([np.argmax(pred) for pred in preds])
