@@ -1,3 +1,4 @@
+import copy
 import math
 import os
 import torch
@@ -10,7 +11,7 @@ from accelerate import Accelerator
 accelerator = Accelerator()
 
 from ..module import Module
-from ...pipeline import ImageTagletWithAuxData
+from ...pipeline import ImageTagletWithAuxData, Cache
 from .utils import TransformFixMatch, is_grayscale
 
 log = logging.getLogger(__name__)
@@ -181,34 +182,42 @@ class FixMatchTaglet(ImageTagletWithAuxData):
 
         # warm-up using scads data
         if self.use_scads:
-            scads_train_data, scads_num_classes = self._get_scads_data()
+            aux_weights = Cache.get("scads-weights", self.task.classes)
+            if aux_weights is None:
+                scads_train_data, scads_num_classes = self._get_scads_data()
+    
+                encoder = torch.nn.Sequential(*list(self.model.children())[:-1])
+                output_shape = self._get_model_output_shape(self.task.input_shape, encoder)
+                self.model.fc = torch.nn.Linear(output_shape, scads_num_classes)
+    
+                params_to_update = []
+                for param in self.model.parameters():
+                    if param.requires_grad:
+                        params_to_update.append(param)
+                self._params_to_update = params_to_update
+                self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.003, momentum=0.9)
+                self.lr_scheduler = None
+    
+                batch_size_copy = self.batch_size
+                num_epochs_copy = self.num_epochs
+                use_ema_copy = self.use_ema
+    
+                self.batch_size = 2 * self.batch_size
+                self.num_epochs = 5
+                self.use_ema = False
+    
+                super(FixMatchTaglet, self).train(scads_train_data, None, None)
+    
+                self.batch_size = batch_size_copy
+                self.num_epochs = num_epochs_copy
+                self.use_ema = use_ema_copy
+                self.use_scads = False
 
-            encoder = torch.nn.Sequential(*list(self.model.children())[:-1])
-            output_shape = self._get_model_output_shape(self.task.input_shape, encoder)
-            self.model.fc = torch.nn.Linear(output_shape, scads_num_classes)
-
-            params_to_update = []
-            for param in self.model.parameters():
-                if param.requires_grad:
-                    params_to_update.append(param)
-            self._params_to_update = params_to_update
-            self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.003, momentum=0.9)
-            self.lr_scheduler = None
-
-            batch_size_copy = self.batch_size
-            num_epochs_copy = self.num_epochs
-            use_ema_copy = self.use_ema
-
-            self.batch_size = 2 * self.batch_size
-            self.num_epochs = 5
-            self.use_ema = False
-
-            super(FixMatchTaglet, self).train(scads_train_data, None, None)
-
-            self.batch_size = batch_size_copy
-            self.num_epochs = num_epochs_copy
-            self.use_ema = use_ema_copy
-            self.use_scads = False
+                aux_weights = copy.deepcopy(self.model.state_dict())
+                del aux_weights['fc.weight']
+                del aux_weights['fc.bias']
+                Cache.set('scads-weights', self.task.classes, aux_weights)
+            self.model.load_state_dict(aux_weights)
 
         # init fixmatch head
         encoder = torch.nn.Sequential(*list(self.model.children())[:-1])
