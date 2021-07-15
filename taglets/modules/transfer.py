@@ -92,7 +92,7 @@ class TransferTaglet(ImageTagletWithAuxData):
             del aux_weights['fc.weight']
             del aux_weights['fc.bias']
             Cache.set('scads-weights', self.task.classes, aux_weights)
-        self.model.load_state_dict(aux_weights)
+        self.model.load_state_dict(aux_weights, strict=False)
 
         # Freeze layers
         if self.freeze:
