@@ -1,0 +1,59 @@
+## SLURM PROLOG ###############################################################
+##    Job ID : 1690049
+##  Job Name : run_taglets-ps.sh
+##  Nodelist : gpu1404
+##      CPUs : 1
+##  Mem/Node : 65536 MB
+## Directory : /gpfs/data/sbach/bats/projects/taglets-project/taglets-pseudoshots
+##   Started : Tue Jul  6 10:36:00 EDT 2021
+###############################################################################
+module: loading 'cuda/9.2.148'
+module: unloading 'python/2.7.12'
+module: loading 'python/3.7.4'
+Traceback (most recent call last):
+  File "./run_jpl.py", line 1, in <module>
+    import taglets.task.jpl as jpl
+  File "/gpfs/data/sbach/bats/projects/taglets-project/taglets-pseudoshots/taglets/__init__.py", line 1, in <module>
+    from .controller import Controller
+  File "/gpfs/data/sbach/bats/projects/taglets-project/taglets-pseudoshots/taglets/controller.py", line 13, in <module>
+    from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
+  File "/gpfs/data/sbach/bats/projects/taglets-project/taglets-pseudoshots/taglets/modules/__init__.py", line 2, in <module>
+    from .prototype import PrototypeModule
+  File "/gpfs/data/sbach/bats/projects/taglets-project/taglets-pseudoshots/taglets/modules/prototype.py", line 10, in <module>
+    import torchvision.models as models
+ModuleNotFoundError: No module named 'torchvision'
+Traceback (most recent call last):
+  File "./run_jpl.py", line 1, in <module>
+    import taglets.task.jpl as jpl
+  File "/gpfs/data/sbach/bats/projects/taglets-project/taglets-pseudoshots/taglets/__init__.py", line 1, in <module>
+    from .controller import Controller
+  File "/gpfs/data/sbach/bats/projects/taglets-project/taglets-pseudoshots/taglets/controller.py", line 13, in <module>
+    from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
+  File "/gpfs/data/sbach/bats/projects/taglets-project/taglets-pseudoshots/taglets/modules/__init__.py", line 2, in <module>
+    from .prototype import PrototypeModule
+  File "/gpfs/data/sbach/bats/projects/taglets-project/taglets-pseudoshots/taglets/modules/prototype.py", line 10, in <module>
+    import torchvision.models as models
+ModuleNotFoundError: No module named 'torchvision'
+Traceback (most recent call last):
+  File "/users/rbriden/data/rbriden/anaconda3/lib/python3.8/runpy.py", line 194, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/users/rbriden/data/rbriden/anaconda3/lib/python3.8/runpy.py", line 87, in _run_code
+    exec(code, run_globals)
+  File "/users/rbriden/data/rbriden/anaconda3/lib/python3.8/site-packages/torch/distributed/launch.py", line 260, in <module>
+    main()
+  File "/users/rbriden/data/rbriden/anaconda3/lib/python3.8/site-packages/torch/distributed/launch.py", line 255, in main
+    raise subprocess.CalledProcessError(returncode=process.returncode,
+subprocess.CalledProcessError: Command '['/users/rbriden/data/rbriden/anaconda3/bin/python', '-u', './run_jpl.py', '--mode', 'dev', '--simple_version', 'false', '--folder', 'development']' returned non-zero exit status 1.
+*****************************************
+Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+*****************************************
+Traceback (most recent call last):
+  File "/users/rbriden/data/rbriden/anaconda3/bin/accelerate", line 8, in <module>
+    sys.exit(main())
+  File "/users/rbriden/data/rbriden/anaconda3/lib/python3.8/site-packages/accelerate/commands/accelerate_cli.py", line 41, in main
+    args.func(args)
+  File "/users/rbriden/data/rbriden/anaconda3/lib/python3.8/site-packages/accelerate/commands/launch.py", line 307, in launch_command
+    multi_gpu_launcher(args)
+  File "/users/rbriden/data/rbriden/anaconda3/lib/python3.8/site-packages/accelerate/commands/launch.py", line 151, in multi_gpu_launcher
+    raise subprocess.CalledProcessError(returncode=process.returncode, cmd=cmd)
+subprocess.CalledProcessError: Command '['/users/rbriden/data/rbriden/anaconda3/bin/python', '-m', 'torch.distributed.launch', '--use_env', '--nproc_per_node', '2', './run_jpl.py', '--mode', 'dev', '--simple_version', 'false', '--folder', 'development']' returned non-zero exit status 1.

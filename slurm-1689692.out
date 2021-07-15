@@ -1,0 +1,30 @@
+## SLURM PROLOG ###############################################################
+##    Job ID : 1689692
+##  Job Name : run_taglets-ps.sh
+##  Nodelist : gpu1404
+##      CPUs : 4
+##  Mem/Node : 16384 MB
+## Directory : /gpfs/data/sbach/bats/projects/taglets-project/taglets-pseudoshots
+##   Started : Tue Jul  6 10:18:59 EDT 2021
+###############################################################################
+module: loading 'cuda/9.2.148'
+
+CommandNotFoundError: Your shell has not been properly configured to use 'conda activate'.
+To initialize your shell, run
+
+    $ conda init <SHELL_NAME>
+
+Currently supported shells are:
+  - bash
+  - fish
+  - tcsh
+  - xonsh
+  - zsh
+  - powershell
+
+See 'conda init --help' for more information and options.
+
+IMPORTANT: You may need to close and restart your shell after running 'conda init'.
+
+
+./run_jpl.sh: line 3: accelerate: command not found
