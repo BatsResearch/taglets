@@ -54,12 +54,11 @@ class VideoEndModel(VideoTrainable):
         super().__init__(task) 
         self.name = 'end model'
         m = torch.nn.Sequential(*list(self.model.children())[:-1])
-        output_shape = self._get_model_output_shape(self.task.input_shape, m)
+        output_shape = self.model.blocks[6].proj.in_features #self._get_model_output_shape(self.task.input_shape, m)
 
-        log.info(f"EndModel shapes: {m}, {output_shape}, {len(self.task.classes)}")
+        #log.info(f"EndModel shapes: {m}, {output_shape}, {len(self.task.classes)}")
 
-        self.model.blocks[6].proj = torch.nn.Sequential(torch.nn.Dropout(0.3),
-                                            torch.nn.Linear(output_shape, len(self.task.classes)))
+        self.model.blocks[6].proj = torch.nn.Sequential(torch.nn.Linear(output_shape, len(self.task.classes)))
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
@@ -83,9 +82,9 @@ class VideoEndModel(VideoTrainable):
         target = target.double()
         logs = torch.nn.LogSoftmax(dim=1)
 
-        log.info(f"outputsize {outputs.size()}")
-        log.info(f"target {target.size()}")
-        log.info(f"logs {logs(outputs).size()}")
+        #log.info(f"outputsize {outputs.size()}")
+        #log.info(f"target {target.size()}")
+        #log.info(f"logs {logs(outputs).size()}")
         return torch.mean(torch.sum(-target * logs(outputs), 1))
 
     @staticmethod

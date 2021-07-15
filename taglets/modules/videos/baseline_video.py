@@ -23,7 +23,7 @@ class BaselineVideoTaglet(VideoTaglet):
         self.name = 'baseline-video'
         output_shape = self.model.blocks[6].proj.in_features #self._get_model_output_shape(self.task.input_shape, self.model)
         self.model.blocks[6].proj = torch.nn.Linear(output_shape, len(self.task.classes))
-        
+        #log.info(f"BaselineVideoTaglet shapes:  {output_shape}, {len(self.task.classes)}")
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:

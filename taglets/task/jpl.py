@@ -715,10 +715,10 @@ class JPLRunner:
         unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False, self.video)
         #log.info(f"unlabeled_test_dataset: {unlabeled_test_dataset.filepaths}")
         unlabeled_train_labels = self.jpl_storage.get_true_labels('train', self.mode, dict_clips=self.jpl_storage.dictionary_clips, video=self.video)
-        
+        log.info(f"unlabeled_test_dataset: {unlabeled_train_labels}")
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),
-                    (256, 256),#(224, 224), 
+                    (224, 224), 
                     labeled_dataset,
                     unlabeled_train_dataset,
                     val_dataset,
@@ -873,7 +873,7 @@ def main():
                         help="Option to choose the data folder")
     parser.add_argument("--batch_size",
                         type=int,
-                        default="8",
+                        default="4",
                         help="Universal batch size")
     args = parser.parse_args()
     
