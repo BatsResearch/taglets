@@ -124,7 +124,7 @@ class Trainable:
         This method carries out the actual training iterations. It is designed
         to be called by train().
 
-        :param train_data: A dataset containing training data
+        :param train_data: A dataset containing training data   
         :param val_data: A dataset containing validation data
         :param unlabeled_data: A dataset containing unlabeled data
         :return:
@@ -132,13 +132,11 @@ class Trainable:
         log.info('Beginning training')
         train_data_loader = self._get_dataloader(data=train_data, shuffle=True)
 
-        log.error('val')
         if val_data is None:
             val_data_loader = None
         else:
             val_data_loader = self._get_dataloader(data=val_data, shuffle=False)
 
-        log.error('unlabeled')
         if unlabeled_data is None:
             unlabeled_data_loader = None
         else:
@@ -153,7 +151,6 @@ class Trainable:
         val_loss_list = []
         val_acc_list = []
 
-        log.error('prepare')
         accelerator.wait_for_everyone()
         self.model, self.optimizer = accelerator.prepare(self.model, self.optimizer)
 
@@ -161,13 +158,10 @@ class Trainable:
         for epoch in range(self.num_epochs):
             log.info("Epoch {}: ".format(epoch + 1))
 
-            log.error('train_epcoh')
             # Trains on training data
             train_loss, train_acc = self._train_epoch(train_data_loader, unlabeled_data_loader)
-            # Evaluates on validation data
             
-            log.error('val_epcoh')
-
+            # Evaluates on validation data
             if val_data_loader:
                 val_loss, val_acc = self._validate_epoch(val_data_loader)
             else:
@@ -285,32 +279,23 @@ class ImageTrainable(Trainable):
         running_acc = 0
         total_len = 0
 
-        log.error('start train')
-        cnt = 0
         for batch in train_data_loader:
-            log.error('unpack')
-
             inputs = batch[0]
             labels = batch[1]
 
-            log.error('opt')
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
-                #log.error(self.model)
                 outputs = self.model(inputs)
                 loss = self.criterion(outputs, labels)
                 accelerator.backward(loss)
                 self.optimizer.step()
 
-            log.error('gatger')
             outputs = accelerator.gather(outputs.detach())
             labels = accelerator.gather(labels)
 
             running_loss += loss.item()
             running_acc += self._get_train_acc(outputs, labels).item()
             total_len += len(labels)
-            cnt += 1
-        log.error(cnt)
 
         if not len(train_data_loader):
             return 0, 0
