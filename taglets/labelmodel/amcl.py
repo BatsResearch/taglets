@@ -6,7 +6,7 @@ from amcl_helper import compute_constraints_with_loss2, Brier_Score_AMCL, linear
 from amcl_helper import projectToSimplex, projectToBall, projectCC 
 from amcl_helper import subGradientMethod, subGradientMethod2
 from label_model import LabelModel
-
+from weighted import UnweightedVote
 
 class AMCLWeightedVote(LabelModel):
     """
@@ -37,7 +37,7 @@ class AMCLWeightedVote(LabelModel):
 
         # assuming structure of vote matrix is (# wls, # data, # classes)
         self.num_wls, num_unlab, _ = np.shape(unlabeled_vote_matrix)
-        self.theta = np.ones(self.num_wls) * (1 / self.num_wls)
+        theta = np.ones(self.num_wls) * (1 / self.num_wls)
 
         # generate constraints
         constraint_matrix, constraint_vector, constraint_sign = compute_constraints_with_loss(Brier_loss_linear, 
@@ -47,7 +47,7 @@ class AMCLWeightedVote(LabelModel):
 
         self.theta = subGradientMethod(unlabeled_vote_matrix, constraint_matrix, constraint_vector, 
                                           constraint_sign, Brier_loss_linear, linear_combination_labeler, 
-                                          projectToSimplex, self.theta, 
+                                          projectToSimplex, theta, 
                                           T, h, N, num_unlab, self.num_classes)
 
         # cvxpy implementation
@@ -137,8 +137,8 @@ def main():
     num_labeled_data = len(l_names)
 
     # cutting off how much data we use
-    num_labeled_data = 100
-    end_ind = 150
+    num_labeled_data = 700
+    end_ind = 1500
 
     # using the same amount of labeled data from unlabeled data since we don't have votes on original labeled data 
     l_labels = ul_labels[:num_labeled_data]
@@ -185,8 +185,13 @@ def main():
 
     labelmodel.train(l_votes, l_labels, ul_votes)
     preds = labelmodel.get_weak_labels(ul_votes)
-    print("Acc %f" % (np.mean(preds == np.argmax(ul_labels, 1))))
+    print("AMCL Acc %f" % (np.mean(preds == np.argmax(ul_labels, 1))))
     print(np.shape(preds), np.shape(ul_labels))
+
+    # setting to uniform weights
+    labelmodel.theta = np.array([0.25, 0.25, 0.25, 0.25])
+    uw_preds = labelmodel.get_weak_labels(ul_votes)
+    print("UW Acc %f" % (np.mean(preds == np.argmax(ul_labels, 1))))
 
 if __name__ == "__main__":
     main()

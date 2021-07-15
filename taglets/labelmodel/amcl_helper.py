@@ -318,15 +318,7 @@ def subGradientMethod(X_unlabeled, constraint_matrix,constraint_vector,constrain
     # Current value of the minimax
     best_val = 10e10 # Initialized to a very high value
     theta = initial_theta # Weights of the model
-
-    # cost= [] # Cost vector, cost[j*C + c] is the loss of current model to item j if its true label was c
-    # one_hots = np.eye(C)
-    # for j in range(M):
-        # for c in range(C):
-            # if lr:
-                # cost.append(-lf(one_hots[c], h(theta, X_unlabeled[j])) / M)
-            # else:
-                # cost.append(-lf(one_hots[c], h(theta,X_unlabeled[:,j]))/M)
+    best_theta = initial_theta.copy()
 
     preds = np.array([h(theta, X_unlabeled[:,i]) for i in range(M)])
     cost = Brier_Score_AMCL(preds).flatten()
@@ -371,17 +363,14 @@ def subGradientMethod(X_unlabeled, constraint_matrix,constraint_vector,constrain
             current_eval = eval_lr(theta)
         # If the current model is better, update the best model found
         if (current_eval < best_val):
-
-            print("update", theta)
-            best_theta = theta
+            # print("update", theta)
+            best_theta = theta.copy()
             best_val = current_eval
         else:
             # print("no update", theta)
             pass
 
-        if t % 10 == 0:
-
-            print(best_theta)
+        if t % 50 == 0:
 
             vals = []
             if lr:
@@ -396,6 +385,7 @@ def subGradientMethod(X_unlabeled, constraint_matrix,constraint_vector,constrain
             for i in range(len(new_y)):
                 vals.append(Brier_loss_linear(new_y[i], totals[i]))
             print("Bound at time %d: %f" % (t, np.mean(vals)))
+            print("Best Params:", best_theta)
 
     # Debug lines
     if not lr:
