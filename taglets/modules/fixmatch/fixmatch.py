@@ -1,6 +1,6 @@
+import copy
 import math
 import os
-import random
 import torch
 import logging
 import torch.nn.functional as F
@@ -11,9 +11,7 @@ from accelerate import Accelerator
 accelerator = Accelerator()
 
 from ..module import Module
-from ...data.custom_dataset import CustomImageDataset
-from ...pipeline import Cache, ImageTaglet
-from ...scads import Scads, ScadsEmbedding
+from ...pipeline import ImageTagletWithAuxData, Cache
 from .utils import TransformFixMatch, is_grayscale
 
 log = logging.getLogger(__name__)
@@ -81,10 +79,10 @@ def get_cosine_schedule_with_warmup(optimizer,
 class FixMatchModule(Module):
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [FixMatchTaglet(task, optimizer=Optimizer.ADAM, use_ema=False, verbose=False)]
+        self.taglets = [FixMatchTaglet(task, optimizer=Optimizer.SGD, use_ema=False, verbose=False)]
 
 
-class FixMatchTaglet(ImageTaglet):
+class FixMatchTaglet(ImageTagletWithAuxData):
     def __init__(self, task, steps_per_epoch=-1,
                  conf_thresh=0.95,
                  lambda_u=1,
@@ -94,7 +92,7 @@ class FixMatchTaglet(ImageTaglet):
                  temp=0.95,
                  use_ema=False,
                  ema_decay=0.999,
-                 optimizer=Optimizer.ADAM,
+                 optimizer=Optimizer.SGD,
                  verbose=False,
                  use_scads=True):
         self.name = 'fixmatch'
@@ -105,9 +103,6 @@ class FixMatchTaglet(ImageTaglet):
         self.nesterov = nesterov
         self.mu = mu
         self.use_scads = use_scads
-
-        self.img_per_related_class = 600 if not os.environ.get("CI") else 1
-        self.num_related_class = 5
 
         # temp used to sharpen logits
         self.temp = temp
@@ -166,59 +161,6 @@ class FixMatchTaglet(ImageTaglet):
                 transforms.Normalize(mean=data_mean, std=data_std)
             ])
 
-    def _get_scads_data(self):
-        data = Cache.get("scads", self.task.classes)
-        if data is not None:
-            image_paths, image_labels, all_related_class = data
-        else:
-            root_path = Scads.get_root_path()
-            Scads.open(self.task.scads_path)
-            ScadsEmbedding.load(self.task.scads_embedding_path)
-            image_paths = []
-            image_labels = []
-            visited = set()
-
-            def get_images(node, label):
-                if node.get_conceptnet_id() not in visited:
-                    visited.add(node.get_conceptnet_id())
-                    images = node.get_images_whitelist(self.task.whitelist)
-                    if len(images) < self.img_per_related_class:
-                        return False
-                    images = random.sample(images, self.img_per_related_class)
-                    images = [os.path.join(root_path, image) for image in images]
-                    image_paths.extend(images)
-                    image_labels.extend([label] * len(images))
-                    log.debug("Source class found: {}".format(node.get_conceptnet_id()))
-                    return True
-                return False
-
-            all_related_class = 0
-            for conceptnet_id in self.task.classes:
-                cur_related_class = 0
-                target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
-                if get_images(target_node, all_related_class):
-                    cur_related_class += 1
-                    all_related_class += 1
-
-                neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
-                for neighbor in neighbors:
-                    if get_images(neighbor, all_related_class):
-                        cur_related_class += 1
-                        all_related_class += 1
-                        if cur_related_class >= self.num_related_class:
-                            break
-
-            Scads.close()
-            Cache.set('scads', self.task.classes,
-                      (image_paths, image_labels, all_related_class))
-
-        transform = self.transform_image(train=True)
-        train_dataset = CustomImageDataset(image_paths,
-                                            labels=image_labels,
-                                            transform=transform)
-
-        return train_dataset, all_related_class
-
     def _init_unlabeled_transform(self, unlabeled_data):
         if not hasattr(unlabeled_data, "transform"):
             if not hasattr(unlabeled_data, "dataset"):
@@ -240,34 +182,42 @@ class FixMatchTaglet(ImageTaglet):
 
         # warm-up using scads data
         if self.use_scads:
-            scads_train_data, scads_num_classes = self._get_scads_data()
+            aux_weights = Cache.get("scads-weights", self.task.classes)
+            if aux_weights is None:
+                scads_train_data, scads_num_classes = self._get_scads_data()
+    
+                encoder = torch.nn.Sequential(*list(self.model.children())[:-1])
+                output_shape = self._get_model_output_shape(self.task.input_shape, encoder)
+                self.model.fc = torch.nn.Linear(output_shape, scads_num_classes)
+    
+                params_to_update = []
+                for param in self.model.parameters():
+                    if param.requires_grad:
+                        params_to_update.append(param)
+                self._params_to_update = params_to_update
+                self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.003, momentum=0.9)
+                self.lr_scheduler = None
+    
+                batch_size_copy = self.batch_size
+                num_epochs_copy = self.num_epochs
+                use_ema_copy = self.use_ema
+    
+                self.batch_size = 2 * self.batch_size
+                self.num_epochs = 5
+                self.use_ema = False
+    
+                super(FixMatchTaglet, self).train(scads_train_data, None, None)
+    
+                self.batch_size = batch_size_copy
+                self.num_epochs = num_epochs_copy
+                self.use_ema = use_ema_copy
+                self.use_scads = False
 
-            encoder = torch.nn.Sequential(*list(self.model.children())[:-1])
-            output_shape = self._get_model_output_shape(self.task.input_shape, encoder)
-            self.model.fc = torch.nn.Linear(output_shape, scads_num_classes)
-
-            params_to_update = []
-            for param in self.model.parameters():
-                if param.requires_grad:
-                    params_to_update.append(param)
-            self._params_to_update = params_to_update
-            self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
-            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
-
-            batch_size_copy = self.batch_size
-            num_epochs_copy = self.num_epochs
-            use_ema_copy = self.use_ema
-
-            self.batch_size = 2 * self.batch_size
-            self.num_epochs = 5
-            self.use_ema = False
-
-            super(FixMatchTaglet, self).train(scads_train_data, None, None)
-
-            self.batch_size = batch_size_copy
-            self.num_epochs = num_epochs_copy
-            self.use_ema = use_ema_copy
-            self.use_scads = False
+                aux_weights = copy.deepcopy(self.model.state_dict())
+                del aux_weights['fc.weight']
+                del aux_weights['fc.bias']
+                Cache.set('scads-weights', self.task.classes, aux_weights)
+            self.model.load_state_dict(aux_weights)
 
         # init fixmatch head
         encoder = torch.nn.Sequential(*list(self.model.children())[:-1])
@@ -293,6 +243,8 @@ class FixMatchTaglet(ImageTaglet):
 
         # replace default transform with FixMatch Transform
         self._init_unlabeled_transform(unlabeled_data)
+        self.steps_per_epoch = -1
+        self.num_epochs = 10
         super(FixMatchTaglet, self).train(train_data, val_data, unlabeled_data)
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):
@@ -391,7 +343,7 @@ class FixMatchTaglet(ImageTaglet):
                 if self.save_dir:
                     accelerator.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
-            if self.opt_type == Optimizer.ADAM:
+            if self.opt_type == Optimizer.ADAM and self.lr_scheduler is not None:
                 self.lr_scheduler.step()
 
         
@@ -482,7 +434,7 @@ class FixMatchTaglet(ImageTaglet):
                 accelerator.backward(loss)
                 self.optimizer.step()
 
-            if self.opt_type == Optimizer.SGD:
+            if self.opt_type == Optimizer.SGD and self.lr_scheduler is not None:
                 self.lr_scheduler.step()
             if self.use_ema:
                 self.ema_model.update(self.model)

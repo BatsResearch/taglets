@@ -559,12 +559,12 @@ class JPLRunner:
         self.simple_run = simple_run
         self.batch_size = batch_size
         
+        if not os.path.exists('saved_vote_matrices') and accelerator.is_local_main_process:
+            os.makedirs('saved_vote_matrices')
+        accelerator.wait_for_everyone()
         self.vote_matrix_dict = {}
         self.vote_matrix_save_path = os.path.join('saved_vote_matrices',
                                                   datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
-        if not os.path.exists(self.vote_matrix_save_dir) and accelerator.is_local_main_process:
-            os.makedirs(self.vote_matrix_save_dir)
-        accelerator.wait_for_everyone()
 
     def get_jpl_information(self):
         # Elaheh: (need change in eval) choose image classification task you would like. Now there are four tasks
@@ -692,6 +692,7 @@ class JPLRunner:
                     self.jpl_storage.whitelist,
                     self.data_paths[0],
                     self.data_paths[1],
+                    self.data_paths[2],
                     unlabeled_test_data=unlabeled_test_dataset,
                     unlabeled_train_labels=unlabeled_train_labels,
                     video_classification=self.video)
@@ -701,12 +702,13 @@ class JPLRunner:
         end_model = controller.train_end_model()
         
         if self.vote_matrix_save_path is not None:
-            vote_matrix = controller.get_vote_matrix()
+            labeled_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
             image_names, image_labels = self.jpl_storage.get_labeled_images_list()
             checkpoint_dict = {'labeled_images_names': image_names,
+                               'labeled_images_votes': labeled_vote_matrix,
                                'labeled_images_labels': image_labels,
                                'unlabeled_images_names': self.jpl_storage.get_unlabeled_image_names(),
-                               'unlabeled_images_votes': vote_matrix}
+                               'unlabeled_images_votes': unlabeled_vote_matrix}
             self.vote_matrix_dict[f'{phase} {checkpoint_num}'] = checkpoint_dict
             with open(self.vote_matrix_save_path, 'wb') as f:
                 pickle.dump(self.vote_matrix_dict, f)
@@ -850,7 +852,7 @@ def main():
                         help="Option to choose the data folder")
     parser.add_argument("--batch_size",
                         type=int,
-                        default="128",
+                        default="32",
                         help="Universal batch size")
     args = parser.parse_args()
     

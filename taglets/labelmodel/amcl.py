@@ -1,21 +1,17 @@
 import numpy as np
-import pandas as pd
-import pickle
-from amcl_helper import compute_constraints_with_loss, Brier_loss_linear, linear_combination_labeler
-from amcl_helper import compute_constraints_with_loss2, Brier_Score_AMCL, linear_combination_labeler
-from amcl_helper import projectToSimplex, projectToBall, projectCC 
-from amcl_helper import subGradientMethod, subGradientMethod2
-from label_model import LabelModel
-from weighted import UnweightedVote
+from .amcl_helper import compute_constraints_with_loss, Brier_loss_linear, linear_combination_labeler
+from .amcl_helper import compute_constraints_with_loss2, Brier_Score_AMCL, linear_combination_labeler
+from .amcl_helper import projectToSimplex, projectToBall, projectCC
+from .amcl_helper import subGradientMethod, subGradientMethod2
+from .weighted import UnweightedVote
 
-class AMCLWeightedVote(LabelModel):
+class AMCLWeightedVote(UnweightedVote):
     """
     Class representing a weighted vote of supervision sources trained through AMCL
     """
-
     def __init__(self, num_classes):
+        super().__init__(num_classes)
         self.theta = None
-        self.num_classes = num_classes
     
     def train(self, labeled_vote_matrix, labels, unlabeled_vote_matrix):
         '''
@@ -26,6 +22,15 @@ class AMCLWeightedVote(LabelModel):
         labels - true labels on labeled data
         unlabeled_vote_matrix - outputs on unlabeled data (# wls, # ul data, # classes)
         '''
+        # pre process vote matrix
+        # convert votes to one hot
+        labeled_vote_matrix = np.eye(self.num_classes)[labeled_vote_matrix]
+        unlabeled_vote_matrix = np.eye(self.num_classes)[unlabeled_vote_matrix]
+
+        labeled_vote_matrix = np.transpose(labeled_vote_matrix, (1, 0, 2))
+        unlabeled_vote_matrix = np.transpose(unlabeled_vote_matrix, (1, 0, 2))
+        
+        labels = np.eye(self.num_classes)[labels]
 
         # hyperparameters
         N = 4 # of wls
@@ -57,18 +62,9 @@ class AMCLWeightedVote(LabelModel):
         # self.theta = subGradientMethod2(unlabeled_vote_matrix, Y, constraints, Brier_loss_linear, linear_combination_labeler, 
                                         # projectToSimplex, self.theta, T, h, N, num_unlab, self.num_classes)
 
-    def get_weak_labels(self, vote_matrix):
-        
-        # This should aggregate the votes from various taglets and output labels for the unlabeled data
+    def get_weak_labels(self, vote_matrix, *args):
+        return self._get_weighted_dist(vote_matrix, self.theta)
 
-        num_unlab = np.shape(vote_matrix)[1]
-        preds = np.zeros((num_unlab, self.num_classes))
-
-        for i in range(self.num_wls):
-            preds += self.theta[i] * vote_matrix[i, :, :]
-
-        return np.argmax(preds, axis=1)
- 
 def get_data(num, base=True):
     '''
     Function to get the data from the DARPA task
@@ -177,11 +173,6 @@ def main():
 
     l_labels = np.eye(num_classes)[l_labels]
     ul_labels = np.eye(num_classes)[ul_labels]
-
-    # print("Num Labeled: %d" % (num_labeled_data))
-    # print("Num Unlabeled: %d" % (num_unlab))
-    # print("L Votes", np.shape(l_votes))
-    # print("UL Votes", np.shape(ul_votes))
 
     labelmodel.train(l_votes, l_labels, ul_votes)
     preds = labelmodel.get_weak_labels(ul_votes)
