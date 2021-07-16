@@ -213,9 +213,8 @@ class FixMatchTaglet(ImageTagletWithAuxData):
                 self.use_ema = use_ema_copy
                 self.use_scads = False
 
+                self.model.fc = torch.nn.Identity()
                 aux_weights = copy.deepcopy(self.model.state_dict())
-                del aux_weights['fc.weight']
-                del aux_weights['fc.bias']
                 Cache.set('scads-weights', self.task.classes, aux_weights)
             self.model.load_state_dict(aux_weights, strict=False)
 
