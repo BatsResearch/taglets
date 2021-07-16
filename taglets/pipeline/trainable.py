@@ -102,7 +102,7 @@ class Trainable:
     def _get_dataloader(self, data, shuffle, batch_size=None):
         if batch_size is None:
             batch_size = self.batch_size
-        if shuffle:
+        if shuffle and len(data) < batch_size * 4:
             return accelerator.prepare(torch.utils.data.DataLoader(
                 dataset=data, batch_size=batch_size,
                 num_workers=self.num_workers, pin_memory=True,
