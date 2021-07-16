@@ -193,7 +193,7 @@ class Trainable:
 
             if self.lr_scheduler is None:
                 lr = get_lr(epoch, len(train_data), 0.003)
-                for param_group in self.optimizer.param_groups:
+                for param_group in self.optimizer.optimizer.param_groups:
                     param_group["lr"] = lr
 
             # Trains on training data
