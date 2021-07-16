@@ -191,6 +191,11 @@ class Trainable:
         for epoch in range(self.num_epochs):
             log.info("Epoch {}: ".format(epoch + 1))
 
+            if self.lr_scheduler is None:
+                lr = get_lr(epoch, len(train_data), 0.003)
+                for param_group in self.optimizer.param_groups:
+                    param_group["lr"] = lr
+
             # Trains on training data
             train_loss, train_acc = self._train_epoch(train_data_loader, unlabeled_data_loader)
             # Evaluates on validation data
@@ -220,12 +225,8 @@ class Trainable:
                 if self.save_dir:
                     accelerator.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
-            if self.lr_scheduler:
+            if self.lr_scheduler is not None:
                 self.lr_scheduler.step()
-            else:
-                lr = get_lr(epoch, len(train_data), 0.003)
-                for param_group in self.optimizer.param_groups:
-                    param_group["lr"] = lr
 
         accelerator.wait_for_everyone()
         self.optimizer = self.optimizer.optimizer
