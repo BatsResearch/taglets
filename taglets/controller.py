@@ -99,6 +99,9 @@ class Controller:
                     module.train_taglets(labeled, val, unlabeled_train)
                     log.info("Finished training %s module", cls.__name__)
 
+                    
+
+
                     # Collects taglets
                     taglets.extend(module.get_valid_taglets())
                 except Exception:
@@ -109,6 +112,9 @@ class Controller:
     
             taglet_executor = TagletExecutor()
             taglet_executor.set_taglets(taglets)
+
+            #### TEST
+            return taglet_executor
     
             # Executes taglets
             log.info("Executing taglets")
@@ -121,6 +127,9 @@ class Controller:
                 for i in range(len(taglets)):
                     acc = np.sum(vote_matrix[:, i] == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
                     log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
+                    log.info(f"predictions {list(vote_matrix[:, i])}")
+                    log.info(f"truth {self.task.unlabeled_train_labels}")
+                    log.info(f"number good: {np.sum(vote_matrix[:, i] == self.task.unlabeled_train_labels)}")
 
             # Combines taglets' votes into soft labels
             if val is not None and len(val) >= len(self.task.classes) * 10:

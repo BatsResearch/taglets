@@ -1,4 +1,5 @@
 import os
+import numpy as np
 
 import torch
 from PIL import Image
@@ -70,8 +71,13 @@ class CustomVideoDataset(Dataset):
         frames_paths = self.clips_dictionary[str(clip_id)]
         #print(f"FRAMES list[:2]: {frames_paths[:2]} and number of frames {len(frames_paths)}")
         
+        #num_frames = 10
+        #arr_frames_paths = np.array(frames_paths)
+        #idx_samples = np.round(np.linspace(0, len(arr_frames_paths) - 1, num_frames)).astype(int)
+        #frames_paths = list(arr_frames_paths[idx_samples])
+
         frames = []
-        for f in frames_paths[:10]:#[:10]:  # get same size clips - random pick for eval
+        for f in frames_paths:#frames_paths[:num_frames]:#[:10]:  # get same size clips - random pick for eval
             frame = Image.open(f).convert('RGB')
             #if self.transform is not None:  # BE CAREFUL TRANSFORMATION MIGHT NEED TO CHANGE FOR VIDEO EVAL!!!!!
             frame = self.transform_img(frame)
@@ -79,7 +85,7 @@ class CustomVideoDataset(Dataset):
         
         img = torch.stack(frames)  # need to be of the same size!
         img = torch.transpose(img, 0, 1) 
-        video_data = {'video':img}
+        video_data = {'video': img}
         img = self.transform_vid(video_data)
         
         if self.labels is not None:

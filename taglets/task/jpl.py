@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import logging
 import argparse
@@ -128,7 +129,7 @@ class JPL:
             seed_labels = []
             dictionary_clips = {}
             for clip in labels:
-                action_frames = [str(clip['id']) + '/' + str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'])]
+                action_frames = [str(clip['id']) + '/' + str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'] + 1)]
                 dictionary_clips[clip["id"]] = action_frames
                 seed_labels.append([clip["class"], clip["id"]])
             return seed_labels, dictionary_clips
@@ -710,12 +711,14 @@ class JPLRunner:
             self.request_labels(candidates, self.video)
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
+        log.info(f"number training : {len(labeled_dataset.filepaths)}")
         unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True, self.video)
-        #log.info(f"unlabeled_train_dataset.filepaths: {unlabeled_train_dataset.filepaths}")
+        log.info(f" number unlabeled_train_dataset: {len(unlabeled_train_dataset.filepaths)}")
         unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False, self.video)
-        #log.info(f"unlabeled_test_dataset: {unlabeled_test_dataset.filepaths}")
+        log.info(f"unlabeled_test_dataset: {len(unlabeled_test_dataset.filepaths)}")
         unlabeled_train_labels = self.jpl_storage.get_true_labels('train', self.mode, dict_clips=self.jpl_storage.dictionary_clips, video=self.video)
-        log.info(f"unlabeled_test_dataset: {unlabeled_train_labels}")
+        log.info(f"unlabeled_test_dataset: {len(unlabeled_train_labels)}")
+        
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),
                     (224, 224), 
@@ -734,9 +737,16 @@ class JPLRunner:
 
         end_model = controller.train_end_model()
 
+        #sys.exit()
+
         evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.video)
-        outputs = end_model.predict(evaluation_dataset)
-        predictions = np.argmax(outputs, 1)
+        ##outputs = end_model.predict(evaluation_dataset)
+        ##predictions = np.argmax(outputs, 1)
+        log.info(f"Try with only one taglet without endmodule")
+        predictions = end_model.execute(evaluation_dataset)
+
+        log.info(f"Predictions with one taglet: {predictions} and shape {predictions.shape}")
+        log.info(f"Length eval data: {len(evaluation_dataset.filepaths)}")
         
         test_labels = self.jpl_storage.get_true_labels('test', self.mode, dict_clips=self.jpl_storage.dictionary_clips, video=self.video)
         if test_labels is not None:
@@ -744,24 +754,28 @@ class JPLRunner:
             acc = np.sum(predictions == test_labels) / len(test_labels)
             log.info('Acc {:.4f}'.format(acc))
         
+
         prediction_names = []
         for p in predictions:
             prediction_names.append([k for k, v in self.jpl_storage.label_map.items() if v == p][0])
+        log.info(f"Predictions with one taglet: {prediction_names}, length: {len(prediction_names)}")
+        evaluate_on = self.jpl_storage.get_evaluation_image_names(self.video)
+        log.info(f"Predictions with one taglet: {evaluate_on}, length: {len(evaluate_on)}")
 
         predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(self.video), 'class': prediction_names}
 
         self.submit_predictions(predictions_dict)
 
-        if unlabeled_test_dataset is not None:
-            outputs = end_model.predict(unlabeled_test_dataset)
-            confidences = np.max(outputs, 1)
-            candidates = np.argsort(confidences)
-            self.confidence_active_learning.set_candidates(candidates)
+        # if unlabeled_test_dataset is not None:
+        #     outputs = end_model.predict(unlabeled_test_dataset)
+        #     confidences = np.max(outputs, 1)
+        #     candidates = np.argsort(confidences)
+        #     self.confidence_active_learning.set_candidates(candidates)
 
         # update initial model
-        if checkpoint_num == 7:
-            self.initial_model = end_model.model
-            self.initial_model.fc = torch.nn.Identity()
+        # if checkpoint_num == 7:
+        #     self.initial_model = end_model.model
+        #     self.initial_model.fc = torch.nn.Identity()
 
         log.info('{} Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                checkpoint_num,

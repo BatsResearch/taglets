@@ -36,6 +36,7 @@ class BaselineVideoTaglet(VideoTaglet):
         for param in self.model.parameters():
             if param.requires_grad:
                 params_to_update.append(param)
+        log.info(f"Param to update: {params_to_update}, number to update: {len(params_to_update)}")
         self._params_to_update = params_to_update
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
