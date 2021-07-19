@@ -211,11 +211,11 @@ class FixMatchTaglet(ImageTagletWithAuxData):
                 self.batch_size = batch_size_copy
                 self.num_epochs = num_epochs_copy
                 self.use_ema = use_ema_copy
-                self.use_scads = False
 
                 self.model.fc = torch.nn.Identity()
                 aux_weights = copy.deepcopy(self.model.state_dict())
                 Cache.set('scads-weights', self.task.classes, aux_weights)
+            self.use_scads = False
             self.model.load_state_dict(aux_weights, strict=False)
 
         # init fixmatch head
