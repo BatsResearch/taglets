@@ -1,6 +1,8 @@
 # taglets
 taglets stands for ''Tasks Algorithmically Given Labels Established via Transferred Symbols.'' A novel framework for creating weak label sources from existing datasets, combining them through a modular architecture, and selecting key examples to label under limited budgets.
 
+![Tests](https://github.com/BatsResearch/taglets/actions/workflows/test.yml/badge.svg)
+
 [![Build Status](https://travis-ci.com/BatsResearch/taglets.svg?token=sinAgJjnTsxQ2oN3R9vi&branch=master)](https://travis-ci.com/BatsResearch/taglets)
 
 ## Description
