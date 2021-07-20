@@ -101,7 +101,7 @@ class PseudoShotModule(Module):
 
         ps_args['img_encoder_type'] = Encoder.RESNET_50
         ps_args['img_encoder_ckpt_path'] = None
-        ps_args['masking_ckpt_path'] = 'predefined/pseudoshots/simclr50_train_224.pth'
+        ps_args['masking_ckpt_path'] = 'predefined/pseudoshots/resnet50_train_val_test_224_1shot_15way.pth'
         ps_args['masking_args'] = {
             'channels': [640, 320, 1],
             'final_relu': False,
@@ -120,7 +120,7 @@ class PseudoShotTaglet(ImageTaglet):
         super().__init__(task)
 
         # only for development purposes
-        self.dev_test = True
+        self.dev_test = False
         self.dev_shape = (3, 84, 84)
 
         self.n_shot = kwargs.get('n_shot', 5)
@@ -130,8 +130,8 @@ class PseudoShotTaglet(ImageTaglet):
         self.n_query = kwargs.get('n_query', 15)
 
         # PS budget
-        self.max_real_image = 5
-        self.img_per_related_class = 10 if not os.environ.get("CI") else 1
+        self.max_real_image = 6
+        self.img_per_related_class = 7 if not os.environ.get("CI") else 1
         self.num_related_class = 3
 
         if not os.environ.get('CI'):
@@ -236,9 +236,9 @@ class PseudoShotTaglet(ImageTaglet):
                     cur_related_class += 1
                     all_related_class += 1
 
-                neighbors = ScadsEmbedding.get_related_nodes(target_node, self.n_pseudo)
+                neighbors = ScadsEmbedding.get_related_nodes(target_node)
                 for neighbor in neighbors:
-                    valid, aux_budget = get_images(neighbor, cls_label, aux_budget, is_real=0)
+                    valid, aux_budget = get_images(neighbor, cls_label, self.img_per_related_class, is_real=0)
                     if valid:
                         cur_related_class += 1
                         all_related_class += 1
@@ -361,6 +361,7 @@ class PseudoShotTaglet(ImageTaglet):
                 # threshold to convert counts, represented as floats, to ints 
                 eps = 0.5
                 scads_train_data, all_related_class = self._get_scads_data()
+                all_related_class = 0
                 if all_related_class > 0:
                     scads_data_loader = torch.utils.data.DataLoader(
                         dataset=scads_train_data, batch_size=1, shuffle=False,
