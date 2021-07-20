@@ -61,32 +61,11 @@ def run_one_checkpoint(num_unlab, num_classes, chkpnt, labelmodel_type='amcl'):
         labelmodel = NaiveBayes(num_classes)
     
     # loading last year's DARPA eval data for testing [MultiTaskModule, TransferModule, FineTuneModule, ZSLKGModule]
-    l_names, l_votes, l_labels, ul_names, ul_votes, id_class_dict = get_data(chkpnt)
-    # test_names, test_votes, test_labels = get_test_data(1, base=True)
-    
-    l_labels = [id_class_dict[x] for x in l_names]
-    ul_labels = [id_class_dict[x] for x in ul_names]
-    
-    cifar_classes = ['couch', 'otter', 'crab', 'boy', 'aquarium_fish', 'chimpanzee', 'telephone', 'cup', 'sweet_pepper',
-                     'poppy', 'man', 'mountain', 'house', 'road', 'sunflower', 'sea', 'crocodile', 'rose',
-                     'willow_tree', 'flatfish', 'possum', 'tractor', 'chair', 'bridge', 'wolf', 'elephant', 'fox',
-                     'keyboard', 'beaver', 'tiger', 'baby', 'plate', 'rocket', 'turtle', 'streetcar', 'woman',
-                     'caterpillar', 'forest', 'mouse', 'cattle', 'tulip', 'camel', 'pear', 'bicycle', 'lion', 'cloud',
-                     'shrew', 'squirrel', 'porcupine', 'castle', 'clock', 'lizard', 'dolphin', 'orchid', 'television',
-                     'snake', 'skyscraper', 'bee', 'trout', 'beetle', 'worm', 'lamp', 'tank', 'maple_tree', 'whale',
-                     'kangaroo', 'orange', 'table', 'bed', 'lobster', 'palm_tree', 'raccoon', 'pickup_truck',
-                     'pine_tree', 'butterfly', 'lawn_mower', 'dinosaur', 'ray', 'can', 'mushroom', 'motorcycle',
-                     'apple', 'seal', 'hamster', 'shark', 'skunk', 'plain', 'bowl', 'train', 'bear', 'leopard', 'girl',
-                     'cockroach', 'spider', 'rabbit', 'bottle', 'snail', 'bus', 'oak_tree', 'wardrobe']
-    
-    class_to_ind = {x: i for i, x in enumerate(cifar_classes)}
-    
-    l_labels = [class_to_ind[x] for x in l_labels]
-    ul_labels = [class_to_ind[x] for x in ul_labels]
+    l_votes, l_labels, ul_votes, ul_labels = get_data(chkpnt)
     
     # cutting off how much data we use
     
-    ul_labels, ul_votes, ul_names = np.asarray(ul_labels), np.asarray(ul_votes), np.asarray(ul_names)
+    ul_labels, ul_votes = np.asarray(ul_labels), np.asarray(ul_votes)
     indices = np.arange(len(ul_labels))
     np.random.shuffle(indices)
     
