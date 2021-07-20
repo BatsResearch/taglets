@@ -180,7 +180,7 @@ class JPL:
             labels_list = []
             dictionary_clips = {}
             for clip in labels:
-                action_frames = [str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'])]
+                action_frames = [str(clip["id"]) + '/' + str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'] + 1)]
                 dictionary_clips[clip["id"]] = action_frames
                 labels_list.append([clip["class"], clip["id"]])
             return labels_list, dictionary_clips

@@ -183,7 +183,7 @@ class Trainable:
                               val_acc * 100, best_val_acc * 100))
                 best_model_to_save = copy.deepcopy(unwrapped_model.state_dict())
                 best_val_acc = val_acc
-                if self.save_dir:
+                if self.save_dir and accelerator.is_local_main_process:
                     accelerator.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
             if self.lr_scheduler:
@@ -394,6 +394,11 @@ class VideoTrainable(Trainable):
             aggregated_outputs = accelerator.gather(outputs.detach())
             labels = accelerator.gather(labels)
             
+            # dataset_len = len(train_data_loader.dataset)
+            # aggregated_outputs = aggregated_outputs[:dataset_len]
+            # labels = labels[:dataset_len]
+
+
             running_loss += loss.item()
             running_acc += self._get_train_acc(aggregated_outputs, labels).item()
         
@@ -432,6 +437,10 @@ class VideoTrainable(Trainable):
 
             preds  = accelerator.gather(preds.detach())
             labels = accelerator.gather(labels)
+
+            # dataset_len = len(val_data_loader.dataset)
+            # preds = preds[:dataset_len]
+            # labels = labels[:dataset_len]
 
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels).item()

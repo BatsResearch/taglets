@@ -21,9 +21,17 @@ class BaselineVideoTaglet(VideoTaglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'baseline-video'
-        output_shape = self.model.blocks[6].proj.in_features #self._get_model_output_shape(self.task.input_shape, self.model)
-        self.model.blocks[6].proj = torch.nn.Linear(output_shape, len(self.task.classes))
-        #log.info(f"BaselineVideoTaglet shapes:  {output_shape}, {len(self.task.classes)}")
+        for param in self.model.parameters():
+            param.requires_grad = False
+        
+        output_shape = self.model.blocks[6].proj.in_features 
+        self.model.blocks[6].proj = torch.nn.Sequential(torch.nn.Dropout(0.3),
+                                    torch.nn.Linear(output_shape, 2048),
+                                    torch.nn.ReLU(inplace=True),
+                                    torch.nn.Dropout(0.3),
+                                    torch.nn.Linear(2048, len(self.task.classes)))#torch.nn.Linear(output_shape, len(self.task.classes))
+                
+
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
@@ -35,8 +43,9 @@ class BaselineVideoTaglet(VideoTaglet):
         params_to_update = []
         for param in self.model.parameters():
             if param.requires_grad:
+                #print(f"Requires grad: {param}")
                 params_to_update.append(param)
-        log.info(f"Param to update: {params_to_update}, number to update: {len(params_to_update)}")
+        log.info(f"number to update: {len(params_to_update)}")
         self._params_to_update = params_to_update
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
