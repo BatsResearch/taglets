@@ -34,7 +34,7 @@ class AMCLWeightedVote(UnweightedVote):
 
         # hyperparameters
         N = 4 # of wls
-        eps = 0.3
+        eps = 1
         L = 2 * np.sqrt(N + 1)
         squared_diam = 2
         T = 150
