@@ -1,4 +1,4 @@
-dataset_type ='sample'
+dataset_type ='full'
 problem_type = 'image_classification'
 dataset_dir = '/gpfs/data/sbach/bats/datasets/lwll'
 api_url = 'https://api-dev.lollllz.com/'
@@ -8,3 +8,4 @@ gov_team_secret = 'mock-secret'
 data_paths = ('predefined/scads.spring2021.sqlite3',
               'predefined/embeddings/numberbatch-en19.08.txt.gz',
               'predefined/embeddings/spring2021_processed_numberbatch.h5')
+    
