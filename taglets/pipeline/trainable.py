@@ -28,10 +28,10 @@ class Trainable:
         """
         self.name = 'base'
         self.task = task
-        self.lr = 0.0005
+        self.lr = 0.001#0.0005
         self.criterion = torch.nn.CrossEntropyLoss()
         self.seed = 0
-        self.num_epochs = 30 if not os.environ.get("CI") else 5
+        self.num_epochs = 50 if not os.environ.get("CI") else 5
         self.batch_size = task.batch_size if not os.environ.get("CI") else 32
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
@@ -231,6 +231,7 @@ class Trainable:
         
         #log.info(f"Data dataLoader {data.filepaths}")
         data_loader = self._get_dataloader(data, False)
+        dataset_len = len(data_loader.dataset)
         
         accelerator.wait_for_everyone()
         self.model = accelerator.prepare(self.model)
@@ -243,9 +244,9 @@ class Trainable:
         accelerator.free_memory()
         
         if len(labels) > 0:
-            return outputs, labels
+            return outputs[:dataset_len], labels[:dataset_len]
         else:
-            return outputs
+            return outputs[:dataset_len]
             
     def _predict_epoch(self, data_loader, pred_classifier):
         raise NotImplementedError
@@ -373,11 +374,13 @@ class VideoTrainable(Trainable):
         self.model.train()
         running_loss = 0
         running_acc = 0
+        
         for batch in train_data_loader:
             inputs = batch[0]
             labels = batch[1]
             inputs = inputs["video"]
-            #log.info(f"Look at inputs' size {inputs[0].size()}")
+            log.info(f"Look at inputs' size {inputs[0].size()}")
+            #device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
             #inputs = [i.to(device)[None, ...] for i in inputs]
             #num_videos = inputs.size(0)
             #num_frames = inputs.size(1)
@@ -394,9 +397,9 @@ class VideoTrainable(Trainable):
             aggregated_outputs = accelerator.gather(outputs.detach())
             labels = accelerator.gather(labels)
             
-            # dataset_len = len(train_data_loader.dataset)
-            # aggregated_outputs = aggregated_outputs[:dataset_len]
-            # labels = labels[:dataset_len]
+            dataset_len = len(train_data_loader.dataset)
+            aggregated_outputs = aggregated_outputs[:dataset_len]
+            labels = labels[:dataset_len]
 
 
             running_loss += loss.item()
@@ -427,6 +430,8 @@ class VideoTrainable(Trainable):
             #num_videos = inputs.size(0)
             #num_frames = inputs.size(1)
             #inputs = inputs.flatten(start_dim=0, end_dim=1)
+            #device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+            #inputs = [i.to(device)[None, ...] for i in inputs]
             
             with torch.set_grad_enabled(False):
                 outputs = self.model(inputs)
@@ -438,9 +443,9 @@ class VideoTrainable(Trainable):
             preds  = accelerator.gather(preds.detach())
             labels = accelerator.gather(labels)
 
-            # dataset_len = len(val_data_loader.dataset)
-            # preds = preds[:dataset_len]
-            # labels = labels[:dataset_len]
+            dataset_len = len(val_data_loader.dataset)
+            preds = preds[:dataset_len]
+            labels = labels[:dataset_len]
 
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels).item()
@@ -464,6 +469,8 @@ class VideoTrainable(Trainable):
             #num_frames = inputs.size(1)
             #inputs = inputs.flatten(start_dim=0, end_dim=1)
             inputs = inputs["video"] 
+            #device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+            #inputs = [i.to(device)[None, ...] for i in inputs]
             
             with torch.set_grad_enabled(False):
                 output = pred_classifier(inputs)

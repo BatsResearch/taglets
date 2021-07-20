@@ -157,7 +157,7 @@ class VideoClassificationInstaller(DatasetInstaller):
                     clip = Clip(
                             clip_id=row['id'],
                             video_id=row['video_id'],
-                            base_path=base_path,
+                            base_path=os.path.join(base_path, str(row['video_id'])),
                             start_frame=row['start_frame'],
                             end_frame=row['end_frame'],
                             real_label=self.get_conceptnet_id(label).split('/')[-1],
@@ -175,7 +175,7 @@ class VideoClassificationInstaller(DatasetInstaller):
                         clip = Clip(
                                     clip_id=row['id'],
                                     video_id=row['video_id'],
-                                    base_path=base_path,
+                                    base_path=os.path.join(base_path, str(row['video_id'])),
                                     start_frame=row['start_frame'],
                                     end_frame=row['end_frame'],
                                     real_label=self.get_conceptnet_id(label).split('/')[-1],
@@ -203,7 +203,7 @@ class VideoClassificationInstaller(DatasetInstaller):
                             clip = Clip(
                                 clip_id=row['id'],
                                 video_id=row['video_id'],
-                                base_path=base_path,
+                                base_path=os.path.join(base_path, str(row['video_id'])),
                                 start_frame=row['start_frame'],
                                 end_frame=row['end_frame'],
                                 real_label=self.get_conceptnet_id(real).split('/')[-1],
