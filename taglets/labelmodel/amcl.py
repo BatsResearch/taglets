@@ -37,7 +37,7 @@ class AMCLWeightedVote(UnweightedVote):
         eps = 1
         L = 2 * np.sqrt(N + 1)
         squared_diam = 2
-        T = 50
+        T = 150
         h = eps/(L*L)
 
         # assuming structure of vote matrix is (# wls, # data, # classes)
