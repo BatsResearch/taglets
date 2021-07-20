@@ -22,7 +22,7 @@ class NaiveBayes(LabelModel):
         # i.e., no partial labels
         label_partition = {}
         for j in range(vote_matrix.shape[1]):
-            label_partition[j] = [[i+1] for i in range(j)]
+            label_partition[j] = [[i+1] for i in range(self.num_classes)]
 
         # Initializes label model
         lm = PartialLabelModel(

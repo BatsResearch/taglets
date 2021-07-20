@@ -1,12 +1,9 @@
 import numpy as np
-import pandas as pd
-import pickle
 from .amcl_helper import compute_constraints_with_loss, Brier_loss_linear, linear_combination_labeler
 from .amcl_helper import compute_constraints_with_loss2, Brier_Score_AMCL, linear_combination_labeler
 from .amcl_helper import projectToSimplex, projectToBall, projectCC
 from .amcl_helper import subGradientMethod, subGradientMethod2
 from .weighted import UnweightedVote
-
 
 class AMCLWeightedVote(UnweightedVote):
     """
@@ -45,7 +42,7 @@ class AMCLWeightedVote(UnweightedVote):
 
         # assuming structure of vote matrix is (# wls, # data, # classes)
         self.num_wls, num_unlab, _ = np.shape(unlabeled_vote_matrix)
-        self.theta = np.ones(self.num_wls) * (1 / self.num_wls)
+        theta = np.ones(self.num_wls) * (1 / self.num_wls)
 
         # generate constraints
         constraint_matrix, constraint_vector, constraint_sign = compute_constraints_with_loss(Brier_loss_linear, 
@@ -55,7 +52,7 @@ class AMCLWeightedVote(UnweightedVote):
 
         self.theta = subGradientMethod(unlabeled_vote_matrix, constraint_matrix, constraint_vector, 
                                           constraint_sign, Brier_loss_linear, linear_combination_labeler, 
-                                          projectToSimplex, self.theta, 
+                                          projectToSimplex, theta, 
                                           T, h, N, num_unlab, self.num_classes)
 
         # cvxpy implementation
@@ -67,28 +64,33 @@ class AMCLWeightedVote(UnweightedVote):
 
     def get_weak_labels(self, vote_matrix, *args):
         return self._get_weighted_dist(vote_matrix, self.theta)
- 
- 
-def get_data(num):
+
+def get_data(num, base=True):
     '''
     Function to get the data from the DARPA task
     '''
 
-    data = pickle.load(open("./saved_vote_matrices/cifar-1chkpnt.pkl", "rb"))
+    data = pickle.load(open("./ta2.pkl", "rb"))  
 
-    data_dict = data["Base %d" % (num)]
-    df = pd.read_feather("./cifar-labels_train.feather")
-
-    print("Running Base %d" % (num))
+    if base:
+        data_dict = data["Base %d" % (num)]
+        df = pd.read_feather("./domain_net-clipart_labels_train.feather")
+    
+        print("Running Base %d" % (num))
+    
+    else:
+        data_dict = data["Adapt %d" % (num)]
+        df = pd.read_feather("./domain_net-sketch_labels_train.feather")
+    
+        print("Running Adapt %d" % (num))
 
     l_names = data_dict["labeled_images_names"]
-    l_votes = data_dict["labeled_images_votes"]
     l_labels = data_dict["labeled_images_labels"]
     ul_names = data_dict["unlabeled_images_names"]
     ul_votes = data_dict["unlabeled_images_votes"]
     id_class_dict = pd.Series(df["class"].values, index=df.id.values).to_dict()
 
-    return l_names, l_votes, l_labels, ul_names, ul_votes, id_class_dict
+    return l_names, l_labels, ul_names, ul_votes, id_class_dict
 
 def get_test_data(num, base=True):
 
@@ -108,7 +110,7 @@ def get_test_data(num, base=True):
     return test_names, test_votes, test_labels
 
    
-def main(num_unlab, num_classes, chkpnt):
+def main():
     '''
     Dylan's test script for evaluating AMCL (w/ convex combination of labelers + Briar score)
 
@@ -118,62 +120,69 @@ def main(num_unlab, num_classes, chkpnt):
 
     '''
 
+    num_classes = 345
     labelmodel = AMCLWeightedVote(num_classes)
+    base = True
 
     # loading last year's DARPA eval data for testing [MultiTaskModule, TransferModule, FineTuneModule, ZSLKGModule]
-    l_names, l_votes, l_labels, ul_names, ul_votes, id_class_dict = get_data(chkpnt)
-    # test_names, test_votes, test_labels = get_test_data(1, base=True)
+    l_names, l_labels, ul_names, ul_votes, id_class_dict = get_data(1, base=True)
+    test_names, test_votes, test_labels = get_test_data(1, base=True)
 
-    l_labels = [id_class_dict[x] for x in l_names]
     ul_labels = [id_class_dict[x] for x in ul_names]
-
-    cifar_classes = ['couch', 'otter', 'crab', 'boy', 'aquarium_fish', 'chimpanzee', 'telephone', 'cup', 'sweet_pepper',
-                     'poppy', 'man', 'mountain', 'house', 'road', 'sunflower', 'sea', 'crocodile', 'rose',
-                     'willow_tree', 'flatfish', 'possum', 'tractor', 'chair', 'bridge', 'wolf', 'elephant', 'fox',
-                     'keyboard', 'beaver', 'tiger', 'baby', 'plate', 'rocket', 'turtle', 'streetcar', 'woman',
-                     'caterpillar', 'forest', 'mouse', 'cattle', 'tulip', 'camel', 'pear', 'bicycle', 'lion', 'cloud',
-                     'shrew', 'squirrel', 'porcupine', 'castle', 'clock', 'lizard', 'dolphin', 'orchid', 'television',
-                     'snake', 'skyscraper', 'bee', 'trout', 'beetle', 'worm', 'lamp', 'tank', 'maple_tree', 'whale',
-                     'kangaroo', 'orange', 'table', 'bed', 'lobster', 'palm_tree', 'raccoon', 'pickup_truck',
-                     'pine_tree', 'butterfly', 'lawn_mower', 'dinosaur', 'ray', 'can', 'mushroom', 'motorcycle',
-                     'apple', 'seal', 'hamster', 'shark', 'skunk', 'plain', 'bowl', 'train', 'bear', 'leopard', 'girl',
-                     'cockroach', 'spider', 'rabbit', 'bottle', 'snail', 'bus', 'oak_tree', 'wardrobe']
-
-    class_to_ind = {x: i for i, x in enumerate(cifar_classes)}
-
-    l_labels = [class_to_ind[x] for x in l_labels]
-    ul_labels = [class_to_ind[x] for x in ul_labels]
+    
+    num_labeled_data = len(l_names)
 
     # cutting off how much data we use
-    num_labeled_data = 100
-    end_ind = 100 + num_unlab
-    
-    ul_labels, ul_votes, ul_names = np.asarray(ul_labels), np.asarray(ul_votes), np.asarray(ul_names)
-    indices = np.arange(len(ul_labels))
-    np.random.shuffle(indices)
+    num_labeled_data = 700
+    end_ind = 1500
 
-    sampled_ul_votes = ul_votes[indices[num_labeled_data:end_ind]]
+    # using the same amount of labeled data from unlabeled data since we don't have votes on original labeled data 
+    l_labels = ul_labels[:num_labeled_data]
+    l_votes = ul_votes[:num_labeled_data]
+    l_names = ul_names[:num_labeled_data]
 
-    print(np.shape(ul_votes))
-    
-    # restrict num classes
-    sampled_ul_votes = np.minimum(sampled_ul_votes, num_classes - 1)
-    l_votes = np.minimum(l_votes, num_classes - 1)
-    l_labels = np.minimum(l_labels, num_classes - 1)
 
-    print('Training...', flush=True)
-    labelmodel.train(l_votes, l_labels, sampled_ul_votes)
+    ul_labels = ul_labels[num_labeled_data:end_ind]
+    ul_votes = ul_votes[num_labeled_data:end_ind]
+    ul_names = ul_names[num_labeled_data:end_ind]
+
+    num_unlab = len(ul_names)
+
+    # converting votes to one-hots
+    l_votes = np.eye(num_classes)[l_votes]
+    ul_votes = np.eye(num_classes)[ul_votes]
+
+    l_votes = np.transpose(l_votes, (1, 0, 2))
+    ul_votes = np.transpose(ul_votes, (1, 0, 2))
+
+    print(np.shape(ul_votes)    )
+
+    clipart_classes = pickle.load(open("./domain_net-clipart_classes.pkl", "rb"))
+    sketch_classes = pickle.load(open("./domain_net-sketch_classes.pkl", "rb"))
+
+    base_class_to_ind = {x: i for i, x in enumerate(clipart_classes)}
+    adapt_class_to_ind =  {x: i for i, x in enumerate(sketch_classes)}
+
+    if base == 1:
+        l_labels = [base_class_to_ind[x] for x in l_labels]
+        ul_labels = [base_class_to_ind[x] for x in ul_labels]
+    else:
+        l_labels = [adapt_class_to_ind[x] for x in l_labels]
+        ul_labels = [adapt_class_to_ind[x] for x in ul_labels]
+
+
+    l_labels = np.eye(num_classes)[l_labels]
+    ul_labels = np.eye(num_classes)[ul_labels]
+
+    labelmodel.train(l_votes, l_labels, ul_votes)
     preds = labelmodel.get_weak_labels(ul_votes)
-    predictions = np.asarray([np.argmax(pred) for pred in preds])
-    print("Acc %f" % (np.mean(predictions == ul_labels)))
+    print("AMCL Acc %f" % (np.mean(preds == np.argmax(ul_labels, 1))))
     print(np.shape(preds), np.shape(ul_labels))
 
+    # setting to uniform weights
+    labelmodel.theta = np.array([0.25, 0.25, 0.25, 0.25])
+    uw_preds = labelmodel.get_weak_labels(ul_votes)
+    print("UW Acc %f" % (np.mean(preds == np.argmax(ul_labels, 1))))
+
 if __name__ == "__main__":
-    import time
-    for num_unlab in [1000]:
-        for num_classes in np.arange(10, 101, 10):
-            for chkpnt in [0, 1, 2, 3]:
-                st = time.time()
-                print(f'-------------- {num_unlab} unlabeled images and {num_classes} classes at chkpont {chkpnt}---------------', flush=True)
-                main(num_unlab, num_classes, chkpnt)
-                print(f'-------------- Elapsed: {(time.time() - st) / 60.0} mins -----------------------------', flush=True)
+    main()
