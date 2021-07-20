@@ -782,15 +782,15 @@ def setup_production(simple_run):
     dataset_type = os.environ.get('LWLL_TA1_DATASET_TYPE')
     problem_type = os.environ.get('LWLL_TA1_PROB_TYPE')
     dataset_dir = os.environ.get('LWLL_TA1_DATA_PATH')
-    log.debug(dataset_dir)
     api_url = os.environ.get('LWLL_TA1_API_ENDPOINT')
     problem_task = os.environ.get('LWLL_TA1_PROB_TASK')
     gpu_list = os.environ.get('LWLL_TA1_GPUS')
     run_time = os.environ.get('LWLL_TA1_HOURS')
     team_secret = os.environ.get('LWLL_TA1_TEAM_SECRET')
     gov_team_secret = os.environ.get('LWLL_TA1_GOVTEAM_SECRET')
-    data_paths = ('/tmp/predefined/scads.fall2020.sqlite3',
-                  '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz')
+    data_paths = ('/tmp/predefined/scads.spring2021.sqlite3',
+                  '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz',
+                  '/tmp/predefined/embeddings/spring2021_processed_numberbatch.h5')
 
     if simple_run:
         log.info(f"Running production in simple mode, not all GPUs required")
