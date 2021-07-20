@@ -14,19 +14,16 @@ def get_data(num):
     
     data = pickle.load(open("./saved_vote_matrices/cifar-1chkpnt.pkl", "rb"))
     
-    data_dict = data["Base %d" % (num)]
-    df = pd.read_feather("./cifar-labels_train.feather")
+    data_dict = data[num]
     
-    print("Running Base %d" % (num))
+    print("Running %d" % (num))
     
-    l_names = data_dict["labeled_images_names"]
     l_votes = data_dict["labeled_images_votes"]
     l_labels = data_dict["labeled_images_labels"]
-    ul_names = data_dict["unlabeled_images_names"]
     ul_votes = data_dict["unlabeled_images_votes"]
-    id_class_dict = pd.Series(df["class"].values, index=df.id.values).to_dict()
+    ul_labels = data_dict["unlabeled_images_labels"]
     
-    return l_names, l_votes, l_labels, ul_names, ul_votes, id_class_dict
+    return l_votes, l_labels, ul_votes, ul_labels
 
 
 def get_test_data(num, base=True):
