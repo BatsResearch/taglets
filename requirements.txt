@@ -1,5 +1,5 @@
 git+git://github.com/huggingface/accelerate@f0cdbf152eaed2fac4468eaa2cbdbb0071c64e11
-git+git://github.com/BatsResearch/labelmodels@cecc36242be39e071e93a3d5bdd3f023343b52a3
+git+git://github.com/BatsResearch/labelmodels@dda942e2a0913c111f503727e6fa5105b0de41ca
 alabaster==0.7.12
 allennlp==0.9.0
 attrs==21.2.0
