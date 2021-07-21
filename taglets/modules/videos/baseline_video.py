@@ -49,4 +49,4 @@ class BaselineVideoTaglet(VideoTaglet):
         log.info(f"number to update: {len(params_to_update)}")
         self._params_to_update = params_to_update
         self.optimizer = torch.optim.SGD(self._params_to_update, lr=self.lr, weight_decay=1e-4, momentum=0.9)
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=5, gamma=0.1)

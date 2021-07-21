@@ -28,10 +28,10 @@ class Trainable:
         """
         self.name = 'base'
         self.task = task
-        self.lr = 0.001#0.0005
+        self.lr = 0.01#0.0005
         self.criterion = torch.nn.CrossEntropyLoss()
         self.seed = 0
-        self.num_epochs = 50 if not os.environ.get("CI") else 5
+        self.num_epochs = 80 if not os.environ.get("CI") else 5
         self.batch_size = task.batch_size if not os.environ.get("CI") else 32
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
@@ -371,25 +371,22 @@ class VideoTrainable(Trainable):
         :param use_gpu: Whether or not to use the GPU
         :return: None
         """
+
+        
         self.model.train()
         running_loss = 0
         running_acc = 0
+        num_pred = 0 
         
         for batch in train_data_loader:
             inputs = batch[0]
             labels = batch[1]
             inputs = inputs["video"]
-            log.info(f"Look at inputs' size {inputs[0].size()}")
-            #device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-            #inputs = [i.to(device)[None, ...] for i in inputs]
-            #num_videos = inputs.size(0)
-            #num_frames = inputs.size(1)
-            #inputs = inputs.flatten(start_dim=0, end_dim=1)
+            #log.info(f"Look at inputs' size {inputs[0].size()}")
             
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
                 outputs = self.model(inputs)
-                # aggregated_outputs = torch.mean(outputs.view(num_videos, num_frames, -1), dim=1)
                 loss = self.criterion(outputs, labels)
                 accelerator.backward(loss)
                 self.optimizer.step()
@@ -397,19 +394,27 @@ class VideoTrainable(Trainable):
             aggregated_outputs = accelerator.gather(outputs.detach())
             labels = accelerator.gather(labels)
             
-            dataset_len = len(train_data_loader.dataset)
-            aggregated_outputs = aggregated_outputs[:dataset_len]
-            labels = labels[:dataset_len]
+            log.info(f"Length of the aggegated outputs {len(aggregated_outputs)}")
 
-
-            running_loss += loss.item()
-            running_acc += self._get_train_acc(aggregated_outputs, labels).item()
+            len_dataset = len(train_data_loader)
+            num_pred += len(aggregated_outputs)
+            log.info(f"Length of the total predictions {num_pred}")
+            # Remove accelerate batch padding
+            if num_pred > len_dataset:
+                running_loss += loss.item()
+                running_acc += self._get_train_acc(aggregated_outputs[:-(num_pred-len_dataset)], labels[:-(num_pred-len_dataset)]).item()
+            else:
+                running_loss += loss.item()
+                running_acc += self._get_train_acc(aggregated_outputs, labels).item()
         
         if not len(train_data_loader.dataset):
             return 0, 0
         
         epoch_loss = running_loss / len(train_data_loader)
         epoch_acc = running_acc / len(train_data_loader.dataset)
+        log.info(f"Length of the dataset {len(train_data_loader.dataset)}")
+        log.info(f"Sum of positives of the dataset {np.sum(running_acc)}")
+
         
         return epoch_loss, epoch_acc
     
@@ -423,32 +428,31 @@ class VideoTrainable(Trainable):
         self.model.eval()
         running_loss = 0
         running_acc = 0
+        num_pred = 0
+
         for batch in val_data_loader:
             inputs = batch[0]
             labels = batch[1]
             inputs = inputs["video"]
-            #num_videos = inputs.size(0)
-            #num_frames = inputs.size(1)
-            #inputs = inputs.flatten(start_dim=0, end_dim=1)
-            #device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-            #inputs = [i.to(device)[None, ...] for i in inputs]
             
             with torch.set_grad_enabled(False):
                 outputs = self.model(inputs)
-                #log.info(outputs)
-                #aggregated_outputs = torch.mean(outputs.view(num_videos, num_frames, -1), dim=1)
                 loss = self.criterion(outputs, labels)
                 _, preds = torch.max(outputs, 1)
 
             preds  = accelerator.gather(preds.detach())
             labels = accelerator.gather(labels)
 
-            dataset_len = len(val_data_loader.dataset)
-            preds = preds[:dataset_len]
-            labels = labels[:dataset_len]
-
-            running_loss += loss.item()
-            running_acc += torch.sum(preds == labels).item()
+            len_dataset = len(val_data_loader)
+            num_pred += len(preds)
+            
+            # Remove accelerate batch padding
+            if num_pred > len_dataset:
+                running_loss += loss.item()
+                running_acc += torch.sum(preds[:-(num_pred-len_dataset)] == labels[:-(num_pred-len_dataset)]).item()
+            else:
+                running_loss += loss.item()
+                running_acc += torch.sum(preds == labels).item()
         
         epoch_loss = running_loss / len(val_data_loader.dataset)
         epoch_acc = running_acc / len(val_data_loader.dataset)
@@ -464,18 +468,11 @@ class VideoTrainable(Trainable):
                 inputs, targets = batch
             else:
                 inputs, targets = batch, None
-            
-            #num_videos = inputs.size(0)
-            #num_frames = inputs.size(1)
-            #inputs = inputs.flatten(start_dim=0, end_dim=1)
+
             inputs = inputs["video"] 
-            #device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-            #inputs = [i.to(device)[None, ...] for i in inputs]
             
             with torch.set_grad_enabled(False):
                 output = pred_classifier(inputs)
-                #aggregated_output = torch.mean(output.view(num_videos, num_frames, -1), dim=1)
-                #outputs.append(torch.nn.functional.softmax(accelerator.gather(aggregated_output.detach()).cpu(), 1))
                 outputs.append(accelerator.gather(output.detach()).cpu())
                 if targets is not None:
                     labels.append(accelerator.gather(targets.detach()).cpu())
