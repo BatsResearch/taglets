@@ -55,7 +55,7 @@ class TestSCADS(unittest.TestCase):
         self.assertEqual(node.get_datasets(), ['MNIST'])
 
         images = node.get_images()
-        self.assertEqual(len(images), 2)
+        self.assertEqual(len(images), 3)
         self.assertTrue('mnist/mnist_full/test/9994.png'
                         in images)
 
@@ -250,12 +250,12 @@ class TestSCADS(unittest.TestCase):
         neighbor1 = edges[0].get_end_node()
         self.assertEqual(neighbor1.node.id, 1)
         self.assertEqual(node.node.id, neighbor1.get_neighbors()[0].get_end_node().node.id)
-        self.assertEqual(len(neighbor1.get_images()), 2)
+        self.assertEqual(len(neighbor1.get_images()), 3)
 
         neighbor2 = edges[1].get_end_node()
         self.assertEqual(neighbor2.node.id, 2)
-        self.assertEqual(neighbor2.get_datasets(), [])
-        self.assertEqual(len(neighbor2.get_images()), 0)
+        self.assertEqual(neighbor2.get_datasets(), ["MNIST"])
+        self.assertEqual(len(neighbor2.get_images()), 1)
 
     def test_weights(self):
         node = Scads.get_node_by_conceptnet_id("/c/en/zero")
