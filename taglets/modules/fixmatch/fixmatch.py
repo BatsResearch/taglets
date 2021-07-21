@@ -136,7 +136,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
         else:
             self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir) and accelerator.is_local_main_process:
-            os.makedirs(self.save_dir)
+            os.makedirs(self.save_dir, exist_ok=True)
         accelerator.wait_for_everyone()
 
     def transform_image(self, train=True):
