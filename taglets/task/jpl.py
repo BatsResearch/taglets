@@ -852,7 +852,7 @@ def main():
     
     saved_api_response_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saved_api_response')
     if not os.path.exists(saved_api_response_dir) and accelerator.is_local_main_process:
-        os.makedirs(saved_api_response_dir)
+        os.makedirs(saved_api_response_dir, exist_ok=True)
     accelerator.wait_for_everyone()
     
     dataset_type = variables[0]
