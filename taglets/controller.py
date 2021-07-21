@@ -175,7 +175,8 @@ class Controller:
         else:
             if self.task.scads_path is not None:
                 return [
-                        PseudoShotModule, ZSLKGModule, FixMatchModule]
+                        PseudoShotModule, ZSLKGModule, FixMatchModule, MultiTaskModule, TransferModule, FineTuneModule]
+                #return [MultiTaskModule]
             return [PseudoShotModule]
 
     def _combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):

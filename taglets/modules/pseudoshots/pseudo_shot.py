@@ -101,7 +101,7 @@ class PseudoShotModule(Module):
 
         ps_args['img_encoder_type'] = Encoder.RESNET_50
         ps_args['img_encoder_ckpt_path'] = None
-        ps_args['masking_ckpt_path'] = 'predefined/pseudoshots/resnet50_train_val_test_224_1shot_15way.pth'
+        ps_args['masking_ckpt_path'] = 'predefined/pseudoshots/resnet50_train_val_test_224_1shot.pth'
         ps_args['masking_args'] = {
             'channels': [640, 320, 1],
             'final_relu': False,
@@ -131,7 +131,7 @@ class PseudoShotTaglet(ImageTaglet):
 
         # PS budget
         self.max_real_image = 6
-        self.img_per_related_class = 7 if not os.environ.get("CI") else 1
+        self.img_per_related_class = 5 if not os.environ.get("CI") else 1
         self.num_related_class = 3
 
         if not os.environ.get('CI'):
@@ -361,7 +361,6 @@ class PseudoShotTaglet(ImageTaglet):
                 # threshold to convert counts, represented as floats, to ints 
                 eps = 0.5
                 scads_train_data, all_related_class = self._get_scads_data()
-                all_related_class = 0
                 if all_related_class > 0:
                     scads_data_loader = torch.utils.data.DataLoader(
                         dataset=scads_train_data, batch_size=1, shuffle=False,
