@@ -254,8 +254,8 @@ class TestSCADS(unittest.TestCase):
 
         neighbor2 = edges[1].get_end_node()
         self.assertEqual(neighbor2.node.id, 2)
-        self.assertEqual(neighbor2.get_datasets(), [])
-        self.assertEqual(len(neighbor2.get_images()), 0)
+        self.assertEqual(neighbor2.get_datasets(), ["MNIST"])
+        self.assertEqual(len(neighbor2.get_images()), 1)
 
     def test_weights(self):
         node = Scads.get_node_by_conceptnet_id("/c/en/zero")
