@@ -109,8 +109,7 @@ class DannTaglet(ImageTagletWithAuxData):
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
             self.save_dir = os.path.join('trained_models', self.name)
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
+        os.makedirs(self.save_dir, exist_ok=True)
         self.source_data = None
 
         if os.environ.get("CI"):

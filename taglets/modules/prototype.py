@@ -325,8 +325,7 @@ class PrototypeTaglet(ImageTaglet):
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
             self.save_dir = os.path.join('trained_models', self.name)
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
+        os.makedirs(self.save_dir, exist_ok=True)
 
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
