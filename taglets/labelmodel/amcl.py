@@ -5,8 +5,8 @@ from .amcl_helper import cross_entropy_linear, resnet_transform, logistic_regres
 from .amcl_helper import projectToSimplex, projectToBall, projectCC, projectToSimplexLR
 from .amcl_helper import subGradientMethod, subGradientMethod2
 
-from weighted import UnweightedVote
-from label_model import LabelModel
+from .weighted import UnweightedVote
+from .label_model import LabelModel
 
 import pickle
 import pandas as pd

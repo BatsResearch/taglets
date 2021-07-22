@@ -88,11 +88,10 @@ class TransferTaglet(ImageTagletWithAuxData):
             super(TransferTaglet, self).train(scads_train_data, None, None)
             self.num_epochs = orig_num_epochs
             
+            self.model.fc = nn.Identity()
             aux_weights = copy.deepcopy(self.model.state_dict())
-            del aux_weights['fc.weight']
-            del aux_weights['fc.bias']
             Cache.set('scads-weights', self.task.classes, aux_weights)
-        self.model.load_state_dict(aux_weights)
+        self.model.load_state_dict(aux_weights, strict=False)
 
         # Freeze layers
         if self.freeze:
