@@ -6,13 +6,15 @@ import time
 
 from .amcl import AMCLWeightedVote
 from .naive_bayes import NaiveBayes
+from .weighted import WeightedVote, UnweightedVote
+
 
 def get_data(num):
     '''
     Function to get the data from the DARPA task
     '''
     
-    data = pickle.load(open("./saved_vote_matrices/cifar-1chkpnt.pkl", "rb"))
+    data = pickle.load(open("./saved_vote_matrices/cifar_votes", "rb"))
     
     data_dict = data["Base %d" % (num)]
     df = pd.read_feather("./cifar-labels_train.feather")
@@ -25,6 +27,18 @@ def get_data(num):
     ul_names = data_dict["unlabeled_images_names"]
     ul_votes = data_dict["unlabeled_images_votes"]
     id_class_dict = pd.Series(df["class"].values, index=df.id.values).to_dict()
+
+    l_labels, l_votes, l_names = np.asarray(l_labels), np.asarray(l_votes), np.asarray(l_names)
+    ul_votes, ul_names = np.asarray(ul_votes), np.asarray(ul_names)
+    indices = np.arange(len(ul_names))
+    np.random.shuffle(indices)
+    num_labeled_data = 10000
+    
+    l_votes = ul_votes[indices[:num_labeled_data]]
+    l_names = ul_names[indices[:num_labeled_data]]
+    
+    ul_votes = ul_votes[indices[num_labeled_data:]]
+    ul_names = ul_names[indices[num_labeled_data:]]
     
     return l_names, l_votes, l_labels, ul_names, ul_votes, id_class_dict
 
@@ -57,8 +71,12 @@ def run_one_checkpoint(num_unlab, num_classes, chkpnt, labelmodel_type='amcl'):
     '''
     if labelmodel_type == 'amcl':
         labelmodel = AMCLWeightedVote(num_classes)
-    else:
+    elif labelmodel_type == 'naive_bayes':
         labelmodel = NaiveBayes(num_classes)
+    elif labelmodel_type == 'weighted':
+        labelmodel = WeightedVote(num_classes)
+    else:
+        labelmodel = UnweightedVote(num_classes)
     
     # loading last year's DARPA eval data for testing [MultiTaskModule, TransferModule, FineTuneModule, ZSLKGModule]
     l_names, l_votes, l_labels, ul_names, ul_votes, id_class_dict = get_data(chkpnt)
@@ -102,10 +120,17 @@ def run_one_checkpoint(num_unlab, num_classes, chkpnt, labelmodel_type='amcl'):
     l_votes = np.minimum(l_votes, num_classes - 1)
     l_labels = np.minimum(l_labels, num_classes - 1)
     
+    for i in range(l_votes.shape[1]):
+        print(f'Labeled acc for module {i}: {np.mean(l_votes[:, i] == l_labels)}')
+        
     print('Training...', flush=True)
     if labelmodel_type == 'amcl':
         labelmodel.train(l_votes, l_labels, sampled_ul_votes)
-    preds = labelmodel.get_weak_labels(ul_votes)
+        print(f'Thetas: {labelmodel.theta}')
+    if labelmodel_type == 'weighted':
+        preds = labelmodel.get_weak_labels(ul_votes, [np.mean(l_votes[:, i] == l_labels) for i in range(l_votes.shape[1])])
+    else:
+        preds = labelmodel.get_weak_labels(ul_votes)
     predictions = np.asarray([np.argmax(pred) for pred in preds])
     print("Acc %f" % (np.mean(predictions == ul_labels)), flush=True)
     print(np.shape(preds), np.shape(ul_labels))
