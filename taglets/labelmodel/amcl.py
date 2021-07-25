@@ -3,7 +3,7 @@ from .amcl_helper import compute_constraints_with_loss, Brier_loss_linear, linea
 from .amcl_helper import compute_constraints_with_loss2, Brier_Score_AMCL
 from .amcl_helper import cross_entropy_linear, resnet_transform, logistic_regression
 from .amcl_helper import projectToSimplex, projectToBall, projectCC, projectToSimplexLR
-from .amcl_helper import subGradientMethod, subGradientMethod2
+from .amcl_helper import subGradientMethod, subGradientMethod2, subGradientMethodLR
 
 from .weighted import UnweightedVote
 from .label_model import LabelModel
@@ -81,7 +81,7 @@ class AMCLLogReg(LabelModel):
 		super().__init__(num_classes)
 		self.theta = None
 	
-	def train(self, labeled_vote_matrix, labels, unlabeled_vote_matrix, unlabeled_data, cvxpy=False):
+	def train(self, labeled_vote_matrix, labels, unlabeled_vote_matrix, unlabeled_data, cvxpy=False, pretrain=True):
 		'''
 		Train a convex combination of weak supervision sources through AMCL on votes
 
@@ -106,7 +106,7 @@ class AMCLLogReg(LabelModel):
 		squared_diam = 2
 		T = int(np.ceil(L*L*squared_diam/(eps*eps)))
 		h = eps/(L*L)
-		T = 200
+		T = 4000
 
 		# assuming structure of vote matrix is (# wls, # data, # classes)
 		self.num_wls, num_unlab, _ = np.shape(unlabeled_vote_matrix)
@@ -120,11 +120,18 @@ class AMCLLogReg(LabelModel):
 																									labeled_vote_matrix, 
 																									labels)
 			print("Created constraints")
-			self.theta = subGradientMethod(transformed_data, constraint_matrix, constraint_vector, 
-										constraint_sign, cross_entropy_linear, logistic_regression, 
-										projectToBall,initial_theta, 
-										T, h, N, num_unlab, self.num_classes, lr=True)
-		
+
+			if pretrain:
+				self.theta = subGradientMethodLR(transformed_data, constraint_matrix, constraint_vector, 
+												 constraint_sign, cross_entropy_linear, logistic_regression, 
+												 projectToBall,initial_theta, 
+												 T, h, N, num_unlab, self.num_classes, lr=True)
+
+			else:
+				self.theta = subGradientMethod(transformed_data, constraint_matrix, constraint_vector, 
+												 constraint_sign, cross_entropy_linear, logistic_regression, 
+												 projectToBall,initial_theta, 
+												 T, h, N, num_unlab, self.num_classes, lr=True)
 		else:
 			Y, constraints = compute_constraints_with_loss2(Brier_loss_linear, Brier_Score_AMCL, unlabeled_vote_matrix, 
 															labeled_vote_matrix, labels)
@@ -178,42 +185,6 @@ def test_cc():
 
 	num_classes = 5
 	labelmodel = AMCLWeightedVote(num_classes)
-	
-	# base = True
-	# # loading last year's DARPA eval data for testing [MultiTaskModule, TransferModule, FineTuneModule, ZSLKGModule]
-	# l_names, l_labels, ul_names, ul_votes, id_class_dict = get_data(1)
-	# test_names, test_votes, test_labels = get_test_data(1)
-
-	# ul_labels = [id_class_dict[x] for x in ul_names]
-	# num_labeled_data = len(l_names)
-
-	# # cutting off how much data we use
-	# num_labeled_data = 400
-	# end_ind = num_labeled_data + 400
-
-	# # using the same amount of labeled data from unlabeled data since we don't have votes on original labeled data 
-	# l_labels = ul_labels[:num_labeled_data]
-	# l_votes = ul_votes[:num_labeled_data]
-	# l_names = ul_names[:num_labeled_data]
-
-	# ul_labels = ul_labels[num_labeled_data:end_ind]
-	# ul_votes = ul_votes[num_labeled_data:end_ind]
-	# ul_names = ul_names[num_labeled_data:end_ind]
-
-	# num_unlab = len(ul_names)
-
-	# clipart_classes = pickle.load(open("./domain_net-clipart_classes.pkl", "rb"))
-	# sketch_classes = pickle.load(open("./domain_net-sketch_classes.pkl", "rb"))
-
-	# base_class_to_ind = {x: i for i, x in enumerate(clipart_classes)}
-	# adapt_class_to_ind =  {x: i for i, x in enumerate(sketch_classes)}
-
-	# if base == 1:
-	# 	l_labels = [base_class_to_ind[x] for x in l_labels]
-	# 	ul_labels = [base_class_to_ind[x] for x in ul_labels]
-	# else:
-	# 	l_labels = [adapt_class_to_ind[x] for x in l_labels]
-	# 	ul_labels = [adapt_class_to_ind[x] for x in ul_labels]
 
 	# using the same amount of labeled data from unlabeled data since we don't have votes on original labeled data 
 	l_labels = np.load("labels.npy")
@@ -276,7 +247,8 @@ def test_lr():
 	ul_votes = np.transpose(ul_votes, (1, 0))
 	num_labeled_data = len(l_labels)
 
-	labelmodel.train(l_votes, l_labels, ul_votes, ul_data, cvxpy=False)
+	labelmodel.train(l_votes, l_labels, ul_votes, ul_data, cvxpy=False, pretrain=True)
+	# labelmodel.train(l_votes, l_labels, ul_votes, ul_data, cvxpy=False, pretrain=False)
 	preds = labelmodel.get_weak_labels(ul_data)
 	preds = np.argmax(preds, axis=1)
 
@@ -294,5 +266,5 @@ def test_lr():
 
 if __name__ == "__main__":
 	
-	test_cc()
-	# test_lr()
+	# test_cc()
+	test_lr()
