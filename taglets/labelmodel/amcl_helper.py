@@ -350,9 +350,6 @@ def subGradientMethod(X_unlabeled, constraint_matrix,constraint_vector,constrain
         else:
             grad = computeGradientCOMB(theta, X_unlabeled, new_y,  h)
 
-        if t == 50 or t == 100:
-            step_size = step_size / 2
-
         # Gradient descent step
         theta -= grad * step_size
         theta = proj_function(theta)
