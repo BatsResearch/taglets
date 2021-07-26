@@ -43,7 +43,7 @@ class AMCLWeightedVote(UnweightedVote):
 		eps = 0.5
 		L = 2 * np.sqrt(N + 1)
 		squared_diam = 2
-		T = L * L * squared_diam / eps / eps
+		T = int(np.ceil(L*L*squared_diam/(eps*eps)))
 		h = eps/(L*L)
 		
 		print(f'Iteration = {T}', flush=True)
