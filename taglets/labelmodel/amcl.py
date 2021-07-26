@@ -39,7 +39,7 @@ class AMCLWeightedVote(UnweightedVote):
 		labels = np.eye(self.num_classes)[labels]
 
 		# hyperparameters
-		N = 4 # of wls
+		N = 5 # of wls
 		eps = 0.5
 		L = 2 * np.sqrt(N + 1)
 		squared_diam = 2
@@ -99,8 +99,8 @@ class AMCLLogReg(LabelModel):
 		unlabeled_vote_matrix = np.transpose(unlabeled_vote_matrix, (1, 0, 2))
 		labels = np.eye(self.num_classes)[labels]
 
-  		# hyperparams
-		N = 4 # num of wls
+		# hyperparams
+		N = 5 # num of wls
 		eps = 0.3
 		L = 2 * np.sqrt(N + 1)
 		squared_diam = 2
