@@ -43,8 +43,10 @@ class AMCLWeightedVote(UnweightedVote):
 		eps = 0.5
 		L = 2 * np.sqrt(N + 1)
 		squared_diam = 2
-		T = 200
+		T = L * L * squared_diam / eps / eps
 		h = eps/(L*L)
+		
+		print(f'Iteration = {T}', flush=True)
 
 		self.num_wls, num_unlab, _ = np.shape(unlabeled_vote_matrix)
 		theta = np.ones(self.num_wls) * (1 / self.num_wls)
