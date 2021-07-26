@@ -30,11 +30,6 @@ class AMCLWeightedVote(UnweightedVote):
 		'''
 		# pre process vote matrix
 		# convert votes to one hot
-		labeled_vote_matrix = np.eye(self.num_classes)[labeled_vote_matrix]
-		unlabeled_vote_matrix = np.eye(self.num_classes)[unlabeled_vote_matrix]
-
-		labeled_vote_matrix = np.transpose(labeled_vote_matrix, (1, 0, 2))
-		unlabeled_vote_matrix = np.transpose(unlabeled_vote_matrix, (1, 0, 2))
 		
 		labels = np.eye(self.num_classes)[labels]
 
