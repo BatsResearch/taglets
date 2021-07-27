@@ -32,7 +32,7 @@ def get_data(num):
     ul_votes, ul_names = np.asarray(ul_votes), np.asarray(ul_names)
     indices = np.arange(len(ul_names))
     np.random.shuffle(indices)
-    num_labeled_data = 10000
+    num_labeled_data = 2000
     
     l_votes = ul_votes[indices[:num_labeled_data]]
     l_names = ul_names[indices[:num_labeled_data]]

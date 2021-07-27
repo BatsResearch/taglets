@@ -115,10 +115,10 @@ def compute_constraints_with_loss(lf, output_labelers_unlabeled, output_labelers
 
         # Bounds: risk of a labeler must be within error+-offset
         delta = 0.1 # Between 0 and 1. Probability of the true labeling to NOT belong to the feasible set.
-        scaling_factor = 0.1 # Direct computation of the offset could yield large values if M or Ml is small.
+        scaling_factor = 1 # Direct computation of the offset could yield large values if M or Ml is small.
                              # This number can be used to scale the offset if it is too large 
         offset = scaling_factor * np.sqrt((Ml + M)*np.log(4*N/delta)/(2*(Ml*M)))
-        offset = 0 # Uncomment this line 
+        # offset = 0 # Uncomment this line
                    # if you do not want to have a offset. This could be better in practice if
                    # the number of labeled data and labeled data is very large
 
@@ -391,8 +391,8 @@ def subGradientMethod(X_unlabeled, constraint_matrix,constraint_vector,constrain
             pass
 
         # Debug lines
-        if t % 100 == 0:
-
+        if t % 10 == 0:
+            print(f'Obj {obj}', flush=True)
             vals = []
             if lr:
                 preds = np.array([h(theta, X_unlabeled[i]) for i in range(M)])     
@@ -711,9 +711,6 @@ def subGradientMethodLR(X_unlabeled, constraint_matrix,constraint_vector,constra
         grad = computeGradientLR(theta,X_unlabeled,new_y,h)
         theta = theta.T.flatten()
 
-        if t == 50 or t == 100:
-            step_size = step_size / 2
-
         # Gradient descent step
         theta -= grad * step_size
         theta = proj_function(theta)
@@ -741,6 +738,7 @@ def subGradientMethodLR(X_unlabeled, constraint_matrix,constraint_vector,constra
 
         # Debug lines
         if t % 100 == 0:
+            print(f'Obj {obj}', flush=True)
             vals = []
             preds = np.array([h(theta, X_unlabeled[i]) for i in range(M)])     
             vals = np.array([lf(new_y[i], preds[i]) for i in range(M)])

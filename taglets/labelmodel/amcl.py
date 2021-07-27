@@ -103,12 +103,14 @@ class AMCLLogReg(LabelModel):
 
 		# hyperparams
 		N = 5 # num of wls
-		eps = 0.3
-		L = 2 * np.sqrt(N + 1)
-		squared_diam = 2
+		eps = 0.05
+		L = 1
+		squared_diam = 1
 		T = int(np.ceil(L*L*squared_diam/(eps*eps)))
 		h = eps/(L*L)
-		T = 4000
+		# T = 4000
+		
+		print(f'Iteration = {T}', flush=True)
 
 		# assuming structure of vote matrix is (# wls, # data, # classes)
 		self.num_wls, num_unlab, _ = np.shape(unlabeled_vote_matrix)
