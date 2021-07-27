@@ -107,7 +107,8 @@ def run_one_checkpoint(num_unlab, num_classes, chkpnt, labelmodel_type='amcl'):
     
     # cutting off how much data we use
     
-    ul_labels, ul_votes, ul_names = np.asarray(ul_labels), np.asarray(ul_votes), np.asarray(ul_names)
+    ul_labels, ul_votes, ul_names, ul_image_paths = np.asarray(ul_labels), np.asarray(ul_votes), np.asarray(ul_names), \
+                                                    np.asarray(ul_image_paths)
     indices = np.arange(len(ul_labels))
     np.random.shuffle(indices)
     
