@@ -743,7 +743,7 @@ def subGradientMethodLR(X_unlabeled, constraint_matrix,constraint_vector,constra
             best_val = current_eval
 
         # Debug lines
-        if t % 100 == 0:
+        if t % 10 == 0:
             print(f'Obj {obj}', flush=True)
             vals = []
             preds = np.array([h(theta, X_unlabeled[i]) for i in range(M)])     
