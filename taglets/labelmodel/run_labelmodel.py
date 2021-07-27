@@ -3,10 +3,13 @@ import numpy as np
 import pandas as pd
 import pickle
 import time
+import os
+import torchvision.transforms as transforms
 
-from .amcl import AMCLWeightedVote
+from .amcl import AMCLWeightedVote, AMCLLogReg
 from .naive_bayes import NaiveBayes
 from .weighted import WeightedVote, UnweightedVote
+from ..data import CustomImageDataset
 
 
 def get_data(num):
@@ -70,17 +73,17 @@ def run_one_checkpoint(num_unlab, num_classes, chkpnt, labelmodel_type='amcl'):
 
     '''
     if labelmodel_type == 'amcl':
-        labelmodel = AMCLWeightedVote(num_classes)
-    elif labelmodel_type == 'naive_bayes':
-        labelmodel = NaiveBayes(num_classes)
-    elif labelmodel_type == 'weighted':
-        labelmodel = WeightedVote(num_classes)
+        labelmodel = AMCLLogReg(num_classes)
     else:
-        labelmodel = UnweightedVote(num_classes)
+        raise NotImplementedError
     
     # loading last year's DARPA eval data for testing [MultiTaskModule, TransferModule, FineTuneModule, ZSLKGModule]
     l_names, l_votes, l_labels, ul_names, ul_votes, id_class_dict = get_data(chkpnt)
     # test_names, test_votes, test_labels = get_test_data(1, base=True)
+
+    
+    ul_image_paths = [os.path.join('/users/wpiriyak/data/bats/datasets/lwll/external/cifar100/cifar100_full/train',
+                                image_name) for image_name in ul_names]
     
     l_labels = [id_class_dict[x] for x in l_names]
     ul_labels = [id_class_dict[x] for x in ul_names]
@@ -110,8 +113,20 @@ def run_one_checkpoint(num_unlab, num_classes, chkpnt, labelmodel_type='amcl'):
     
     if num_unlab == -1:
         sampled_ul_votes = ul_votes
+        sampled_ul_image_paths = ul_image_paths
     else:
         sampled_ul_votes = ul_votes[indices[:num_unlab]]
+        sampled_ul_image_paths = ul_image_paths[indices[:num_unlab]]
+
+    data_mean = [0.485, 0.456, 0.406]
+    data_std = [0.229, 0.224, 0.225]
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=data_mean, std=data_std)
+    ])
+    sampled_ul_dataset = CustomImageDataset(sampled_ul_image_paths, transform=transform)
+    ul_dataset = CustomImageDataset(ul_image_paths, transform=transform)
     
     print(np.shape(ul_votes))
     
@@ -125,12 +140,8 @@ def run_one_checkpoint(num_unlab, num_classes, chkpnt, labelmodel_type='amcl'):
         
     print('Training...', flush=True)
     if labelmodel_type == 'amcl':
-        labelmodel.train(l_votes, l_labels, sampled_ul_votes)
-        print(f'Thetas: {labelmodel.theta}')
-    if labelmodel_type == 'weighted':
-        preds = labelmodel.get_weak_labels(ul_votes, [np.mean(l_votes[:, i] == l_labels) for i in range(l_votes.shape[1])])
-    else:
-        preds = labelmodel.get_weak_labels(ul_votes)
+        labelmodel.train(l_votes, l_labels, sampled_ul_votes, sampled_ul_dataset)
+    preds = labelmodel.get_weak_labels(ul_dataset)
     predictions = np.asarray([np.argmax(pred) for pred in preds])
     print("Acc %f" % (np.mean(predictions == ul_labels)), flush=True)
     print(np.shape(preds), np.shape(ul_labels))

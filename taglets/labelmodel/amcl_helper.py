@@ -51,19 +51,23 @@ def cross_entropy_linear(labels, predictions):
 
 
 def resnet_transform(unlabeled_data):
-	'''
+    '''
 	Function to transform unlabeled data into feature representation given by 
 	pre-trained resnet
 	'''
 
-	res = resnet.resnet18(pretrained=True)
-	fr = res(torch.tensor(unlabeled_data)).detach().numpy()
-	return fr
+    dl = torch.utils.data.DataLoader(unlabeled_data)
+    outputs = []
+    res = resnet.resnet18(pretrained=True)
+    for b in dl:
+        with torch.no_grad():
+            outputs.append(res(b).detach().numpy())
+    outputs = np.concatenate(outputs)
+    return outputs
 
 ##################################
 
 def compute_constraints_with_loss(lf, output_labelers_unlabeled, output_labelers_labeled, true_labels): 
-    
     '''
     This function builds the linear constraints that represents the
     feasible set of labeling based on the unlabeled data
@@ -129,7 +133,7 @@ def compute_constraints_with_loss(lf, output_labelers_unlabeled, output_labelers
         # Add greater or equal constraint
         constraint_matrix.append( build_coefficients)
         constraint_sign.append(1)
-        constraint_vector.append(error - offset)  
+        constraint_vector.append(error - offset)
 
     # Add constraints for the sum of the label probabilities for each item to sum to 1
     for j in range(M):
