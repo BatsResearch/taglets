@@ -690,10 +690,11 @@ def subGradientMethodLR(X_unlabeled, constraint_matrix,constraint_vector,constra
     new_y = np.array([new_y[i*C : (i + 1) * C] for i in range(M)])
 
     lr_pretrain = LogisticRegression(penalty="l2")    
-    lr_pretrain.fit(X_unlabeled, np.argmax(new_y, axis=1))
-    theta = lr_pretrain.coef_.T
-
-    print(np.shape(theta))
+    labs = np.argmax(new_y, axis=1)
+    lr_pretrain.fit(X_unlabeled, labs)
+    
+    for list_ind, lab_ind in enumerate(np.unique(labs)):
+        theta[:, lab_ind] = lr_pretrain.coef_.T[:, list_ind]
 
     # Find labeling that maximizes the error
     new_y,_ = solveLPGivenCost(constraint_matrix,constraint_vector,constraint_sign,cost)
