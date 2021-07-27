@@ -125,6 +125,8 @@ def compute_constraints_with_loss(lf, output_labelers_unlabeled, output_labelers
         # offset = 0 # Uncomment this line
                    # if you do not want to have a offset. This could be better in practice if
                    # the number of labeled data and labeled data is very large
+        
+        print(f'Offset {offset}', flush=True)
 
         # Add less or equal constraint
         constraint_matrix.append(build_coefficients)
