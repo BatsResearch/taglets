@@ -17,7 +17,7 @@ def get_data(num):
     Function to get the data from the DARPA task
     '''
     
-    data = pickle.load(open("./saved_vote_matrices/cifar_votes", "rb"))
+    data = pickle.load(open("./saved_vote_matrices/soft_cifar_votes", "rb"))
     
     data_dict = data["Base %d" % (num)]
     df = pd.read_feather("./cifar-labels_train.feather")
@@ -37,11 +37,11 @@ def get_data(num):
     np.random.shuffle(indices)
     num_labeled_data = 2000
     
-    l_votes = ul_votes[indices[:num_labeled_data]]
-    l_names = ul_names[indices[:num_labeled_data]]
+    l_votes = ul_votes[:, indices[:num_labeled_data]]
+    l_names = ul_names[:, indices[:num_labeled_data]]
     
-    ul_votes = ul_votes[indices[num_labeled_data:]]
-    ul_names = ul_names[indices[num_labeled_data:]]
+    ul_votes = ul_votes[:, indices[num_labeled_data:]]
+    ul_names = ul_names[:, indices[num_labeled_data:]]
     
     return l_names, l_votes, l_labels, ul_names, ul_votes, id_class_dict
 
@@ -122,8 +122,8 @@ def run_one_checkpoint(num_unlab, num_classes, chkpnt, labelmodel_type='amcl'):
         sampled_ul_votes = ul_votes
         sampled_ul_image_paths = ul_image_paths
     else:
-        sampled_ul_votes = ul_votes[indices[:num_unlab]]
-        sampled_ul_image_paths = ul_image_paths[indices[:num_unlab]]
+        sampled_ul_votes = ul_votes[:, indices[:num_unlab]]
+        sampled_ul_image_paths = ul_image_paths[:, indices[:num_unlab]]
 
     data_mean = [0.485, 0.456, 0.406]
     data_std = [0.229, 0.224, 0.225]
@@ -143,7 +143,7 @@ def run_one_checkpoint(num_unlab, num_classes, chkpnt, labelmodel_type='amcl'):
     l_labels = np.minimum(l_labels, num_classes - 1)
     
     for i in range(l_votes.shape[1]):
-        print(f'Labeled acc for module {i}: {np.mean(l_votes[:, i] == l_labels)}')
+        print(f'Labeled acc for module {i}: {np.mean(np.argmax(l_votes[i], 1) == l_labels)}')
         
     print('Training...', flush=True)
     
@@ -158,7 +158,7 @@ def run_one_checkpoint(num_unlab, num_classes, chkpnt, labelmodel_type='amcl'):
         preds = labelmodel.get_weak_labels(ul_dataset)
     elif labelmodel_type == 'weighted':
         preds = labelmodel.get_weak_labels(ul_votes,
-                                           [np.mean(l_votes[:, i] == l_labels) for i in range(l_votes.shape[1])])
+                                           [np.mean(np.argmax(l_votes[i], 1) == l_labels) for i in range(l_votes.shape[1])])
     else:
         preds = labelmodel.get_weak_labels(ul_votes)
     predictions = np.asarray([np.argmax(pred) for pred in preds])

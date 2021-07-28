@@ -122,7 +122,7 @@ class Controller:
             if self.task.unlabeled_train_labels is not None:
                 log.info('Accuracies of each taglet on the unlabeled train data:')
                 for i in range(len(taglets)):
-                    acc = np.sum(self.unlabeled_vote_matrix[:, i] == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
+                    acc = np.sum(np.argmax(self.unlabeled_vote_matrix[i], 1) == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
                     log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
 
             log.info("Executing taglets on labeled data")
