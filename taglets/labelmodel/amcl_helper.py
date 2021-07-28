@@ -51,19 +51,23 @@ def cross_entropy_linear(labels, predictions):
 
 
 def resnet_transform(unlabeled_data):
-	'''
+    '''
 	Function to transform unlabeled data into feature representation given by 
 	pre-trained resnet
 	'''
 
-	res = resnet.resnet18(pretrained=True)
-	fr = res(torch.tensor(unlabeled_data)).detach().numpy()
-	return fr
+    dl = torch.utils.data.DataLoader(unlabeled_data)
+    outputs = []
+    res = resnet.resnet18(pretrained=True)
+    for b in dl:
+        with torch.no_grad():
+            outputs.append(res(b).detach().numpy())
+    outputs = np.concatenate(outputs)
+    return outputs
 
 ##################################
 
 def compute_constraints_with_loss(lf, output_labelers_unlabeled, output_labelers_labeled, true_labels): 
-    
     '''
     This function builds the linear constraints that represents the
     feasible set of labeling based on the unlabeled data
@@ -115,12 +119,14 @@ def compute_constraints_with_loss(lf, output_labelers_unlabeled, output_labelers
 
         # Bounds: risk of a labeler must be within error+-offset
         delta = 0.1 # Between 0 and 1. Probability of the true labeling to NOT belong to the feasible set.
-        scaling_factor = 0.1 # Direct computation of the offset could yield large values if M or Ml is small.
+        scaling_factor = 1 # Direct computation of the offset could yield large values if M or Ml is small.
                              # This number can be used to scale the offset if it is too large 
         offset = scaling_factor * np.sqrt((Ml + M)*np.log(4*N/delta)/(2*(Ml*M)))
-        offset = 0 # Uncomment this line 
+        # offset = 0 # Uncomment this line
                    # if you do not want to have a offset. This could be better in practice if
                    # the number of labeled data and labeled data is very large
+        
+        print(f'Offset {offset}', flush=True)
 
         # Add less or equal constraint
         constraint_matrix.append(build_coefficients)
@@ -129,7 +135,7 @@ def compute_constraints_with_loss(lf, output_labelers_unlabeled, output_labelers
         # Add greater or equal constraint
         constraint_matrix.append( build_coefficients)
         constraint_sign.append(1)
-        constraint_vector.append(error - offset)  
+        constraint_vector.append(error - offset)
 
     # Add constraints for the sum of the label probabilities for each item to sum to 1
     for j in range(M):
@@ -391,8 +397,8 @@ def subGradientMethod(X_unlabeled, constraint_matrix,constraint_vector,constrain
             pass
 
         # Debug lines
-        if t % 100 == 0:
-
+        if t % 10 == 0:
+            print(f'Obj {obj}', flush=True)
             vals = []
             if lr:
                 preds = np.array([h(theta, X_unlabeled[i]) for i in range(M)])     
@@ -687,10 +693,11 @@ def subGradientMethodLR(X_unlabeled, constraint_matrix,constraint_vector,constra
     new_y = np.array([new_y[i*C : (i + 1) * C] for i in range(M)])
 
     lr_pretrain = LogisticRegression(penalty="l2")    
-    lr_pretrain.fit(X_unlabeled, np.argmax(new_y, axis=1))
-    theta = lr_pretrain.coef_.T
-
-    print(np.shape(theta))
+    labs = np.argmax(new_y, axis=1)
+    lr_pretrain.fit(X_unlabeled, labs)
+    
+    for list_ind, lab_ind in enumerate(np.unique(labs)):
+        theta[:, lab_ind] = lr_pretrain.coef_.T[:, list_ind]
 
     # Find labeling that maximizes the error
     new_y,_ = solveLPGivenCost(constraint_matrix,constraint_vector,constraint_sign,cost)
@@ -709,9 +716,6 @@ def subGradientMethodLR(X_unlabeled, constraint_matrix,constraint_vector,constra
         # Compute subgradient with respect to theta and the current labeling of the unlabeled data
         grad = computeGradientLR(theta,X_unlabeled,new_y,h)
         theta = theta.T.flatten()
-
-        if t == 50 or t == 100:
-            step_size = step_size / 2
 
         # Gradient descent step
         theta -= grad * step_size
@@ -739,7 +743,8 @@ def subGradientMethodLR(X_unlabeled, constraint_matrix,constraint_vector,constra
             best_val = current_eval
 
         # Debug lines
-        if t % 100 == 0:
+        if t % 10 == 0:
+            print(f'Obj {obj}', flush=True)
             vals = []
             preds = np.array([h(theta, X_unlabeled[i]) for i in range(M)])     
             vals = np.array([lf(new_y[i], preds[i]) for i in range(M)])
