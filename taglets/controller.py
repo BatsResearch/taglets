@@ -139,11 +139,11 @@ class Controller:
                     val_labels = [image_labels for _, image_labels in val_loader]
 
                     # sample unlabeled data
-                    indices = np.arange(len(self.unlabeled_vote_matrix))
+                    indices = np.arange(self.unlabeled_vote_matrix.shape[1])
                     np.random.shuffle(indices)
         
                     lm = AMCLWeightedVote(len(self.task.classes))
-                    lm.train(self.val_vote_matrix, val_labels, self.unlabeled_vote_matrix[indices[:1000]])
+                    lm.train(self.val_vote_matrix, val_labels, self.unlabeled_vote_matrix[:, indices[:1000]])
                     weak_labels = lm.get_weak_labels(self.unlabeled_vote_matrix)
         
                     with open('tmp_labelmodel_output.pkl', 'wb') as f:
