@@ -7,6 +7,7 @@ import torch.nn.functional as F
 import torchvision.transforms as transforms
 import copy 
 import torchvision.models as models
+import numpy as np 
 
 
 log = logging.getLogger(__name__)
@@ -257,11 +258,11 @@ class PseudoShotTaglet(ImageTaglet):
         label_mask = np.array(label_mask)
         supp_idx_mask = np.where(label_mask == 1)
         
-        supp_image_paths = list(np.array(image_paths)[idx_mask])
-        supp_image_labels = list(np.array(image_labels)[idx_mask])
+        supp_image_paths = list(np.array(image_paths)[supp_idx_mask])
+        supp_image_labels = list(np.array(image_labels)[supp_idx_mask])
         
         supp_train_dataset = PseudoshotImageDataset(supp_image_paths,
-                                           labels=supp_image_labels
+                                           labels=supp_image_labels,
                                            transform=transform)
         
         aux_idx_mask = np.where(label_mask == 0)
@@ -269,7 +270,7 @@ class PseudoShotTaglet(ImageTaglet):
         aux_image_labels = list(np.array(image_labels)[aux_idx_mask])
 
         aux_train_dataset = PseudoshotImageDataset(aux_image_paths,
-                                           labels=aux_image_labels
+                                           labels=aux_image_labels,
                                            transform=transform)
         return supp_train_dataset, aux_train_dataset, all_related_class
 
@@ -384,8 +385,6 @@ class PseudoShotTaglet(ImageTaglet):
                         dataset=aux_scads_train_data, batch_size=1, shuffle=False,
                         num_workers=self.num_workers, pin_memory=True)
 
-                    aux_embeddings = torch.zeros(support_embeddings.shape).to(main_dev)
-                    aux_cls_matrix = torch.zeros(supp_cls_matrix.shape, dtype=torch.int32).to(main_dev)
 
                     for x, y in supp_scads_data_loader:
                         x, y = x.to(main_dev), y.to(main_dev)
@@ -395,66 +394,37 @@ class PseudoShotTaglet(ImageTaglet):
                                                                                                 y,
                                                                                                 supp_cls_matrix,
                                                                                                 support_embeddings)
-
-
-                    for x, y in aux_scads_data_loader:
-                        x, y = x.to(main_dev), y.to(main_dev)
-                        x_embeds = img_encoder(x)
-
-                        for i in range(x.shape[0])
-                            if self.dev_test:
-                                embed_shape = (-1, 1280, 5, 5)
-                                pseudo_shape = (-1, 640, 5, 5)
-                            else:
-                                embed_shape = (-1, 4096, 7, 7)
-                                pseudo_shape = (-1, 2048, 7, 7)
-                            x_embeds[i].reshape(embed_shape)
-                            masked_embed = masking_head({'embed': embed[idx_mask].reshape(embed_shape), 'pseudo': pseudo[idx_mask].reshape(pseudo_shape)})
-                            pseudo_embed = masked_embed['pseudo']
-
-                    aux_counts = aux_cls_matrix[:, 1].reshape(-1).type(torch.DoubleTensor).to(main_dev)
-                    norm_factor = torch.where(aux_counts > eps, 1.0 / aux_counts, 1.0)
-                    norm_factor = norm_factor.unsqueeze(-1).expand(aux_embeddings.shape)
-                    norm_aux_embeddings = aux_embeddings * norm_factor
-
+                    
                     supp_counts = supp_cls_matrix[:, 1].reshape(-1).type(torch.DoubleTensor).to(main_dev)
                     norm_factor = torch.where(supp_counts > eps, 1.0 / supp_counts, 1.0)
                     
                     # expand norms across row so that norm_factor.shape == support_embeddings.shape
                     norm_factor = norm_factor.unsqueeze(-1).expand(support_embeddings.shape)
                     norm_support_embeddings = support_embeddings * norm_factor 
-
-                    # generate masks
-                    log.info(norm_support_embeddings.shape)
-                    log.info(norm_aux_embeddings.shape)
-
-                    joint_embeddings = torch.cat((norm_support_embeddings, norm_aux_embeddings), dim=1)
-
-                    joint_embeddings = joint_embeddings.type(torch.FloatTensor).to(main_dev)
-
-                    n_batches = joint_embeddings.shape[0] // self.mask_batch_size
-                    assert joint_embeddings.shape[0] == aux_embeddings.shape[0]
-                    for i in range(max(n_batches, 1)):
-                        upper = min((i + 1) * self.mask_batch_size, joint_embeddings.shape[0])
-                        embed = joint_embeddings[i * self.mask_batch_size: upper].to(main_dev)
-                        pseudo = aux_embeddings[i * self.mask_batch_size: upper].to(main_dev)
-
-                        # only use masking module for classes with aux data
-                        idx_mask = aux_counts[i * self.mask_batch_size: upper] > eps
-
-                        if embed[idx_mask].shape[0] == 0:
-                            continue 
-
-                        if self.dev_test:
-                            embed_shape = (-1, 1280, 5, 5)
-                            pseudo_shape = (-1, 640, 5, 5)
-                        else:
-                            embed_shape = (-1, 4096, 7, 7)
-                            pseudo_shape = (-1, 2048, 7, 7)
-                        masked_embed = masking_head({'embed': embed[idx_mask].reshape(embed_shape), 'pseudo': pseudo[idx_mask].reshape(pseudo_shape)})
-                        pseudo_embed = masked_embed['pseudo']
-                        aux_embeddings[i * self.mask_batch_size: upper][idx_mask] = pseudo_embed.reshape((-1, aux_embeddings.shape[1]))
                     
+                    aux_embeddings = torch.zeros(support_embeddings.shape).to(main_dev)
+                    aux_cls_matrix = torch.zeros(supp_cls_matrix.shape, dtype=torch.int32).to(main_dev)
+                    for x, y in aux_scads_data_loader:
+                        x, y = x.to(main_dev), y.to(main_dev)
+                        x_embeds = img_encoder(x)
+
+                        for i in range(x.shape[0]):
+                            if self.dev_test:
+                                embed_shape = (-1, 1280, 5, 5)
+                                pseudo_shape = (-1, 640, 5, 5)
+                            else:
+                                embed_shape = (-1, 4096, 7, 7)
+                                pseudo_shape = (-1, 2048, 7, 7)
+                            if supp_counts[y] > eps:
+                                embed, pseudo = norm_support_embeddings[y].reshape(pseudo_shape), x_embeds[i].reshape(pseudo_shape)
+                                embed = torch.cat((embed, pseudo), dim=1).type(torch.FloatTensor).to(main_dev)
+                                pseudo = pseudo.type(torch.FloatTensor).to(main_dev)
+                                masked_embed = masking_head({'embed': embed, 'pseudo': pseudo})
+                                aux_cls_matrix[y, 0] = 1 
+                                aux_cls_matrix[y, 1] += 1
+                                aux_embeddings[y] += masked_embed['pseudo'].reshape(-1)
+
+                    aux_counts = aux_cls_matrix[:, 1].reshape(-1).type(torch.DoubleTensor).to(main_dev)
                     counts = supp_counts + aux_counts
                     unnorm_prototypes = support_embeddings + aux_embeddings
                     counts = counts.type(torch.DoubleTensor).to(main_dev)
