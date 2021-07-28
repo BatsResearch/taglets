@@ -175,7 +175,7 @@ class Controller:
         else:
             if self.task.scads_path is not None:
                 return [
-                        PseudoShotModule, ZSLKGModule, FixMatchModule, MultiTaskModule, TransferModule, FineTuneModule]
+                        PseudoShotModule]
                 #return [MultiTaskModule]
             return [PseudoShotModule]
 

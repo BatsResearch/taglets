@@ -369,8 +369,6 @@ class PseudoShotTaglet(ImageTaglet):
                     aux_embeddings = torch.zeros(support_embeddings.shape).to(main_dev)
                     aux_cls_matrix = torch.zeros(supp_cls_matrix.shape, dtype=torch.int32).to(main_dev)
 
-                    batch_idx = 0
-                    i = 0
                     for x, y, mask in scads_data_loader:
                         x, y, mask = x.to(main_dev), y.to(main_dev), mask.to(main_dev).type(torch.int32)
                         x_embeds = img_encoder(x)
@@ -391,7 +389,6 @@ class PseudoShotTaglet(ImageTaglet):
                                                                                            aux_labels,
                                                                                            aux_cls_matrix,
                                                                                            aux_embeddings)
-                        i += 1
                     aux_counts = aux_cls_matrix[:, 1].reshape(-1).type(torch.DoubleTensor).to(main_dev)
                     norm_factor = torch.where(aux_counts > eps, 1.0 / aux_counts, 1.0)
                     norm_factor = norm_factor.unsqueeze(-1).expand(aux_embeddings.shape)
@@ -405,12 +402,12 @@ class PseudoShotTaglet(ImageTaglet):
                     norm_support_embeddings = support_embeddings * norm_factor 
 
                     # generate masks
-                    log.info(norm_support_embeddings.shape)
-                    log.info(norm_aux_embeddings.shape)
+                    log.debug(norm_support_embeddings.shape)
+                    log.debug(norm_aux_embeddings.shape)
 
                     joint_embeddings = torch.cat((norm_support_embeddings, norm_aux_embeddings), dim=1)
 
-                    log.info(joint_embeddings.shape)
+                    log.debug(joint_embeddings.shape)
                     joint_embeddings = joint_embeddings.type(torch.FloatTensor).to(main_dev)
 
                     n_batches = joint_embeddings.shape[0] // self.mask_batch_size
@@ -421,7 +418,7 @@ class PseudoShotTaglet(ImageTaglet):
                         pseudo = aux_embeddings[i * self.mask_batch_size: upper].to(main_dev)
 
                         # only use masking module for classes with aux data
-                        idx_mask = aux_counts[i * self.mask_batch_size: upper] > eps
+                        idx_mask = (aux_counts[i * self.mask_batch_size: upper] > eps) & (supp_counts[i * self.mask_batch_size: upper] > eps)
 
                         if embed[idx_mask].shape[0] == 0:
                             continue 
@@ -434,7 +431,6 @@ class PseudoShotTaglet(ImageTaglet):
                             pseudo_shape = (-1, 2048, 7, 7)
                         masked_embed = masking_head({'embed': embed[idx_mask].reshape(embed_shape), 'pseudo': pseudo[idx_mask].reshape(pseudo_shape)})
                         pseudo_embed = masked_embed['pseudo']
-                        log.info(pseudo_embed.shape)
                         aux_embeddings[i * self.mask_batch_size: upper][idx_mask] = pseudo_embed.reshape((-1, aux_embeddings.shape[1]))
                     
                     counts = supp_counts + aux_counts
