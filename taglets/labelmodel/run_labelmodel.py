@@ -142,7 +142,7 @@ def run_one_checkpoint(num_unlab, num_classes, chkpnt, labelmodel_type='amcl'):
     l_votes = np.minimum(l_votes, num_classes - 1)
     l_labels = np.minimum(l_labels, num_classes - 1)
     
-    for i in range(l_votes.shape[1]):
+    for i in range(l_votes.shape[0]):
         print(f'Labeled acc for module {i}: {np.mean(np.argmax(l_votes[i], 1) == l_labels)}')
         
     print('Training...', flush=True)
@@ -158,7 +158,7 @@ def run_one_checkpoint(num_unlab, num_classes, chkpnt, labelmodel_type='amcl'):
         preds = labelmodel.get_weak_labels(ul_dataset)
     elif labelmodel_type == 'weighted':
         preds = labelmodel.get_weak_labels(ul_votes,
-                                           [np.mean(np.argmax(l_votes[i], 1) == l_labels) for i in range(l_votes.shape[1])])
+                                           [np.mean(np.argmax(l_votes[i], 1) == l_labels) for i in range(l_votes.shape[0])])
     else:
         preds = labelmodel.get_weak_labels(ul_votes)
     predictions = np.asarray([np.argmax(pred) for pred in preds])
