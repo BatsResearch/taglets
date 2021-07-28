@@ -8,7 +8,7 @@ class Task:
     A class defining an image classification task
     """
     def __init__(self, name, classes, input_shape, labeled_train_data, unlabeled_train_data, validation_data,
-                 batch_size=128, whitelist=None, scads_path=None, scads_embedding_path=None,
+                 batch_size=256, whitelist=None, scads_path=None, scads_embedding_path=None,
                  processed_scads_embedding_path=None, unlabeled_test_data=None, unlabeled_train_labels=None,
                  video_classification=False):
         """
