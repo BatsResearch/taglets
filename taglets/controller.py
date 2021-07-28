@@ -14,7 +14,7 @@ from .data import SoftLabelDataset
 from .labelmodel import UnweightedVote, WeightedVote, AMCLWeightedVote
 from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
     RandomModule, DannModule
-from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor
+from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor, Cache
 
 ####################################################################
 # We configure logging in the main class of the application so that
@@ -110,10 +110,22 @@ class Controller:
                     for line in traceback.format_exc().splitlines():
                         log.error(line)
                     log.error("Continuing execution")
+
+            # cache labelers
+            all_past_taglets = Cache.get("past-taglets", self.task.classes)
+            if all_past_taglets is None:
+                all_taglets = taglets
+            else:
+                all_taglets = all_past_taglets + taglets
+            Cache.set("past-taglets", self.task.classes, all_taglets)
+
+            # Remove this if you're not using AMCL!!
+            if val is not None:
+                taglets = all_taglets
     
             taglet_executor = TagletExecutor()
             taglet_executor.set_taglets(taglets)
-    
+            
             # Executes taglets
             log.info("Executing taglets on unlabeled data")
             self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test)
