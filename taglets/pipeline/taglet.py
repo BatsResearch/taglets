@@ -25,8 +25,8 @@ class TagletMixin:
 
 
 class AuxDataMixin:
-    def __init__(self, task):
-        super().__init__(task)
+    def __init__(self, task, seed=0):
+        super().__init__(task, seed)
         self.img_per_related_class = 600 if not os.environ.get("CI") else 1
         if os.environ.get("CI"):
             self.num_related_class = 1
@@ -82,10 +82,29 @@ class AuxDataMixin:
                             if cur_related_class >= self.num_related_class:
                                 break
                     ct = ct * 2
+
+            image_paths = np.asarray(image_paths)
+            image_labels = np.asarray(image_labels)
         
             Scads.close()
             Cache.set('scads', self.task.classes,
                       (image_paths, image_labels, all_related_class))
+            
+        random.seed(self.seed)
+        np.random.seed(self.seed)
+        num_sampled = int(np.ceil(self.num_related_class / 3))
+        new_image_paths = []
+        new_image_labels = []
+        for i in range(0, all_related_class, self.num_related_class):
+            to_sample = np.random.choice(self.num_related_class,
+                                         size=num_sampled,
+                                         replace=False) + i
+            for label in to_sample:
+                new_image_paths.extend(image_paths[image_labels == label])
+                new_image_labels.extend(image_labels[image_labels == label])
+                
+        image_paths = new_image_paths
+        image_labels = new_image_labels
     
         transform = self.transform_image(train=True)
         train_dataset = CustomImageDataset(image_paths,

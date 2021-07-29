@@ -56,12 +56,14 @@ class MultiTaskModule(Module):
     """
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [MultiTaskTaglet(task)]
+        self.taglets = []
+        for i in range(5):
+            self.taglets.append(MultiTaskTaglet(task, i))
 
 
 class MultiTaskTaglet(ImageTagletWithAuxData):
-    def __init__(self, task):
-        super().__init__(task)
+    def __init__(self, task, seed=0):
+        super().__init__(task, seed)
         self.name = 'multitask'
         self.num_epochs = 8 if not os.environ.get("CI") else 5
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:

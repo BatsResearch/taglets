@@ -79,11 +79,15 @@ def get_cosine_schedule_with_warmup(optimizer,
 class FixMatchModule(Module):
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [FixMatchTaglet(task, optimizer=Optimizer.SGD, use_ema=False, verbose=False)]
+        self.taglets = []
+        for i in range(5):
+            self.taglets.append(FixMatchTaglet(task, i, optimizer=Optimizer.SGD, use_ema=False, verbose=False))
 
 
 class FixMatchTaglet(ImageTagletWithAuxData):
-    def __init__(self, task, steps_per_epoch=-1,
+    def __init__(self, task,
+                 seed=0,
+                 steps_per_epoch=-1,
                  conf_thresh=0.95,
                  lambda_u=1,
                  nesterov=True,
@@ -119,7 +123,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
             log.info("unlabeled loss weight (lambda u): %.4f", self.lambda_u)
             log.info('temperature: %.4f', self.temp)
 
-        super().__init__(task)
+        super().__init__(task, seed)
 
         self.weight_decay = weight_decay
         
@@ -182,7 +186,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
 
         # warm-up using scads data
         if self.use_scads:
-            aux_weights = Cache.get("scads-weights", self.task.classes)
+            aux_weights = Cache.get(f'scads-weights-{self.seed}', self.task.classes)
             if aux_weights is None:
                 scads_train_data, scads_num_classes = self._get_scads_data()
     
@@ -214,7 +218,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
 
                 self.model.fc = torch.nn.Identity()
                 aux_weights = copy.deepcopy(self.model.state_dict())
-                Cache.set('scads-weights', self.task.classes, aux_weights)
+                Cache.set(f'scads-weights-{self.seed}', self.task.classes, aux_weights)
             self.use_scads = False
             self.model.load_state_dict(aux_weights, strict=False)
 

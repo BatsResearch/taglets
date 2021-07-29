@@ -20,12 +20,14 @@ class TransferModule(Module):
     """
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [TransferTaglet(task)]
+        self.taglets = []
+        for i in range(5):
+            self.taglets.append(TransferTaglet(task, i))
 
 
 class TransferTaglet(ImageTagletWithAuxData):
-    def __init__(self, task, freeze=False, is_norm=False):
-        super().__init__(task)
+    def __init__(self, task, seed=0, freeze=False, is_norm=False):
+        super().__init__(task, seed)
         self.name = 'transfer'
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
@@ -73,7 +75,7 @@ class TransferTaglet(ImageTagletWithAuxData):
         self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[20, 30], gamma=0.1)
 
     def train(self, train_data, val_data, unlabeled_data=None):
-        aux_weights = Cache.get("scads-weights", self.task.classes)
+        aux_weights = Cache.get(f'scads-weights-{self.seed}', self.task.classes)
         if aux_weights is None:
             scads_train_data, scads_num_classes = self._get_scads_data()
             log.info("Source classes found: {}".format(scads_num_classes))
@@ -90,7 +92,7 @@ class TransferTaglet(ImageTagletWithAuxData):
             
             self.model.fc = nn.Identity()
             aux_weights = copy.deepcopy(self.model.state_dict())
-            Cache.set('scads-weights', self.task.classes, aux_weights)
+            Cache.set(f'scads-weights-{self.seed}', self.task.classes, aux_weights)
         self.model.load_state_dict(aux_weights, strict=False)
 
         # Freeze layers

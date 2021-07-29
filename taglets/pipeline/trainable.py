@@ -20,7 +20,7 @@ class Trainable:
     from this class.
     """
 
-    def __init__(self, task):
+    def __init__(self, task, seed=0):
         """
         Create a new Trainable.
 
@@ -30,7 +30,7 @@ class Trainable:
         self.task = task
         self.lr = 0.0005
         self.criterion = torch.nn.CrossEntropyLoss()
-        self.seed = 0
+        self.seed = seed
         self.num_epochs = 30 if not os.environ.get("CI") else 5
         self.batch_size = task.batch_size if not os.environ.get("CI") else 32
         self.select_on_val = True  # If true, save model on the best validation performance
