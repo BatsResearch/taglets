@@ -702,11 +702,17 @@ class JPLRunner:
         end_model = controller.train_end_model()
         
         if self.vote_matrix_save_path is not None:
-            labeled_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
-            image_names, image_labels = self.jpl_storage.get_labeled_images_list()
-            checkpoint_dict = {'labeled_images_names': image_names,
-                               'labeled_images_votes': labeled_vote_matrix,
-                               'labeled_images_labels': image_labels,
+            val_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
+            if val_dataset is not None:
+                val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=False)
+                val_image_names = [os.path.basename(image_path) for image_path, _ in val_loader]
+                val_labels = [image_labels for _, image_labels in val_loader]
+            else:
+                val_image_names = None
+                val_labels = None
+            checkpoint_dict = {'val_images_names': val_image_names,
+                               'val_images_votes': val_vote_matrix,
+                               'val_images_labels': val_labels,
                                'unlabeled_images_names': self.jpl_storage.get_unlabeled_image_names(),
                                'unlabeled_images_votes': unlabeled_vote_matrix}
             self.vote_matrix_dict[f'{phase} {checkpoint_num}'] = checkpoint_dict
