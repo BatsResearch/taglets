@@ -134,7 +134,7 @@ class JPL:
         log.debug(f"HEADERS: {headers}")
         response = self.get_only_once("seed_labels", headers)
         labels = response['Labels']
-
+        log.info(f"NUMBER OF LABELED DATA: {len(labels)}")
         if video:
             seed_labels = []
             dictionary_clips = {}
@@ -644,7 +644,7 @@ class JPLRunner:
 
         start_time = time.time()
 
-
+        log.info(f"session STATUS {self.api.get_session_status()}")
         # Skip checkpoint before getting available budget
         if checkpoint_num == 6:
             log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
@@ -688,6 +688,7 @@ class JPLRunner:
             """
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
             log.debug(f"Candidates to query[0]: {candidates[0]}")
+            log.info(f"NUMBER OF LABELED DATA: {len(candidates)}")
             self.request_labels(candidates, self.video)
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)

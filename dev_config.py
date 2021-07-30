@@ -1,8 +1,8 @@
-dataset_type ='sample'
+dataset_type ='full'
 problem_type = 'image_classification'
-dataset_dir = '/lwll'
-api_url = 'https://api-dev.lollllz.com/'
-problem_task = 'problem_test_image_classification'
+dataset_dir = '/users/cmenghin/data/bats/datasets/lwll'
+api_url = 'https://api-staging.lollllz.com/'
+problem_task = '6d5e1f85-5d8f-4cc9-8184-299db03713f4'
 team_secret = 'a5aed2a8-db80-4b22-bf72-11f2d0765572'
 gov_team_secret = 'mock-secret'
 data_paths = ('predefined/scads.spring2021.sqlite3',
