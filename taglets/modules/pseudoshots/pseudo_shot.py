@@ -401,12 +401,7 @@ class PseudoShotTaglet(ImageTaglet):
                     norm_support_embeddings = support_embeddings * norm_factor 
 
                     # generate masks
-                    log.debug(norm_support_embeddings.shape)
-                    log.debug(norm_aux_embeddings.shape)
-
                     joint_embeddings = torch.cat((norm_support_embeddings, norm_aux_embeddings), dim=1)
-
-                    log.debug(joint_embeddings.shape)
                     joint_embeddings = joint_embeddings.type(torch.FloatTensor).to(main_dev)
 
                     n_batches = joint_embeddings.shape[0] // self.mask_batch_size
