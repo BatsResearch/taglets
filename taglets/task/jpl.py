@@ -93,6 +93,20 @@ class JPL:
         session_token = response['session_token']
         self.session_token = session_token
 
+    def skip_checkpoint(self):
+        """ Skip checkpoint.
+
+        :return: session status after skipping checkpoint
+        """
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret,
+                   'session_token': self.session_token}
+        requests.get(self.url + "/skip_checkpoint", headers=headers)
+        # if 'Session_Status' in r.json():
+        #     return r.json()['Session_Status']
+        # else:
+        #     return {}
+
     def get_session_status(self):
         """
         Get the session status.
@@ -629,6 +643,11 @@ class JPLRunner:
         log.info('------------------------------------------------------------')
 
         start_time = time.time()
+
+
+        # Skip checkpoint before getting available budget
+        if checkpoint_num == 6:
+            self.api.skip_checkpoint()
 
         available_budget = self.get_available_budget()
         if checkpoint_num == 0:
