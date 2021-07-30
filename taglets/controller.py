@@ -53,7 +53,7 @@ if not os.environ.get("CI"):
         def emit(self, record):
             if accelerator.is_local_main_process:
                 msg = self.format(record)
-                #self.jpl_logger = logger.log(msg, 'Brown', 0) # For the moment fixed checkpoint
+                self.jpl_logger = logger.log(msg, 'Brown', 0) # For the moment fixed checkpoint
 
 
     jpl_handler = JPLHandler()
@@ -216,14 +216,13 @@ class Controller:
                         TransferModule,
                         FineTuneModule,
                         FixMatchModule,
-                        PseudoShotModule, 
                         PseudoShotModule]
             return [FineTuneModule, FixMatchModule]
     
     def get_vote_matrix(self):
         return self.val_vote_matrix, self.unlabeled_vote_matrix
 
-    def combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
+    def _combine_soft_labels(self, weak_labels, unlabeled_dataset, labeled_dataset):
         labeled = DataLoader(labeled_dataset, batch_size=1, shuffle=False)
         soft_labels_labeled_images = []
         for _, image_labels in labeled:

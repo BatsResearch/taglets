@@ -153,7 +153,6 @@ class PseudoShotTaglet(ImageTaglet):
         self._params_to_update = []
 
         backbone = torch.nn.Sequential(*list(self.img_encoder.children())[:-1])
-        #im_encoder_shape = self._get_model_output_shape(self.dev_shape, backbone)
 
         out_dim = 640 * 5 * 5 if self.dev_test else 2048 * 7 * 7
         self.support_embeddings = torch.zeros((len(self.task.classes), out_dim))
@@ -163,7 +162,7 @@ class PseudoShotTaglet(ImageTaglet):
         else:
             self.test_path = 'trained_models/pseudoshots'
         if not os.path.exists(self.test_path):
-            os.makedirs(self.test_path)
+            os.makedirs(self.test_path, exists_ok=True)
 
         self.model = NearestNeighborClassifier(None, self.img_encoder, kwargs.get('metric', Metric.COSINE))
         self.proto_file = os.path.join(self.test_path, f'test_protos.pth')
