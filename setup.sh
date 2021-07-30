@@ -24,3 +24,10 @@ wget -nc https://storage.googleapis.com/taglets-public/zsl_kg_lite/transformer.p
 cd ../
 wget -nc https://storage.googleapis.com/taglets-public/protonet-trained.pth
 
+
+cd ../pseudoshots
+wget -nc https://storage.googleapis.com/taglets-public/pseudoshots/resnet50_train_val_test_224_1shot.pth
+wget -nc https://storage.googleapis.com/taglets-public/pseudoshots/simclr50.pth
+
+wget -nc https://storage.googleapis.com/taglets-public/pseudoshots/resnet12.pth
+wget -nc https://storage.googleapis.com/taglets-public/pseudoshots/resnet12_mask.pth
