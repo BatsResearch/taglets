@@ -689,10 +689,7 @@ class JPLRunner:
             #log.info(f"NUMBER OF LABELED DATA: {len(labels)}")
             self.request_labels(candidates, self.video)
 
-            if checkpoint_num == 6:
-                candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
-                self.request_labels(candidates, self.video)
-                
+            if checkpoint_num == 6:                
                 log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                 checkpoint_num,
                                                                 time.strftime("%H:%M:%S",
