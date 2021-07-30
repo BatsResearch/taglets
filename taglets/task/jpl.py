@@ -647,7 +647,11 @@ class JPLRunner:
 
         # Skip checkpoint before getting available budget
         if checkpoint_num == 6:
-            self.api.skip_checkpoint()
+            log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
+                                                               checkpoint_num,
+                                                               time.strftime("%H:%M:%S",
+                                                                             time.gmtime(time.time()-start_time))))
+            return self.api.skip_checkpoint()
 
         available_budget = self.get_available_budget()
         if checkpoint_num == 0:
