@@ -126,45 +126,45 @@ class Controller:
                     log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
 
             # Train a labelmodel and get weak labels
-            if val is not None:
-                log.info("Using AMCLWeightedVote as the labelmodel")
-
-                log.info("Executing taglets on val data")
-                self.val_vote_matrix = taglet_executor.execute(val)
-                log.info("Finished executing taglets on val data")
-                
-                log.info("Training labelmodel")
-                if accelerator.is_local_main_process:
-                    val_loader = DataLoader(val, batch_size=1, shuffle=False)
-                    val_labels = [image_labels for _, image_labels in val_loader]
-
-                    # sample unlabeled data
-                    indices = np.arange(self.unlabeled_vote_matrix.shape[1])
-                    np.random.shuffle(indices)
-        
-                    lm = AMCLWeightedVote(len(self.task.classes))
-                    lm.train(self.val_vote_matrix, val_labels, self.unlabeled_vote_matrix[:, indices[:1000]])
-                    weak_labels = lm.get_weak_labels(self.unlabeled_vote_matrix)
-        
-                    with open('tmp_labelmodel_output.pkl', 'wb') as f:
-                        pickle.dump(weak_labels, f)
-                accelerator.wait_for_everyone()
-                with open('tmp_labelmodel_output.pkl', 'rb') as f:
-                    weak_labels = pickle.load(f)
-                accelerator.wait_for_everyone()
-                if accelerator.is_local_main_process:
-                    os.remove('tmp_labelmodel_output.pkl')
-                log.info("Finished training labelmodel")
-                
-                # # Weight votes using development set
-                # log.info("Using WeightedVote as the labelmodel")
-                # weights = [taglet.evaluate(val) for taglet in taglets]
-                # log.info("Validation accuracies of each taglet:")
-                # for w, taglet in zip(weights, taglets):
-                #     log.info("Module {} - acc {:.4f}".format(taglet.name, w))
+            if val is not None and len(val) >= len(self.task.classes) * 10:
+                # log.info("Using AMCLWeightedVote as the labelmodel")
                 #
-                # lm = WeightedVote(len(self.task.classes))
-                # weak_labels = lm.get_weak_labels(self.unlabeled_vote_matrix, weights)
+                # log.info("Executing taglets on val data")
+                # self.val_vote_matrix = taglet_executor.execute(val)
+                # log.info("Finished executing taglets on val data")
+                #
+                # log.info("Training labelmodel")
+                # if accelerator.is_local_main_process:
+                #     val_loader = DataLoader(val, batch_size=1, shuffle=False)
+                #     val_labels = [image_labels for _, image_labels in val_loader]
+                #
+                #     # sample unlabeled data
+                #     indices = np.arange(self.unlabeled_vote_matrix.shape[1])
+                #     np.random.shuffle(indices)
+                #
+                #     lm = AMCLWeightedVote(len(self.task.classes))
+                #     lm.train(self.val_vote_matrix, val_labels, self.unlabeled_vote_matrix[:, indices[:1000]])
+                #     weak_labels = lm.get_weak_labels(self.unlabeled_vote_matrix)
+                #
+                #     with open('tmp_labelmodel_output.pkl', 'wb') as f:
+                #         pickle.dump(weak_labels, f)
+                # accelerator.wait_for_everyone()
+                # with open('tmp_labelmodel_output.pkl', 'rb') as f:
+                #     weak_labels = pickle.load(f)
+                # accelerator.wait_for_everyone()
+                # if accelerator.is_local_main_process:
+                #     os.remove('tmp_labelmodel_output.pkl')
+                # log.info("Finished training labelmodel")
+                
+                # Weight votes using development set
+                log.info("Using WeightedVote as the labelmodel")
+                weights = [taglet.evaluate(val) for taglet in taglets]
+                log.info("Validation accuracies of each taglet:")
+                for w, taglet in zip(weights, taglets):
+                    log.info("Module {} - acc {:.4f}".format(taglet.name, w))
+
+                lm = WeightedVote(len(self.task.classes))
+                weak_labels = lm.get_weak_labels(self.unlabeled_vote_matrix, weights)
             else:
                 # Weight all votes equally
                 log.info("Using UnweightedVote as the labelmodel")

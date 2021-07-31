@@ -705,7 +705,7 @@ class JPLRunner:
             val_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
             if val_dataset is not None:
                 val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=False)
-                val_image_names = [os.path.basename(image_path) for image_path, _ in val_loader]
+                val_image_names = [os.path.basename(image_path) for image_path in val_dataset.filepaths]
                 val_labels = [image_labels for _, image_labels in val_loader]
             else:
                 val_image_names = None
