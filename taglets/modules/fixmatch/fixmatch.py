@@ -80,7 +80,7 @@ class FixMatchModule(Module):
     def __init__(self, task):
         super().__init__(task)
         self.taglets = []
-        for i in range(5):
+        for i in range(3):
             self.taglets.append(FixMatchTaglet(task, i, optimizer=Optimizer.SGD, use_ema=False, verbose=False))
 
 
