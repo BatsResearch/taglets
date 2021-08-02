@@ -23,5 +23,5 @@ class TagletExecutor:
         label_matrix = []
         for taglet in self.taglets:
             labels = taglet.execute(unlabeled_images)
-            label_matrix.append(np.expand_dims(labels, 1))
-        return np.concatenate(label_matrix, 1)
+            label_matrix.append(np.expand_dims(labels, 0))
+        return np.concatenate(label_matrix, 0)
