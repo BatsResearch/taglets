@@ -14,16 +14,16 @@ class UnweightedVote(LabelModel):
         :return: m x k matrix, where each row is a distribution over the k
                  possible labels
         """
-        weights = [1.0] * vote_matrix.shape[1]
+        weights = [1.0] * vote_matrix.shape[0]
         return self._get_weighted_dist(vote_matrix, weights)
 
     def _get_weighted_dist(self, vote_matrix, weights):
         weak_labels = []
-        for row in vote_matrix:
+        for j in range(vote_matrix.shape[1]):
             weak_label = np.zeros((self.num_classes,))
-            for i in range(len(row)):
-                weak_label[row[i]] += weights[i]
-            weak_labels.append(weak_label / weak_label.sum())
+            for i in range(vote_matrix.shape[0]):
+                weak_label += weights[i] * vote_matrix[i][j]
+            weak_labels.append(weak_label / sum(weights))
         return weak_labels
 
 

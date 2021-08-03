@@ -25,8 +25,7 @@ class FineTuneTaglet(ImageTaglet):
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
             self.save_dir = os.path.join('trained_models', self.name)
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
+        os.makedirs(self.save_dir, exist_ok=True)
 
         # Parameters needed to be updated based on freezing layer
         params_to_update = []

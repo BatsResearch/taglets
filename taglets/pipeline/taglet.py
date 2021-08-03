@@ -22,7 +22,7 @@ class TagletMixin:
         outputs = self.predict(unlabeled_data)
         if isinstance(outputs, tuple):
             outputs, _ = outputs
-        return np.argmax(outputs, 1)
+        return outputs
 
 
 class AuxDataMixin:

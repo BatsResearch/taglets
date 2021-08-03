@@ -95,6 +95,20 @@ class JPL:
         session_token = response['session_token']
         self.session_token = session_token
 
+    def skip_checkpoint(self):
+        """ Skip checkpoint.
+
+        :return: session status after skipping checkpoint
+        """
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret,
+                   'session_token': self.session_token}
+        requests.get(self.url + "/skip_checkpoint", headers=headers)
+        # if 'Session_Status' in r.json():
+        #     return r.json()['Session_Status']
+        # else:
+        #     return {}
+
     def get_session_status(self):
         """
         Get the session status.
@@ -122,6 +136,7 @@ class JPL:
         log.debug(f"HEADERS: {headers}")
         response = self.get_only_once("seed_labels", headers)
         labels = response['Labels']
+        #log.info(f"NUMBER OF LABELED DATA: {len(labels)}")
 
         if video:
             seed_labels = []
@@ -639,6 +654,10 @@ class JPLRunner:
 
         start_time = time.time()
 
+        #log.info(f"session STATUS {self.api.get_session_status()}")
+        # Skip checkpoint before getting available budget
+        
+
         available_budget = self.get_available_budget()
         if checkpoint_num == 0:
             self.jpl_storage.labeled_images, self.jpl_storage.dictionary_clips = \
@@ -655,6 +674,8 @@ class JPLRunner:
         unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names(self.jpl_storage.dictionary_clips,
                                                                            self.video)
         log.debug('Number of unlabeled data: {}'.format(len(unlabeled_image_names)))
+
+        
         
         if checkpoint_num >= 4:
             """ For the last evaluation we used to start asking for custom labels after the first 2 checkpoints.
@@ -674,7 +695,15 @@ class JPLRunner:
             """
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
             log.debug(f"Candidates to query[0]: {candidates[0]}")
+            #log.info(f"NUMBER OF LABELED DATA: {len(labels)}")
             self.request_labels(candidates, self.video)
+
+            if checkpoint_num == 6:                
+                log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
+                                                                checkpoint_num,
+                                                                time.strftime("%H:%M:%S",
+                                                                                time.gmtime(time.time()-start_time))))
+                return self.api.skip_checkpoint()
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
         unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True, self.video)
@@ -702,11 +731,17 @@ class JPLRunner:
         end_model = controller.train_end_model()
         
         if self.vote_matrix_save_path is not None:
-            labeled_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
-            image_names, image_labels = self.jpl_storage.get_labeled_images_list()
-            checkpoint_dict = {'labeled_images_names': image_names,
-                               'labeled_images_votes': labeled_vote_matrix,
-                               'labeled_images_labels': image_labels,
+            val_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
+            if val_dataset is not None:
+                val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=False)
+                val_image_names = [os.path.basename(image_path) for image_path in val_dataset.filepaths]
+                val_labels = [image_labels for _, image_labels in val_loader]
+            else:
+                val_image_names = None
+                val_labels = None
+            checkpoint_dict = {'val_images_names': val_image_names,
+                               'val_images_votes': val_vote_matrix,
+                               'val_images_labels': val_labels,
                                'unlabeled_images_names': self.jpl_storage.get_unlabeled_image_names(),
                                'unlabeled_images_votes': unlabeled_vote_matrix}
             self.vote_matrix_dict[f'{phase} {checkpoint_num}'] = checkpoint_dict
@@ -803,15 +838,15 @@ def setup_production(simple_run):
     dataset_type = os.environ.get('LWLL_TA1_DATASET_TYPE')
     problem_type = os.environ.get('LWLL_TA1_PROB_TYPE')
     dataset_dir = os.environ.get('LWLL_TA1_DATA_PATH')
-    log.debug(dataset_dir)
     api_url = os.environ.get('LWLL_TA1_API_ENDPOINT')
     problem_task = os.environ.get('LWLL_TA1_PROB_TASK')
     gpu_list = os.environ.get('LWLL_TA1_GPUS')
     run_time = os.environ.get('LWLL_TA1_HOURS')
     team_secret = os.environ.get('LWLL_TA1_TEAM_SECRET')
     gov_team_secret = os.environ.get('LWLL_TA1_GOVTEAM_SECRET')
-    data_paths = ('/tmp/predefined/scads.fall2020.sqlite3',
-                  '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz')
+    data_paths = ('/tmp/predefined/scads.spring2021.sqlite3',
+                  '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz',
+                  '/tmp/predefined/embeddings/spring2021_processed_numberbatch.h5')
 
     if simple_run:
         log.info(f"Running production in simple mode, not all GPUs required")
@@ -873,7 +908,7 @@ def main():
     
     saved_api_response_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saved_api_response')
     if not os.path.exists(saved_api_response_dir) and accelerator.is_local_main_process:
-        os.makedirs(saved_api_response_dir)
+        os.makedirs(saved_api_response_dir, exist_ok=True)
     accelerator.wait_for_everyone()
     
     dataset_type = variables[0]
