@@ -53,8 +53,11 @@ if not os.environ.get("CI"):
 
         def emit(self, record):
             if accelerator.is_local_main_process:
-                msg = self.format(record)
-                self.jpl_logger = logger.log(msg, 'Brown', 0) # For the moment fixed checkpoint
+                try:
+                    msg = self.format(record)
+                    self.jpl_logger = logger.log(msg, 'Brown', 0) # For the moment fixed checkpoint
+                except:
+                    pass
 
 
     jpl_handler = JPLHandler()
