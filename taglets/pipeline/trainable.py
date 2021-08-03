@@ -63,7 +63,7 @@ class Trainable:
         self.lr = 0.0005
         self.criterion = torch.nn.CrossEntropyLoss()
         self.seed = 0
-        self.num_epochs = 30 if not os.environ.get("CI") else 5
+        self.num_epochs = 500 if not os.environ.get("CI") else 5
         self.batch_size = task.batch_size if not os.environ.get("CI") else 32
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
@@ -85,7 +85,7 @@ class Trainable:
                 params_to_update.append(param)
         self._params_to_update = params_to_update
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+        self.lr_scheduler = None
         self.valid = True
 
     def train(self, train_data, val_data, unlabeled_data=None):
