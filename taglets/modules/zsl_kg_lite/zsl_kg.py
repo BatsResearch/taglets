@@ -79,8 +79,7 @@ class ZSLKGTaglet(ImageTaglet):
             self.test_graph_path = '/home/tagletuser/trained_models/zsl_kg_lite'
         else:
             self.test_graph_path = 'trained_models/zsl_kg_lite'
-        if not os.path.exists(self.test_graph_path):
-            os.makedirs(self.test_graph_path)
+        os.makedirs(self.test_graph_path, exist_ok=True)
         self.pretrained_model_path = 'predefined/zsl_kg_lite/transformer.pt'
         self.glove_path = 'predefined/embeddings/glove.840B.300d.txt'
 
