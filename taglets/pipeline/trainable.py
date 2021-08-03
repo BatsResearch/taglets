@@ -12,11 +12,17 @@ accelerator = Accelerator()
 log = logging.getLogger(__name__)
 
 
-def get_schedule(dataset_size):
-    if dataset_size < 20_000:
+def get_schedule(num_epoch):
+    # if dataset_size < 20_000:
+    #     return [100, 200, 300, 400, 500]
+    # elif dataset_size < 500_000:
+    #     return [500, 900, 1300, 1700, 2000]
+    # else:
+    #     return [500, 6000, 12_000, 18_000, 20_000]
+    if num_epoch == 500:
         return [100, 200, 300, 400, 500]
-    elif dataset_size < 500_000:
-        return [500, 3000, 6000, 9000, 10_000]
+    elif num_epoch == 2000:
+        return [500, 900, 1300, 1700, 2000]
     else:
         return [500, 6000, 12_000, 18_000, 20_000]
 
@@ -102,7 +108,7 @@ class Trainable:
     def _get_dataloader(self, data, shuffle, batch_size=None):
         if batch_size is None:
             batch_size = self.batch_size
-        if shuffle and len(data) < batch_size * 4:
+        if shuffle:
             return accelerator.prepare(torch.utils.data.DataLoader(
                 dataset=data, batch_size=batch_size,
                 num_workers=self.num_workers, pin_memory=True,
@@ -192,7 +198,7 @@ class Trainable:
             log.info("Epoch {}: ".format(epoch + 1))
 
             if self.lr_scheduler is None:
-                lr = get_lr(epoch, len(train_data), 0.003)
+                lr = get_lr(epoch, self.num_epochs, 0.003)
                 for param_group in self.optimizer.optimizer.param_groups:
                     param_group["lr"] = lr
 

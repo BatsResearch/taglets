@@ -203,7 +203,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
                 use_ema_copy = self.use_ema
     
                 self.batch_size = 2 * self.batch_size
-                self.num_epochs = 5
+                self.num_epochs = 2000
                 self.use_ema = False
     
                 super(FixMatchTaglet, self).train(scads_train_data, None, None)
@@ -243,7 +243,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
         # replace default transform with FixMatch Transform
         self._init_unlabeled_transform(unlabeled_data)
         self.steps_per_epoch = -1
-        self.num_epochs = 10
+        self.num_epochs = 500
         super(FixMatchTaglet, self).train(train_data, val_data, unlabeled_data)
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):

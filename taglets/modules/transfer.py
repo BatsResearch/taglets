@@ -85,7 +85,7 @@ class TransferTaglet(ImageTagletWithAuxData):
                 return
     
             orig_num_epochs = self.num_epochs
-            self.num_epochs = 5 if not os.environ.get("CI") else 5
+            self.num_epochs = 2000 if not os.environ.get("CI") else 5
             self._set_num_classes(scads_num_classes)
             super(TransferTaglet, self).train(scads_train_data, None, None)
             self.num_epochs = orig_num_epochs
@@ -101,7 +101,7 @@ class TransferTaglet(ImageTagletWithAuxData):
                 param.requires_grad = False
 
         orig_num_epochs = self.num_epochs
-        self.num_epochs = 40 if not os.environ.get("CI") else 5
+        self.num_epochs = 500 if not os.environ.get("CI") else 5
         self._set_num_classes(len(self.task.classes))
         super(TransferTaglet, self).train(train_data, val_data, unlabeled_data)
         self.num_epochs = orig_num_epochs

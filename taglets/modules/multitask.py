@@ -65,7 +65,7 @@ class MultiTaskTaglet(ImageTagletWithAuxData):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'multitask'
-        self.num_epochs = 8 if not os.environ.get("CI") else 5
+        self.num_epochs = 2000 if not os.environ.get("CI") else 5
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
@@ -116,7 +116,7 @@ class MultiTaskTaglet(ImageTagletWithAuxData):
                 params_to_update.append(param)
         self._params_to_update = params_to_update
         self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.003, momentum=0.9)
-        self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[4, 6], gamma=0.1)
+        self.lr_scheduler = None
         
         if len(train_data) < 1024:
             num_duplicates = (1024 // len(train_data)) + 1
