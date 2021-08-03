@@ -134,7 +134,7 @@ class Controller:
                 log.info('Accuracies of each taglet on the test data:')
                 test_vote_matrix = taglet_executor.execute(self.task.test_data)
                 for i in range(len(taglets)):
-                    acc = np.sum(test_vote_matrix[:, i] == self.task.test_labels) / len(self.task.test_labels)
+                    acc = np.sum(np.argmax(test_vote_matrix[i], 1) == self.task.test_labels) / len(self.task.test_labels)
                     log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
 
             # Train a labelmodel and get weak labels
