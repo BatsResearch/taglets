@@ -36,6 +36,7 @@ class SVCVideoTaglet(VideoTaglet):
         #for param in self.model.parameters():
         #    param.requires_grad = False
         
+        self.model.to('cuda')
         self.model.blocks[6].proj = nn.Sequential()
         self.classifier = LinearSVC()
 
@@ -74,25 +75,22 @@ class SVCVideoTaglet(VideoTaglet):
         if train:
             data_loader = self._get_dataloader(data, shuffle=True)
         else:
-            data_loader = self._get_dataloader(data, False)
+            data_loader = self._get_dataloader(data, shuffle=False)
         
         accelerator.wait_for_everyone()
-
-        #self.model = accelerator.prepare(self.model)
-        self.model.to('cuda')
         self.model.eval()
 
         if train:
             # Init matrices
             # Set matrices dimension
-            num_epochs = int(math.ceil(len(data.filepaths) / (self.batch_size * num_proc)))
-            len_acc_total = (self.batch_size*num_proc) * num_epochs
-            len_acc_total = len(data.filepaths)
+            #num_epochs = int(math.ceil(len(data.filepaths) / (self.batch_size * num_proc)))
+            #len_acc_total = (self.batch_size*num_proc) * num_epochs
+            #len_acc_total = len(data.filepaths)
             
             #log.info(f"Lengthof eval data:{len_acc_total} and num_epochs: {num_epochs}")
             
-            X = np.zeros((len_acc_total, 2304))
-            Y = np.zeros((len_acc_total))
+            X = np.array([]).reshape(0, 2304)#np.zeros((len_acc_total, 2304))
+            Y = np.array([])#np.zeros((len_acc_total))
 
             # Batch size dimension
             dim = 0
@@ -103,6 +101,8 @@ class SVCVideoTaglet(VideoTaglet):
 
                 #with torch.set_grad_enabled(False):
                 output = self.model(inputs)
+
+                
                 
                 output  = accelerator.gather(output.detach())
                 labels = accelerator.gather(labels)
@@ -112,11 +112,16 @@ class SVCVideoTaglet(VideoTaglet):
                 
                 # Change indices
                 #log.info(f'self.batch_size * num_proc: {self.batch_size * num_proc}')
-                max_index = dim + self.batch_size * num_proc
-                log.info(f'max_index: {dim} and {max_index}') 
-                X[dim:max_index, :] = output.cpu().numpy()[0]
-                Y[dim:max_index] = labels.cpu()
-                dim += self.batch_size * num_proc # number of processes
+                #max_index = dim + self.batch_size * num_proc
+                #log.info(f'max_index: {dim} and {max_index}') 
+                emb = output.cpu().numpy()[0]
+                X = np.concatenate((X, emb), axis=0)
+                log.info(f'Length X: {X.shape}') 
+
+                lab = labels.cpu()
+                Y = np.concatenate((Y, lab), axis=0)
+                log.info(f'Length Y: {Y.shape}') 
+                #dim += self.batch_size * num_proc # number of processes
                 #log.info(f'train dim: {dim}')
 
             dataset_len = len(data_loader.dataset)
@@ -126,13 +131,13 @@ class SVCVideoTaglet(VideoTaglet):
 
         else:
             # Init matrices
-            num_epochs = int(math.ceil(len(data.filepaths) / (self.batch_size * num_proc)))
-            len_acc_total = (self.batch_size*num_proc) * num_epochs
-            len_acc_total = len(data.filepaths)
+            #num_epochs = int(math.ceil(len(data.filepaths) / (self.batch_size * num_proc)))
+            #len_acc_total = (self.batch_size*num_proc) * num_epochs
+            #len_acc_total = len(data.filepaths)
             #log.info(f"Lengthof eval data:{len_acc_total} and num_epochs: {num_epochs}")
             #log.info(f"batch size:{self.batch_size}")
             
-            X = np.zeros((len_acc_total, 2304))
+            X = np.array([]).reshape(0, 2304)#np.zeros((len_acc_total, 2304))
 
             dim = 0
             for batch in data_loader:
@@ -143,11 +148,13 @@ class SVCVideoTaglet(VideoTaglet):
                 output  = accelerator.gather(output.detach())
                 #log.info(f'eval output: {output.size()}')
                 #log.info(f'self.batch_size * num_proc: {self.batch_size * num_proc}')
-                max_index = dim + self.batch_size * num_proc
-                log.info(f'max_index: {dim} and {max_index}')  
-                X[dim:max_index, :] = output.cpu().numpy()[0]
+                emb = output.cpu().numpy()[0]
+                X = np.concatenate((X, emb), axis=0)
+                #max_index = dim + self.batch_size * num_proc
+                log.info(f'Length X: {X.shape}')  
+                #X[dim:max_index, :] = output.cpu().numpy()[0]
                 
-                dim += self.batch_size * num_proc # number of processes
+                #dim += self.batch_size * num_proc # number of processes
                 #log.info(f'eval dim: {dim}')    
 
             dataset_len = len(data_loader.dataset)

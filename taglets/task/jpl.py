@@ -364,6 +364,15 @@ class JPLStorage:
                                     ])
                                     )
 
+    def transformer_video():   
+    """Trasformation valid for SlowFast"""
+    side_size = 256
+    mean = [0.45, 0.45, 0.45]
+    std = [0.225, 0.225, 0.225]
+    crop_size = 256
+    num_frames = 32
+    alpha = 4
+
     def get_labeled_images_list(self):
         """get list of image names and labels"""
 

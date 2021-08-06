@@ -20,3 +20,4 @@ class PackPathway(torch.nn.Module):
         )
         frame_list = [slow_pathway, fast_pathway]
         return frame_list
+
