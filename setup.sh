@@ -31,3 +31,5 @@ wget -nc https://storage.googleapis.com/taglets-public/pseudoshots/simclr50.pth
 
 wget -nc https://storage.googleapis.com/taglets-public/pseudoshots/resnet12.pth
 wget -nc https://storage.googleapis.com/taglets-public/pseudoshots/resnet12_mask.pth
+
+wget -nc https://storage.googleapis.com/taglets-public/pseudoshots/resnet50-224-mini.pth

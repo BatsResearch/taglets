@@ -101,7 +101,7 @@ class PseudoShotModule(Module):
 
         ps_args['img_encoder_type'] = Encoder.RESNET_50
         ps_args['img_encoder_ckpt_path'] = None
-        ps_args['masking_ckpt_path'] = 'predefined/pseudoshots/resnet50_train_val_test_224_1shot.pth'
+        ps_args['masking_ckpt_path'] = 'predefined/pseudoshots/resnet50-224-mini.pth'
         ps_args['masking_args'] = {
             'channels': [640, 320, 1],
             'final_relu': False,
