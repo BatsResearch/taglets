@@ -1,13 +1,19 @@
+import os
+import logging
+
+import torch
+import torch.nn as nn
+from sklearn.svm import LinearSVC
+from sklearn.linear_model import (LogisticRegression, 
+                                LogisticRegressionCV)
+from sklearn.preprocessing import normalize
+from accelerate import Accelerator
+accelerator = Accelerator()
+
 from ..module import Module
 from ...pipeline import VideoTaglet
 
-import logging
-import os
-import torch
-from sklearn.svm import LinearSVC
-from sklearn.linear_model import (LogisticRegression, 
-                                    LogisticRegressionCV)
-from sklearn.preprocessing import normalize
+
 
 log = logging.getLogger(__name__)
 
@@ -25,12 +31,11 @@ class SVCVideoTaglet(VideoTaglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'svc-video'
-        
         for param in self.model.parameters():
             param.requires_grad = False
         
-        output_shape = self.model.blocks[6].proj.in_features 
-        self.model.blocks[6].proj = torch.nn.Linear(output_shape, len(self.task.classes))  
+        self.model.blocks[6].proj = nn.Sequential()
+        self.classifier = LinearSVC()
 
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
@@ -39,16 +44,89 @@ class SVCVideoTaglet(VideoTaglet):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
-        # Parameters needed to be updated based on freezing layer
-        params_to_update = []
-        for param in self.model.parameters():
-            if param.requires_grad:
-                params_to_update.append(param)
+    def train(self, train_data, val_data, unlabeled_data=None):
+        
+        X, Y = self._extract_features(train_data)
+        # Training data
+        nembs_train = normalize(X, axis=1)
+        labs_train = Y
+        
+        log.info('Beginning training')
+        self.classifier = self.classifier.fit(nembs_train, labs_train)
 
-        log.info(f"number to update: {len(params_to_update)}")
-        self._params_to_update = params_to_update
-        self.optimizer = torch.optim.SGD(self._params_to_update, lr=self.lr, weight_decay=1e-4, momentum=0.9)
-        #self.lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=1000)
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.1)
-        #self.warmup_scheduler = warmup.LinearWarmup(self.optimizer, warmup_period=100)
-        #self.warmup_scheduler.last_step = -1
+    def predict(self, data):
+        log.info('Beginning prediction')
+        pred_classifier = self.classifier
+        
+        #log.info(f"Data dataLoader {data.filepaths}")
+        #data_loader = self._get_dataloader(data, False)
+        #dataset_len = len(data_loader.dataset)
+        
+        #accelerator.wait_for_everyone()
+        #self.model = accelerator.prepare(self.model)
+        
+        X = self._extract_features(data)
+        nembs_valid = normalize(X, axis=1)
+
+        preds = pred_classifier.predict(nembs_valid)
+        
+        return preds
+
+    def _extract_features(self, data, train=True):
+
+        if train:
+            data_loader = self._get_dataloader(data, shuffle=True)
+        else:
+            data_loader = self._get_dataloader(data, False)
+        
+        accelerator.wait_for_everyone()
+
+        self.model = accelerator.prepare(self.model)
+        self.model.eval()
+
+        if train:
+            # Init matrices
+            X = np.zeros((len(data.filepaths), 2304))
+            Y = np.zeros((len(data.filepaths)))
+
+            # Batch size dimension
+            dim = 0
+            
+            for batch in data_loader:
+                inputs = batch[0]['video']
+                labels = batch[1]
+
+                with torch.set_grad_enabled(False):
+                    output = self.model(inputs)
+                
+                output  = accelerator.gather(output.detach().numpy()[0])
+                labels = accelerator.gather(labels.item())
+                
+                log.info(f'train output: {output}')
+                log.info(f'train labels: {labels}')
+                # Change indices
+                X[dim + self.batch_size,:] = output
+                Y[dim + self.batch_size] = labels
+                dim += self.batch_size * 8 # number of processes
+                log.info(f'train dim: {dim}')
+
+            return X, Y
+
+        else:
+            # Init matrices
+            X = np.zeros((len(data.filepaths), 2304))
+
+            dim = 0
+            for batch in data_loader:
+                inputs = batch['video']
+
+                with torch.set_grad_enabled(False):
+                    output = self.model(inputs)
+                output  = accelerator.gather(output.detach().numpy()[0])
+                log.info(f'eval output: {output}')
+                
+                X[dim + self.batch_size,:] = output
+                dim += self.batch_size * 8 # number of processes
+                log.info(f'eval dim: {dim}')     
+
+            return X   

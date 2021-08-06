@@ -64,10 +64,9 @@ class Task:
         """
         self.initial = initial
 
-        if (self.video_classification == True) and (self.name is in ['baseline-video']):
+        if self.video_classification :
             self.initial = torch.hub.load("facebookresearch/pytorchvideo", model='slowfast_r50', pretrained=True)
-        elif (self.video_classification == True) and (self.name is in ['svc-video']):
-            self.initial = LinearSVC()
+        
         else:
             self.initial = models.resnet50(pretrained=True)
             self.initial.fc = torch.nn.Identity()

@@ -374,7 +374,8 @@ class VideoTrainable(Trainable):
         :param task: The current task
         """
         self.task = task
-        self.name = self.task.name
+        self.name = task.name
+        log.info(f"NAME MODULE: {self.name}")
         
         self.batch_size = task.batch_size if not os.environ.get("CI") else 32
         self.select_on_val = True  # If true, save model on the best validation performance

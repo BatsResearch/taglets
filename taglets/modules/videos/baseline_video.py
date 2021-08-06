@@ -1,12 +1,35 @@
+import os
+import logging
+from enum import Enum
+
+import torch
+
 from ..module import Module
 from ...pipeline import VideoTaglet
 
-import logging
-import os
-import torch
-import pytorch_warmup as warmup
 
 log = logging.getLogger(__name__)
+
+class Optimizer(Enum):
+    SGD = 1
+    ADAM = 2
+    COSINE = 3
+
+# Custom learning rate scheduler used in SlowFast
+def get_cosine_schedule_with_warmup(optimizer,
+                                    num_warmup_steps,
+                                    num_training_steps,
+                                    num_cycles=7. / 16.,
+                                    last_epoch=-1):
+    def _lr_lambda(current_step):
+        if current_step < num_warmup_steps:
+            return float(current_step) / float(max(1, num_warmup_steps))
+        no_progress = float(current_step - num_warmup_steps) / \
+                      float(max(1, num_training_steps - num_warmup_steps))
+        return max(0., math.cos(math.pi * num_cycles * no_progress))
+
+    return torch.optim.lr_scheduler.LambdaLR(optimizer, _lr_lambda, last_epoch)
+
 
 
 class BaselineVideoModule(Module):
@@ -15,24 +38,15 @@ class BaselineVideoModule(Module):
     """
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [BaselineVideoTaglet(task)]
+        self.taglets = [BaselineVideoTaglet(task, tuning='all-tune', optimizer=Optimizer.SGD)]
 
 
 class BaselineVideoTaglet(VideoTaglet):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'baseline-video'
-        for param in self.model.parameters():
-            param.requires_grad = False
-        
-        output_shape = self.model.blocks[6].proj.in_features 
-        self.model.blocks[6].proj = torch.nn.Linear(output_shape, len(self.task.classes))
-                                    
-        #self.model.blocks[6].proj = torch.nn.Sequential(
-        #                            torch.nn.Linear(output_shape, 1056),
-        #                            torch.nn.ReLU(inplace=True),
-        #                            torch.nn.Linear(1056, len(self.task.classes)))
-                
+        self.tuning = tuning # train all backbone or only last layer    
+        self.opt_type = optimizer       
 
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
@@ -41,6 +55,13 @@ class BaselineVideoTaglet(VideoTaglet):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
+        if self.tuning == 'last-tune':
+            for param in self.model.parameters():
+                param.requires_grad = False
+        
+        output_shape = self.model.blocks[6].proj.in_features 
+        self.model.blocks[6].proj = torch.nn.Linear(output_shape, len(self.task.classes))
+                         
         # Parameters needed to be updated based on freezing layer
         params_to_update = []
         for param in self.model.parameters():
@@ -49,8 +70,11 @@ class BaselineVideoTaglet(VideoTaglet):
 
         log.info(f"number to update: {len(params_to_update)}")
         self._params_to_update = params_to_update
-        self.optimizer = torch.optim.SGD(self._params_to_update, lr=self.lr, weight_decay=1e-4, momentum=0.9)
-        #self.lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=1000)
+        if self.opt_type == Optimizer.SGD:
+            self.optimizer = torch.optim.SGD(self._params_to_update, lr=self.lr, weight_decay=1e-4, momentum=0.9)
+        else:
+            self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
+        
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.1)
-        #self.warmup_scheduler = warmup.LinearWarmup(self.optimizer, warmup_period=100)
-        #self.warmup_scheduler.last_step = -1
+
+

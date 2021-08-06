@@ -641,18 +641,8 @@ class JPLRunner:
             self.run_checkpoints_base()
             self.run_checkpoints_adapt()
         except Exception as ex:
-            #exc_type, exc_obj, tb = sys.exc_info()
-            #f = tb.tb_frame
-            #lineno = tb.tb_lineno
-            #filename = f.f_code.co_filename
-            #linecache.checkcache(filename)
-            #line = linecache.getline(filename, lineno, f.f_globals)
             self.api.deactivate_session(self.api.session_token)
-
             logging.exception('EXCEPTION has occured during joint training:')
-            #logging.info('exception has occured during joint training:')
-            #logging.info(ex)
-            #logging.info('EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj))
 
     def run_checkpoints_base(self):
         log.info("Enter checkpoint")
@@ -688,30 +678,6 @@ class JPLRunner:
         unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names(self.jpl_storage.dictionary_clips,
                                                                            self.video)
         log.debug('Number of unlabeled data: {}'.format(len(unlabeled_image_names)))
-        # if checkpoint_num == 0:                
-        #     log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
-        #                                                     checkpoint_num,
-        #                                                     time.strftime("%H:%M:%S",
-        #                                                                     time.gmtime(time.time()-start_time))))
-        #     return self.api.skip_checkpoint()
-        # elif checkpoint_num == 1:                
-        #     log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
-        #                                                     checkpoint_num,
-        #                                                     time.strftime("%H:%M:%S",
-        #                                                                     time.gmtime(time.time()-start_time))))
-        #     return self.api.skip_checkpoint()
-        # elif checkpoint_num == 2:                
-        #     log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
-        #                                                     checkpoint_num,
-        #                                                     time.strftime("%H:%M:%S",
-        #                                                                     time.gmtime(time.time()-start_time))))
-        #     return self.api.skip_checkpoint()
-        # elif checkpoint_num == 3:                
-        #     log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
-        #                                                     checkpoint_num,
-        #                                                     time.strftime("%H:%M:%S",
-        #                                                                     time.gmtime(time.time()-start_time))))
-        #     return self.api.skip_checkpoint()
         
         if checkpoint_num >= 4:
             """ For the last evaluation we used to start asking for custom labels after the first 2 checkpoints.
@@ -720,18 +686,11 @@ class JPLRunner:
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
             self.request_labels(candidates)
             """
-
-            """ For the hackathon we only use RandomActiveLearning - bring it back
-
-            candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
-            """
-            # Pick candidates from the list
             """ To consider: we directly query for all the available budget, we have the option 
             of gradually ask new labels untile we exhaust the budget.
             """
 
             # Add all labeled data
-            
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
             log.debug(f"Candidates to query[0]: {candidates[0]}")
             self.request_labels(candidates, self.video)
@@ -762,8 +721,6 @@ class JPLRunner:
         controller = Controller(task, self.simple_run)
 
         end_model = controller.train_end_model()
-
-        #sys.exit()
 
         evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.video)
         ##outputs = end_model.predict(evaluation_dataset)

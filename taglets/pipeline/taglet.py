@@ -13,6 +13,9 @@ class TagletMixin:
         :return: A 1-d NumPy array of predicted labels
         """
         outputs = self.predict(unlabeled_data)
+        if self.name == 'svc-video':
+            return outputs
+        
         return np.argmax(outputs, 1)
 
 

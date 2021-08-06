@@ -99,9 +99,6 @@ class Controller:
                     module.train_taglets(labeled, val, unlabeled_train)
                     log.info("Finished training %s module", cls.__name__)
 
-                    
-
-
                     # Collects taglets
                     taglets.extend(module.get_valid_taglets())
                 except Exception:
@@ -181,7 +178,7 @@ class Controller:
         if self.simple_run:
              return [RandomModule]
         elif self.task.video_classification:
-             return [BaselineVideoModule]#NaiveVideoModule]
+             return [BaselineVideoModule]#NaiveVideoModule] # SvcVideoModule
         else:
             if self.task.scads_path is not None:
                 return [DannModule, 
