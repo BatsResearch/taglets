@@ -11,7 +11,7 @@ accelerator = Accelerator()
 
 from .data import SoftLabelDataset
 from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
-    RandomModule, DannModule, BaselineVideoModule
+    RandomModule, DannModule, BaselineVideoModule, SvcVideoModule
 from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
 ####################################################################
@@ -150,35 +150,35 @@ class Controller:
             for label in weak_labels:
                 unlabeled_images_labels.append(torch.FloatTensor(label))
 
-        # Trains end model
-        log.info("Training end model")
+        # # Trains end model
+        # log.info("Training end model")
 
-        end_model_train_data = self._combine_soft_labels(unlabeled_images_labels,
-                                                         unlabeled_train,
-                                                         self.task.get_labeled_train_data())
-        if self.simple_run:
-            self.end_model = RandomEndModel(self.task)
-        elif self.task.video_classification:
-            self.end_model = VideoEndModel(self.task)
-        else:
-            self.end_model = ImageEndModel(self.task)
-        self.end_model.train(end_model_train_data, val)
-        log.info("Finished training end model")
+        # end_model_train_data = self._combine_soft_labels(unlabeled_images_labels,
+        #                                                  unlabeled_train,
+        #                                                  self.task.get_labeled_train_data())
+        # if self.simple_run:
+        #     self.end_model = RandomEndModel(self.task)
+        # elif self.task.video_classification:
+        #     self.end_model = VideoEndModel(self.task)
+        # else:
+        #     self.end_model = ImageEndModel(self.task)
+        # self.end_model.train(end_model_train_data, val)
+        # log.info("Finished training end model")
 
-        if self.task.unlabeled_train_labels is not None and unlabeled_test is not None:
-            log.info('Accuracy of the end model on the unlabeled train data:')
-            outputs = self.end_model.predict(unlabeled_test)
-            predictions = np.argmax(outputs, 1)
-            acc = np.sum(predictions == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
-            log.info('Acc {:.4f}'.format(acc))
+        # if self.task.unlabeled_train_labels is not None and unlabeled_test is not None:
+        #     log.info('Accuracy of the end model on the unlabeled train data:')
+        #     outputs = self.end_model.predict(unlabeled_test)
+        #     predictions = np.argmax(outputs, 1)
+        #     acc = np.sum(predictions == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
+        #     log.info('Acc {:.4f}'.format(acc))
         
-        return self.end_model
+        # return self.end_model
 
     def _get_taglets_modules(self):
         if self.simple_run:
              return [RandomModule]
         elif self.task.video_classification:
-             return [BaselineVideoModule]#NaiveVideoModule] # SvcVideoModule
+             return [SvcVideoModule]#[BaselineVideoModule]#NaiveVideoModule] # SvcVideoModule
         else:
             if self.task.scads_path is not None:
                 return [DannModule, 

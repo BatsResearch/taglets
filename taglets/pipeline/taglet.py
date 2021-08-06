@@ -14,6 +14,7 @@ class TagletMixin:
         """
         outputs = self.predict(unlabeled_data)
         if self.name == 'svc-video':
+            log.info("EXECUTE SVC MODULE PREDICTIONS")
             return outputs
         
         return np.argmax(outputs, 1)

@@ -367,46 +367,6 @@ class ImageTrainable(Trainable):
         
         
 class VideoTrainable(Trainable):
-    def __init__(self, task):
-        """
-        Create a new Trainable.
-
-        :param task: The current task
-        """
-        self.task = task
-        self.name = task.name
-        log.info(f"NAME MODULE: {self.name}")
-        
-        self.batch_size = task.batch_size if not os.environ.get("CI") else 32
-        self.select_on_val = True  # If true, save model on the best validation performance
-        self.save_dir = None
-        # for extra flexibility
-        self.unlabeled_batch_size = self.batch_size
-
-        n_gpu = torch.cuda.device_count()
-        self.n_proc = n_gpu if n_gpu > 0 else max(1, mp.cpu_count() - 1)
-        self.num_workers = min(max(0, mp.cpu_count() // self.n_proc - 1), 2) if not os.environ.get("CI") else 0
-
-        self.model = task.get_initial_model()
-        self._init_random(self.seed)
-
-        if self.name is in ['baseline-video']:
-            self.lr = 0.01
-            self.criterion = torch.nn.CrossEntropyLoss()
-            self.seed = 0
-            self.num_epochs = 50 if not os.environ.get("CI") else 5
-            
-            # Parameters needed to be updated based on freezing layer
-            params_to_update = []
-            for param in self.model.parameters():
-                if param.requires_grad:
-                    params_to_update.append(param)
-            self._params_to_update = params_to_update
-            
-            self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
-            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
-      
-        self.valid = True
 
     def _train_epoch(self, train_data_loader, unlabeled_data_loader=None):
         """
