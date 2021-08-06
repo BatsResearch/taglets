@@ -5,6 +5,7 @@ import numpy as np
 import os
 import random
 import torch
+import pytorch_warmup as warmup
 import torch.multiprocessing as mp
 from accelerate import Accelerator
 accelerator = Accelerator()
@@ -31,7 +32,7 @@ class Trainable:
         self.lr = 0.01#0.0005
         self.criterion = torch.nn.CrossEntropyLoss()
         self.seed = 0
-        self.num_epochs = 80 if not os.environ.get("CI") else 5
+        self.num_epochs = 50 if not os.environ.get("CI") else 5
         self.batch_size = task.batch_size if not os.environ.get("CI") else 32
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
@@ -151,6 +152,7 @@ class Trainable:
         val_acc_list = []
 
         accelerator.wait_for_everyone()
+        #self.model, self.optimizer, self.warmup_scheduler = accelerator.prepare(self.model, self.optimizer, self.warmup_scheduler)
         self.model, self.optimizer = accelerator.prepare(self.model, self.optimizer)
 
         # Iterates over epochs
@@ -188,6 +190,7 @@ class Trainable:
 
             if self.lr_scheduler:
                 self.lr_scheduler.step()
+
 
         accelerator.wait_for_everyone()
         self.optimizer = self.optimizer.optimizer
@@ -364,6 +367,46 @@ class ImageTrainable(Trainable):
         
         
 class VideoTrainable(Trainable):
+    def __init__(self, task):
+        """
+        Create a new Trainable.
+
+        :param task: The current task
+        """
+        self.task = task
+        self.name = self.task.name
+        
+        self.batch_size = task.batch_size if not os.environ.get("CI") else 32
+        self.select_on_val = True  # If true, save model on the best validation performance
+        self.save_dir = None
+        # for extra flexibility
+        self.unlabeled_batch_size = self.batch_size
+
+        n_gpu = torch.cuda.device_count()
+        self.n_proc = n_gpu if n_gpu > 0 else max(1, mp.cpu_count() - 1)
+        self.num_workers = min(max(0, mp.cpu_count() // self.n_proc - 1), 2) if not os.environ.get("CI") else 0
+
+        self.model = task.get_initial_model()
+        self._init_random(self.seed)
+
+        if self.name is in ['baseline-video']:
+            self.lr = 0.01
+            self.criterion = torch.nn.CrossEntropyLoss()
+            self.seed = 0
+            self.num_epochs = 50 if not os.environ.get("CI") else 5
+            
+            # Parameters needed to be updated based on freezing layer
+            params_to_update = []
+            for param in self.model.parameters():
+                if param.requires_grad:
+                    params_to_update.append(param)
+            self._params_to_update = params_to_update
+            
+            self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
+            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+      
+        self.valid = True
+
     def _train_epoch(self, train_data_loader, unlabeled_data_loader=None):
         """
         Train for one epoch.
@@ -377,13 +420,14 @@ class VideoTrainable(Trainable):
         running_loss = 0
         running_acc = 0
         num_pred = 0 
-        
+         
         for batch in train_data_loader:
             inputs = batch[0]
             labels = batch[1]
             inputs = inputs["video"]
             #log.info(f"Look at inputs' size {inputs[0].size()}")
             
+            #self.warmup_scheduler.dampen()           
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
                 outputs = self.model(inputs)
@@ -394,26 +438,18 @@ class VideoTrainable(Trainable):
             aggregated_outputs = accelerator.gather(outputs.detach())
             labels = accelerator.gather(labels)
             
-            log.info(f"Length of the aggegated outputs {len(aggregated_outputs)}")
-
-            len_dataset = len(train_data_loader)
             num_pred += len(aggregated_outputs)
-            log.info(f"Length of the total predictions {num_pred}")
-            # Remove accelerate batch padding
-            if num_pred > len_dataset:
-                running_loss += loss.item()
-                running_acc += self._get_train_acc(aggregated_outputs[:-(num_pred-len_dataset)], labels[:-(num_pred-len_dataset)]).item()
-            else:
-                running_loss += loss.item()
-                running_acc += self._get_train_acc(aggregated_outputs, labels).item()
+
+            running_loss += loss.item()
+            running_acc += self._get_train_acc(aggregated_outputs, labels).item()
         
         if not len(train_data_loader.dataset):
             return 0, 0
         
-        epoch_loss = running_loss / len(train_data_loader)
-        epoch_acc = running_acc / len(train_data_loader.dataset)
-        log.info(f"Length of the dataset {len(train_data_loader.dataset)}")
-        log.info(f"Sum of positives of the dataset {np.sum(running_acc)}")
+        epoch_loss = running_loss / num_pred
+        epoch_acc = running_acc / num_pred
+        #log.info(f"Length of the dataset {len(train_data_loader.dataset)}")
+        #log.info(f"Sum of positives of the dataset {np.sum(running_acc)}")
 
         
         return epoch_loss, epoch_acc
@@ -443,19 +479,14 @@ class VideoTrainable(Trainable):
             preds  = accelerator.gather(preds.detach())
             labels = accelerator.gather(labels)
 
-            len_dataset = len(val_data_loader)
+            #len_dataset = len(val_data_loader.dataset)
             num_pred += len(preds)
             
-            # Remove accelerate batch padding
-            if num_pred > len_dataset:
-                running_loss += loss.item()
-                running_acc += torch.sum(preds[:-(num_pred-len_dataset)] == labels[:-(num_pred-len_dataset)]).item()
-            else:
-                running_loss += loss.item()
-                running_acc += torch.sum(preds == labels).item()
+            running_loss += loss.item()
+            running_acc += torch.sum(preds == labels).item()
         
-        epoch_loss = running_loss / len(val_data_loader.dataset)
-        epoch_acc = running_acc / len(val_data_loader.dataset)
+        epoch_loss = running_loss / num_pred #len(train_data_loader.dataset)
+        epoch_acc = running_acc / num_pred
         
         return epoch_loss, epoch_acc
     

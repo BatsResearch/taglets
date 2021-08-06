@@ -97,6 +97,7 @@ class JPL:
         session_token = response['session_token']
         self.session_token = session_token
 
+
     def get_session_status(self):
         """
         Get the session status.
@@ -351,10 +352,11 @@ class JPLStorage:
         num_frames = 32
         alpha = 4
 
+        
         return  video_transform.ApplyTransformToKey(key="video",
                                     transform=transforms.Compose([
                                         video_transform.UniformTemporalSubsample(num_frames),
-                                        transforms.Lambda(lambda x: x/255.0),
+                                        #transforms.Lambda(lambda x: x/255.0),
                                         transform_video.NormalizeVideo(mean, std),# transform_video
                                         video_transform.ShortSideScale(size=side_size),
                                         transform_video.CenterCropVideo(crop_size),# transform_video
@@ -551,12 +553,10 @@ class JPLStorage:
         # convert string labels to int labels
         mapped_label_col = df['class'].map(self.label_map)
         df['class'] = mapped_label_col
-        #log.info(f"Dataframe: {df.head()}")
-        #log.info(f"Label map: {self.label_map}")
+
         # turn Dataframe into a dict
         df = df.set_index('id')
         labels_dict = df.to_dict()['class']
-        #log.info(f"Label dict: {labels_dict}")
 
         # get a list of corresponding labels
         if split == 'train':
@@ -564,7 +564,6 @@ class JPLStorage:
         else:
             image_names = self.get_evaluation_image_names(video=video)
 
-        #log.info(f"Images names:{image_names}")
         labels = [labels_dict[image_name] for image_name in image_names]
         return labels
 
@@ -689,6 +688,30 @@ class JPLRunner:
         unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names(self.jpl_storage.dictionary_clips,
                                                                            self.video)
         log.debug('Number of unlabeled data: {}'.format(len(unlabeled_image_names)))
+        # if checkpoint_num == 0:                
+        #     log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
+        #                                                     checkpoint_num,
+        #                                                     time.strftime("%H:%M:%S",
+        #                                                                     time.gmtime(time.time()-start_time))))
+        #     return self.api.skip_checkpoint()
+        # elif checkpoint_num == 1:                
+        #     log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
+        #                                                     checkpoint_num,
+        #                                                     time.strftime("%H:%M:%S",
+        #                                                                     time.gmtime(time.time()-start_time))))
+        #     return self.api.skip_checkpoint()
+        # elif checkpoint_num == 2:                
+        #     log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
+        #                                                     checkpoint_num,
+        #                                                     time.strftime("%H:%M:%S",
+        #                                                                     time.gmtime(time.time()-start_time))))
+        #     return self.api.skip_checkpoint()
+        # elif checkpoint_num == 3:                
+        #     log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
+        #                                                     checkpoint_num,
+        #                                                     time.strftime("%H:%M:%S",
+        #                                                                     time.gmtime(time.time()-start_time))))
+        #     return self.api.skip_checkpoint()
         
         if checkpoint_num >= 4:
             """ For the last evaluation we used to start asking for custom labels after the first 2 checkpoints.
@@ -706,6 +729,9 @@ class JPLRunner:
             """ To consider: we directly query for all the available budget, we have the option 
             of gradually ask new labels untile we exhaust the budget.
             """
+
+            # Add all labeled data
+            
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
             log.debug(f"Candidates to query[0]: {candidates[0]}")
             self.request_labels(candidates, self.video)
@@ -717,7 +743,7 @@ class JPLRunner:
         unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False, self.video)
         log.info(f"unlabeled_test_dataset: {len(unlabeled_test_dataset.filepaths)}")
         unlabeled_train_labels = self.jpl_storage.get_true_labels('train', self.mode, dict_clips=self.jpl_storage.dictionary_clips, video=self.video)
-        log.info(f"unlabeled_test_dataset: {len(unlabeled_train_labels)}")
+        log.info(f"unlabeled_train_labels: {len(unlabeled_train_labels)}")
         
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),

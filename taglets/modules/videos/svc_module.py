@@ -4,35 +4,33 @@ from ...pipeline import VideoTaglet
 import logging
 import os
 import torch
-import pytorch_warmup as warmup
+from sklearn.svm import LinearSVC
+from sklearn.linear_model import (LogisticRegression, 
+                                    LogisticRegressionCV)
+from sklearn.preprocessing import normalize
 
 log = logging.getLogger(__name__)
 
 
-class BaselineVideoModule(Module):
+class SvcVideoModule(Module):
     """
     A module that fine-tunes the task's initial model.
     """
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [BaselineVideoTaglet(task)]
+        self.taglets = [SVCVideoTaglet(task)]
 
 
-class BaselineVideoTaglet(VideoTaglet):
+class SVCVideoTaglet(VideoTaglet):
     def __init__(self, task):
         super().__init__(task)
-        self.name = 'baseline-video'
+        self.name = 'svc-video'
+        
         for param in self.model.parameters():
             param.requires_grad = False
         
         output_shape = self.model.blocks[6].proj.in_features 
-        self.model.blocks[6].proj = torch.nn.Linear(output_shape, len(self.task.classes))
-                                    
-        #self.model.blocks[6].proj = torch.nn.Sequential(
-        #                            torch.nn.Linear(output_shape, 1056),
-        #                            torch.nn.ReLU(inplace=True),
-        #                            torch.nn.Linear(1056, len(self.task.classes)))
-                
+        self.model.blocks[6].proj = torch.nn.Linear(output_shape, len(self.task.classes))  
 
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
