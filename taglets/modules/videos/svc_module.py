@@ -70,7 +70,7 @@ class SVCVideoTaglet(VideoTaglet):
 
     def _extract_features(self, data, train=True):
 
-        num_proc = 1
+        #num_proc = 1
         
         if train:
             data_loader = self._get_dataloader(data, shuffle=True)
@@ -137,27 +137,33 @@ class SVCVideoTaglet(VideoTaglet):
             #log.info(f"Lengthof eval data:{len_acc_total} and num_epochs: {num_epochs}")
             #log.info(f"batch size:{self.batch_size}")
             
-            X = np.array([]).reshape(0, 2304)#np.zeros((len_acc_total, 2304))
+            
+            if os.path.isfile(fname):
+                X = pickle.load(open("X.p", "rb" ))
+            else: 
+                X = np.array([]).reshape(0, 2304)#np.zeros((len_acc_total, 2304))
 
-            dim = 0
-            for batch in data_loader:
-                inputs = batch['video']
+                dim = 0
+                for batch in data_loader:
+                    inputs = batch['video']
 
-                #with torch.set_grad_enabled(False):
-                output = self.model(inputs)
-                output  = accelerator.gather(output.detach())
-                #log.info(f'eval output: {output.size()}')
-                #log.info(f'self.batch_size * num_proc: {self.batch_size * num_proc}')
-                emb = output.cpu().numpy()[0]
-                X = np.concatenate((X, emb), axis=0)
-                #max_index = dim + self.batch_size * num_proc
-                log.info(f'Length X: {X.shape}')  
-                #X[dim:max_index, :] = output.cpu().numpy()[0]
-                
-                #dim += self.batch_size * num_proc # number of processes
-                #log.info(f'eval dim: {dim}')    
+                    #with torch.set_grad_enabled(False):
+                    output = self.model(inputs)
+                    output  = accelerator.gather(output.detach())
+                    #log.info(f'eval output: {output.size()}')
+                    #log.info(f'self.batch_size * num_proc: {self.batch_size * num_proc}')
+                    emb = output.cpu().numpy()[0]
+                    X = np.concatenate((X, emb), axis=0)
+                    #max_index = dim + self.batch_size * num_proc
+                    log.info(f'Length X: {X.shape}')  
+                    #X[dim:max_index, :] = output.cpu().numpy()[0]
+                    
+                    #dim += self.batch_size * num_proc # number of processes
+                    #log.info(f'eval dim: {dim}')    
 
-            dataset_len = len(data_loader.dataset)
-            X = X[:dataset_len, :]
-
+                dataset_len = len(data_loader.dataset)
+                X = X[:dataset_len, :]
+                # save embeddings
+                pickle.dump(X, open("X.p","wb"))
+            
             return X   
