@@ -249,10 +249,8 @@ class FixMatchTaglet(ImageTagletWithAuxData):
     def _do_train(self, train_data, val_data, unlabeled_data=None):
         """
                One worker for training.
-
                This method carries out the actual training iterations. It is designed
                to be called by train().
-
                :param train_data: A dataset containing training data
                :param val_data: A dataset containing validation data
                :param unlabeled_data: A dataset containing unlabeled data

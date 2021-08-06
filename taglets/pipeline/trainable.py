@@ -7,10 +7,11 @@ import random
 import torch
 import torch.multiprocessing as mp
 from accelerate import Accelerator
+import faulthandler
 accelerator = Accelerator()
 
 log = logging.getLogger(__name__)
-
+faulthandler.enable()
 
 class Trainable:
     """
@@ -124,7 +125,7 @@ class Trainable:
         This method carries out the actual training iterations. It is designed
         to be called by train().
 
-        :param train_data: A dataset containing training data
+        :param train_data: A dataset containing training data   
         :param val_data: A dataset containing validation data
         :param unlabeled_data: A dataset containing unlabeled data
         :return:
@@ -160,6 +161,7 @@ class Trainable:
 
             # Trains on training data
             train_loss, train_acc = self._train_epoch(train_data_loader, unlabeled_data_loader)
+            
             # Evaluates on validation data
             if val_data_loader:
                 val_loss, val_acc = self._validate_epoch(val_data_loader)
@@ -277,6 +279,7 @@ class ImageTrainable(Trainable):
         running_loss = 0
         running_acc = 0
         total_len = 0
+
         for batch in train_data_loader:
             inputs = batch[0]
             labels = batch[1]

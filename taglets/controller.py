@@ -14,7 +14,7 @@ accelerator = Accelerator()
 from .data import SoftLabelDataset
 from .labelmodel import UnweightedVote, WeightedVote, AMCLWeightedVote
 from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
-    RandomModule, DannModule
+    RandomModule, DannModule, PseudoShotModule
 from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
 ####################################################################
@@ -227,7 +227,8 @@ class Controller:
                         ZSLKGModule,
                         TransferModule,
                         FineTuneModule,
-                        FixMatchModule]
+                        FixMatchModule,
+                        PseudoShotModule]
             return [FineTuneModule, FixMatchModule]
     
     def get_vote_matrix(self):
