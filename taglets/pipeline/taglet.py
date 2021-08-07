@@ -53,8 +53,12 @@ class AuxDataMixin:
                     images = node.get_images_whitelist(self.task.whitelist)
                     if len(images) < self.img_per_related_class:
                         return False
+
+                    bad_images = ['imagenet/n06470073/n06470073_47249.JPEG', 'imagenet/n04135315/n04135315_8814.JPEG',
+                                  'imagenet/n04257684/n04257684_9033.JPEG']
+                    
                     images = random.sample(images, self.img_per_related_class)
-                    images = [os.path.join(root_path, image) for image in images]
+                    images = [os.path.join(root_path, image) for image in images if image not in bad_images]
                     image_paths.extend(images)
                     image_labels.extend([label] * len(images))
                     log.debug("Source class found: {}".format(node.get_conceptnet_id()))

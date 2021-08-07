@@ -211,7 +211,11 @@ class PseudoShotTaglet(ImageTaglet):
 
                     budget -= sample_cnt
                     images = random.sample(images, sample_cnt)
-                    images = [os.path.join(root_path, image) for image in images]
+                    
+                    bad_images = ['imagenet/n06470073/n06470073_47249.JPEG', 'imagenet/n04135315/n04135315_8814.JPEG',
+                                  'imagenet/n04257684/n04257684_9033.JPEG']
+                    
+                    images = [os.path.join(root_path, image) for image in images if image not in bad_images]
                     image_paths.extend(images)
                     image_labels.extend([label] * len(images))
                     label_mask.extend([is_real] * len(images))
