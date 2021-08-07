@@ -194,7 +194,7 @@ class PseudoShotTaglet(ImageTaglet):
         else:
             root_path = Scads.get_root_path()
             Scads.open(self.task.scads_path)
-            ScadsEmbedding.load(self.task.scads_embedding_path)
+            ScadsEmbedding.load(self.task.scads_embedding_path, self.task.processed_scads_embedding_path)
             image_paths = []
             image_labels = []
             
@@ -235,14 +235,18 @@ class PseudoShotTaglet(ImageTaglet):
                     cur_related_class += 1
                     all_related_class += 1
 
-                neighbors = ScadsEmbedding.get_related_nodes(target_node)
-                for neighbor in neighbors:
-                    valid, aux_budget = get_images(neighbor, cls_label, self.img_per_related_class, is_real=0)
-                    if valid:
-                        cur_related_class += 1
-                        all_related_class += 1
-                        if cur_related_class >= self.num_related_class:
-                            break
+                ct = 1
+                while cur_related_class < self.num_related_class:
+                    processed_embeddings_exist = (self.task.processed_scads_embedding_path is not None)
+                    neighbors = ScadsEmbedding.get_related_nodes(target_node)
+                    for neighbor in neighbors:
+                        valid, aux_budget = get_images(neighbor, cls_label, self.img_per_related_class, is_real=0)
+                        if valid:
+                            cur_related_class += 1
+                            all_related_class += 1
+                            if cur_related_class >= self.num_related_class:
+                                break
+                    ct = ct * 2
 
                 if aux_budget > 0:
                     logging.warning('aux budget for %s is positive.' % conceptnet_id)
