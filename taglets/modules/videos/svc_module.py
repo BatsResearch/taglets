@@ -108,24 +108,33 @@ class SVCVideoTaglet(VideoTaglet):
 
         else:
             # Check if embeddings already computed
-            if os.path.isfile("X.p"):
+            if os.path.isfile("X.p"):# and os.path.isfile("idx_mat.p"):
                 X = pickle.load(open("X.p", "rb" ))
+                #idx_mat = pickle.load(open("idx_mat.p", "rb" ))
             else: 
                 X = np.array([]).reshape(0, 2304)
+                #idx_mat = np.array([])
 
-                dim = 0
+                #dim = 0
                 for batch in data_loader:
-                    inputs = batch['video']
+                    inputs = batch['video'] # 0 because changed the custom datasets
+                    #idx = batch[1]
 
                     output = self.model(inputs)
                     output  = accelerator.gather(output.detach())
+                    #idxs = accelerator.gather(idx)
                     # Embeddings to cpu
                     emb = output.cpu().numpy()
                     X = np.concatenate((X, emb), axis=0)
+                    # Ids on cpu
+                    #idxs = idxs.cpu()
+                    #idx_mat = np.concatenate((idx_mat, idxs), axis=0)
 
                 dataset_len = len(data_loader.dataset)
                 X = X[:dataset_len, :]
+                #idx_mat = idx_mat[:dataset_len]
                 # save embeddings
                 pickle.dump(X, open("X.p","wb"))
+                #pickle.dump(idx_mat, open("idx_mat.p","wb"))
 
-            return X   
+            return X

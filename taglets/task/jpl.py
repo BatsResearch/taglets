@@ -566,7 +566,7 @@ class JPLStorage:
             image_names = self.get_evaluation_image_names(video=video)
 
         labels = [labels_dict[image_name] for image_name in image_names]
-        return labels
+        return labels, image_names
 
 
 class JPLRunner:
@@ -727,12 +727,16 @@ class JPLRunner:
         ##outputs = end_model.predict(evaluation_dataset)
         ##predictions = np.argmax(outputs, 1)
         log.info(f"Try with only one taglet without endmodule")
-        predictions = end_model.execute(evaluation_dataset)
+        predictions = np.array([i[0] for i in end_model.execute(evaluation_dataset)])
 
-        log.info(f"Predictions with one taglet: {predictions} and shape {predictions.shape}")
+        log.info(f"Predictions with one taglet: {predictions}")
         log.info(f"Length eval data: {len(evaluation_dataset.filepaths)}")
+        #log.info(f"Ids predictions: {idx_mat}")
         
-        test_labels = self.jpl_storage.get_true_labels('test', self.mode, dict_clips=self.jpl_storage.dictionary_clips, video=self.video)
+        test_labels, compare_image_names = self.jpl_storage.get_true_labels('test', self.mode, dict_clips=self.jpl_storage.dictionary_clips, video=self.video)
+        #log.info(f"Ids predictions: {idx_mat}")
+        #log.info(f"Names images: {compare_image_names}")
+
         if test_labels is not None:
             log.info('Accuracy of taglets on this checkpoint:')
             acc = np.sum(predictions == test_labels) / len(test_labels)
@@ -742,6 +746,7 @@ class JPLRunner:
         prediction_names = []
         for p in predictions:
             prediction_names.append([k for k, v in self.jpl_storage.label_map.items() if v == p][0])
+        
         log.info(f"Predictions with one taglet: {prediction_names}, length: {len(prediction_names)}")
         evaluate_on = self.jpl_storage.get_evaluation_image_names(self.video)
         log.info(f"Predictions with one taglet: {evaluate_on}, length: {len(evaluate_on)}")
