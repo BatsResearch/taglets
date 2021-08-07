@@ -1,5 +1,6 @@
 import os
 import math
+import pickle
 import logging
 
 import numpy as np
@@ -81,48 +82,24 @@ class SVCVideoTaglet(VideoTaglet):
         self.model.eval()
 
         if train:
-            # Init matrices
-            # Set matrices dimension
-            #num_epochs = int(math.ceil(len(data.filepaths) / (self.batch_size * num_proc)))
-            #len_acc_total = (self.batch_size*num_proc) * num_epochs
-            #len_acc_total = len(data.filepaths)
-            
-            #log.info(f"Lengthof eval data:{len_acc_total} and num_epochs: {num_epochs}")
-            
-            X = np.array([]).reshape(0, 2304)#np.zeros((len_acc_total, 2304))
-            Y = np.array([])#np.zeros((len_acc_total))
-
-            # Batch size dimension
-            dim = 0
+            # Init matrices            
+            X = np.array([]).reshape(0, 2304)
+            Y = np.array([])
             
             for batch in data_loader:
                 inputs = batch[0]['video']
                 labels = batch[1]
 
-                #with torch.set_grad_enabled(False):
                 output = self.model(inputs)
-
-                
-                
                 output  = accelerator.gather(output.detach())
                 labels = accelerator.gather(labels)
                 
-                #log.info(f'train output: {output.size()}')
-                #log.info(f'train labels: {len(labels)}')
-                
-                # Change indices
-                #log.info(f'self.batch_size * num_proc: {self.batch_size * num_proc}')
-                #max_index = dim + self.batch_size * num_proc
-                #log.info(f'max_index: {dim} and {max_index}') 
-                emb = output.cpu().numpy()[0]
+                # Embeddings to cpu
+                emb = output.cpu().numpy()
                 X = np.concatenate((X, emb), axis=0)
-                log.info(f'Length X: {X.shape}') 
-
+                # Labels on cpu
                 lab = labels.cpu()
                 Y = np.concatenate((Y, lab), axis=0)
-                log.info(f'Length Y: {Y.shape}') 
-                #dim += self.batch_size * num_proc # number of processes
-                #log.info(f'train dim: {dim}')
 
             dataset_len = len(data_loader.dataset)
             X = X[:dataset_len, :]
@@ -130,40 +107,25 @@ class SVCVideoTaglet(VideoTaglet):
             return X, Y
 
         else:
-            # Init matrices
-            #num_epochs = int(math.ceil(len(data.filepaths) / (self.batch_size * num_proc)))
-            #len_acc_total = (self.batch_size*num_proc) * num_epochs
-            #len_acc_total = len(data.filepaths)
-            #log.info(f"Lengthof eval data:{len_acc_total} and num_epochs: {num_epochs}")
-            #log.info(f"batch size:{self.batch_size}")
-            
-            
-            if os.path.isfile(fname):
+            # Check if embeddings already computed
+            if os.path.isfile("X.p"):
                 X = pickle.load(open("X.p", "rb" ))
             else: 
-                X = np.array([]).reshape(0, 2304)#np.zeros((len_acc_total, 2304))
+                X = np.array([]).reshape(0, 2304)
 
                 dim = 0
                 for batch in data_loader:
                     inputs = batch['video']
 
-                    #with torch.set_grad_enabled(False):
                     output = self.model(inputs)
                     output  = accelerator.gather(output.detach())
-                    #log.info(f'eval output: {output.size()}')
-                    #log.info(f'self.batch_size * num_proc: {self.batch_size * num_proc}')
-                    emb = output.cpu().numpy()[0]
+                    # Embeddings to cpu
+                    emb = output.cpu().numpy()
                     X = np.concatenate((X, emb), axis=0)
-                    #max_index = dim + self.batch_size * num_proc
-                    log.info(f'Length X: {X.shape}')  
-                    #X[dim:max_index, :] = output.cpu().numpy()[0]
-                    
-                    #dim += self.batch_size * num_proc # number of processes
-                    #log.info(f'eval dim: {dim}')    
 
                 dataset_len = len(data_loader.dataset)
                 X = X[:dataset_len, :]
                 # save embeddings
                 pickle.dump(X, open("X.p","wb"))
-            
+
             return X   
