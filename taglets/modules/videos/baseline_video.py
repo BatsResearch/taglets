@@ -38,11 +38,11 @@ class BaselineVideoModule(Module):
     """
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [BaselineVideoTaglet(task, tuning='all-tune', optimizer=Optimizer.SGD)]
+        self.taglets = [BaselineVideoTaglet(task, tuning='last-tune', optimizer=Optimizer.SGD)]
 
 
 class BaselineVideoTaglet(VideoTaglet):
-    def __init__(self, task):
+    def __init__(self, task, tuning, optimizer):
         super().__init__(task)
         self.name = 'baseline-video'
         self.tuning = tuning # train all backbone or only last layer    
