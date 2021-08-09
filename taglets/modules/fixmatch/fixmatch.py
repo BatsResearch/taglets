@@ -272,7 +272,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
                                                          batch_size=self.unlabeled_batch_size)
 
             if self.steps_per_epoch == -1:
-                self.steps_per_epoch = max(len(train_data_loader), len(unlabeled_data_loader))
+                self.steps_per_epoch = min(max(len(train_data_loader), len(unlabeled_data_loader)), 1000)
 
             if self.opt_type == Optimizer.SGD:
                 total_steps = self.steps_per_epoch * self.num_epochs
