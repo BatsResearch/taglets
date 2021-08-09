@@ -38,7 +38,7 @@ class BaselineVideoModule(Module):
     """
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [BaselineVideoTaglet(task, tuning='last-tune', optimizer=Optimizer.SGD)]
+        self.taglets = [BaselineVideoTaglet(task, tuning='all-tune', optimizer=Optimizer.SGD)]
 
 
 class BaselineVideoTaglet(VideoTaglet):
