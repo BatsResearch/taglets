@@ -31,7 +31,7 @@ class AuxDataMixin:
         if os.environ.get("CI"):
             self.num_related_class = 1
         else:
-            self.num_related_class = 10 if len(self.task.classes) < 100 else (5 if len(self.task.classes) < 300 else 3)
+            self.num_related_class = 5 if len(self.task.classes) < 100 else (3 if len(self.task.classes) < 300 else 1)
     
     def _get_scads_data(self):
         data = Cache.get("scads", self.task.classes)
