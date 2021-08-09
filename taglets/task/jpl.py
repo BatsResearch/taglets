@@ -669,6 +669,14 @@ class JPLRunner:
             if self.jpl_storage.dictionary_clips != None:
                 self.jpl_storage.dictionary_clips.update(new_dictionary_clips)
             log.info(f'Get seeds at {checkpoint_num} checkpoints')
+
+            if checkpoint_num == 1:
+                log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
+                                                                            checkpoint_num,
+                                                                            time.strftime("%H:%M:%S",
+                                                                                          time.gmtime(
+                                                                                              time.time() - start_time))))
+                return self.api.skip_checkpoint()
         
         # Get sets of unlabeled samples
         unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names(self.jpl_storage.dictionary_clips,
