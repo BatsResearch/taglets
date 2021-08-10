@@ -162,7 +162,7 @@ class PseudoShotTaglet(ImageTaglet):
         else:
             self.test_path = 'trained_models/pseudoshots'
         if not os.path.exists(self.test_path):
-            os.makedirs(self.test_path, exists_ok=True)
+            os.makedirs(self.test_path, exist_ok=True)
 
         self.model = NearestNeighborClassifier(None, self.img_encoder, kwargs.get('metric', Metric.COSINE))
         self.proto_file = os.path.join(self.test_path, f'test_protos.pth')

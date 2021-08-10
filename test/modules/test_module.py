@@ -164,8 +164,8 @@ class TestModule:
         taglets = module.get_taglets()
         for taglet in taglets:
             votes = taglet.execute(self.unlabeled)
-            self.assertEqual(votes.shape[1], 15)
-            self.assertEqual(votes.shape[2], 3)
+            self.assertEqual(votes.shape[0], 15)
+            self.assertEqual(votes.shape[1], 3)
             self.assertGreater(taglet.evaluate(self.test), 0.5)
 
     def _get_module(self, task):
