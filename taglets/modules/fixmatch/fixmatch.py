@@ -95,8 +95,6 @@ class FixMatchTaglet(ImageTagletWithAuxData):
                  optimizer=Optimizer.SGD,
                  verbose=False,
                  use_scads=True):
-        self.name = 'fixmatch'
-
         self.steps_per_epoch = steps_per_epoch
         self.conf_thresh = conf_thresh
         self.lambda_u = lambda_u
@@ -120,6 +118,8 @@ class FixMatchTaglet(ImageTagletWithAuxData):
             log.info('temperature: %.4f', self.temp)
 
         super().__init__(task)
+
+        self.name = 'fixmatch'
 
         self.weight_decay = weight_decay
         
