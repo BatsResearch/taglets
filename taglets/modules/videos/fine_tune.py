@@ -14,19 +14,19 @@ class Optimizer(Enum):
     SGD = 1
     ADAM = 2
 
-class BaselineVideoModule(Module):
+class FineTuneVideoModule(Module):
     """
     A module that fine-tunes the task's initial model.
     """
     def __init__(self, task):
         super().__init__(task)
-        self.taglets = [BaselineVideoTaglet(task, optimizer=Optimizer.SGD)]
+        self.taglets = [FineTuneVideoTaglet(task, optimizer=Optimizer.SGD)]
 
 
-class BaselineVideoTaglet(VideoTaglet):
+class FineTuneVideoTaglet(VideoTaglet):
     def __init__(self, task, optimizer):
         super().__init__(task)
-        self.name = 'baseline-video'
+        self.name = 'finetune-video'   
         self.opt_type = optimizer       
 
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
@@ -35,10 +35,6 @@ class BaselineVideoTaglet(VideoTaglet):
             self.save_dir = os.path.join('trained_models', self.name)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
-
-        # Freeze bacjbone
-        for param in self.model.parameters():
-            param.requires_grad = False
         
         output_shape = self.model.blocks[6].proj.in_features 
         self.model.blocks[6].proj = torch.nn.Linear(output_shape, len(self.task.classes))

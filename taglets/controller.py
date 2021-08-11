@@ -11,7 +11,7 @@ accelerator = Accelerator()
 
 from .data import SoftLabelDataset
 from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
-    RandomModule, DannModule, BaselineVideoModule, SvcVideoModule
+    RandomModule, DannModule, BaselineVideoModule, SvcVideoModule, FineTuneVideoModule
 from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
 ####################################################################
@@ -111,44 +111,50 @@ class Controller:
             taglet_executor.set_taglets(taglets)
 
             #### TEST
-            return taglet_executor
+        return taglet_executor, taglets
     
-            # Executes taglets
-            log.info("Executing taglets")
-            #log.info(f"FILEPATHS TEST {unlabeled_test.filepaths}")
-            vote_matrix = taglet_executor.execute(unlabeled_test)
-            log.info("Finished executing taglets")
+            # # Executes taglets
+            # log.info("Executing taglets on unlabeled data")
+            # self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test)
+            # log.info("Finished executing taglets on unlabeled data")
             
-            if self.task.unlabeled_train_labels is not None:
-                log.info('Accuracies of each taglet on the unlabeled train data:')
-                for i in range(len(taglets)):
-                    acc = np.sum(vote_matrix[:, i] == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
-                    log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
-                    log.info(f"predictions {list(vote_matrix[:, i])}")
-                    log.info(f"truth {self.task.unlabeled_train_labels}")
-                    log.info(f"number good: {np.sum(vote_matrix[:, i] == self.task.unlabeled_train_labels)}")
+            # if self.task.unlabeled_train_labels is not None:
+            #     log.info('Accuracies of each taglet on the unlabeled train data:')
+            #     for i in range(len(taglets)):
+            #         acc = np.sum(self.unlabeled_vote_matrix[:, i] == np.array(self.task.unlabeled_train_labels)) / len(self.task.unlabeled_train_labels)
+            #         log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
+            #         #log.info(f"predictions {type(vote_matrix[:, i])}")
+            #         #log.info(f"truth {type(self.task.unlabeled_train_labels[0])}")
+            #         #log.info(f"equal {np.sum(vote_matrix[:, i][:len(self.task.unlabeled_train_labels[0])] == np.array(self.task.unlabeled_train_labels[0]))}")
+            #         #log.info(f"number good: {np.sum(np.array([i for i in vote_matrix[:, i]]) == np.array(self.task.unlabeled_train_labels))}")
 
-            # Combines taglets' votes into soft labels
-            if val is not None and len(val) >= len(self.task.classes) * 10:
-                # Weight votes using development set
-                weights = [taglet.evaluate(val) for taglet in taglets]
-                log.info("Validation accuracies of each taglet:")
-                for w, taglet in zip(weights, taglets):
-                    log.info("Module {} - acc {:.4f}".format(taglet.name, w))
-            else:
-                # Weight all votes equally
-                weights = [1.0] * len(taglets)
+            # # Combines taglets' votes into soft labels
+            # if val is not None and len(val) >= len(self.task.classes) * 10:
+            #     # Weight votes using development set
+            #     weights = [taglet.evaluate(val) for taglet in taglets]
+            #     log.info("Validation accuracies of each taglet:")
+            #     for w, taglet in zip(weights, taglets):
+            #         log.info("Module {} - acc {:.4f}".format(taglet.name, w))
+            # else:
+            #     # Weight all votes equally
+            #     weights = [1.0] * len(taglets)
+            #     #weights = [1.0] * self.unlabeled_vote_matrix.shape[0]
+            
+            # weak_labels = self._get_weighted_dist(self.unlabeled_vote_matrix, weights)
+            
 
-            weak_labels = self._get_weighted_dist(vote_matrix, weights)
+            # if self.task.unlabeled_train_labels is not None:
+            #     log.info('Accuracy of the labelmodel on the unlabeled train data:')
+            #     predictions = np.asarray([np.argmax(label) for label in weak_labels])
+            #     acc = np.sum(predictions == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
+            #     log.info('Acc {:.4f}'.format(acc))
             
-            if self.task.unlabeled_train_labels is not None:
-                log.info('Accuracy of the labelmodel on the unlabeled train data:')
-                predictions = np.asarray([np.argmax(label) for label in weak_labels])
-                acc = np.sum(predictions == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
-                log.info('Acc {:.4f}'.format(acc))
+            # for label in weak_labels:
+            #     unlabeled_images_labels.append(torch.FloatTensor(label))
+
+            # #return unlabeled_images_labels
+
             
-            for label in weak_labels:
-                unlabeled_images_labels.append(torch.FloatTensor(label))
 
         # # Trains end model
         # log.info("Training end model")
@@ -178,7 +184,7 @@ class Controller:
         if self.simple_run:
              return [RandomModule]
         elif self.task.video_classification:
-             return [BaselineVideoModule]#[BaselineVideoModule]#NaiveVideoModule] # SvcVideoModule
+             return [FineTuneVideoModule, SvcVideoModule, BaselineVideoModule]
         else:
             if self.task.scads_path is not None:
                 return [DannModule, 
@@ -209,9 +215,18 @@ class Controller:
         for row in vote_matrix:
             weak_label = np.zeros((len(self.task.classes),))
             for i in range(len(row)):
-                weak_label[row[i]] += weights[i]
+                weak_label[int(row[i])] += weights[i]
             weak_labels.append(weak_label / weak_label.sum())
         return weak_labels
+
+    #def _get_weighted_dist(self, vote_matrix, weights):
+    #    weak_labels = []
+    #    for j in range(vote_matrix.shape[1]):
+    #        weak_label = np.zeros((len(self.task.classes),))
+    #        for i in range(vote_matrix.shape[0]):
+    #            weak_label += weights[i] * vote_matrix[i][j]
+    #        weak_labels.append(weak_label / sum(weights))
+    #    return weak_labels
 
     def _to_soft_one_hot(self, l):
         soh = [0.1 / len(self.task.classes)] * len(self.task.classes)

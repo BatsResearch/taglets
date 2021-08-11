@@ -87,7 +87,7 @@ class CustomVideoDataset(Dataset):
                 
             else:
                 label = torch.tensor(int(self.labels[index]))
-            return img, label, clip_id
+            return img, label#, clip_id
         else:
             return img
     

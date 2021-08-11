@@ -1,7 +1,6 @@
 import copy
 
 import torch
-from sklearn.svm import LinearSVC
 import torchvision.models as models
 
 

@@ -58,16 +58,26 @@ class SVCVideoTaglet(VideoTaglet):
         log.info('Beginning training')
         self.classifier = self.classifier.fit(nembs_train, labs_train)
 
+    def evaluate(self, labeled_data):
+        preds, labels = self.predict(labeled_data)
+        correct = (preds == labels).sum()
+        
+        return correct / len(preds)
+        
+
     def predict(self, data):
         log.info('Beginning prediction')
         pred_classifier = self.classifier
         
-        X = self._extract_features(data, train=False)
+        X, Y = self._extract_features(data, train=False)
         nembs_valid = normalize(X, axis=1)
 
         preds = pred_classifier.predict(nembs_valid)
-        
-        return preds
+
+        if len(Y) > 0:
+            return preds, Y
+        else:
+            return preds
 
     def _extract_features(self, data, train=True):
 
@@ -108,33 +118,43 @@ class SVCVideoTaglet(VideoTaglet):
 
         else:
             # Check if embeddings already computed
-            if os.path.isfile("X.p"):# and os.path.isfile("idx_mat.p"):
-                X = pickle.load(open("X.p", "rb" ))
-                #idx_mat = pickle.load(open("idx_mat.p", "rb" ))
-            else: 
-                X = np.array([]).reshape(0, 2304)
-                #idx_mat = np.array([])
+            # if os.path.isfile("X.p"):
+            #     X = pickle.load(open("X.p", "rb" ))
+            #     Y = pickle.load(open("Y.p", "rb" ))
 
-                #dim = 0
-                for batch in data_loader:
-                    inputs = batch['video'] # 0 because changed the custom datasets
-                    #idx = batch[1]
+            # else: 
+            X = np.array([]).reshape(0, 2304)
+            Y = np.array([])
 
-                    output = self.model(inputs)
-                    output  = accelerator.gather(output.detach())
-                    #idxs = accelerator.gather(idx)
-                    # Embeddings to cpu
-                    emb = output.cpu().numpy()
-                    X = np.concatenate((X, emb), axis=0)
-                    # Ids on cpu
-                    #idxs = idxs.cpu()
-                    #idx_mat = np.concatenate((idx_mat, idxs), axis=0)
+            for batch in data_loader:
+                if isinstance(batch, list):
+                    inputs = batch[0]['video'] 
+                    targets = batch[1]
+                else:
+                    #if os.path.isfile("X.p"):
+                    #    X = pickle.load(open("X.p", "rb" ))
+                    #    Y = pickle.load(open("Y.p", "rb" ))
+                    #    return X, Y
+                    inputs, targets = batch['video'], None
 
-                dataset_len = len(data_loader.dataset)
-                X = X[:dataset_len, :]
-                #idx_mat = idx_mat[:dataset_len]
-                # save embeddings
-                pickle.dump(X, open("X.p","wb"))
-                #pickle.dump(idx_mat, open("idx_mat.p","wb"))
+                output = self.model(inputs)
+                output  = accelerator.gather(output.detach())
+                if targets is not None:
+                    labels = accelerator.gather(targets)
+                    lab = labels.cpu()
+                    Y = np.concatenate((Y, lab), axis=0)
+                # Embeddings to cpu
+                emb = output.cpu().numpy()
+                X = np.concatenate((X, emb), axis=0)
 
-            return X
+
+            dataset_len = len(data_loader.dataset)
+            X = X[:dataset_len, :]
+            Y = Y[:dataset_len]
+            
+            #if isinstance(batch, list):
+            #    return X, Y
+            #else:
+            #    pickle.dump(X, open("X.p","wb"))
+            #    pickle.dump(Y, open("Y.p","wb"))
+            return X, Y

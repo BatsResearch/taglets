@@ -470,7 +470,7 @@ class JPLStorage:
 
         return train_dataset, val_dataset
 
-    def get_unlabeled_dataset(self, train=True, video=False):
+    def get_unlabeled_dataset(self, train=True, video=False, dict_clips=None):
         """
         Get a data loader from unlabeled data.
         :return: A data loader containing unlabeled data
@@ -479,15 +479,17 @@ class JPLStorage:
         transform = self.transform_image(train=train)
         
         if video:
+            clip_names = self.get_unlabeled_image_names(dict_clips, video)
             image_paths = []
             dictionary_clips = {}
             train_meta = pd.read_feather(self.unlabeled_meta_path)
             for clip in train_meta.iterrows():
                 row = clip[1]
-                action_frames = [os.path.join(self.unlabeled_image_path, str(row['id'])) + '/' + str(i)+'.jpg'
-                                 for i in range(row['start_frame'], row['end_frame'])] # os.path.join(self.unlabeled_image_path, str(i)+'.jpg')
-                dictionary_clips[row["id"]] = action_frames
-                image_paths.append(os.path.join(self.unlabeled_image_path, str(row["id"])))
+                if row["id"] in clip_names:
+                    action_frames = [os.path.join(self.unlabeled_image_path, str(row['id'])) + '/' + str(i)+'.jpg'
+                                    for i in range(row['start_frame'], row['end_frame'])] 
+                    dictionary_clips[row["id"]] = action_frames
+                    image_paths.append(os.path.join(self.unlabeled_image_path, str(row["id"])))
         else:
             image_names = self.get_unlabeled_image_names(None, video)
             
@@ -520,7 +522,7 @@ class JPLStorage:
             for clip in test_meta.iterrows():
                 row = clip[1]
                 action_frames = [os.path.join(self.evaluation_image_path, str(row['id'])) + '/' + str(i)+'.jpg'
-                                 for i in range(row['start_frame'], row['end_frame'])] #os.path.join(self.evaluation_image_path, str(i)+'.jpg')
+                                 for i in range(row['start_frame'], row['end_frame'])] 
                 dictionary_clips[row["id"]] = action_frames
                 image_paths.append(os.path.join(self.evaluation_image_path, str(row["id"])))
 
@@ -566,7 +568,7 @@ class JPLStorage:
             image_names = self.get_evaluation_image_names(video=video)
 
         labels = [labels_dict[image_name] for image_name in image_names]
-        return labels, image_names
+        return labels
 
 
 class JPLRunner:
@@ -656,6 +658,15 @@ class JPLRunner:
         for i in range(self.num_base_checkpoints):
             self.run_one_checkpoint("Adapt", i)
 
+    def _get_weighted_dist(self, vote_matrix, weights, classes):
+        weak_labels = []
+        for row in vote_matrix:
+            weak_label = np.zeros((len(classes),))
+            for i in range(len(row)):
+                weak_label[int(row[i])] += weights[i]
+            weak_labels.append(weak_label / weak_label.sum())
+        return weak_labels
+
     def run_one_checkpoint(self, phase, checkpoint_num):
         log.info('------------------------------------------------------------')
         log.info('--------------------{} Checkpoint: {}'.format(phase, checkpoint_num)+'---------------------')
@@ -683,27 +694,21 @@ class JPLRunner:
         if checkpoint_num >= 4:
             """ For the last evaluation we used to start asking for custom labels after the first 2 checkpoints.
             Moreover we adopted randomActive learning for the first query. Do we want it?
-
-            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
-            self.request_labels(candidates)
-            """
-            """ To consider: we directly query for all the available budget, we have the option 
-            of gradually ask new labels untile we exhaust the budget.
             """
 
             # Add all labeled data
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
-            log.debug(f"Candidates to query[0]: {candidates[0]}")
+            #log.debug(f"Candidates to query[0]: {candidates[0]}")
             self.request_labels(candidates, self.video)
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
-        log.info(f"number training : {len(labeled_dataset.filepaths)}")
-        unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True, self.video)
-        log.info(f" number unlabeled_train_dataset: {len(unlabeled_train_dataset.filepaths)}")
-        unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False, self.video)
-        log.info(f"unlabeled_test_dataset: {len(unlabeled_test_dataset.filepaths)}")
+        #log.info(f"number training : {len(labeled_dataset.filepaths)}")
+        unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True, self.video, dict_clips=self.jpl_storage.dictionary_clips)
+        #log.info(f" number unlabeled_train_dataset: {len(unlabeled_train_dataset.filepaths)}")
+        unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False, self.video, dict_clips=self.jpl_storage.dictionary_clips)
+        #log.info(f"unlabeled_test_dataset: {len(unlabeled_test_dataset.filepaths)}")
         unlabeled_train_labels = self.jpl_storage.get_true_labels('train', self.mode, dict_clips=self.jpl_storage.dictionary_clips, video=self.video)
-        log.info(f"unlabeled_train_labels: {len(unlabeled_train_labels)}")
+        #log.info(f"unlabeled_train_labels: {len(unlabeled_train_labels)}")
         
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),
@@ -721,40 +726,77 @@ class JPLRunner:
         task.set_initial_model(self.initial_model)
         controller = Controller(task, self.simple_run)
 
-        end_model = controller.train_end_model()
+        taglet_executor, taglets = controller.train_end_model()
 
-        evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.video)
-        ##outputs = end_model.predict(evaluation_dataset)
-        ##predictions = np.argmax(outputs, 1)
-        log.info(f"Try with only one taglet without endmodule")
-        predictions = np.array([i[0] for i in end_model.execute(evaluation_dataset)])
 
-        log.info(f"Predictions with one taglet: {predictions}")
-        log.info(f"Length eval data: {len(evaluation_dataset.filepaths)}")
-        #log.info(f"Ids predictions: {idx_mat}")
+        labeled = task.get_labeled_train_data()
+        unlabeled_train = task.get_unlabeled_data(True) # augmentation is applied
+        unlabeled_test = task.get_unlabeled_data(False)
+        val = task.get_validation_data()
+
+        log.info("Executing taglets on unlabeled data")
+        self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test)
+        log.info("Finished executing taglets on unlabeled data")
+
+        if task.unlabeled_train_labels is not None:
+            log.info('Accuracies of each taglet on the unlabeled train data:')
+            for i in range(len(taglets)):
+                acc = np.sum(self.unlabeled_vote_matrix[:, i] == np.array(task.unlabeled_train_labels)) / len(task.unlabeled_train_labels)
+                log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
+
+        # Combines taglets' votes into soft labels
+        if val is not None and len(val) >= len(task.classes) * 10:
+            # Weight votes using development set
+            weights = [taglet.evaluate(val) for taglet in taglets]
+            log.info("Validation accuracies of each taglet:")
+            for w, taglet in zip(weights, taglets):
+                log.info("Module {} - acc {:.4f}".format(taglet.name, w))
+        else:
+            # Weight all votes equally
+            weights = [1.0] * len(taglets)
+        weak_labels = self._get_weighted_dist(self.unlabeled_vote_matrix, weights, task.classes)
         
-        test_labels, compare_image_names = self.jpl_storage.get_true_labels('test', self.mode, dict_clips=self.jpl_storage.dictionary_clips, video=self.video)
-        #log.info(f"Ids predictions: {idx_mat}")
-        #log.info(f"Names images: {compare_image_names}")
 
-        if test_labels is not None:
-            log.info('Accuracy of taglets on this checkpoint:')
+        if task.unlabeled_train_labels is not None:
+            log.info('Accuracy of the labelmodel on the unlabeled train data:')
+            predictions = np.asarray([np.argmax(label) for label in weak_labels])
+            acc = np.sum(predictions == task.unlabeled_train_labels) / len(task.unlabeled_train_labels)
+            log.info('Acc {:.4f}'.format(acc))
+
+        # Evaluate on test set
+        evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.video)    
+
+        log.info("Executing taglets on eval data")
+        self.unlabeled_vote_matrix = taglet_executor.execute(evaluation_dataset)
+        log.info("Finished executing taglets on eval data")
+
+        log.info(f"Use weights of training to weight labelers vote {weights}")
+        weak_labels = self._get_weighted_dist(self.unlabeled_vote_matrix, weights, task.classes)
+        predictions = np.asarray([np.argmax(label) for label in weak_labels])
+        
+        test_labels = self.jpl_storage.get_true_labels('test', self.mode, 
+                                                        dict_clips=self.jpl_storage.dictionary_clips, 
+                                                        video=self.video)
+        if test_labels is not None:        
+            log.info('Accuracy of Taglets on the eval data:')
             acc = np.sum(predictions == test_labels) / len(test_labels)
             log.info('Acc {:.4f}'.format(acc))
         
+        #log.info(f"Predictions with one taglet: {predictions}")
+        log.info(f"Length eval data: {len(evaluation_dataset.filepaths)}")
 
         prediction_names = []
         for p in predictions:
             prediction_names.append([k for k, v in self.jpl_storage.label_map.items() if v == p][0])
         
-        log.info(f"Predictions with one taglet: {prediction_names}, length: {len(prediction_names)}")
+        #log.info(f"Predictions with one taglet: {prediction_names}, length: {len(prediction_names)}")
         evaluate_on = self.jpl_storage.get_evaluation_image_names(self.video)
-        log.info(f"Predictions with one taglet: {evaluate_on}, length: {len(evaluate_on)}")
+        #log.info(f"Predictions with one taglet: {evaluate_on}, length: {len(evaluate_on)}")
 
         predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(self.video), 'class': prediction_names}
 
         self.submit_predictions(predictions_dict)
-
+    
         # if unlabeled_test_dataset is not None:
         #     outputs = end_model.predict(unlabeled_test_dataset)
         #     confidences = np.max(outputs, 1)
