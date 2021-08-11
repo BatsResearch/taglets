@@ -17,7 +17,7 @@ from taglets.controller import Controller
 from taglets.task.utils import labels_to_concept_ids
 from taglets.scads import Scads
 
-from .dataset_api import FMD, Places205, OfficeHome
+from .dataset_api import FMD, Places205, OfficeHomeProduct, OfficeHomeClipart
 
 
 log = logging.getLogger(__name__)
@@ -30,7 +30,10 @@ class CheckpointRunner:
         self.dataset_dir = dataset_dir
         self.batch_size = batch_size
         
-        dataset_dict = {'fmd': FMD, 'places205': Places205, 'office_home': OfficeHome}
+        dataset_dict = {'fmd': FMD,
+                        'places205': Places205,
+                        'office_home-product': OfficeHomeProduct,
+                        'office_home-clipart': OfficeHomeClipart}
         self.dataset_api = dataset_dict[dataset](dataset_dir)
 
         self.initial_model = models.resnet50(pretrained=True)
@@ -111,17 +114,18 @@ class CheckpointRunner:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset",
+    parser.add_argument('--dataset',
                         type=str,
-                        default="fmd")
-    parser.add_argument("--dataset_dir",
+                        default='fmd',
+                        choices=['fmd', 'places205', 'office_home-product', 'office_home-clipart'])
+    parser.add_argument('--dataset_dir',
                         type=str,
-                        default="true",
-                        help="Option to choose whether to execute or not the entire trining pipeline")
-    parser.add_argument("--batch_size",
+                        default='true',
+                        help='Option to choose whether to execute or not the entire trining pipeline')
+    parser.add_argument('--batch_size',
                         type=int,
-                        default="32",
-                        help="Universal batch size")
+                        default='32',
+                        help='Universal batch size')
     parser.add_argument('--scads_root_path', 
                         type=str,
                         default='/users/wpiriyak/data/bats/datasets')

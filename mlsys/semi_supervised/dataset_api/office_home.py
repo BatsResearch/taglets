@@ -8,18 +8,18 @@ class OfficeHome(DatasetAPI):
     def __init__(self, dataset_dir, seed=0):
         super().__init__(dataset_dir, seed)
         
-        domain = 'Clipart'
+        self.domain = self._get_domain()
         
         self.checkpoint_shot = [1, 5, 20]
 
-        data_dir = os.path.join(self.dataset_dir, domain)
+        data_dir = os.path.join(self.dataset_dir, self.domain)
         
         self.classes = os.listdir(data_dir)
         
         self.all_img_paths = []
         for class_name in self.classes:
             img_paths = []
-            class_dir = os.path.join(self.dataset_dir, domain, class_name)
+            class_dir = os.path.join(self.dataset_dir, self.domain, class_name)
             for img in os.listdir(class_dir):
                 if not img.endswith('.jpg'):
                     continue
@@ -50,3 +50,16 @@ class OfficeHome(DatasetAPI):
         self.train_indices = []
         for i in range(len(self.classes)):
             self.train_indices.append(np.random.permutation(len(self.all_img_paths[i])))
+            
+    def _get_domain(self):
+        raise NotImplementedError
+
+
+class OfficeHomeProduct(OfficeHome):
+    def _get_domain(self):
+        return 'Product'
+    
+    
+class OfficeHomeClipart(OfficeHome):
+    def _get_domain(self):
+        return 'Clipart'
