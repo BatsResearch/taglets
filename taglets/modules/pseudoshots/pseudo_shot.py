@@ -242,7 +242,9 @@ class PseudoShotTaglet(ImageTaglet):
                 ct = 1
                 while cur_related_class < self.num_related_class:
                     processed_embeddings_exist = (self.task.processed_scads_embedding_path is not None)
-                    neighbors = ScadsEmbedding.get_related_nodes(target_node)
+                    neighbors = ScadsEmbedding.get_related_nodes(target_node, 
+                                                                 limit=self.num_related_class * 10 * ct,
+                                                                 only_with_images=processed_embeddings_exist)
                     for neighbor in neighbors:
                         valid, aux_budget = get_images(neighbor, cls_label, self.img_per_related_class, is_real=0)
                         if valid:
