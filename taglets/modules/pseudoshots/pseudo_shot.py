@@ -91,6 +91,7 @@ class NearestNeighborClassifier(nn.Module):
 class PseudoShotModule(Module):
     def __init__(self, task):
         super().__init__(task)
+        self.name = 'pseudoshot'
         ps_args = {}
 
         # few-shot params; only necessary if you're training 
