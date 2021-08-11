@@ -182,7 +182,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
 
         # warm-up using scads data
         if self.use_scads:
-            aux_weights = Cache.get("scads-weights", self.task.classes)
+            aux_weights = Cache.get("scads-weights-fixmatch", self.task.classes)
             if aux_weights is None:
                 scads_train_data, scads_num_classes = self._get_scads_data()
     
@@ -214,7 +214,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
 
                 self.model.fc = torch.nn.Identity()
                 aux_weights = copy.deepcopy(self.model.state_dict())
-                Cache.set('scads-weights', self.task.classes, aux_weights)
+                Cache.set('scads-weights-fixmatch', self.task.classes, aux_weights)
             self.use_scads = False
             self.model.load_state_dict(aux_weights, strict=False)
 
