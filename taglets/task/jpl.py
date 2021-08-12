@@ -103,7 +103,7 @@ class JPL:
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
-        requests.get(self.url + "/skip_checkpoint", headers=headers)
+        self.get_only_once("skip_checkpoint", headers)
         # if 'Session_Status' in r.json():
         #     return r.json()['Session_Status']
         # else:
