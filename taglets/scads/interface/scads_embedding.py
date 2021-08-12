@@ -17,7 +17,7 @@ class ScadsEmbedding:
     path = ''
 
     @staticmethod
-    def load(path_to_embeddings):
+    def load(path_to_embeddings, path_to_processed_embeddings=None):
         """
         Load all embeddings into main memory
         
@@ -58,7 +58,15 @@ class ScadsEmbedding:
             ScadsEmbedding.frame = df
             ScadsEmbedding.small_frame = df.iloc[:, : ScadsEmbedding.small_k].copy()
             ScadsEmbedding._trie = marisa_trie.Trie(list(df.index))
-    
+
+        if path_to_processed_embeddings is not None and \
+                ScadsEmbedding.path_processed != os.path.abspath(path_to_processed_embeddings):
+            df = pd.read_hdf(path_to_processed_embeddings, 'mat', encoding='utf-8')
+            ScadsEmbedding.path_processed = os.path.abspath(path_to_processed_embeddings)
+            ScadsEmbedding.frame_processed = df
+            ScadsEmbedding.small_frame_processed = df.iloc[:, : ScadsEmbedding.small_k].copy()
+
+
     @staticmethod
     def get_vector(node, is_node=True):
         """
@@ -77,21 +85,36 @@ class ScadsEmbedding:
         return normalized_vec
     
     @staticmethod
-    def get_related_nodes(node, limit=50, is_node=True):
+    def get_related_nodes(node, limit=50, is_node=True, only_with_images=False):
         """
         Get the related nodes based on the cosine similarity of their embeddings
-
         :param node: target ScadsNode/ConceptNet ID to get its related nodes
         :param limit: number of related nodes to get
         :param is_node: whether we are working with ScadsNode or string
         :return: list of ScadsNode if is_node is True, else, list of ConceptNet IDs
         """
-        vec = ScadsEmbedding.get_vector(node, is_node)
+
+        if isinstance(node, list):
+            for n in node:
+                vec += ScadsEmbedding.get_vector(n, is_node)
+        else:
+            target_node = target_nodes
+            vec = ScadsEmbedding.get_vector(node, is_node)
+        
+        if only_with_images:
+            if ScadsEmbedding.frame_processed is None:
+                raise RuntimeError("Processed embeddings are not loaded")
+            small_frame = ScadsEmbedding.small_frame_processed
+            frame = ScadsEmbedding.frame_processed
+        else:
+            small_frame = ScadsEmbedding.small_frame
+            frame = ScadsEmbedding.frame
+        
         small_vec = vec[: ScadsEmbedding.small_k]
-        search_frame = ScadsEmbedding.small_frame
+        search_frame = small_frame
         similar_sloppy = ScadsEmbedding._similar_to_vec(search_frame, small_vec, limit=limit * 50)
         similar_choices = ScadsEmbedding._l2_normalize_rows(
-            ScadsEmbedding.frame.loc[similar_sloppy.index].astype('f')
+            frame.loc[similar_sloppy.index].astype('f')
         )
 
         similar = ScadsEmbedding._similar_to_vec(similar_choices, vec, limit=limit)
@@ -206,6 +229,27 @@ class ScadsEmbedding:
                 vec += val * frame.loc[label].values
     
         return pd.Series(data=vec, index=frame.columns, dtype='f')
+
+    @staticmethod
+    def process_embeddings():
+        df = ScadsEmbedding.frame
+        
+        # remove concepts with no images
+        query_res = Scads.session.query(Node).all()
+        concepts_with_no_images = [node.conceptnet_id for node in query_res if len(node.images) == 0]
+        to_drop = [conceptnet_id for conceptnet_id in df.index if conceptnet_id in concepts_with_no_images]
+        df = df.drop(to_drop)
+
+        # remove concepts not in Scads
+        to_drop2 = []
+        for conceptnet_id in df.index:
+            try:
+                Scads.get_node_by_conceptnet_id(conceptnet_id)
+            except:
+                to_drop2.append(conceptnet_id)
+        df = df.drop(to_drop2)
+        
+        df.to_hdf('predefined/embeddings/processed_numberbatch.h5', key='mat')
     
 
 if __name__ == '__main__':
@@ -214,7 +258,7 @@ if __name__ == '__main__':
 
     st = time.time()
     print('Start loading database')
-    Scads.open('predefined/scads.fall2020.sqlite3')
+    Scads.open('predefined/scads.spring2021.sqlite3')
     print(f'End loading database: {(time.time() - st) / 60} mins')
     
     st = time.time()
@@ -222,17 +266,19 @@ if __name__ == '__main__':
     ScadsEmbedding.load('predefined/embeddings/numberbatch-en19.08.txt.gz')
     print(f'End loading embedding: {(time.time()-st) / 60} mins')
     
-    node = Scads.get_node_by_conceptnet_id('/c/en/dog')
+    node = Scads.get_node_by_conceptnet_id('/c/en/run')
     related_nodes = ScadsEmbedding.get_related_nodes(node)
     related_nodes = [related_node.get_conceptnet_id() for related_node in related_nodes]
     print(f'Related node to dog: {related_nodes}')
 
-    node = Scads.get_node_by_conceptnet_id('/c/en/pen')
+    node = Scads.get_node_by_conceptnet_id('/c/en/playing_dhol')
     related_nodes = ScadsEmbedding.get_related_nodes(node)
     related_nodes = [related_node.get_conceptnet_id() for related_node in related_nodes]
     print(f'Related node to pen: {related_nodes}')
 
-    node = Scads.get_node_by_conceptnet_id('/c/en/bear')
-    related_nodes = ScadsEmbedding.get_related_nodes(node)
-    related_nodes = [related_node.get_conceptnet_id() for related_node in related_nodes]
-    print(f'Related node to bear: {related_nodes}')
+    # node = Scads.get_node_by_conceptnet_id('/c/en/bear')
+    # related_nodes = ScadsEmbedding.get_related_nodes(node)
+    # related_nodes = [related_node.get_conceptnet_id() for related_node in related_nodes]
+    # print(f'Related node to bear: {related_nodes}')
+
+    # python -m taglets.scads.interface.scads_embedding

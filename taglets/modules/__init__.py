@@ -10,3 +10,4 @@ from .random import RandomModule
 from .videos import BaselineVideoModule
 from .videos import SvcVideoModule
 from .videos import FineTuneVideoModule
+from .videos import TransferVideoModule

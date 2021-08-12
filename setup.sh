@@ -15,6 +15,7 @@ wget -nc https://storage.googleapis.com/taglets-public/embeddings/glove.840B.300
 gunzip --force < glove.840B.300d.txt.gz > glove.840B.300d.txt
 
 wget -nc https://storage.googleapis.com/taglets-public/embeddings/numberbatch-en19.08.txt.gz
+wget -nc https://storage.googleapis.com/taglets-public/embeddings/spring2021_processed_numberbatch.h5
 
 cd ../zsl_kg_lite
 wget -nc https://storage.googleapis.com/taglets-public/zsl_kg_lite/transformer.pt

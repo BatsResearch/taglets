@@ -11,7 +11,7 @@ accelerator = Accelerator()
 
 from .data import SoftLabelDataset
 from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
-    RandomModule, DannModule, BaselineVideoModule, SvcVideoModule, FineTuneVideoModule
+    RandomModule, DannModule, BaselineVideoModule, SvcVideoModule, FineTuneVideoModule, TransferVideoModule
 from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
 ####################################################################
@@ -86,7 +86,7 @@ class Controller:
         unlabeled_train = self.task.get_unlabeled_data(True) # augmentation is applied
         val = self.task.get_validation_data()
 
-        unlabeled_images_labels = []
+        #unlabeled_images_labels = []
         if unlabeled_test is not None:
             # Creates taglets
             modules = self._get_taglets_modules()
@@ -110,7 +110,29 @@ class Controller:
             taglet_executor = TagletExecutor()
             taglet_executor.set_taglets(taglets)
 
-            #### TEST
+        else:
+            # Creates taglets
+            modules = self._get_taglets_modules()
+            taglets = []
+            for cls in modules:
+                try:
+                    log.info("Initializing %s module", cls.__name__)
+                    module = cls(task=self.task)
+                    log.info("Training %s module", cls.__name__)
+                    module.train_taglets(labeled, val, unlabeled_train)
+                    log.info("Finished training %s module", cls.__name__)
+
+                    # Collects taglets
+                    taglets.extend(module.get_valid_taglets())
+                except Exception:
+                    log.error("Exception raised in %s module", cls.__name__)
+                    for line in traceback.format_exc().splitlines():
+                        log.error(line)
+                    log.error("Continuing execution")
+    
+            taglet_executor = TagletExecutor()
+            taglet_executor.set_taglets(taglets)
+        #### TEST
         return taglet_executor, taglets
     
             # # Executes taglets
@@ -184,7 +206,9 @@ class Controller:
         if self.simple_run:
              return [RandomModule]
         elif self.task.video_classification:
-             return [FineTuneVideoModule, SvcVideoModule, BaselineVideoModule]
+            if self.task.scads_path is not None:
+                return [TransferVideoModule]#[FineTuneVideoModule, SvcVideoModule, BaselineVideoModule]
+            return [TransferVideoModule]
         else:
             if self.task.scads_path is not None:
                 return [DannModule, 

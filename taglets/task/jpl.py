@@ -720,6 +720,7 @@ class JPLRunner:
                     self.jpl_storage.whitelist,
                     self.data_paths[0],
                     self.data_paths[1],
+                    self.data_paths[2],
                     unlabeled_test_data=unlabeled_test_dataset,
                     unlabeled_train_labels=unlabeled_train_labels,
                     video_classification=self.video)
@@ -728,40 +729,53 @@ class JPLRunner:
 
         taglet_executor, taglets = controller.train_end_model()
 
+        sys.exit()
+
 
         labeled = task.get_labeled_train_data()
         unlabeled_train = task.get_unlabeled_data(True) # augmentation is applied
         unlabeled_test = task.get_unlabeled_data(False)
         val = task.get_validation_data()
-
-        log.info("Executing taglets on unlabeled data")
-        self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test)
-        log.info("Finished executing taglets on unlabeled data")
-
-        if task.unlabeled_train_labels is not None:
-            log.info('Accuracies of each taglet on the unlabeled train data:')
-            for i in range(len(taglets)):
-                acc = np.sum(self.unlabeled_vote_matrix[:, i] == np.array(task.unlabeled_train_labels)) / len(task.unlabeled_train_labels)
-                log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
-
-        # Combines taglets' votes into soft labels
-        if val is not None and len(val) >= len(task.classes) * 10:
-            # Weight votes using development set
-            weights = [taglet.evaluate(val) for taglet in taglets]
-            log.info("Validation accuracies of each taglet:")
-            for w, taglet in zip(weights, taglets):
-                log.info("Module {} - acc {:.4f}".format(taglet.name, w))
-        else:
-            # Weight all votes equally
-            weights = [1.0] * len(taglets)
-        weak_labels = self._get_weighted_dist(self.unlabeled_vote_matrix, weights, task.classes)
         
+        if unlabeled_test is not None:
+            log.info("Executing taglets on unlabeled data")
+            self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test)
+            log.info("Finished executing taglets on unlabeled data")
 
-        if task.unlabeled_train_labels is not None:
-            log.info('Accuracy of the labelmodel on the unlabeled train data:')
-            predictions = np.asarray([np.argmax(label) for label in weak_labels])
-            acc = np.sum(predictions == task.unlabeled_train_labels) / len(task.unlabeled_train_labels)
-            log.info('Acc {:.4f}'.format(acc))
+            if task.unlabeled_train_labels is not None:
+                log.info('Accuracies of each taglet on the unlabeled train data:')
+                for i in range(len(taglets)):
+                    acc = np.sum(self.unlabeled_vote_matrix[:, i] == np.array(task.unlabeled_train_labels)) / len(task.unlabeled_train_labels)
+                    log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
+
+            # Combines taglets' votes into soft labels
+            if val is not None and len(val) >= len(task.classes) * 10:
+                # Weight votes using development set
+                weights = [taglet.evaluate(val) for taglet in taglets]
+                log.info("Validation accuracies of each taglet:")
+                for w, taglet in zip(weights, taglets):
+                    log.info("Module {} - acc {:.4f}".format(taglet.name, w))
+            else:
+                # Weight all votes equally
+                weights = [1.0] * len(taglets)
+            weak_labels = self._get_weighted_dist(self.unlabeled_vote_matrix, weights, task.classes)
+            
+
+            if task.unlabeled_train_labels is not None:
+                log.info('Accuracy of the labelmodel on the unlabeled train data:')
+                predictions = np.asarray([np.argmax(label) for label in weak_labels])
+                acc = np.sum(predictions == task.unlabeled_train_labels) / len(task.unlabeled_train_labels)
+                log.info('Acc {:.4f}'.format(acc))
+        else:
+            if val is not None and len(val) >= len(task.classes) * 10:
+                # Weight votes using development set
+                weights = [taglet.evaluate(val) for taglet in taglets]
+                log.info("Validation accuracies of each taglet:")
+                for w, taglet in zip(weights, taglets):
+                    log.info("Module {} - acc {:.4f}".format(taglet.name, w))
+            else:
+                # Weight all votes equally
+                weights = [1.0] * len(taglets)
 
         # Evaluate on test set
         evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.video)    
@@ -770,7 +784,7 @@ class JPLRunner:
         self.unlabeled_vote_matrix = taglet_executor.execute(evaluation_dataset)
         log.info("Finished executing taglets on eval data")
 
-        log.info(f"Use weights of training to weight labelers vote {weights}")
+        log.info(f"Use weights of validation to weight labelers vote {weights}")
         weak_labels = self._get_weighted_dist(self.unlabeled_vote_matrix, weights, task.classes)
         predictions = np.asarray([np.argmax(label) for label in weak_labels])
         
@@ -805,8 +819,12 @@ class JPLRunner:
 
         # update initial model
         # if checkpoint_num == 7:
-        #     self.initial_model = end_model.model
-        #     self.initial_model.fc = torch.nn.Identity()
+        #     if self.video:
+        #         self.initial_model = end_model.model # Set the model of FineTuneVideoModule
+        #         self.initial_model.blocks[6].proj = torch.nn.Sequential()
+        #     else:
+        #         self.initial_model = end_model.model # Set the model of FineTuneVideoModule
+        #         self.initial_model.fc = torch.nn.Identity()
 
         log.info('{} Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                checkpoint_num,
@@ -935,6 +953,7 @@ def main():
         variables = setup_development()
     mode = args.mode
 
+    # Set Scads root path
     Scads.set_root_path(os.path.join(variables[2], 'external'))
     
     saved_api_response_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saved_api_response')
