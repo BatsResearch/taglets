@@ -39,12 +39,12 @@ class CheckpointRunner:
         self.initial_model = models.resnet50(pretrained=True)
         self.initial_model.fc = torch.nn.Identity()
         
-        # if not os.path.exists('saved_vote_matrices') and accelerator.is_local_main_process:
-        #     os.makedirs('saved_vote_matrices')
-        # accelerator.wait_for_everyone()
-        # self.vote_matrix_dict = {}
-        # self.vote_matrix_save_path = os.path.join('saved_vote_matrices',
-        #                                           datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+        if not os.path.exists('saved_vote_matrices') and accelerator.is_local_main_process:
+            os.makedirs('saved_vote_matrices')
+        accelerator.wait_for_everyone()
+        self.vote_matrix_dict = {}
+        self.vote_matrix_save_path = os.path.join('saved_vote_matrices',
+                                                  datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
 
     def run_checkpoints(self):
         log.info("Enter checkpoint")
@@ -87,17 +87,20 @@ class CheckpointRunner:
 
         end_model = controller.train_end_model()
         
-        # if self.vote_matrix_save_path is not None:
-        #     labeled_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
-        #     labeled_image_labels = labeled_dataset.labels
-        #     checkpoint_dict = {'labeled_images_votes': labeled_vote_matrix,
-        #                        'labeled_images_labels': labeled_image_labels,
-        #                        'unlabeled_images_votes': unlabeled_vote_matrix,
-        #                        'unlabeled_images_labels': unlabeled_train_labels
-        #                        }
-        #     self.vote_matrix_dict[checkpoint_num] = checkpoint_dict
-        #     with open(self.vote_matrix_save_path, 'wb') as f:
-        #         pickle.dump(self.vote_matrix_dict, f)
+        if self.vote_matrix_save_path is not None:
+            val_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
+            if val_dataset is not None:
+                val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=False)
+                val_labels = [image_labels for _, image_labels in val_loader]
+            else:
+                val_labels = None
+            checkpoint_dict = {'val_images_votes': val_vote_matrix,
+                               'val_images_labels': val_labels,
+                               'unlabeled_images_votes': unlabeled_vote_matrix,
+                               'unlabeled_images_labels': unlabeled_train_labels}
+            self.vote_matrix_dict[checkpoint_num] = checkpoint_dict
+            with open(self.vote_matrix_save_path, 'wb') as f:
+                pickle.dump(self.vote_matrix_dict, f)
         
         outputs = end_model.predict(evaluation_dataset)
         predictions = np.argmax(outputs, 1)
