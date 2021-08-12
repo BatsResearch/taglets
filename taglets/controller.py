@@ -130,6 +130,12 @@ class Controller:
 
             # Train a labelmodel and get weak labels
             if val is not None:
+                weights = [taglet.evaluate(val) for taglet in taglets]
+                log.info("Validation accuracies of each taglet:")
+                for w, taglet in zip(weights, taglets):
+                    log.info("Module {} - acc {:.4f}".format(taglet.name, w))
+                
+                
                 log.info("Using AMCLWeightedVote as the labelmodel")
 
                 log.info("Executing taglets on val data")
@@ -161,11 +167,6 @@ class Controller:
                 
                 # # Weight votes using development set
                 # log.info("Using WeightedVote as the labelmodel")
-                # weights = [taglet.evaluate(val) for taglet in taglets]
-                # log.info("Validation accuracies of each taglet:")
-                # for w, taglet in zip(weights, taglets):
-                #     log.info("Module {} - acc {:.4f}".format(taglet.name, w))
-                #
                 # lm = WeightedVote(len(self.task.classes))
                 # weak_labels = lm.get_weak_labels(self.unlabeled_vote_matrix, weights)
             else:
