@@ -8,7 +8,7 @@ class FMD(DatasetAPI):
     def __init__(self, dataset_dir, seed=0):
         super().__init__(dataset_dir, seed)
         
-        self.checkpoint_shot = [1, 5, 20, 50]
+        self.checkpoint_shot = [1, 5, 20]
         self.classes = np.asarray(['fabric', 'foliage', 'glass', 'leather', 'metal', 'paper', 'plastic', 'stone',
                                    'water', 'wood'])
         self.all_img_paths = []
@@ -28,11 +28,11 @@ class FMD(DatasetAPI):
         for i in range(10):
             indices = np.arange(100)
             np.random.shuffle(indices)
-            self.test_img_paths.append(self.all_img_paths[i][indices[:20]])
-            self.test_labels = self.test_labels + ([i] * 20)
-            self.all_img_paths[i] = self.all_img_paths[i][indices[20:]]
+            self.test_img_paths.append(self.all_img_paths[i][indices[:50]])
+            self.test_labels = self.test_labels + ([i] * 50)
+            self.all_img_paths[i] = self.all_img_paths[i][indices[50:]]
         self.test_img_paths = np.concatenate(np.asarray(self.test_img_paths))
         self.test_labels = np.asarray(self.test_labels)
         self.all_img_paths = np.asarray(self.all_img_paths)
         
-        self.train_indices = [np.random.permutation(80) for _ in range(10)]
+        self.train_indices = [np.random.permutation(50) for _ in range(10)]
