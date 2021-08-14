@@ -127,8 +127,7 @@ class CheckpointRunner:
         Function to get the data from the DARPA task
         '''
     
-        data = pickle.load(open(os.path.join("./saved_vote_matrices/officehome-product-nofinetune-noprune",
-                                             self.load_votes_path), "rb"))
+        data = pickle.load(open(os.path.join("./saved_vote_matrices", self.load_votes_path), "rb"))
     
         data_dict = data[checkpoint_num]
     
