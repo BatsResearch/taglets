@@ -136,7 +136,8 @@ class CheckpointRunner:
         ul_votes = data_dict["unlabeled_images_votes"]
         ul_labels = data_dict["unlabeled_images_labels"]
     
-        val_votes, val_labels = np.asarray(val_votes), np.asarray(val_labels)
+        if val_votes is not None and val_labels is not None:
+            val_votes, val_labels = np.asarray(val_votes), np.asarray(val_labels)
         ul_votes, ul_labels = np.asarray(ul_votes), np.asarray(ul_labels)
     
         # indices = np.arange(len(ul_labels))
