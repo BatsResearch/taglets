@@ -84,7 +84,7 @@ class Controller:
         self.simple_run = simple_run
         nltk.download('wordnet')
 
-    def train_end_model(self):
+    def train_end_model(self, weak_labels=None):
         """
         Executes a training pipeline end-to-end, turning a Task into an EndModel
         :return: A trained EndModel
@@ -95,8 +95,11 @@ class Controller:
         unlabeled_train = self.task.get_unlabeled_data(True) # augmentation is applied
         val = self.task.get_validation_data()
 
-        unlabeled_images_labels = []
-        if unlabeled_test is not None:
+        if weak_labels is None:
+            unlabeled_images_labels = []
+        else:
+            unlabeled_images_labels = [torch.FloatTensor(label) for label in weak_labels]
+        if unlabeled_test is not None and weak_labels is None:
             # Creates taglets
             modules = self._get_taglets_modules()
             taglets = []

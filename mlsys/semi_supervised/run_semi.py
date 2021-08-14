@@ -7,15 +7,16 @@ import os
 import torch
 import numpy as np
 import torchvision.models as models
+from torch.utils.data import DataLoader
 import warnings
 from accelerate import Accelerator
 accelerator = Accelerator()
-
 
 from taglets.task import Task
 from taglets.controller import Controller
 from taglets.task.utils import labels_to_concept_ids
 from taglets.scads import Scads
+from taglets.labelmodel import AMCLLogReg, AMCLWeightedVote, WeightedVote, UnweightedVote, NaiveBayes
 
 from .dataset_api import FMD, Places205, OfficeHomeProduct, OfficeHomeClipart
 
@@ -25,10 +26,12 @@ warnings.filterwarnings("ignore", "(Possibly )?corrupt EXIF data", UserWarning)
 
 
 class CheckpointRunner:
-    def __init__(self, dataset, dataset_dir, batch_size):
+    def __init__(self, dataset, dataset_dir, batch_size, load_votes_path=None, labelmodel_type=None):
         self.dataset = dataset
         self.dataset_dir = dataset_dir
         self.batch_size = batch_size
+        self.load_votes_path = load_votes_path
+        self.labelmodel_type = labelmodel_type
         
         dataset_dict = {'fmd': FMD,
                         'places205': Places205,
@@ -84,8 +87,13 @@ class CheckpointRunner:
                     test_labels=test_labels)
         task.set_initial_model(self.initial_model)
         controller = Controller(task)
+        
+        if self.load_votes_path is None:
+            weak_labels = None
+        else:
+            weak_labels = self._get_weak_labels(checkpoint_num)
 
-        end_model = controller.train_end_model()
+        end_model = controller.train_end_model(weak_labels)
         
         if self.vote_matrix_save_path is not None:
             val_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
@@ -114,6 +122,73 @@ class CheckpointRunner:
                                                             time.strftime("%H:%M:%S",
                                                                           time.gmtime(time.time()-start_time))))
 
+    def _load_votes(self, checkpoint_num):
+        '''
+        Function to get the data from the DARPA task
+        '''
+    
+        data = pickle.load(open(os.path.join("./saved_vote_matrices/officehome-product-nofinetune-noprune",
+                                             self.load_votes_path), "rb"))
+    
+        data_dict = data[checkpoint_num]
+    
+        val_votes = data_dict["val_images_votes"]
+        val_labels = data_dict["val_images_labels"]
+        ul_votes = data_dict["unlabeled_images_votes"]
+        ul_labels = data_dict["unlabeled_images_labels"]
+    
+        val_votes, val_labels = np.asarray(val_votes), np.asarray(val_labels)
+        ul_votes, ul_labels = np.asarray(ul_votes), np.asarray(ul_labels)
+    
+        # indices = np.arange(len(ul_labels))
+        # np.random.shuffle(indices)
+        # num_labeled_data = 2000
+        # val_votes = ul_votes[:, indices[:num_labeled_data]]
+        # val_labels = ul_labels[indices[:num_labeled_data]]
+        # ul_votes = ul_votes[:, indices[num_labeled_data:]]
+        # ul_labels = ul_labels[indices[num_labeled_data:]]
+    
+        return val_votes, val_labels, ul_votes, ul_labels
+    
+    def _get_weak_labels(self, checkpoint_num):
+        if accelerator.is_local_main_process:
+            val_votes, val_labels, ul_votes, ul_labels = self._load_votes(checkpoint_num)
+            for i in range(val_votes.shape[0]):
+                log.info(f'Val acc for module {i}: {np.mean(np.argmax(val_votes[i], 1) == val_labels)}')
+    
+            labelmodel_dict = {'amcl-cc': AMCLWeightedVote,
+                               'naive_bayes': NaiveBayes,
+                               'weighted': WeightedVote,
+                               'unweighted': UnweightedVote}
+            num_classes = 10 if self.dataset == 'fmd' else 65
+            
+            labelmodel = labelmodel_dict[self.labelmodel_type](num_classes)
+    
+            if self.labelmodel_type == 'amcl-cc':
+                labelmodel.train(val_votes, val_labels, ul_votes)
+                log.info(f'Thetas: {labelmodel.theta}')
+    
+            if self.labelmodel_type == 'weighted':
+                preds = labelmodel.get_weak_labels(ul_votes,
+                                                   [np.mean(np.argmax(val_votes[i], 1) == val_labels) for i in
+                                                    range(val_votes.shape[0])])
+            else:
+                preds = labelmodel.get_weak_labels(ul_votes)
+
+            with open('tmp_labelmodel_output.pkl', 'wb') as f:
+                pickle.dump(preds, f)
+                
+            predictions = np.asarray([np.argmax(pred) for pred in preds])
+            log.info("Acc on unlabeled train data %f" % (np.mean(predictions == ul_labels)))
+
+        accelerator.wait_for_everyone()
+        with open('tmp_labelmodel_output.pkl', 'rb') as f:
+            weak_labels = pickle.load(f)
+        accelerator.wait_for_everyone()
+        if accelerator.is_local_main_process:
+            os.remove('tmp_labelmodel_output.pkl')
+        return weak_labels
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -132,11 +207,16 @@ def main():
     parser.add_argument('--scads_root_path', 
                         type=str,
                         default='/users/wpiriyak/data/bats/datasets')
+    parser.add_argument('--load_votes_path',
+                        type=str)
+    parser.add_argument('--labelmodel_type',
+                        type=str)
     args = parser.parse_args()
 
     Scads.set_root_path(args.scads_root_path)
 
-    runner = CheckpointRunner(args.dataset, args.dataset_dir, args.batch_size)
+    runner = CheckpointRunner(args.dataset, args.dataset_dir, args.batch_size, args.load_votes_path,
+                              args.labelmodel_type)
     runner.run_checkpoints()
     
 
