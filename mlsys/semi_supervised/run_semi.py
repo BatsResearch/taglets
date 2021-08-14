@@ -152,8 +152,9 @@ class CheckpointRunner:
     def _get_weak_labels(self, checkpoint_num):
         if accelerator.is_local_main_process:
             val_votes, val_labels, ul_votes, ul_labels = self._load_votes(checkpoint_num)
-            for i in range(val_votes.shape[0]):
-                log.info(f'Val acc for module {i}: {np.mean(np.argmax(val_votes[i], 1) == val_labels)}')
+            if val_votes is not None:
+                for i in range(val_votes.shape[0]):
+                    log.info(f'Val acc for module {i}: {np.mean(np.argmax(val_votes[i], 1) == val_labels)}')
     
             labelmodel_dict = {'amcl-cc': AMCLWeightedVote,
                                'naive_bayes': NaiveBayes,
@@ -164,6 +165,8 @@ class CheckpointRunner:
             labelmodel = labelmodel_dict[self.labelmodel_type](num_classes)
     
             if self.labelmodel_type == 'amcl-cc':
+                if val_votes is None:
+                    raise ValueError('Val votes cannot be None')
                 labelmodel.train(val_votes, val_labels, ul_votes)
                 log.info(f'Thetas: {labelmodel.theta}')
     
