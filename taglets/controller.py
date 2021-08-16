@@ -43,7 +43,7 @@ stream_handler.setLevel(logging.INFO)
 stream_handler.setFormatter(formatter)
 logger_.addHandler(stream_handler)
 
-if not os.environ.get("CI"):
+if os.environ.get("LWLL_TA1_API_ENDPOINT") is not None:
     import logger
     
     class JPLHandler(StreamHandler):
