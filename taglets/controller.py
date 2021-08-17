@@ -42,27 +42,6 @@ stream_handler.setLevel(logging.INFO)
 stream_handler.setFormatter(formatter)
 logger_.addHandler(stream_handler)
 
-if not os.environ.get("CI"):
-    import logger
-    
-    class JPLHandler(StreamHandler):
-        "Handle the log stream and wrap it into the JPL logger."
-        def __init__(self):
-            StreamHandler.__init__(self)
-
-        def emit(self, record):
-            if accelerator.is_local_main_process:
-                try:
-                    msg = self.format(record)
-                    self.jpl_logger = logger.log(msg, 'Brown', 0) # For the moment fixed checkpoint
-                except:
-                    pass
-
-
-    jpl_handler = JPLHandler()
-    jpl_handler.setLevel(logging.INFO)
-    jpl_handler.setFormatter(formatter)
-    logger_.addHandler(jpl_handler)
 
 ####################################################################
 # End of logging configuration
