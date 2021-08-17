@@ -407,7 +407,7 @@ if __name__ == "__main__":
     parser.add_argument("--domainnet", nargs="+")
     parser.add_argument("--hmdb", type=str, help="Path to hmdb directory from the root")
     parser.add_argument("--ucf101", type=str, help="Path to ufc101 directory from the root")
-    parser.add_argument("--kinetics", type=str, help="Path to kinetics directory from the root")
+    parser.add_argument("--kinetics400", type=str, help="Path to kinetics directory from the root")
     parser.add_argument("--msl_curiosity", type=str, help="Path to msl_curiosity directory from the root")
     parser.add_argument("--mars_surface_imgs", type=str, help="Path to mars_surface_imgs directory from the root")
     
@@ -464,7 +464,7 @@ if __name__ == "__main__":
     if args.kinetics:
         if not args.root:
             raise RuntimeError("Must specify root directory.")
-        installer.install_dataset(args.root, args.kinetics, Kinetics400Installation())
+        installer.install_dataset(args.root, args.kinetics400, Kinetics400Installation())
 
     if args.msl_curiosity:
         if not args.root:

@@ -70,13 +70,12 @@ class CustomVideoDataset(Dataset):
         frames_paths = self.clips_dictionary[str(clip_id)]
 
         frames = []
-        for f in frames_paths:#frames_paths[:num_frames]:#[:10]:  # get same size clips - random pick for eval
+        for f in frames_paths:
             frame = Image.open(f).convert('RGB')
-            #if self.transform is not None:  # BE CAREFUL TRANSFORMATION MIGHT NEED TO CHANGE FOR VIDEO EVAL!!!!!
             frame = self.transform_img(frame)
             frames.append(frame)
         
-        img = torch.stack(frames)  # need to be of the same size!
+        img = torch.stack(frames)  
         img = torch.transpose(img, 0, 1) 
         video_data = {'video': img}
         img = self.transform_vid(video_data)

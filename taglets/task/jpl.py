@@ -130,7 +130,7 @@ class JPL:
             seed_labels = []
             dictionary_clips = {}
             for clip in labels:
-                action_frames = [str(clip['id']) + '/' + str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'] + 1)]
+                action_frames = [str(clip['video_id']) + '/' + str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'] + 1)]
                 dictionary_clips[clip["id"]] = action_frames
                 seed_labels.append([clip["class"], clip["id"]])
             return seed_labels, dictionary_clips
@@ -181,7 +181,7 @@ class JPL:
             labels_list = []
             dictionary_clips = {}
             for clip in labels:
-                action_frames = [str(clip["id"]) + '/' + str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'] + 1)]
+                action_frames = [str(clip["video_id"]) + '/' + str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'] + 1)]
                 dictionary_clips[clip["id"]] = action_frames
                 labels_list.append([clip["class"], clip["id"]])
             return labels_list, dictionary_clips
@@ -486,7 +486,7 @@ class JPLStorage:
             for clip in train_meta.iterrows():
                 row = clip[1]
                 if row["id"] in clip_names:
-                    action_frames = [os.path.join(self.unlabeled_image_path, str(row['id'])) + '/' + str(i)+'.jpg'
+                    action_frames = [os.path.join(self.unlabeled_image_path, str(row['video_id'])) + '/' + str(i)+'.jpg'
                                     for i in range(row['start_frame'], row['end_frame'])] 
                     dictionary_clips[row["id"]] = action_frames
                     image_paths.append(os.path.join(self.unlabeled_image_path, str(row["id"])))
@@ -521,7 +521,7 @@ class JPLStorage:
             test_meta = pd.read_feather(self.evaluation_meta_path)
             for clip in test_meta.iterrows():
                 row = clip[1]
-                action_frames = [os.path.join(self.evaluation_image_path, str(row['id'])) + '/' + str(i)+'.jpg'
+                action_frames = [os.path.join(self.evaluation_image_path, str(row['video_id'])) + '/' + str(i)+'.jpg'
                                  for i in range(row['start_frame'], row['end_frame'])] 
                 dictionary_clips[row["id"]] = action_frames
                 image_paths.append(os.path.join(self.evaluation_image_path, str(row["id"])))
@@ -729,7 +729,7 @@ class JPLRunner:
 
         taglet_executor, taglets = controller.train_end_model()
 
-        sys.exit()
+        #sys.exit()
 
 
         labeled = task.get_labeled_train_data()

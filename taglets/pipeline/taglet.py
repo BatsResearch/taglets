@@ -1,9 +1,13 @@
 import os
+import sys
 import random
 import logging
 import numpy as np
 
 from .trainable import ImageTrainable, VideoTrainable
+from ..scads import Scads, ScadsEmbedding
+from ..pipeline import Cache
+from ..data.custom_dataset import CustomVideoDataset
 
 
 log = logging.getLogger(__name__)
@@ -101,75 +105,99 @@ class VideoAuxDataMixin(AuxDataMixin):
         if os.environ.get("CI"):
             self.num_related_class = 1
         else:
-            self.num_related_class = 10 if len(self.task.classes) < 30 else (5 if len(self.task.classes) < 60 else 3)
+            self.num_related_class = 5 if len(self.task.classes) < 30 else (1 if len(self.task.classes) < 60 else 1)
 
     def _get_scads_data(self):
         data = Cache.get("scads", self.task.classes)
         if data is not None:
-            image_paths, image_labels, all_related_class = data
+            clip_paths, clip_labels, dictionary_clips, all_related_class = data
         else:
-            root_path = Scads.get_root_path()
-            Scads.open(self.task.scads_path)
-            ScadsEmbedding.load(self.task.scads_embedding_path, self.task.processed_scads_embedding_path)
             clip_paths = []
             clip_labels = []
             dictionary_clips = {}
             visited = set()
         
             def get_clips(node, label, is_neighbor):
+                extra_ds = ['kinetics400']
+
                 if is_neighbor and node.get_conceptnet_id() in self.task.classes:
                     return False
                 if node.get_conceptnet_id() not in visited:
                     visited.add(node.get_conceptnet_id())
-                    clips = node.get_clips_whitelist(self.task.whitelist)
+                    proc_whitelist = [d.lower() for d in self.task.whitelist] 
+                    
+                    # Get clips for the class
+                    clips = node.get_clips_whitelist(proc_whitelist)
+                    clips = [(path, start, end, c_idx, v_idx, name_concept) \
+                        for path, start, end, c_idx, v_idx, name_concept in clips if ('/c/en/' + name_concept == node.get_conceptnet_id()) and (path.split('/')[0] in proc_whitelist)]
+
                     if len(clips) < self.img_per_related_class:
                         return False
                     clips = random.sample(clips, self.img_per_related_class)
-                    log.info(f"Concept: {clips[0][-1]}")
-                    
-                    paths = []
-                    for path, start, end, v_idx, name_concept in clips:
-                        if name_concepts == node.get_conceptnet_id():
-                            base_path_clip = os.path.join(root_path, path, v_idx)
-                            paths.append(base_path_clip)
-                            
-                            action_frames = [base_path_clip + '/' + str(i)+'.jpg' for i in range(int(start), int(end) + 1)]
-                            dictionary_clips[v_idx] = action_frames
 
-                    log.info(f"Number of clips: {len(paths)} and example: {paths[0]}")
+                    paths = []
+                    for path, start, end, c_idx, v_idx, name_concept in clips:
+                        if '/c/en/' + name_concept == node.get_conceptnet_id():
+                            print(f"root path scads {root_path.split('/')[-1]}, path {path}")
+                            if path.split('/')[0] in extra_ds:
+                                base = '/'.join(root_path.split('/')[0:-1]) + '/extra/' 
+                                paths.append(os.path.join(base, path))
+                                base_path_clip = os.path.join(base, path)
+                                action_frames = [base_path_clip + '/img_' + str(i).zfill(5) +'.jpg' for i in range(int(start), int(end) + 1)]
+                                dictionary_clips[str(c_idx)] = action_frames
+                            else:
+                                paths.append(os.path.join(root_path, path))
+                                
+                                base_path_clip = os.path.join(root_path, path)
+                                action_frames = [base_path_clip + '/' + str(i).zfill(5) +'.jpg' for i in range(int(start), int(end) + 1)]
+                                dictionary_clips[str(c_idx)] = action_frames
+
+                    log.info(f"Concept: {node.get_conceptnet_id()} and {'/c/en/' + name_concept} and paths: {paths}")
                     
                     clip_paths.extend(paths)
                     clip_labels.extend([label] * len(clips))
-                    log.debug("Source class found: {}".format(node.get_conceptnet_id()))
                     return True
                 return False
-        
+            
+            # Modify for multiple roots
+            root_path = Scads.get_root_path()
+            Scads.open(self.task.scads_path)
+            ScadsEmbedding.load(self.task.scads_embedding_path, self.task.processed_scads_embedding_path)
             all_related_class = 0
+            
             for conceptnet_id in self.task.classes:
+                print(conceptnet_id)
                 cur_related_class = 0
                 
                 try:
                     target_nodes = Scads.get_node_by_conceptnet_id(conceptnet_id)
                 except:
+                    log.info(f'Class node immediately found: {target_nodes.node}')
                     target = conceptnet_id.split('/')[-1]
                     nodes = [f"/c/en/{w.strip()}" for w in target.split('_')]
-                    target_nodes = [Scads.get_node_by_conceptnet_id(n) for n in nodes]
+                    target_nodes = []
+                    for n in nodes:
+                        try:
+                            target_nodes.append(Scads.get_node_by_conceptnet_id(n))
+                        except:
+                            continue
+                    log.info(f'Class nodes from compound: {target_nodes}')
                 
-                if isinstance(target_nodes, list):
-                    target_node = target_nodes[0]
-                else:
+                if isinstance(target_nodes, list) == False:
+                    log.info(f"Unique target node: {conceptnet_id}")
                     target_node = target_nodes
-
-                if get_clips(target_node, all_related_class, False):
-                    cur_related_class += 1
-                    all_related_class += 1
+                    if get_clips(target_node, all_related_class, False):
+                        cur_related_class += 1
+                        all_related_class += 1
 
                 ct = 1
-                while cur_related_class < self.num_related_class:
-                    processed_embeddings_exist = False#(self.task.processed_scads_embedding_path is not None)
+                iters = 0
+                while cur_related_class < self.num_related_class and iters <= 10:
+                    processed_embeddings_exist = (self.task.processed_scads_embedding_path is not None)
+                    print(f"path processed scads {processed_embeddings_exist}")
 
-                    target_node = target_nodes                    
-                    neighbors = ScadsEmbedding.get_related_nodes(target_node,
+                    print(f"{conceptnet_id} and nodes {target_nodes}")
+                    neighbors = ScadsEmbedding.get_related_nodes(target_nodes,
                                                                  limit=self.num_related_class * 10 * ct,
                                                                  only_with_images=processed_embeddings_exist)
                     for neighbor in neighbors:
@@ -179,10 +207,13 @@ class VideoAuxDataMixin(AuxDataMixin):
                             if cur_related_class >= self.num_related_class:
                                 break
                     ct = ct * 2
+                    
+                    log.info(f"Curr related: {cur_related_class}, and abs related: {all_related_class}, and iterations: {iters}")
+                    iters += 1
         
             Scads.close()
             Cache.set('scads', self.task.classes,
-                      (image_paths, image_labels, all_related_class))
+                      (clip_paths, clip_labels, dictionary_clips, all_related_class))
 
         train_dataset = CustomVideoDataset(clip_paths,
                                             labels=clip_labels,

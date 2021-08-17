@@ -13,8 +13,7 @@ from accelerate import Accelerator
 accelerator = Accelerator()
 
 from ..module import Module
-from ...pipeline import ImageTagletWithAuxData, Cache
-from ..modules.videos.utils import PackPathway
+from ...pipeline import VideoTagletWithAuxData, Cache
 
 
 log = logging.getLogger(__name__)
@@ -36,6 +35,27 @@ class NormLinear(nn.Module):
         x = self.model(x)
         return x
 
+class PackPathway(torch.nn.Module):
+    """
+    Transform for converting video frames as a list of tensors.
+    """
+    def __init__(self, alpha):
+        super().__init__()
+        self.alpha = alpha
+
+    def forward(self, frames: torch.Tensor):
+        fast_pathway = frames
+        # Perform temporal sampling from the fast pathway.
+        slow_pathway = torch.index_select(
+            frames,
+            1,
+            torch.linspace(
+                0, frames.shape[1] - 1, frames.shape[1] // self.alpha
+            ).long(),
+        )
+        frame_list = [slow_pathway, fast_pathway]
+        return frame_list
+
 
 class TransferVideoModule(Module):
     """
@@ -46,10 +66,11 @@ class TransferVideoModule(Module):
         super().__init__(task)
         self.taglets = [TransferVideoTaglet(task)]
 
-class TransferVideoTaglet(VideoTaglet):
-    def __init__(self, task, freeze=False, is_norm=False):
+class TransferVideoTaglet(VideoTagletWithAuxData):
+    def __init__(self, task, video=True, freeze=False, is_norm=False):
         super().__init__(task)
         self.name = 'transfer-video'
+        self.video = video
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
@@ -59,24 +80,27 @@ class TransferVideoTaglet(VideoTaglet):
         self.freeze = freeze
         self.is_norm = is_norm
 
-    def transform_image(self, train=True):
+    def transform_image(self, train=True, video=False):
         """
         Get the transform to be used on an image.
         :return: A transform
         """
         data_mean = [0.485, 0.456, 0.406]
         data_std = [0.229, 0.224, 0.225]
-    
+        # Remember to check it for video and eval
+        if video:
+            return transforms.Compose([transforms.ToTensor()])
+        
         if train:
             return transforms.Compose([
-                transforms.RandomResizedCrop(self.task.input_shape, scale=(0.8, 1.0)),
+                transforms.RandomResizedCrop((224, 224), scale=(0.8, 1.0)),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=data_mean, std=data_std)
             ])
         else:
             return transforms.Compose([
-                transforms.Resize(self.task.input_shape),
+                transforms.Resize((224, 224)),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=data_mean, std=data_std)
             ])
@@ -129,7 +153,7 @@ class TransferVideoTaglet(VideoTaglet):
             orig_num_epochs = self.num_epochs
             self.num_epochs = 5 if not os.environ.get("CI") else 5
             self._set_num_classes(scads_num_classes)
-            super(TransferTaglet, self).train(scads_train_data, None, None)
+            super(TransferVideoTaglet, self).train(scads_train_data, None, None)
             self.num_epochs = orig_num_epochs
             
             self.model.blocks[6].proj = nn.Sequential()
