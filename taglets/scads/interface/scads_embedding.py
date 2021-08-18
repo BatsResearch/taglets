@@ -98,9 +98,9 @@ class ScadsEmbedding:
         :return: list of ScadsNode if is_node is True, else, list of ConceptNet IDs
         """
         if is_node:
-            print('We are handling a ScadsNone')
+            #print('We are handling a ScadsNone')
             if isinstance(node, list):
-                print('We are handling a ScadsNone compound')
+                #print('We are handling a ScadsNone compound')
                 list_vec = []
                 for n in nodes:
                     try:
@@ -109,34 +109,34 @@ class ScadsEmbedding:
                         continue
                 vec = np.sum(np.stack(list_vec, axis=1), axis=1)
             else:
-                print('We are handling a single ScadsNone')
+                #print('We are handling a single ScadsNone')
                 vec = ScadsEmbedding.get_vector(node, is_node)
         else:
-            print('We are handling a string')
+            #print('We are handling a string')
             try:
-                print(f'Look for class node: {node}')
+                #print(f'Look for class node: {node}')
                 nodes = Scads.get_node_by_conceptnet_id(node)   
             except RuntimeError:
                 root_path = Scads.get_root_path()
                 Scads.open('predefined/scads.spring2021.sqlite3')
                 try:
-                    print(f'Look for class node: {node}')
+                    #print(f'Look for class node: {node}')
                     nodes = Scads.get_node_by_conceptnet_id(node) 
                 except Exception:
-                    print(f'Class doensnt exists in SCADS. Look for compound class node: {node}')
+                    #print(f'Class doensnt exists in SCADS. Look for compound class node: {node}')
                     target = node.split('/')[-1]
                     # Preprocess name class
                     nodes = [f"/c/en/{w.strip()}" for w in target.split('_')]
                     print(f'Target nodes from compound: {nodes}')
             except Exception:
-                print(f'Class doensnt exists in SCADS. Look for compound class node: {node}')
+                #print(f'Class doensnt exists in SCADS. Look for compound class node: {node}')
                 target = node.split('/')[-1]
                 # Preprocess name class
                 nodes = [f"/c/en/{w.strip()}" for w in target.split('_')]
-                print(f'Target nodes from compound: {nodes}')
+                #print(f'Target nodes from compound: {nodes}')
 
             if isinstance(nodes, list):
-                print('We are handling a string compound')
+                #print('We are handling a string compound')
                 list_vec = []
                 list_vec = []
                 for n in nodes:
@@ -146,7 +146,7 @@ class ScadsEmbedding:
                         continue   
                 vec = np.sum(np.stack(list_vec, axis=1), axis=1)  
             else:
-                print('We are handling a single string')
+                #print('We are handling a single string')
                 vec = ScadsEmbedding.get_vector(node, is_node)
         
         if only_with_images:
@@ -167,7 +167,7 @@ class ScadsEmbedding:
 
         similar = ScadsEmbedding._similar_to_vec(similar_choices, vec, limit=limit)
         similar_concepts = similar.index.values
-        print(f"Similar concepts: {similar_concepts}")
+        #print(f"Similar concepts: {similar_concepts}")
         
         
         if is_node:

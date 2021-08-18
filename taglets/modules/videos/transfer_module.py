@@ -1,4 +1,5 @@
 import os
+import copy
 import random
 import torch
 import logging
@@ -79,6 +80,7 @@ class TransferVideoTaglet(VideoTagletWithAuxData):
             
         self.freeze = freeze
         self.is_norm = is_norm
+        self.output_shape = self.model.blocks[6].proj.in_features 
 
     def transform_image(self, train=True, video=False):
         """
@@ -127,8 +129,9 @@ class TransferVideoTaglet(VideoTagletWithAuxData):
                                     )
 
     def _set_num_classes(self, num_classes):
-        output_shape = self.model.blocks[6].proj.in_features 
-        self.model.blocks[6].proj = NormLinear(torch.nn.Linear(output_shape, num_classes), self.is_norm)
+        #output_shape = self.model.blocks[6].proj.in_features 
+        #self.model.blocks[6].proj = NormLinear(torch.nn.Linear(self.output_shape, num_classes), self.is_norm)
+        self.model.blocks[6].proj = torch.nn.Linear(self.output_shape, num_classes)
 
         params_to_update = []
         for param in self.model.parameters():
@@ -169,7 +172,7 @@ class TransferVideoTaglet(VideoTagletWithAuxData):
         orig_num_epochs = self.num_epochs
         self.num_epochs = 40 if not os.environ.get("CI") else 5
         self._set_num_classes(len(self.task.classes))
-        super(TransferTaglet, self).train(train_data, val_data, unlabeled_data)
+        super(TransferVideoTaglet, self).train(train_data, val_data, unlabeled_data)
         self.num_epochs = orig_num_epochs
 
         # Unfreeze layers

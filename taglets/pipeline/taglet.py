@@ -101,7 +101,7 @@ class VideoAuxDataMixin(AuxDataMixin):
     def __init__(self, task):
         super().__init__(task)
         
-        self.img_per_related_class = 20 if not os.environ.get("CI") else 1
+        self.img_per_related_class = 30 if not os.environ.get("CI") else 1
         if os.environ.get("CI"):
             self.num_related_class = 1
         else:
@@ -131,14 +131,14 @@ class VideoAuxDataMixin(AuxDataMixin):
                     clips = [(path, start, end, c_idx, v_idx, name_concept) \
                         for path, start, end, c_idx, v_idx, name_concept in clips if ('/c/en/' + name_concept == node.get_conceptnet_id()) and (path.split('/')[0] in proc_whitelist)]
 
-                    if len(clips) < self.img_per_related_class:
+                    if len(clips) < 10:#self.img_per_related_class:
                         return False
-                    clips = random.sample(clips, self.img_per_related_class)
+                    clips = random.sample(clips, min(self.img_per_related_class, len(clips)))
 
                     paths = []
                     for path, start, end, c_idx, v_idx, name_concept in clips:
                         if '/c/en/' + name_concept == node.get_conceptnet_id():
-                            print(f"root path scads {root_path.split('/')[-1]}, path {path}")
+                            #print(f"root path scads {root_path.split('/')[-1]}, path {path}")
                             if path.split('/')[0] in extra_ds:
                                 base = '/'.join(root_path.split('/')[0:-1]) + '/extra/' 
                                 paths.append(os.path.join(base, path))
@@ -149,10 +149,10 @@ class VideoAuxDataMixin(AuxDataMixin):
                                 paths.append(os.path.join(root_path, path))
                                 
                                 base_path_clip = os.path.join(root_path, path)
-                                action_frames = [base_path_clip + '/' + str(i).zfill(5) +'.jpg' for i in range(int(start), int(end) + 1)]
+                                action_frames = [base_path_clip + '/' + str(i) +'.jpg' for i in range(int(start), int(end) + 1)]
                                 dictionary_clips[str(c_idx)] = action_frames
 
-                    log.info(f"Concept: {node.get_conceptnet_id()} and {'/c/en/' + name_concept} and paths: {paths}")
+                    #log.info(f"Concept: {node.get_conceptnet_id()} and {'/c/en/' + name_concept} and paths: {paths}")
                     
                     clip_paths.extend(paths)
                     clip_labels.extend([label] * len(clips))
@@ -166,13 +166,13 @@ class VideoAuxDataMixin(AuxDataMixin):
             all_related_class = 0
             
             for conceptnet_id in self.task.classes:
-                print(conceptnet_id)
+                #print(conceptnet_id)
                 cur_related_class = 0
                 
                 try:
                     target_nodes = Scads.get_node_by_conceptnet_id(conceptnet_id)
                 except:
-                    log.info(f'Class node immediately found: {target_nodes.node}')
+                    #log.info(f'Class node immediately found: {target_nodes.node}')
                     target = conceptnet_id.split('/')[-1]
                     nodes = [f"/c/en/{w.strip()}" for w in target.split('_')]
                     target_nodes = []
@@ -181,10 +181,10 @@ class VideoAuxDataMixin(AuxDataMixin):
                             target_nodes.append(Scads.get_node_by_conceptnet_id(n))
                         except:
                             continue
-                    log.info(f'Class nodes from compound: {target_nodes}')
+                    #log.info(f'Class nodes from compound: {target_nodes}')
                 
                 if isinstance(target_nodes, list) == False:
-                    log.info(f"Unique target node: {conceptnet_id}")
+                    #log.info(f"Unique target node: {conceptnet_id}")
                     target_node = target_nodes
                     if get_clips(target_node, all_related_class, False):
                         cur_related_class += 1
@@ -194,9 +194,9 @@ class VideoAuxDataMixin(AuxDataMixin):
                 iters = 0
                 while cur_related_class < self.num_related_class and iters <= 10:
                     processed_embeddings_exist = (self.task.processed_scads_embedding_path is not None)
-                    print(f"path processed scads {processed_embeddings_exist}")
+                    #print(f"path processed scads {processed_embeddings_exist}")
 
-                    print(f"{conceptnet_id} and nodes {target_nodes}")
+                    #print(f"{conceptnet_id} and nodes {target_nodes}")
                     neighbors = ScadsEmbedding.get_related_nodes(target_nodes,
                                                                  limit=self.num_related_class * 10 * ct,
                                                                  only_with_images=processed_embeddings_exist)
@@ -208,7 +208,7 @@ class VideoAuxDataMixin(AuxDataMixin):
                                 break
                     ct = ct * 2
                     
-                    log.info(f"Curr related: {cur_related_class}, and abs related: {all_related_class}, and iterations: {iters}")
+                    #log.info(f"Curr related: {cur_related_class}, and abs related: {all_related_class}, and iterations: {iters}")
                     iters += 1
         
             Scads.close()

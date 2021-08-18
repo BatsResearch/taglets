@@ -31,8 +31,8 @@ class AccelerateHandler(StreamHandler):
         super().__init__(stream)
     
     def emit(self, record):
-        if accelerator.is_local_main_process:
-            super().emit(record)
+        #if accelerator.is_local_main_process:
+        super().emit(record)
 
 
 stream_handler = AccelerateHandler(sys.stdout)
@@ -207,7 +207,7 @@ class Controller:
              return [RandomModule]
         elif self.task.video_classification:
             
-            return  [TransferVideoModule]#[FineTuneVideoModule, SvcVideoModule, BaselineVideoModule, TransferVideoModule]#
+            return  [BaselineVideoModule]#[FineTuneVideoModule, SvcVideoModule, BaselineVideoModule, TransferVideoModule]#
         else:
             if self.task.scads_path is not None:
                 return [DannModule, 
