@@ -229,7 +229,7 @@ class Trainable:
         pred_classifier = self._get_pred_classifier()
         pred_classifier.eval()
         
-        data_loader = self._get_dataloader(data, False)
+        data_loader = self._get_dataloader(data, False, batch_size=128)
         
         accelerator.wait_for_everyone()
         self.model = accelerator.prepare(self.model)

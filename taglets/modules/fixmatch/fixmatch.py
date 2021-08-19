@@ -243,7 +243,18 @@ class FixMatchTaglet(ImageTagletWithAuxData):
         # replace default transform with FixMatch Transform
         self._init_unlabeled_transform(unlabeled_data)
         self.steps_per_epoch = -1
-        self.num_epochs = 10
+        if len(unlabeled_data) > 200000:
+            self.num_epochs = 2
+        elif len(unlabeled_data) > 100000:
+            self.num_epochs = 4
+        elif len(unlabeled_data) > 80000:
+            self.num_epochs = 8
+        elif len(unlabeled_data) > 50000:
+            self.num_epochs = 10
+        elif len(unlabeled_data) > 30000:
+            self.num_epochs = 20
+        else:
+            self.num_epochs = 30
         super(FixMatchTaglet, self).train(train_data, val_data, unlabeled_data)
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):
@@ -272,7 +283,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
                                                          batch_size=self.unlabeled_batch_size)
 
             if self.steps_per_epoch == -1:
-                self.steps_per_epoch = min(max(len(train_data_loader), len(unlabeled_data_loader)), 1000)
+                self.steps_per_epoch = max(len(train_data_loader), len(unlabeled_data_loader))
 
             if self.opt_type == Optimizer.SGD:
                 total_steps = self.steps_per_epoch * self.num_epochs

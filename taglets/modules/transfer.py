@@ -98,7 +98,23 @@ class TransferTaglet(ImageTagletWithAuxData):
                 param.requires_grad = False
 
         orig_num_epochs = self.num_epochs
-        self.num_epochs = 40 if not os.environ.get("CI") else 5
+        if os.environ.get("CI"):
+            self.num_epochs = 5
+        elif len(train_data) > 200000:
+            self.num_epochs = 5
+            self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[3, 4], gamma=0.1)
+        elif len(train_data) > 100000:
+            self.num_epochs = 10
+            self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[6, 8], gamma=0.1)
+        elif len(train_data) > 50000:
+            self.num_epochs = 20
+            self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[12, 16], gamma=0.1)
+        elif len(train_data) > 25000:
+            self.num_epochs = 30
+            self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[18, 24], gamma=0.1)
+        else:
+            self.num_epochs = 40
+            self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[20, 30], gamma=0.1)
         self._set_num_classes(len(self.task.classes))
         super(TransferTaglet, self).train(train_data, val_data, unlabeled_data)
         self.num_epochs = orig_num_epochs
