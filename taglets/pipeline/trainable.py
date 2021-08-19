@@ -380,7 +380,10 @@ class VideoTrainable(Trainable):
         running_loss = 0
         running_acc = 0
         num_pred = 0 
-         
+        
+        # error = True
+        # while error == True:
+        #     try:
         for batch in train_data_loader:
             inputs = batch[0]
             labels = batch[1]
@@ -408,11 +411,12 @@ class VideoTrainable(Trainable):
         
         epoch_loss = running_loss / num_pred
         epoch_acc = running_acc / num_pred
-        #log.info(f"Length of the dataset {len(train_data_loader.dataset)}")
-        #log.info(f"Sum of positives of the dataset {np.sum(running_acc)}")
 
-        
         return epoch_loss, epoch_acc
+            
+            # except:
+            #     log.info(f"FOUND EXCEPTION IN BATCH")
+            #     continue
     
     def _validate_epoch(self, val_data_loader):
         """

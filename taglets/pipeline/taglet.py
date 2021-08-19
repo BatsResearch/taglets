@@ -101,7 +101,7 @@ class VideoAuxDataMixin(AuxDataMixin):
     def __init__(self, task):
         super().__init__(task)
         
-        self.img_per_related_class = 30 if not os.environ.get("CI") else 1
+        self.img_per_related_class = 50 if not os.environ.get("CI") else 1
         if os.environ.get("CI"):
             self.num_related_class = 1
         else:

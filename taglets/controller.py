@@ -207,7 +207,7 @@ class Controller:
              return [RandomModule]
         elif self.task.video_classification:
             
-            return  [BaselineVideoModule]#[FineTuneVideoModule, SvcVideoModule, BaselineVideoModule, TransferVideoModule]#
+            return  [TransferVideoModule]#[FineTuneVideoModule, SvcVideoModule, BaselineVideoModule, TransferVideoModule]#
         else:
             if self.task.scads_path is not None:
                 return [DannModule, 
