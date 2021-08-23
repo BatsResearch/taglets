@@ -829,6 +829,7 @@ class JPLRunner:
         return available_budget
 
     def request_labels(self, examples, video=False):
+        log.info("Requesting labels...")
         query = {'example_ids': examples}
         labeled_images, labeled_dictionary_clips = self.api.request_label(query, video)
 
