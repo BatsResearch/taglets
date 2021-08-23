@@ -7,6 +7,8 @@ import json
 import requests
 import pickle
 from pathlib import Path
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 from accelerate import Accelerator
 accelerator = Accelerator()
@@ -33,6 +35,24 @@ if gpu_list is not None and gpu_list != "all":
 log = logging.getLogger(__name__)
 
 
+DEFAULT_TIMEOUT = 10 # seconds
+
+
+class TimeoutHTTPAdapter(HTTPAdapter):
+    def __init__(self, *args, **kwargs):
+        self.timeout = DEFAULT_TIMEOUT
+        if "timeout" in kwargs:
+            self.timeout = kwargs["timeout"]
+            del kwargs["timeout"]
+        super().__init__(*args, **kwargs)
+
+    def send(self, request, **kwargs):
+        timeout = kwargs.get("timeout")
+        if timeout is None:
+            kwargs["timeout"] = self.timeout
+        return super().send(request, **kwargs)
+
+
 class JPL:
     """
     A class to interact with JPL-like APIs.
@@ -48,6 +68,16 @@ class JPL:
         self.session_token = ''
         self.data_type = dataset_type
         self.saved_api_response_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saved_api_response')
+        
+        retry_strategy = Retry(
+            total=10,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504]
+        )
+        adapter = TimeoutHTTPAdapter(max_retries=retry_strategy)
+        self.session = requests.Session()
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
 
     def get_available_tasks(self, problem_type):
         """
@@ -57,12 +87,12 @@ class JPL:
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret
                    }
-        r = requests.get(self.url + "/list_tasks", headers=headers)
+        r = self.session.get(self.url + "/list_tasks", headers=headers)
         task_list = r.json()['tasks']
 
         subset_tasks = []
         for _task in task_list:
-            r = requests.get(self.url+"/task_metadata/"+_task, headers=headers)
+            r = self.session.get(self.url+"/task_metadata/"+_task, headers=headers)
             task_metadata = r.json()
             if task_metadata['task_metadata']['problem_type'] == problem_type:
                 subset_tasks.append(_task)
@@ -77,7 +107,7 @@ class JPL:
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret}
         
-        r = requests.get(self.url + "/task_metadata/" + task_name, headers=headers)
+        r = self.session.get(self.url + "/task_metadata/" + task_name, headers=headers)
         return r.json()['task_metadata']
 
     def create_session(self, task_name):
@@ -117,7 +147,7 @@ class JPL:
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
-        r = requests.get(self.url + "/session_status", headers=headers)
+        r = self.session.get(self.url + "/session_status", headers=headers)
         if 'Session_Status' in r.json():
             return r.json()['Session_Status']
         else:
@@ -159,7 +189,7 @@ class JPL:
                                       'govteam_secret': self.gov_team_secret,
                                       'session_token': self.session_token}
     
-            r = requests.post(self.url + "/deactivate_session",
+            r = self.session.post(self.url + "/deactivate_session",
                               json={'session_token': deactivate_session},
                               headers=headers_active_session)
 
@@ -222,14 +252,14 @@ class JPL:
     def deactivate_all_sessions(self):
         headers_session = {'user_secret': self.team_secret,
                            'govteam_secret': self.gov_team_secret}
-        r = requests.get(self.url + "/list_active_sessions", headers=headers_session)
+        r = self.session.get(self.url + "/list_active_sessions", headers=headers_session)
         active_sessions = r.json()['active_sessions']
         for session_token in active_sessions:
             self.deactivate_session(session_token)
 
     def post_only_once(self, command, headers, posting_json):
         if accelerator.is_local_main_process:
-            r = requests.post(self.url + "/" + command, json=posting_json, headers=headers)
+            r = self.session.post(self.url + "/" + command, json=posting_json, headers=headers)
             with open(os.path.join(self.saved_api_response_dir, command.replace("/", "_") + "_response.json"), "w") as f:
                 json.dump(r.json(), f)
         accelerator.wait_for_everyone()
@@ -239,7 +269,7 @@ class JPL:
     
     def get_only_once(self, command, headers):
         if accelerator.is_local_main_process:
-            r = requests.get(self.url + "/" + command, headers=headers)
+            r = self.session.get(self.url + "/" + command, headers=headers)
             with open(os.path.join(self.saved_api_response_dir, command.replace("/", "_") + "_response.json"), "w") as f:
                 json.dump(r.json(), f)
         accelerator.wait_for_everyone()
