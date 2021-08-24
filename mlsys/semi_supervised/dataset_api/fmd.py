@@ -8,7 +8,7 @@ class FMD(DatasetAPI):
     def __init__(self, dataset_dir, seed=0):
         super().__init__(dataset_dir, seed)
         
-        self.checkpoint_shot = [1, 5, 20]
+        self.checkpoint_shot = [0]
         self.classes = np.asarray(['fabric', 'foliage', 'glass', 'leather', 'metal', 'paper', 'plastic', 'stone',
                                    'water', 'wood'])
         self.all_img_paths = []
