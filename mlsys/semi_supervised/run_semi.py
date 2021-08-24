@@ -139,7 +139,7 @@ class CheckpointRunner:
         }
         for idx, concept in enumerate(task.classes):
             categories_dict[idx] = categories_dict.pop(concept)
-            categories_dict[idx] = [np.where(class_names == cls)[0] for cls in categories_dict]
+            categories_dict[idx] = [np.where(class_names == cls)[0] for cls in categories_dict[idx]]
         
         if test_labels is not None:
             log.info('Accuracy of taglets on this checkpoint:')
