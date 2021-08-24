@@ -137,7 +137,7 @@ class CheckpointRunner:
             '/c/en/sports_equipment': ['Backpack', 'Bike', 'Helmet'],
             '/c/en/signs': ['Exit_Sign']
         }
-        for idx, concept in task.classes:
+        for idx, concept in enumerate(task.classes):
             categories_dict[idx] = categories_dict.pop(concept)
             categories_dict[idx] = [class_names.index(cls) for cls in categories_dict]
         
