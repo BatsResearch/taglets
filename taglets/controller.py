@@ -14,7 +14,7 @@ accelerator = Accelerator()
 from .data import SoftLabelDataset
 from .labelmodel import UnweightedVote, WeightedVote, AMCLWeightedVote
 from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
-    RandomModule, DannModule, PseudoShotModule
+    RandomModule, DannModule, PseudoShotModule, PartialModule
 from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
 ####################################################################
@@ -230,12 +230,7 @@ class Controller:
              return [NaiveVideoModule]
         else:
             if self.task.scads_path is not None:
-                return [MultiTaskModule,
-                        ZSLKGModule,
-                        TransferModule,
-                        FineTuneModule,
-                        FixMatchModule,
-                        PseudoShotModule]
+                return [PartialModule]
             return [FineTuneModule, FixMatchModule]
     
     def get_vote_matrix(self):

@@ -8,3 +8,4 @@ from .fixmatch import FixMatchModule
 from .naive_video import NaiveVideoModule
 from .random import RandomModule
 from .pseudoshots import PseudoShotModule
+from .partial_labeler import PartialModule
