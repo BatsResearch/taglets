@@ -125,7 +125,7 @@ class CheckpointRunner:
                                            'Monitor', 'Mouse', 'Printer', 'Radio', 'Speaker', 'Telephone', 'TV',
                                            'Webcam'],
             '/c/en/stationery': ['Calendar', 'Clipboards', 'Eraser', 'Folder', 'Marker', 'Notebook', 'Paper_Clip',
-                                 'Pen', 'Pencil', 'Postit_Notes', 'Push_Pin', 'Ruler', 'Scissors'],
+                                 'Pen', 'Pencil', 'Post_It_Notes', 'Push_Pin', 'Ruler', 'Scissors'],
             '/c/en/appliances': ['Fan', 'Kettle', 'Oven', 'Refrigerator', 'Sink'],
             '/c/en/tools': ['Drill', 'Hammer', 'Screwdriver'],
             '/c/en/kitchenware': ['Bottle', 'Fork', 'Knives', 'Mug', 'Soda', 'Spoon'],
@@ -139,7 +139,7 @@ class CheckpointRunner:
         }
         for idx, concept in enumerate(task.classes):
             categories_dict[idx] = categories_dict.pop(concept)
-            categories_dict[idx] = [np.where(class_names == cls)[0] for cls in categories_dict[idx]]
+            categories_dict[idx] = [np.where(class_names == cls.lower())[0] for cls in categories_dict[idx]]
         
         if test_labels is not None:
             log.info('Accuracy of taglets on this checkpoint:')
