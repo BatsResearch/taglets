@@ -153,36 +153,6 @@ class JPL:
         else:
             return {}
 
-    def get_initial_seed_labels(self, video=False):
-        """
-        Get seed labels.
-        :return: A list of lists with name and label e.g., ['2', '1.png'], ['7', '2.png'], etc.
-        """
-
-        log.info('Request seed labels.')
-        headers = {'user_secret': self.team_secret,
-                   'govteam_secret': self.gov_team_secret,
-                   'session_token': self.session_token}
-        log.debug(f"HEADERS: {headers}")
-        response = self.get_only_once("seed_labels", headers)
-        labels = response['Labels']
-        #log.info(f"NUMBER OF LABELED DATA: {len(labels)}")
-
-        if video:
-            seed_labels = []
-            dictionary_clips = {}
-            for clip in labels:
-                action_frames = [str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'])]
-                dictionary_clips[clip["id"]] = action_frames
-                seed_labels.append([clip["class"], clip["id"]])
-            return seed_labels, dictionary_clips
-
-        else:
-            seed_labels = []
-            for image in labels:
-                seed_labels.append([image["class"], image["id"]])
-            return seed_labels, None
-
     def deactivate_session(self, deactivate_session):
         if accelerator.is_local_main_process:
             headers_active_session = {'user_secret': self.team_secret,
@@ -193,7 +163,7 @@ class JPL:
                               json={'session_token': deactivate_session},
                               headers=headers_active_session)
 
-    def request_label(self, query, video=False):
+    def request_label(self, query=None, video=False):
         """
         Get labels of requested examples.
 
@@ -211,13 +181,25 @@ class JPL:
         For example:
          [['7','56392.png'], ['8','3211.png'], ['4','19952.png']]
         """
-        log.debug(f"Query for new labels: {type(query['example_ids'][0])}")
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
-        response = self.post_only_once("query_labels", headers, query)
-        labels = response['Labels']
-        log.debug(f"NUM OF NEW RAW RETRIEVED LABELS: {len(labels)}")
+        log.info(f'Headers: {headers}')
+        if query is None:
+            log.info('Requesting seed labels...')
+            response = self.get_only_once("seed_labels", headers)
+            labels = response['Labels']
+        else:
+            log.info('Requesting labels...')
+            labels = []
+            for i in range(0, len(query['example_ids']), 10000):
+                batched_query = {'example_ids': query['example_ids'][i: i+10000]}
+                log.debug(f'Length of batched query {len(batched_query["example_ids"])}')
+                log.debug(f'Batched query ids {batched_query["example_ids"]}')
+                response = self.post_only_once("query_labels", headers, batched_query)
+                batched_labels = response['Labels']
+                labels = labels + batched_labels
+        log.info(f"Num of new raw retrieved labels: {len(labels)}")
 
         if video:
             labels_list = []
@@ -691,10 +673,10 @@ class JPLRunner:
         available_budget = self.get_available_budget()
         if checkpoint_num == 0:
             self.jpl_storage.labeled_images, self.jpl_storage.dictionary_clips = \
-                self.api.get_initial_seed_labels(self.video)
+                self.api.request_label(video=self.video)
             log.info(f'Get initial seeds at {checkpoint_num} checkpoint')
         elif 1 <= checkpoint_num <= 3:
-            new_labeled_images, new_dictionary_clips = self.api.get_initial_seed_labels(self.video)
+            new_labeled_images, new_dictionary_clips = self.api.request_label(video=self.video)
             self.jpl_storage.add_labeled_images(new_labeled_images)
             if self.jpl_storage.dictionary_clips != None:
                 self.jpl_storage.dictionary_clips.update(new_dictionary_clips)
@@ -829,10 +811,9 @@ class JPLRunner:
         return available_budget
 
     def request_labels(self, examples, video=False):
-        log.info("Requesting labels...")
         query = {'example_ids': examples}
         labeled_images, labeled_dictionary_clips = self.api.request_label(query, video)
-
+        log.info('Done requesting labels!')
         self.jpl_storage.add_labeled_images(labeled_images)
         if self.jpl_storage.dictionary_clips != None:
             self.jpl_storage.dictionary_clips.update(labeled_dictionary_clips)

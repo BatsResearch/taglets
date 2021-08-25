@@ -24,7 +24,7 @@ from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecut
 ####################################################################
 
 logger_ = logging.getLogger()
-logger_.level = logging.INFO
+logger_.level = logging.DEBUG
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
 
 
@@ -33,8 +33,7 @@ class AccelerateHandler(StreamHandler):
         super().__init__(stream)
     
     def emit(self, record):
-        if accelerator.is_local_main_process:
-            super().emit(record)
+        super().emit(record)
 
 
 stream_handler = AccelerateHandler(sys.stdout)
