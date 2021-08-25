@@ -37,7 +37,7 @@ class AccelerateHandler(StreamHandler):
 
 
 stream_handler = AccelerateHandler(sys.stdout)
-stream_handler.setLevel(logging.INFO)
+stream_handler.setLevel(logging.DEBUG)
 stream_handler.setFormatter(formatter)
 logger_.addHandler(stream_handler)
 
