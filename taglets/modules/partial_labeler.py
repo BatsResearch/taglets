@@ -74,23 +74,18 @@ class PartialTaglet(ImageTagletWithAuxData):
             ])
     
     def train(self, train_data, val_data, unlabeled_data=None):
+        scads_train_data, scads_num_classes = self._get_scads_data()
+        log.info("Source classes found: {}".format(scads_num_classes))
+        self._set_num_classes(scads_num_classes)
         aux_weights = Cache.get("scads-weights", self.task.classes)
         if aux_weights is None:
-            scads_train_data, scads_num_classes = self._get_scads_data()
-            log.info("Source classes found: {}".format(scads_num_classes))
-            
-            if scads_num_classes == 0:
-                self.valid = False
-                return
-            
             orig_num_epochs = self.num_epochs
             self.num_epochs = 40 if not os.environ.get("CI") else 5
-            self._set_num_classes(scads_num_classes)
             super().train(scads_train_data, None, None)
             self.num_epochs = orig_num_epochs
             
             # self.model.fc = nn.Identity()
             aux_weights = copy.deepcopy(self.model.state_dict())
             Cache.set('scads-weights', self.task.classes, aux_weights)
-        # self.model.load_state_dict(aux_weights, strict=False)
+        self.model.load_state_dict(aux_weights, strict=False)
 

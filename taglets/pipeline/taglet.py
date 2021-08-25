@@ -86,7 +86,7 @@ class AuxDataMixin:
                 target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
                 if get_images(target_node, all_related_class, False):
                     cur_related_class += 1
-                    all_related_class += 1
+                    
 
                 ct = 1
                 while cur_related_class < self.num_related_class:
@@ -97,10 +97,10 @@ class AuxDataMixin:
                     for neighbor in neighbors:
                         if get_images(neighbor, all_related_class, True):
                             cur_related_class += 1
-                            all_related_class += 1
                             if cur_related_class >= self.num_related_class:
                                 break
                     ct = ct * 2
+                all_related_class += 1
         
             Scads.close()
             Cache.set('scads', self.task.classes,

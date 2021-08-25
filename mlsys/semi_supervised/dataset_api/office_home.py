@@ -10,7 +10,7 @@ class OfficeHome(DatasetAPI):
         
         self.domain = self._get_domain()
         
-        self.checkpoint_shot = [0]
+        self.checkpoint_shot = [1, 5, 20]
 
         data_dir = os.path.join(self.dataset_dir, self.domain)
         
