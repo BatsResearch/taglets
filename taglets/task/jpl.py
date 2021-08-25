@@ -194,8 +194,8 @@ class JPL:
             labels = []
             for i in range(0, len(query['example_ids']), 10000):
                 batched_query = {'example_ids': query['example_ids'][i: i+10000]}
-                log.debug(f'Length of batched query {len(batched_query["example_ids"])}')
-                log.debug(f'Batched query ids {batched_query["example_ids"]}')
+                log.info(f'Length of batched query {len(batched_query["example_ids"])}')
+                log.info(f'Batched query ids {batched_query["example_ids"]}')
                 response = self.post_only_once("query_labels", headers, batched_query)
                 batched_labels = response['Labels']
                 labels = labels + batched_labels
@@ -693,7 +693,7 @@ class JPLRunner:
         # Get sets of unlabeled samples
         unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names(self.jpl_storage.dictionary_clips,
                                                                            self.video)
-        log.debug('Number of unlabeled data: {}'.format(len(unlabeled_image_names)))
+        log.info('Number of unlabeled data: {}'.format(len(unlabeled_image_names)))
 
         
         
@@ -714,7 +714,7 @@ class JPLRunner:
             of gradually ask new labels untile we exhaust the budget.
             """
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
-            log.debug(f"Candidates to query[0]: {candidates[0]}")
+            log.info(f"Candidates to query[0]: {candidates[0]}")
             #log.info(f"NUMBER OF LABELED DATA: {len(labels)}")
             self.request_labels(candidates, self.video)
 

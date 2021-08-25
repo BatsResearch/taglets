@@ -24,7 +24,7 @@ from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecut
 ####################################################################
 
 logger_ = logging.getLogger()
-logger_.level = logging.DEBUG
+logger_.level = logging.INFO
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
 
 
@@ -37,7 +37,7 @@ class AccelerateHandler(StreamHandler):
 
 
 stream_handler = AccelerateHandler(sys.stdout)
-stream_handler.setLevel(logging.DEBUG)
+stream_handler.setLevel(logging.INFO)
 stream_handler.setFormatter(formatter)
 logger_.addHandler(stream_handler)
 
