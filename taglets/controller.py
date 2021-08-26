@@ -230,7 +230,7 @@ class Controller:
              return [NaiveVideoModule]
         else:
             if self.task.scads_path is not None:
-                return [PartialModule, BinaryPartialModule]
+                return [BinaryPartialModule]
             return [FineTuneModule, FixMatchModule]
     
     def get_vote_matrix(self):

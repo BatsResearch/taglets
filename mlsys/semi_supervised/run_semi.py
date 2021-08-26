@@ -163,14 +163,17 @@ class CheckpointRunner:
                 ct = 0
                 for j in range(len(test_labels)):
                     pred = np.argmax(test_vote_matrix[i][j])
-                    if i == 0:
-                        log.info(f'Test {class_names[test_labels[j]]} Pred {task.classes[pred]}')
-                        if test_labels[j] in categories_dict[pred]:
-                            ct += 1
-                    else:
-                        log.info(f'Test {class_names[test_labels[j]]} Pred {task.classes[i - 1]} {pred}')
-                        if int(test_labels[j] in binary_categories_dict[i - 1]) == pred:
-                            ct += 1
+                    # if i == 0:
+                    #     log.info(f'Test {class_names[test_labels[j]]} Pred {task.classes[pred]}')
+                    #     if test_labels[j] in categories_dict[pred]:
+                    #         ct += 1
+                    # else:
+                    #     log.info(f'Test {class_names[test_labels[j]]} Pred {task.classes[i - 1]} {pred}')
+                    #     if int(test_labels[j] in binary_categories_dict[i - 1]) == pred:
+                    #         ct += 1
+                    log.info(f'Test {class_names[test_labels[j]]} Pred {task.classes[i]} {pred}')
+                    if int(test_labels[j] in binary_categories_dict[i]) == pred:
+                        ct += 1
                 acc = ct / len(test_labels)
                 log.info("Module {} - acc {:.4f}".format(i, acc))
 
