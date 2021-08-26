@@ -142,13 +142,17 @@ class CheckpointRunner:
                                        'Lamp_Shade', 'Paper_Clip', 'Push_Pin', 'Soda', 'Toys'],
             '/c/en/signs': ['Batteries', 'Calendar', 'Eraser', 'Exit_Sign', 'Desk_Lamp', 'Lamp_Shade', 'Paper_Clip',
                             'Push_Pin', 'Soda', 'Toys'],
-            '/c/en/garden': ['Flowers', 'Desk_Lamp', 'Lamp_Shade', 'Paper_Clip', 'Push_Pin', 'Soda', 'Toys']
+            '/c/en/garden': ['Flowers', 'Desk_Lamp', 'Lamp_Shade', 'Paper_Clip', 'Push_Pin', 'Soda', 'Toys'],
         }
-
         log.info(f'Categories dict {categories_dict}')
         for idx, concept in enumerate(task.classes):
             categories_dict[idx] = categories_dict.pop(concept)
-            categories_dict[idx] = [np.where(class_names == cls.lower())[0] for cls in categories_dict[idx]]
+            categories_dict[idx] = [np.where(class_names == cls.lower())[0][0] for cls in categories_dict[idx]]
+            
+        binary_categories_dict = categories_dict.copy()
+        for k in binary_categories_dict:
+            binary_categories_dict[k] = binary_categories_dict[k][:-6]
+            
         
         if test_labels is not None:
             log.info('Accuracy of taglets on this checkpoint:')
@@ -165,7 +169,7 @@ class CheckpointRunner:
                             ct += 1
                     else:
                         log.info(f'Test {class_names[test_labels[j]]} Pred {task.classes[i - 1]} {pred}')
-                        if int(test_labels[j] in categories_dict[i - 1]) == pred:
+                        if int(test_labels[j] in binary_categories_dict[i - 1]) == pred:
                             ct += 1
                 acc = ct / len(test_labels)
                 log.info("Module {} - acc {:.4f}".format(i, acc))
