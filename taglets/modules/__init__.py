@@ -9,3 +9,4 @@ from .naive_video import NaiveVideoModule
 from .random import RandomModule
 from .pseudoshots import PseudoShotModule
 from .partial_labeler import PartialModule
+from .binary_partial_labeler import BinaryPartialModule

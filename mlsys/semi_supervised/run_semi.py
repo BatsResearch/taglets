@@ -71,10 +71,10 @@ class CheckpointRunner:
         evaluation_dataset = self.dataset_api.get_test_dataset()
         test_labels = self.dataset_api.get_test_labels()
         task = Task(self.dataset,
-                    ['/c/en/furniture', '/c/en/electronic_equipment', '/c/en/stationery', '/c/en/appliances',
-                     '/c/en/tools', '/c/en/kitchenware', '/c/en/footware', '/c/en/container',
-                     '/c/en/cleaning_implement', '/c/en/source_of_illumination', '/c/en/toy', '/c/en/sports_equipment',
-                     '/c/en/signs'],
+                    ['/c/en/furniture', '/c/en/paper', '/c/en/stationery', '/c/en/appliances',
+                     '/c/en/tools', '/c/en/kitchenware',
+                     '/c/en/cleaning_implement', '/c/en/sports_equipment',
+                     '/c/en/signs', '/c/en/garden'],
                     (224, 224), 
                     labeled_dataset,
                     unlabeled_train_dataset,
@@ -119,24 +119,33 @@ class CheckpointRunner:
         test_vote_matrix = controller.train_end_model(weak_labels)
 
         categories_dict = {
-            '/c/en/furniture': ['Bed', 'Chair', 'Couch', 'Curtains', 'Desk_Lamp', 'File_Cabinet', 'Lamp_Shade', 'Pan',
-                                'Shelf', 'Table'],
-            '/c/en/electronic_equipment': ['Alarm_Clock', 'Batteries', 'Calculator', 'Computer', 'Keyboard', 'Laptop',
-                                           'Monitor', 'Mouse', 'Printer', 'Radio', 'Speaker', 'Telephone', 'TV',
-                                           'Webcam'],
-            '/c/en/stationery': ['Calendar', 'Clipboards', 'Eraser', 'Folder', 'Marker', 'Notebook', 'Paper_Clip',
-                                 'Pen', 'Pencil', 'Post_It_Notes', 'Push_Pin', 'Ruler', 'Scissors'],
-            '/c/en/appliances': ['Fan', 'Kettle', 'Oven', 'Refrigerator', 'Sink'],
-            '/c/en/tools': ['Drill', 'Hammer', 'Screwdriver'],
-            '/c/en/kitchenware': ['Bottle', 'Fork', 'Knives', 'Mug', 'Soda', 'Spoon'],
-            '/c/en/footware': ['Flipflops', 'Sneakers'],
-            '/c/en/container': ['Bucket', 'Mug', 'Trash_Can'],
-            '/c/en/cleaning_implement': ['Bucket', 'Mop', 'Sink', 'Toothbrush'],
-            '/c/en/source_of_illumination': ['Candles', 'Desk_Lamp'],
-            '/c/en/toy': ['Toys'],
-            '/c/en/sports_equipment': ['Backpack', 'Bike', 'Helmet'],
-            '/c/en/signs': ['Exit_Sign']
+            '/c/en/furniture': ['Bed', 'Chair', 'Couch', 'Curtains', 'File_Cabinet',
+                                'Refrigerator', 'Shelf', 'Sink', 'Table', 'TV', 'Desk_Lamp', 'Lamp_Shade', 'Paper_Clip',
+                                'Push_Pin', 'Soda', 'Toys'],
+            '/c/en/paper': ['Calendar', 'Clipboards', 'Folder', 'Notebook', 'Post_It_Notes', 'Desk_Lamp', 'Lamp_Shade',
+                            'Paper_Clip', 'Push_Pin', 'Soda', 'Toys'],
+            '/c/en/stationery': ['Batteries', 'Eraser', 'Marker', 'Pen', 'Pencil', 'Ruler', 'Desk_Lamp', 'Lamp_Shade',
+                                 'Paper_Clip', 'Push_Pin', 'Soda', 'Toys'],
+            '/c/en/appliances': ['Alarm_Clock', 'Batteries', 'Calculator', 'Computer', 'Fan', 'Keyboard',
+                                 'Laptop', 'Monitor', 'Mouse', 'Oven', 'Printer', 'Radio', 'Refrigerator', 'Speaker',
+                                 'Telephone', 'TV', 'Webcam', 'Desk_Lamp', 'Lamp_Shade', 'Paper_Clip', 'Push_Pin',
+                                 'Soda', 'Toys'],
+            '/c/en/tools': ['Drill', 'Hammer', 'Knives', 'Ruler', 'Scissors', 'Screwdriver', 'Desk_Lamp', 'Lamp_Shade',
+                            'Paper_Clip', 'Push_Pin', 'Soda', 'Toys'],
+            '/c/en/kitchenware': ['Bottle', 'Bucket', 'Candles', 'Fork', 'Kettle', 'Knives', 'Mug', 'Pan', 'Shelf',
+                                  'Sink',
+                                  'Spoon', 'Trash_Can', 'Desk_Lamp', 'Lamp_Shade', 'Paper_Clip', 'Push_Pin', 'Soda',
+                                  'Toys'],
+            '/c/en/cleaning_implement': ['Bottle', 'Bucket', 'Mop', 'Sink', 'Toothbrush', 'Trash_Can', 'Desk_Lamp',
+                                         'Lamp_Shade', 'Paper_Clip', 'Push_Pin', 'Soda', 'Toys'],
+            '/c/en/sports_equipment': ['Backpack', 'Bike', 'Flipflops', 'Glasses', 'Helmet', 'Sneakers', 'Desk_Lamp',
+                                       'Lamp_Shade', 'Paper_Clip', 'Push_Pin', 'Soda', 'Toys'],
+            '/c/en/signs': ['Batteries', 'Calendar', 'Eraser', 'Exit_Sign', 'Desk_Lamp', 'Lamp_Shade', 'Paper_Clip',
+                            'Push_Pin', 'Soda', 'Toys'],
+            '/c/en/garden': ['Flowers', 'Desk_Lamp', 'Lamp_Shade', 'Paper_Clip', 'Push_Pin', 'Soda', 'Toys']
         }
+
+        log.info(f'Categories dict {categories_dict}')
         for idx, concept in enumerate(task.classes):
             categories_dict[idx] = categories_dict.pop(concept)
             categories_dict[idx] = [np.where(class_names == cls.lower())[0] for cls in categories_dict[idx]]
@@ -150,10 +159,16 @@ class CheckpointRunner:
                 ct = 0
                 for j in range(len(test_labels)):
                     pred = np.argmax(test_vote_matrix[i][j])
-                    if test_labels[j] in categories_dict[pred]:
-                        ct += 1
+                    if i == 0:
+                        log.info(f'Test {class_names[test_labels[j]]} Pred {task.classes[pred]}')
+                        if test_labels[j] in categories_dict[pred]:
+                            ct += 1
+                    else:
+                        log.info(f'Test {class_names[test_labels[j]]} Pred {task.classes[i - 1]} {pred}')
+                        if int(test_labels[j] in categories_dict[i - 1]) == pred:
+                            ct += 1
                 acc = ct / len(test_labels)
-                log.info("Module partial - acc {:.4f}".format(acc))
+                log.info("Module {} - acc {:.4f}".format(i, acc))
 
         if self.vote_matrix_save_path is not None:
             val_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
