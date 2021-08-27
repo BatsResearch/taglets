@@ -161,21 +161,34 @@ class CheckpointRunner:
 
             for i in range(len(test_vote_matrix)):
                 ct = 0
+                tp = 0
+                pred_p = 0
+                tn = 0
+                pred_n =  0
                 for j in range(len(test_labels)):
                     pred = np.argmax(test_vote_matrix[i][j])
-                    # if i == 0:
-                    #     log.info(f'Test {class_names[test_labels[j]]} Pred {task.classes[pred]}')
-                    #     if test_labels[j] in categories_dict[pred]:
-                    #         ct += 1
-                    # else:
-                    #     log.info(f'Test {class_names[test_labels[j]]} Pred {task.classes[i - 1]} {pred}')
-                    #     if int(test_labels[j] in binary_categories_dict[i - 1]) == pred:
-                    #         ct += 1
+                    # log.info(f'Test {class_names[test_labels[j]]} Pred {task.classes[pred]}')
+                    # if test_labels[j] in categories_dict[pred]:
+                    #     ct += 1
                     log.info(f'Test {class_names[test_labels[j]]} Pred {task.classes[i]} {pred}')
                     if int(test_labels[j] in binary_categories_dict[i]) == pred:
                         ct += 1
+                        if pred == 1:
+                            tp += 1
+                        else:
+                            tn += 1
+                    if pred == 1:
+                        pred_p += 1
+                    else:
+                        pred_n += 1
+                fp = pred_p - tp
+                fn = pred_n - tn
                 acc = ct / len(test_labels)
+                precision = tp / (tp + fp)
+                recall = tp / (tp + fn)
                 log.info("Module {} - acc {:.4f}".format(i, acc))
+                log.info("Module {} - precision {:.4f}".format(i, precision))
+                log.info("Module {} - precision {:.4f}".format(i, recall))
 
         if self.vote_matrix_save_path is not None:
             val_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
