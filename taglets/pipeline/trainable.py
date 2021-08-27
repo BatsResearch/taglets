@@ -348,7 +348,7 @@ class ImageTrainable(Trainable):
             
             with torch.set_grad_enabled(False):
                 output = pred_classifier(inputs)
-                outputs.append(torch.nn.functional.softmax(accelerator.gather(output.detach()).cpu(), 1))
+                outputs.append(accelerator.gather(output.detach()).cpu())
                 if targets is not None:
                     labels.append(accelerator.gather(targets.detach()).cpu())
         
