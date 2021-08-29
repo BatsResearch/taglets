@@ -5,17 +5,11 @@ import numpy as np
 import os
 import random
 import torch
-import torch.utils.data
-from torch.utils.data.dataloader import default_collate
 import torch.multiprocessing as mp
 from accelerate import Accelerator
 accelerator = Accelerator()
 
 log = logging.getLogger(__name__)
-
-def my_collate(batch):
-    batch = list(filter(lambda x : x is not None, batch))
-    return default_collate(batch)
 
 
 class Trainable:
@@ -34,10 +28,10 @@ class Trainable:
         """
         self.name = 'base'
         self.task = task
-        self.lr = 0.01#0.0005
+        self.lr = 0.0005
         self.criterion = torch.nn.CrossEntropyLoss()
         self.seed = 0
-        self.num_epochs = 50 if not os.environ.get("CI") else 5
+        self.num_epochs = 30 if not os.environ.get("CI") else 5
         self.batch_size = task.batch_size if not os.environ.get("CI") else 32
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
@@ -84,7 +78,7 @@ class Trainable:
             batch_size = self.batch_size
         return accelerator.prepare(torch.utils.data.DataLoader(
             dataset=data, batch_size=batch_size, shuffle=shuffle,
-            num_workers=self.num_workers, pin_memory=True, collate_fn=my_collate
+            num_workers=self.num_workers, pin_memory=True
         ))
 
     def _get_pred_classifier(self):
@@ -157,7 +151,6 @@ class Trainable:
         val_acc_list = []
 
         accelerator.wait_for_everyone()
-        #self.model, self.optimizer, self.warmup_scheduler = accelerator.prepare(self.model, self.optimizer, self.warmup_scheduler)
         self.model, self.optimizer = accelerator.prepare(self.model, self.optimizer)
 
         # Iterates over epochs
@@ -190,12 +183,11 @@ class Trainable:
                               val_acc * 100, best_val_acc * 100))
                 best_model_to_save = copy.deepcopy(unwrapped_model.state_dict())
                 best_val_acc = val_acc
-                if self.save_dir and accelerator.is_local_main_process:
+                if self.save_dir:
                     accelerator.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
             if self.lr_scheduler:
                 self.lr_scheduler.step()
-
 
         accelerator.wait_for_everyone()
         self.optimizer = self.optimizer.optimizer
@@ -237,11 +229,7 @@ class Trainable:
         pred_classifier = self._get_pred_classifier()
         pred_classifier.eval()
         
-        if self.video_classification:
-            data_loader = self._get_dataloader(data, False)
-        else:
-            data_loader = self._get_dataloader(data, False, batch_size=128)
-        dataset_len = len(data_loader.dataset)  
+        data_loader = self._get_dataloader(data, False, batch_size=128)
         
         accelerator.wait_for_everyone()
         self.model = accelerator.prepare(self.model)
@@ -254,9 +242,9 @@ class Trainable:
         accelerator.free_memory()
         
         if len(labels) > 0:
-            return outputs[:dataset_len], labels[:dataset_len]
+            return outputs, labels
         else:
-            return outputs[:dataset_len]
+            return outputs
             
     def _predict_epoch(self, data_loader, pred_classifier):
         raise NotImplementedError
@@ -374,7 +362,6 @@ class ImageTrainable(Trainable):
         
         
 class VideoTrainable(Trainable):
-
     def _train_epoch(self, train_data_loader, unlabeled_data_loader=None):
         """
         Train for one epoch.
@@ -382,50 +369,37 @@ class VideoTrainable(Trainable):
         :param use_gpu: Whether or not to use the GPU
         :return: None
         """
-
-        
         self.model.train()
         running_loss = 0
         running_acc = 0
-        num_pred = 0 
-        
-        # run = False
-        # while run == False:
-        #     try:
         for batch in train_data_loader:
             inputs = batch[0]
             labels = batch[1]
-            inputs = inputs["video"]
-            #log.info(f"Look at inputs' size {inputs[0].size()}")
+            num_videos = inputs.size(0)
+            num_frames = inputs.size(1)
+            inputs = inputs.flatten(start_dim=0, end_dim=1)
             
-            #self.warmup_scheduler.dampen()           
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
                 outputs = self.model(inputs)
-                loss = self.criterion(outputs, labels)
+                aggregated_outputs = torch.mean(outputs.view(num_videos, num_frames, -1), dim=1)
+                loss = self.criterion(aggregated_outputs, labels)
                 accelerator.backward(loss)
                 self.optimizer.step()
 
-            aggregated_outputs = accelerator.gather(outputs.detach())
+            aggregated_outputs = accelerator.gather(aggregated_outputs.detach())
             labels = accelerator.gather(labels)
             
-            num_pred += len(aggregated_outputs)
-
             running_loss += loss.item()
             running_acc += self._get_train_acc(aggregated_outputs, labels).item()
-            
         
         if not len(train_data_loader.dataset):
             return 0, 0
         
-        epoch_loss = running_loss / num_pred
-        epoch_acc = running_acc / num_pred
-
+        epoch_loss = running_loss / len(train_data_loader)
+        epoch_acc = running_acc / len(train_data_loader.dataset)
+        
         return epoch_loss, epoch_acc
-            
-            # except:
-            #     log.info(f"FOUND EXCEPTION IN BATCH")
-            #     continue
     
     def _validate_epoch(self, val_data_loader):
         """
@@ -437,29 +411,27 @@ class VideoTrainable(Trainable):
         self.model.eval()
         running_loss = 0
         running_acc = 0
-        num_pred = 0
-
         for batch in val_data_loader:
             inputs = batch[0]
             labels = batch[1]
-            inputs = inputs["video"]
+            num_videos = inputs.size(0)
+            num_frames = inputs.size(1)
+            inputs = inputs.flatten(start_dim=0, end_dim=1)
             
             with torch.set_grad_enabled(False):
                 outputs = self.model(inputs)
-                loss = self.criterion(outputs, labels)
-                _, preds = torch.max(outputs, 1)
+                aggregated_outputs = torch.mean(outputs.view(num_videos, num_frames, -1), dim=1)
+                loss = self.criterion(aggregated_outputs, labels)
+                _, preds = torch.max(aggregated_outputs, 1)
 
             preds  = accelerator.gather(preds.detach())
             labels = accelerator.gather(labels)
 
-            #len_dataset = len(val_data_loader.dataset)
-            num_pred += len(preds)
-            
             running_loss += loss.item()
             running_acc += torch.sum(preds == labels).item()
         
-        epoch_loss = running_loss / num_pred #len(train_data_loader.dataset)
-        epoch_acc = running_acc / num_pred
+        epoch_loss = running_loss / len(val_data_loader.dataset)
+        epoch_acc = running_acc / len(val_data_loader.dataset)
         
         return epoch_loss, epoch_acc
     
@@ -467,17 +439,19 @@ class VideoTrainable(Trainable):
         outputs = []
         labels = []
         for batch in data_loader:
-            #log.info(batch)
             if isinstance(batch, list):
                 inputs, targets = batch
             else:
                 inputs, targets = batch, None
-
-            inputs = inputs["video"] 
+            
+            num_videos = inputs.size(0)
+            num_frames = inputs.size(1)
+            inputs = inputs.flatten(start_dim=0, end_dim=1)
             
             with torch.set_grad_enabled(False):
                 output = pred_classifier(inputs)
-                outputs.append(accelerator.gather(output.detach()).cpu())
+                aggregated_output = torch.mean(output.view(num_videos, num_frames, -1), dim=1)
+                outputs.append(torch.nn.functional.softmax(accelerator.gather(aggregated_output.detach()).cpu(), 1))
                 if targets is not None:
                     labels.append(accelerator.gather(targets.detach()).cpu())
         

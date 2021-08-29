@@ -1,5 +1,4 @@
 import copy
-
 import torch
 import torchvision.models as models
 
@@ -9,9 +8,9 @@ class Task:
     A class defining an image classification task
     """
     def __init__(self, name, classes, input_shape, labeled_train_data, unlabeled_train_data, validation_data,
-                 batch_size=128, whitelist=None, scads_path=None, scads_embedding_path=None, 
-                 processed_scads_embedding_path=None, unlabeled_test_data=None,
-                 unlabeled_train_labels=None, video_classification=False):
+                 batch_size=128, whitelist=None, scads_path=None, scads_embedding_path=None,
+                 processed_scads_embedding_path=None, unlabeled_test_data=None, unlabeled_train_labels=None,
+                 video_classification=False):
         """
         Create a new Task
 
@@ -36,11 +35,8 @@ class Task:
         self.unlabeled_train_labels = unlabeled_train_labels
         self.video_classification = video_classification
 
-        # if self.video_classification:
-        #     self.initial = torch.hub.load("facebookresearch/pytorchvideo", model='slowfast_r50', pretrained=True)
-        # else:
-        #     self.initial = models.resnet50(pretrained=True)
-        #     self.initial.fc = torch.nn.Identity()
+        self.initial = models.resnet50(pretrained=True)
+        self.initial.fc = torch.nn.Identity()
         self.whitelist = whitelist
 
     def get_labeled_train_data(self):
@@ -64,13 +60,6 @@ class Task:
         :param initial: the initial model
         """
         self.initial = initial
-
-        if self.video_classification :
-            self.initial = torch.hub.load("facebookresearch/pytorchvideo", model='slowfast_r50', pretrained=True)
-        
-        else:
-            self.initial = models.resnet50(pretrained=True)
-            self.initial.fc = torch.nn.Identity()
 
     def get_initial_model(self):
         """

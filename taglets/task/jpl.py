@@ -1,5 +1,4 @@
 import os
-import sys
 import datetime
 import time
 import logging
@@ -18,16 +17,13 @@ import numpy as np
 import pandas as pd
 import torchvision.models as models
 import torchvision.transforms as transforms
-import pytorchvideo.transforms as video_transform
-import torchvision.transforms._transforms_video as transform_video
 
 from ..task import Task
-from ..data import CustomImageDataset, CustomVideoDataset, HandleExceptionCustomVideoDataset
+from ..data import CustomImageDataset, CustomVideoDataset
 from ..controller import Controller
 from .utils import labels_to_concept_ids
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
 from ..scads import Scads
-from ..modules.videos.utils import PackPathway
 
 
 gpu_list = os.getenv("LWLL_TA1_GPUS")
@@ -143,7 +139,6 @@ class JPL:
         # else:
         #     return {}
 
-
     def get_session_status(self):
         """
         Get the session status.
@@ -157,37 +152,6 @@ class JPL:
             return r.json()['Session_Status']
         else:
             return {}
-
-
-#     def get_initial_seed_labels(self, video=False):
-#         """
-#         Get seed labels.
-#         :return: A list of lists with name and label e.g., ['2', '1.png'], ['7', '2.png'], etc.
-#         """
-
-#         log.info('Request seed labels.')
-#         headers = {'user_secret': self.team_secret,
-#                    'govteam_secret': self.gov_team_secret,
-#                    'session_token': self.session_token}
-#         log.debug(f"HEADERS: {headers}")
-#         response = self.get_only_once("seed_labels", headers)
-#         labels = response['Labels']
-
-#         if video:
-#             seed_labels = []
-#             dictionary_clips = {}
-#             for clip in labels:
-#                 action_frames = [str(clip['video_id']) + '/' + str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'] + 1)]
-#                 dictionary_clips[clip["id"]] = action_frames
-#                 seed_labels.append([clip["class"], clip["id"]])
-#             return seed_labels, dictionary_clips
-
-#         else:
-#             seed_labels = []
-#             for image in labels:
-#                 seed_labels.append([image["class"], image["id"]])
-#             return seed_labels, None
-
 
     def deactivate_session(self, deactivate_session):
         if accelerator.is_local_main_process:
@@ -241,7 +205,7 @@ class JPL:
             labels_list = []
             dictionary_clips = {}
             for clip in labels:
-                action_frames = [str(clip["video_id"]) + '/' + str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'] + 1)]
+                action_frames = [str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'])]
                 dictionary_clips[clip["id"]] = action_frames
                 labels_list.append([clip["class"], clip["id"]])
             return labels_list, dictionary_clips
@@ -378,7 +342,7 @@ class JPLStorage:
                                                       dataset_name + "_" + data_type,
                                                       "test")
     
-    def transform_image(self, train=True, video=False):
+    def transform_image(self, train=True):
         """
         Get the transform to be used on an image.
         :return: A transform
@@ -386,9 +350,6 @@ class JPLStorage:
         data_mean = [0.485, 0.456, 0.406]
         data_std = [0.229, 0.224, 0.225]
         # Remember to check it for video and eval
-        if video:
-            return transforms.Compose([transforms.ToTensor()])
-        
         if train:
             return transforms.Compose([
                 transforms.RandomResizedCrop((224, 224), scale=(0.8, 1.0)),
@@ -402,28 +363,6 @@ class JPLStorage:
                 transforms.ToTensor(),
                 transforms.Normalize(mean=data_mean, std=data_std)
             ])
-
-    def transformer_video(self):   
-        """Trasformation valid for SlowFast"""
-        side_size = 256
-        mean = [0.45, 0.45, 0.45]
-        std = [0.225, 0.225, 0.225]
-        crop_size = 256
-        num_frames = 32
-        alpha = 4
-
-        
-        return  video_transform.ApplyTransformToKey(key="video",
-                                    transform=transforms.Compose([
-                                        video_transform.UniformTemporalSubsample(num_frames),
-                                        #transforms.Lambda(lambda x: x/255.0),
-                                        transform_video.NormalizeVideo(mean, std),# transform_video
-                                        video_transform.ShortSideScale(size=side_size),
-                                        transform_video.CenterCropVideo(crop_size),# transform_video
-                                        PackPathway(alpha)
-                                    ])
-                                    )
-
 
     def get_labeled_images_list(self):
         """get list of image names and labels"""
@@ -442,7 +381,7 @@ class JPLStorage:
             for clip in train_meta.iterrows(): 
                 row = clip[1]['id']
                 if row not in labeled_clip_names:
-                    unlabeled_clip_names.append(str(row))
+                    unlabeled_clip_names.append(int(row))
             return unlabeled_clip_names
 
         else:
@@ -451,7 +390,7 @@ class JPLStorage:
             unlabeled_image_names = []
             for img in os.listdir(self.unlabeled_image_path):
                 if img not in labeled_image_names:
-                    unlabeled_image_names.append(str(img))
+                    unlabeled_image_names.append(img)
             return unlabeled_image_names
 
     def get_evaluation_image_names(self, video=False):
@@ -499,19 +438,16 @@ class JPLStorage:
             val_idx = []
         
         if self.video:
-            #log.info(f"Disctionary clip: {dictionary_clips}")
-            train_dataset = HandleExceptionCustomVideoDataset(image_paths[train_idx],
+            train_dataset = CustomVideoDataset(image_paths[train_idx],
                                                labels=image_labels[train_idx],
                                                label_map=self.label_map,
-                                               transform_img=self.transform_image(video=self.video),
-                                               transform_vid=self.transformer_video(),
+                                               transform=self.transform_image(train=True),
                                                clips_dictionary=dictionary_clips)
             if len(val_idx) != 0:
-                val_dataset = HandleExceptionCustomVideoDataset(image_paths[val_idx],
+                val_dataset = CustomVideoDataset(image_paths[val_idx],
                                                  labels=image_labels[val_idx],
                                                  label_map=self.label_map,
-                                                 transform_img=self.transform_image(video=self.video),
-                                                 transform_vid=self.transformer_video(),
+                                                 transform=self.transform_image(train=False),
                                                  clips_dictionary=dictionary_clips)
             else:
                 val_dataset = None
@@ -530,7 +466,7 @@ class JPLStorage:
 
         return train_dataset, val_dataset
 
-    def get_unlabeled_dataset(self, train=True, video=False, dict_clips=None):
+    def get_unlabeled_dataset(self, train=True, video=False):
         """
         Get a data loader from unlabeled data.
         :return: A data loader containing unlabeled data
@@ -539,17 +475,15 @@ class JPLStorage:
         transform = self.transform_image(train=train)
         
         if video:
-            clip_names = self.get_unlabeled_image_names(dict_clips, video)
             image_paths = []
             dictionary_clips = {}
             train_meta = pd.read_feather(self.unlabeled_meta_path)
             for clip in train_meta.iterrows():
                 row = clip[1]
-                if row["id"] in clip_names:
-                    action_frames = [os.path.join(self.unlabeled_image_path, str(row['video_id'])) + '/' + str(i)+'.jpg'
-                                    for i in range(row['start_frame'], row['end_frame'])] 
-                    dictionary_clips[row["id"]] = action_frames
-                    image_paths.append(os.path.join(self.unlabeled_image_path, str(row["id"])))
+                action_frames = [os.path.join(self.unlabeled_image_path, str(i)+'.jpg')
+                                 for i in range(row['start_frame'], row['end_frame'])]
+                dictionary_clips[row["id"]] = action_frames
+                image_paths.append(os.path.join(self.unlabeled_image_path, str(row["id"])))
         else:
             image_names = self.get_unlabeled_image_names(None, video)
             
@@ -560,12 +494,11 @@ class JPLStorage:
             return None
         else:
             if self.video:
-                return HandleExceptionCustomVideoDataset(image_paths,
-                                          transform_img=self.transform_image(train=train, video=self.video),
-                                          transform_vid=self.transformer_video(),
+                return CustomVideoDataset(image_paths,
+                                          transform=transform,
                                           clips_dictionary=dictionary_clips)
             else:
-                return HandleExceptionCustomVideoDataset(image_paths,
+                return CustomImageDataset(image_paths,
                                           transform=transform)
 
     def get_evaluation_dataset(self, video=False):
@@ -581,8 +514,8 @@ class JPLStorage:
             test_meta = pd.read_feather(self.evaluation_meta_path)
             for clip in test_meta.iterrows():
                 row = clip[1]
-                action_frames = [os.path.join(self.evaluation_image_path, str(row['video_id'])) + '/' + str(i)+'.jpg'
-                                 for i in range(row['start_frame'], row['end_frame'])] 
+                action_frames = [os.path.join(self.evaluation_image_path, str(i)+'.jpg')
+                                 for i in range(row['start_frame'], row['end_frame'])]
                 dictionary_clips[row["id"]] = action_frames
                 image_paths.append(os.path.join(self.evaluation_image_path, str(row["id"])))
 
@@ -595,19 +528,16 @@ class JPLStorage:
             dictionary_clips = None
         
         if self.video:
-            return HandleExceptionCustomVideoDataset(image_paths,
-                                      transform_img=self.transform_image(train=False, video=self.video),
-                                      transform_vid=self.transformer_video(),
+            return CustomVideoDataset(image_paths,
+                                      transform=transform,
                                       clips_dictionary=dictionary_clips)
         else:
             return CustomImageDataset(image_paths,
                                       transform=transform)
         
-    def get_true_labels(self, split, mode, dict_clips=None,video=False):
+    def get_true_labels(self, split, mode):
         if mode == 'prod':
             return None
-
-        log.info(f"Path for feather {self.all_train_labels_path}")
         if split == 'train':
             df = pd.read_feather(self.all_train_labels_path)
         else:
@@ -616,17 +546,16 @@ class JPLStorage:
         # convert string labels to int labels
         mapped_label_col = df['class'].map(self.label_map)
         df['class'] = mapped_label_col
-
+        
         # turn Dataframe into a dict
         df = df.set_index('id')
         labels_dict = df.to_dict()['class']
 
         # get a list of corresponding labels
         if split == 'train':
-            image_names = self.get_unlabeled_image_names(dictionary_clips=dict_clips, video=video)
+            image_names = self.get_unlabeled_image_names()
         else:
-            image_names = self.get_evaluation_image_names(video=video)
-
+            image_names = self.get_evaluation_image_names()
         labels = [labels_dict[image_name] for image_name in image_names]
         return labels
 
@@ -649,13 +578,8 @@ class JPLRunner:
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
 
-        if self.video:
-            self.initial_model = torch.hub.load("facebookresearch/pytorchvideo", 
-                                            model='slowfast_r50', 
-                                            pretrained=True)
-        else:
-            self.initial_model = models.resnet50(pretrained=True)
-            self.initial_model.fc = torch.nn.Identity()
+        self.initial_model = models.resnet50(pretrained=True)
+        self.initial_model.fc = torch.nn.Identity()
 
         self.testing = testing
         self.mode = mode
@@ -711,8 +635,18 @@ class JPLRunner:
             self.run_checkpoints_base()
             self.run_checkpoints_adapt()
         except Exception as ex:
+            #exc_type, exc_obj, tb = sys.exc_info()
+            #f = tb.tb_frame
+            #lineno = tb.tb_lineno
+            #filename = f.f_code.co_filename
+            #linecache.checkcache(filename)
+            #line = linecache.getline(filename, lineno, f.f_globals)
             self.api.deactivate_session(self.api.session_token)
+
             logging.exception('EXCEPTION has occured during joint training:')
+            #logging.info('exception has occured during joint training:')
+            #logging.info(ex)
+            #logging.info('EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj))
 
     def run_checkpoints_base(self):
         log.info("Enter checkpoint")
@@ -724,15 +658,6 @@ class JPLRunner:
         self.update_jpl_information()
         for i in range(self.num_base_checkpoints):
             self.run_one_checkpoint("Adapt", i)
-
-    def _get_weighted_dist(self, vote_matrix, weights, classes):
-        weak_labels = []
-        for row in vote_matrix:
-            weak_label = np.zeros((len(classes),))
-            for i in range(len(row)):
-                weak_label[int(row[i])] += weights[i]
-            weak_labels.append(weak_label / weak_label.sum())
-        return weak_labels
 
     def run_one_checkpoint(self, phase, checkpoint_num):
         log.info('------------------------------------------------------------')
@@ -775,10 +700,22 @@ class JPLRunner:
         if checkpoint_num >= 4:
             """ For the last evaluation we used to start asking for custom labels after the first 2 checkpoints.
             Moreover we adopted randomActive learning for the first query. Do we want it?
+
+            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
+            self.request_labels(candidates)
             """
 
-            # Add all labeled data
-            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names
+            """ For the hackathon we only use RandomActiveLearning - bring it back
+
+            candidates = self.confidence_active_learning.find_candidates(available_budget, unlabeled_image_names)
+            """
+            # Pick candidates from the list
+            """ To consider: we directly query for all the available budget, we have the option 
+            of gradually ask new labels untile we exhaust the budget.
+            """
+            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
+            log.info(f"Candidates to query[0]: {candidates[0]}")
+            #log.info(f"NUMBER OF LABELED DATA: {len(labels)}")
             self.request_labels(candidates, self.video)
 
             if checkpoint_num == 6:                
@@ -789,13 +726,10 @@ class JPLRunner:
                 return self.api.skip_checkpoint()
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
-        #log.info(f"number training : {len(labeled_dataset.filepaths)}")
-        unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True, self.video, dict_clips=self.jpl_storage.dictionary_clips)
-        #log.info(f" number unlabeled_train_dataset: {len(unlabeled_train_dataset.filepaths)}")
-        unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False, self.video, dict_clips=self.jpl_storage.dictionary_clips)
-        #log.info(f"unlabeled_test_dataset: {len(unlabeled_test_dataset.filepaths)}")
-        unlabeled_train_labels = self.jpl_storage.get_true_labels('train', self.mode, dict_clips=self.jpl_storage.dictionary_clips, video=self.video)
-        #log.info(f"unlabeled_train_labels: {len(unlabeled_train_labels)}")
+        unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True, self.video)
+        unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False, self.video)
+        
+        unlabeled_train_labels = self.jpl_storage.get_true_labels('train', self.mode)
         
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),
@@ -813,136 +747,55 @@ class JPLRunner:
                     video_classification=self.video)
         task.set_initial_model(self.initial_model)
         controller = Controller(task, self.simple_run)
+
+        end_model = controller.train_end_model()
         
-        if self.video:
-            taglet_executor, taglets = controller.train_end_model()
-            labeled = task.get_labeled_train_data()
-            unlabeled_train = task.get_unlabeled_data(True) # augmentation is applied
-            unlabeled_test = task.get_unlabeled_data(False)
-            val = task.get_validation_data()
-
-            if unlabeled_test is not None:
-                log.info("Executing taglets on unlabeled data")
-                self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test)
-                log.info("Finished executing taglets on unlabeled data")
-
-                if task.unlabeled_train_labels is not None:
-                    log.info('Accuracies of each taglet on the unlabeled train data:')
-                    for i in range(len(taglets)):
-                        acc = np.sum(self.unlabeled_vote_matrix[:, i] == np.array(task.unlabeled_train_labels)) / len(task.unlabeled_train_labels)
-                        log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
-
-                # Combines taglets' votes into soft labels
-                if val is not None and len(val) >= len(task.classes) * 10:
-                    # Weight votes using development set
-                    weights = [taglet.evaluate(val) for taglet in taglets]
-                    log.info("Validation accuracies of each taglet:")
-                    for w, taglet in zip(weights, taglets):
-                        log.info("Module {} - acc {:.4f}".format(taglet.name, w))
-                else:
-                    # Weight all votes equally
-                    weights = [1.0] * len(taglets)
-                weak_labels = self._get_weighted_dist(self.unlabeled_vote_matrix, weights, task.classes)
-
-
-                if task.unlabeled_train_labels is not None:
-                    log.info('Accuracy of the labelmodel on the unlabeled train data:')
-                    predictions = np.asarray([np.argmax(label) for label in weak_labels])
-                    acc = np.sum(predictions == task.unlabeled_train_labels) / len(task.unlabeled_train_labels)
-                    log.info('Acc {:.4f}'.format(acc))
+        if self.vote_matrix_save_path is not None:
+            val_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
+            if val_dataset is not None:
+                val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=False)
+                val_image_names = [os.path.basename(image_path) for image_path in val_dataset.filepaths]
+                val_labels = [image_labels for _, image_labels in val_loader]
             else:
-                if val is not None and len(val) >= len(task.classes) * 10:
-                    # Weight votes using development set
-                    weights = [taglet.evaluate(val) for taglet in taglets]
-                    log.info("Validation accuracies of each taglet:")
-                    for w, taglet in zip(weights, taglets):
-                        log.info("Module {} - acc {:.4f}".format(taglet.name, w))
-                else:
-                    # Weight all votes equally
-                    weights = [1.0] * len(taglets)
+                val_image_names = None
+                val_labels = None
+            checkpoint_dict = {'val_images_names': val_image_names,
+                               'val_images_votes': val_vote_matrix,
+                               'val_images_labels': val_labels,
+                               'unlabeled_images_names': self.jpl_storage.get_unlabeled_image_names(),
+                               'unlabeled_images_votes': unlabeled_vote_matrix}
+            self.vote_matrix_dict[f'{phase} {checkpoint_num}'] = checkpoint_dict
+            with open(self.vote_matrix_save_path, 'wb') as f:
+                pickle.dump(self.vote_matrix_dict, f)
 
-            # Evaluate on test set
-            evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.video)    
+        evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.video)
+        outputs = end_model.predict(evaluation_dataset)
+        predictions = np.argmax(outputs, 1)
+        
+        test_labels = self.jpl_storage.get_true_labels('test', self.mode)
+        if test_labels is not None:
+            log.info('Accuracy of taglets on this checkpoint:')
+            acc = np.sum(predictions == test_labels) / len(test_labels)
+            log.info('Acc {:.4f}'.format(acc))
+        
+        prediction_names = []
+        for p in predictions:
+            prediction_names.append([k for k, v in self.jpl_storage.label_map.items() if v == p][0])
 
-            log.info("Executing taglets on eval data")
-            self.unlabeled_vote_matrix = taglet_executor.execute(evaluation_dataset)
-            log.info("Finished executing taglets on eval data")
+        predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(self.video), 'class': prediction_names}
 
-            log.info(f"Use weights of validation to weight labelers vote {weights}")
-            weak_labels = self._get_weighted_dist(self.unlabeled_vote_matrix, weights, task.classes)
-            predictions = np.asarray([np.argmax(label) for label in weak_labels])
+        self.submit_predictions(predictions_dict)
 
-            test_labels = self.jpl_storage.get_true_labels('test', self.mode, 
-                                                            dict_clips=self.jpl_storage.dictionary_clips, 
-                                                            video=self.video)
-            if test_labels is not None:        
-                log.info('Accuracy of Taglets on the eval data:')
-                acc = np.sum(predictions == test_labels) / len(test_labels)
-                log.info('Acc {:.4f}'.format(acc))
+        if unlabeled_test_dataset is not None:
+            outputs = end_model.predict(unlabeled_test_dataset)
+            confidences = np.max(outputs, 1)
+            candidates = np.argsort(confidences)
+            self.confidence_active_learning.set_candidates(candidates)
 
-            #log.info(f"Predictions with one taglet: {predictions}")
-            log.info(f"Length eval data: {len(evaluation_dataset.filepaths)}")
-
-            prediction_names = []
-            for p in predictions:
-                prediction_names.append([k for k, v in self.jpl_storage.label_map.items() if v == p][0])
-
-            #log.info(f"Predictions with one taglet: {prediction_names}, length: {len(prediction_names)}")
-            evaluate_on = self.jpl_storage.get_evaluation_image_names(self.video)
-            #log.info(f"Predictions with one taglet: {evaluate_on}, length: {len(evaluate_on)}")
-
-            predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(self.video), 'class': prediction_names}
-
-            self.submit_predictions(predictions_dict)
-
-        else:
-            end_model = controller.train_end_model()
-            if self.vote_matrix_save_path is not None:
-                val_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
-                if val_dataset is not None:
-                    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=False)
-                    val_image_names = [os.path.basename(image_path) for image_path in val_dataset.filepaths]
-                    val_labels = [image_labels for _, image_labels in val_loader]
-                else:
-                    val_image_names = None
-                    val_labels = None
-                checkpoint_dict = {'val_images_names': val_image_names,
-                                   'val_images_votes': val_vote_matrix,
-                                   'val_images_labels': val_labels,
-                                   'unlabeled_images_names': self.jpl_storage.get_unlabeled_image_names(),
-                                   'unlabeled_images_votes': unlabeled_vote_matrix}
-                self.vote_matrix_dict[f'{phase} {checkpoint_num}'] = checkpoint_dict
-                with open(self.vote_matrix_save_path, 'wb') as f:
-                    pickle.dump(self.vote_matrix_dict, f)
-
-            evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.video)
-            outputs = end_model.predict(evaluation_dataset)
-            predictions = np.argmax(outputs, 1)
-
-            test_labels = self.jpl_storage.get_true_labels('test', self.mode)
-            if test_labels is not None:
-                log.info('Accuracy of taglets on this checkpoint:')
-                acc = np.sum(predictions == test_labels) / len(test_labels)
-                log.info('Acc {:.4f}'.format(acc))
-
-            prediction_names = []
-            for p in predictions:
-                prediction_names.append([k for k, v in self.jpl_storage.label_map.items() if v == p][0])
-
-            predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(self.video), 'class': prediction_names}
-
-            self.submit_predictions(predictions_dict)
-
-            if unlabeled_test_dataset is not None:
-                outputs = end_model.predict(unlabeled_test_dataset)
-                confidences = np.max(outputs, 1)
-                candidates = np.argsort(confidences)
-                self.confidence_active_learning.set_candidates(candidates)
-
-            # update initial model
-            if checkpoint_num == 7:
-                self.initial_model = end_model.model
-                self.initial_model.fc = torch.nn.Identity()
+        # update initial model
+        if checkpoint_num == 7:
+            self.initial_model = end_model.model
+            self.initial_model.fc = torch.nn.Identity()
 
         log.info('{} Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                checkpoint_num,
@@ -1050,11 +903,11 @@ def main():
                         help="Option to choose whether to execute or not the entire trining pipeline")
     parser.add_argument("--folder",
                         type=str,
-                        default="external",# external, evaluation
+                        default="evaluation",# development
                         help="Option to choose the data folder")
     parser.add_argument("--batch_size",
                         type=int,
-                        default="4",
+                        default="32",
                         help="Universal batch size")
     args = parser.parse_args()
     
@@ -1071,7 +924,6 @@ def main():
         variables = setup_development()
     mode = args.mode
 
-    # Set Scads root path
     Scads.set_root_path(os.path.join(variables[2], 'external'))
     
     saved_api_response_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saved_api_response')

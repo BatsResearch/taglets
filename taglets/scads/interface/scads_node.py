@@ -57,36 +57,36 @@ class ScadsNode:
             return self.get_images()
 
     def get_clips(self):
-        q = "SELECT DISTINCT base_path, start_frame, end_frame, clip_id, video_id, real_label from clips " \
+        q = "SELECT DISTINCT base_path, start_frame, end_frame, clip_id, video_id from clips " \
             "JOIN nodes ON clips.node_id=nodes.id " \
             "WHERE nodes.id = " + str(self.node.id) + ";"
         results = self.session.connection().execute(q)
-        return [(x[0], x[1], x[2], x[-3], x[-2], x[-1]) for x in results]
+        return [(x[0], x[1], x[2]) for x in results]
 
     def get_clips_multiple(self, query):
         """
         :param nodes: list of nodes objects
         """
-        q = "SELECT DISTINCT base_path, start_frame, end_frame, clip_id, video_id, real_label from clips " \
+        q = "SELECT DISTINCT base_path, start_frame, end_frame, clip_id, video_id from clips " \
             "JOIN nodes ON clips.node_id=nodes.id " \
             "WHERE " + query + ";"
         results = self.session.connection().execute(q)
-        return [(x[0], x[1], x[2], x[-3], x[-2], x[-1]) for x in results]
+        return [(x[0], x[1], x[2]) for x in results]
 
     def get_clips_whitelist(self, whitelist):
-        # if whitelist is not None and len(whitelist) > 0:
-        #     q = "SELECT DISTINCT clips.base_path, start_frame, end_frame, clip_id, video_id, real_label from clips " \
-        #         "JOIN nodes ON clips.node_id = nodes.id " \
-        #         "JOIN datasets ON clips.dataset_id = datasets.id " \
-        #         "WHERE nodes.id = " + str(self.node.id) \
-        #         + " AND (datasets.path = '" + whitelist[0] + "'"
-        #     for path in whitelist[1:]:
-        #         q += " OR datasets.path = '" + path + "'"
-        #     q += ");"
-        #     results = self.session.connection().execute(q)
-        #     return [(x[0], x[1], x[2], x[-3], x[-2], x[-1]) for x in results]
-        # else:
-        return self.get_clips()
+        if whitelist is not None and len(whitelist) > 0:
+            q = "SELECT DISTINCT clips.base_path, start_frame, end_frame, clip_id, video_id from clips " \
+                "JOIN nodes ON clips.node_id = nodes.id " \
+                "JOIN datasets ON images.dataset_id = datasets.id " \
+                "WHERE nodes.id = " + str(self.node.id) \
+                + " AND (datasets.path = '" + whitelist[0] + "'"
+            for path in whitelist[1:]:
+                q += " OR datasets.path = '" + path + "'"
+            q += ");"
+            results = self.session.connection().execute(q)
+            return [(x[0], x[1], x[2]) for x in results]
+        else:
+            return self.get_clips()
 
     def get_neighbors(self):
         """
