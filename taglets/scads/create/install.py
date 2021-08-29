@@ -125,6 +125,10 @@ class VideoClassificationInstaller(DatasetInstaller):
         elif dataset.name == 'UCF101':
             list_words = re.findall('[A-Z][^A-Z]*', string)
             return [w.lower().strip() for w in list_words]
+        elif dataset.name == 'Kinetics400':
+            return [w.strip() for w in string.split('/')[-1].split('_') if len(w) > 2]
+        elif dataset.name == 'MomentsInTime':
+            return [w.strip() for w in string.split('_')]
 
     
     def get_data(self, dataset, session, root):
@@ -154,10 +158,11 @@ class VideoClassificationInstaller(DatasetInstaller):
                 
                 if label in label_to_node_id:
                     node_id = label_to_node_id[label]
+                    print(os.path.join(base_path, str(row['video_id'])))
                     clip = Clip(
                             clip_id=row['id'],
                             video_id=row['video_id'],
-                            base_path=base_path,
+                            base_path=os.path.join(base_path, str(row['video_id'])),
                             start_frame=row['start_frame'],
                             end_frame=row['end_frame'],
                             real_label=self.get_conceptnet_id(label).split('/')[-1],
@@ -175,7 +180,7 @@ class VideoClassificationInstaller(DatasetInstaller):
                         clip = Clip(
                                     clip_id=row['id'],
                                     video_id=row['video_id'],
-                                    base_path=base_path,
+                                    base_path=os.path.join(base_path, str(row['video_id'])),
                                     start_frame=row['start_frame'],
                                     end_frame=row['end_frame'],
                                     real_label=self.get_conceptnet_id(label).split('/')[-1],
@@ -203,7 +208,7 @@ class VideoClassificationInstaller(DatasetInstaller):
                             clip = Clip(
                                 clip_id=row['id'],
                                 video_id=row['video_id'],
-                                base_path=base_path,
+                                base_path=os.path.join(base_path, str(row['video_id'])),
                                 start_frame=row['start_frame'],
                                 end_frame=row['end_frame'],
                                 real_label=self.get_conceptnet_id(real).split('/')[-1],
@@ -352,7 +357,44 @@ class UCF101Installation(VideoClassificationInstaller):
                 return "/c/en/" + label_clean#label.lower().replace(" ", "_")#.replace("-", "_")
             else:
                 return "/c/en/" + label.lower()
+            
+class Kinetics400Installation(VideoClassificationInstaller):
+    def get_name(self):
+        return "Kinetics400"
+    def get_conceptnet_id(self, label):
+        exceptions = {'water_sliding': 'water_slide',
+              'playing_flute': 'play_flute',
+              'skiing_slalom': 'ski_slalom',
+              'bending_metal': 'bend_metal',
+              'dying_hair' : 'dye_hair',
+              'playing_recorder' : 'play_recorder',
+              'cooking_egg' : 'cook_egg',
+              'eating_watermelon': 'eat_watermelon',
+              'opening_bottle':'open_bottle',
+              'news_anchoring' : 'news_anchor'
+             }
+        if label in exceptions:
+            return "/c/en/" + exceptions[label]
+        else:
+            label_clean = label.replace('(','').replace(')','').replace("''",'').lower()
+            if len(label_clean) != 0:
+                return "/c/en/" + label_clean
+            else:
+                return "/c/en/" + label.lower()
 
+class MomentsInTimeInstallation(VideoClassificationInstaller):
+    def get_name(self):
+        return "MomentsInTime"
+    def get_conceptnet_id(self, label):
+        exceptions = {}
+        if label in exceptions:
+            return "/c/en/" + exceptions[label]
+        else:
+            label_clean = label.replace('(','').replace(')','').replace("''",'').lower()
+            if len(label_clean) != 0:
+                return "/c/en/" + label_clean
+            else:
+                return "/c/en/" + label.lower()
 
 class Installer:
     def __init__(self, path_to_database):
@@ -380,6 +422,8 @@ if __name__ == "__main__":
     parser.add_argument("--domainnet", nargs="+")
     parser.add_argument("--hmdb", type=str, help="Path to hmdb directory from the root")
     parser.add_argument("--ucf101", type=str, help="Path to ufc101 directory from the root")
+    parser.add_argument("--kinetics400", type=str, help="Path to kinetics directory from the root")
+    parser.add_argument("--moments_in_time", type=str, help="Path to mit directory from the root")
     parser.add_argument("--msl_curiosity", type=str, help="Path to msl_curiosity directory from the root")
     parser.add_argument("--mars_surface_imgs", type=str, help="Path to mars_surface_imgs directory from the root")
     
@@ -432,6 +476,16 @@ if __name__ == "__main__":
         if not args.root:
             raise RuntimeError("Must specify root directory.")
         installer.install_dataset(args.root, args.ucf101, UCF101Installation())
+        
+    if args.kinetics400:
+        if not args.root:
+            raise RuntimeError("Must specify root directory.")
+        installer.install_dataset(args.root, args.kinetics400, Kinetics400Installation())
+    
+    if args.moments_in_time:
+        if not args.root:
+            raise RuntimeError("Must specify root directory.")
+        installer.install_dataset(args.root, args.moments_in_time, MomentsInTimeInstallation())
 
     if args.msl_curiosity:
         if not args.root:

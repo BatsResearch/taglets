@@ -13,7 +13,7 @@ accelerator = Accelerator()
 from .data import SoftLabelDataset
 from .labelmodel import UnweightedVote, WeightedVote, AMCLWeightedVote
 from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
-    RandomModule, DannModule
+    RandomModule, DannModule, BaselineVideoModule, SvcVideoModule, FineTuneVideoModule, TransferVideoModule
 from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
 ####################################################################
@@ -33,6 +33,7 @@ class AccelerateHandler(StreamHandler):
         super().__init__(stream)
     
     def emit(self, record):
+        #if accelerator.is_local_main_process:
         super().emit(record)
 
 
@@ -40,7 +41,6 @@ stream_handler = AccelerateHandler(sys.stdout)
 stream_handler.setLevel(logging.INFO)
 stream_handler.setFormatter(formatter)
 logger_.addHandler(stream_handler)
-
 
 ####################################################################
 # End of logging configuration
@@ -71,7 +71,7 @@ class Controller:
         unlabeled_train = self.task.get_unlabeled_data(True) # augmentation is applied
         val = self.task.get_validation_data()
 
-        unlabeled_images_labels = []
+        #unlabeled_images_labels = []
         if unlabeled_test is not None:
             # Creates taglets
             modules = self._get_taglets_modules()
@@ -94,102 +94,133 @@ class Controller:
     
             taglet_executor = TagletExecutor()
             taglet_executor.set_taglets(taglets)
-    
-            # Executes taglets
-            log.info("Executing taglets on unlabeled data")
-            self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test)
-            log.info("Finished executing taglets on unlabeled data")
+        
+            if self.video_classification:
+                return taglet_executor, taglets
             
-            if self.task.unlabeled_train_labels is not None:
-                log.info('Accuracies of each taglet on the unlabeled train data:')
-                for i in range(len(taglets)):
-                    acc = np.sum(np.argmax(self.unlabeled_vote_matrix[i], 1) == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
-                    log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
-
-            # Train a labelmodel and get weak labels
-            if val is not None:
-                log.info("Using AMCLWeightedVote as the labelmodel")
-
-                log.info("Executing taglets on val data")
-                self.val_vote_matrix = taglet_executor.execute(val)
-                log.info("Finished executing taglets on val data")
-
-                log.info("Training labelmodel")
-                if accelerator.is_local_main_process:
-                    val_loader = DataLoader(val, batch_size=1, shuffle=False)
-                    val_labels = [image_labels for _, image_labels in val_loader]
-
-                    # sample unlabeled data
-                    indices = np.arange(self.unlabeled_vote_matrix.shape[1])
-                    np.random.shuffle(indices)
-
-                    lm = AMCLWeightedVote(len(self.task.classes))
-                    lm.train(self.val_vote_matrix, val_labels, self.unlabeled_vote_matrix[:, indices[:1000]])
-                    weak_labels = lm.get_weak_labels(self.unlabeled_vote_matrix)
-
-                    with open('tmp_labelmodel_output.pkl', 'wb') as f:
-                        pickle.dump(weak_labels, f)
-                accelerator.wait_for_everyone()
-                with open('tmp_labelmodel_output.pkl', 'rb') as f:
-                    weak_labels = pickle.load(f)
-                accelerator.wait_for_everyone()
-                if accelerator.is_local_main_process:
-                    os.remove('tmp_labelmodel_output.pkl')
-                log.info("Finished training labelmodel")
-                
-                # # Weight votes using development set
-                # log.info("Using WeightedVote as the labelmodel")
-                # weights = [taglet.evaluate(val) for taglet in taglets]
-                # log.info("Validation accuracies of each taglet:")
-                # for w, taglet in zip(weights, taglets):
-                #     log.info("Module {} - acc {:.4f}".format(taglet.name, w))
-                #
-                # lm = WeightedVote(len(self.task.classes))
-                # weak_labels = lm.get_weak_labels(self.unlabeled_vote_matrix, weights)
             else:
-                # Weight all votes equally
-                log.info("Using UnweightedVote as the labelmodel")
-                lm = UnweightedVote(len(self.task.classes))
-                weak_labels = lm.get_weak_labels(self.unlabeled_vote_matrix)
+                # Executes taglets
+                log.info("Executing taglets on unlabeled data")
+                self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test)
+                log.info("Finished executing taglets on unlabeled data")
+
+                if self.task.unlabeled_train_labels is not None:
+                    log.info('Accuracies of each taglet on the unlabeled train data:')
+                    for i in range(len(taglets)):
+                        acc = np.sum(np.argmax(self.unlabeled_vote_matrix[i], 1) == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
+                        log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
+
+                # Train a labelmodel and get weak labels
+                if val is not None:
+                    log.info("Using AMCLWeightedVote as the labelmodel")
+
+                    log.info("Executing taglets on val data")
+                    self.val_vote_matrix = taglet_executor.execute(val)
+                    log.info("Finished executing taglets on val data")
+
+                    log.info("Training labelmodel")
+                    if accelerator.is_local_main_process:
+                        val_loader = DataLoader(val, batch_size=1, shuffle=False)
+                        val_labels = [image_labels for _, image_labels in val_loader]
+
+                        # sample unlabeled data
+                        indices = np.arange(self.unlabeled_vote_matrix.shape[1])
+                        np.random.shuffle(indices)
+
+                        lm = AMCLWeightedVote(len(self.task.classes))
+                        lm.train(self.val_vote_matrix, val_labels, self.unlabeled_vote_matrix[:, indices[:1000]])
+                        weak_labels = lm.get_weak_labels(self.unlabeled_vote_matrix)
+
+                        with open('tmp_labelmodel_output.pkl', 'wb') as f:
+                            pickle.dump(weak_labels, f)
+                    accelerator.wait_for_everyone()
+                    with open('tmp_labelmodel_output.pkl', 'rb') as f:
+                        weak_labels = pickle.load(f)
+                    accelerator.wait_for_everyone()
+                    if accelerator.is_local_main_process:
+                        os.remove('tmp_labelmodel_output.pkl')
+                    log.info("Finished training labelmodel")
+                
+                    # # Weight votes using development set
+                    # log.info("Using WeightedVote as the labelmodel")
+                    # weights = [taglet.evaluate(val) for taglet in taglets]
+                    # log.info("Validation accuracies of each taglet:")
+                    # for w, taglet in zip(weights, taglets):
+                    #     log.info("Module {} - acc {:.4f}".format(taglet.name, w))
+                    #
+                    # lm = WeightedVote(len(self.task.classes))
+                    # weak_labels = lm.get_weak_labels(self.unlabeled_vote_matrix, weights)
+                else:
+                    # Weight all votes equally
+                    log.info("Using UnweightedVote as the labelmodel")
+                    lm = UnweightedVote(len(self.task.classes))
+                    weak_labels = lm.get_weak_labels(self.unlabeled_vote_matrix)
             
-            if self.task.unlabeled_train_labels is not None:
-                log.info('Accuracy of the labelmodel on the unlabeled train data:')
-                predictions = np.asarray([np.argmax(label) for label in weak_labels])
+
+                if self.task.unlabeled_train_labels is not None:
+                    log.info('Accuracy of the labelmodel on the unlabeled train data:')
+                    predictions = np.asarray([np.argmax(label) for label in weak_labels])
+                    acc = np.sum(predictions == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
+                    log.info('Acc {:.4f}'.format(acc))
+
+                for label in weak_labels:
+                    unlabeled_images_labels.append(torch.FloatTensor(label))
+
+        if self.video_classification:
+            # Creates taglets
+            modules = self._get_taglets_modules()
+            taglets = []
+            for cls in modules:
+                try:
+                    log.info("Initializing %s module", cls.__name__)
+                    module = cls(task=self.task)
+                    log.info("Training %s module", cls.__name__)
+                    module.train_taglets(labeled, val, unlabeled_train)
+                    log.info("Finished training %s module", cls.__name__)
+
+                    # Collects taglets
+                    taglets.extend(module.get_valid_taglets())
+                except Exception:
+                    log.error("Exception raised in %s module", cls.__name__)
+                    for line in traceback.format_exc().splitlines():
+                        log.error(line)
+                    log.error("Continuing execution")
+    
+            taglet_executor = TagletExecutor()
+            taglet_executor.set_taglets(taglets)
+            return taglet_executor, taglets
+        
+        else:
+            # Trains end model
+            log.info("Training end model")
+
+            end_model_train_data = self._combine_soft_labels(unlabeled_images_labels,
+                                                             unlabeled_train,
+                                                             self.task.get_labeled_train_data())
+            if self.simple_run:
+                self.end_model = RandomEndModel(self.task)
+            elif self.task.video_classification:
+                self.end_model = VideoEndModel(self.task)
+            else:
+                self.end_model = ImageEndModel(self.task)
+            self.end_model.train(end_model_train_data, val)
+            log.info("Finished training end model")
+
+            if self.task.unlabeled_train_labels is not None and unlabeled_test is not None:
+                log.info('Accuracy of the end model on the unlabeled train data:')
+                outputs = self.end_model.predict(unlabeled_test)
+                predictions = np.argmax(outputs, 1)
                 acc = np.sum(predictions == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
                 log.info('Acc {:.4f}'.format(acc))
-            
-            for label in weak_labels:
-                unlabeled_images_labels.append(torch.FloatTensor(label))
 
-        # Trains end model
-        log.info("Training end model")
-
-        end_model_train_data = self._combine_soft_labels(unlabeled_images_labels,
-                                                         unlabeled_train,
-                                                         self.task.get_labeled_train_data())
-        if self.simple_run:
-            self.end_model = RandomEndModel(self.task)
-        elif self.task.video_classification:
-            self.end_model = VideoEndModel(self.task)
-        else:
-            self.end_model = ImageEndModel(self.task)
-        self.end_model.train(end_model_train_data, val)
-        log.info("Finished training end model")
-
-        if self.task.unlabeled_train_labels is not None and unlabeled_test is not None:
-            log.info('Accuracy of the end model on the unlabeled train data:')
-            outputs = self.end_model.predict(unlabeled_test)
-            predictions = np.argmax(outputs, 1)
-            acc = np.sum(predictions == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
-            log.info('Acc {:.4f}'.format(acc))
-        
-        return self.end_model
+            return self.end_model
 
     def _get_taglets_modules(self):
         if self.simple_run:
              return [RandomModule]
         elif self.task.video_classification:
-             return [NaiveVideoModule]
+            
+            return  [TransferVideoModule]#[FineTuneVideoModule, SvcVideoModule, BaselineVideoModule, TransferVideoModule]#
         else:
             if self.task.scads_path is not None:
                 return [MultiTaskModule,
@@ -216,6 +247,16 @@ class Controller:
             end_model_train_data = ConcatDataset([new_labeled_dataset, new_unlabeled_dataset])
 
         return end_model_train_data
+
+
+    def _get_weighted_dist(self, vote_matrix, weights):
+        weak_labels = []
+        for row in vote_matrix:
+            weak_label = np.zeros((len(self.task.classes),))
+            for i in range(len(row)):
+                weak_label[int(row[i])] += weights[i]
+            weak_labels.append(weak_label / weak_label.sum())
+        return weak_labels
 
     def _to_soft_one_hot(self, l):
         soh = [0.1 / len(self.task.classes)] * len(self.task.classes)

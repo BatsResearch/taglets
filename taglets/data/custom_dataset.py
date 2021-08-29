@@ -1,8 +1,10 @@
 import os
+import numpy as np
 
-from torch.utils.data import Dataset
-from PIL import Image
 import torch
+from PIL import Image
+from torch.utils.data import Dataset
+
 
 
 class CustomImageDataset(Dataset):
@@ -40,14 +42,14 @@ class CustomImageDataset(Dataset):
 
     def __len__(self):
         return len(self.filepaths)
-    
 
 class CustomVideoDataset(Dataset):
     """
         A custom dataset used to create dataloaders.
         """
     
-    def __init__(self, filepaths, labels=None, label_map=None, transform=None, clips_dictionary=None):
+    def __init__(self, filepaths, labels=None, label_map=None, 
+                transform_img=None, transform_vid=None, clips_dictionary=None):
         """
         Create a new CustomVideoDataset.
 
@@ -60,34 +62,50 @@ class CustomVideoDataset(Dataset):
         self.filepaths = filepaths
         self.labels = labels
         self.label_map = label_map
-        self.transform = transform
+        self.transform_img = transform_img
+        self.transform_vid = transform_vid
         self.clips_dictionary = clips_dictionary
     
     def __getitem__(self, index):
         clip_id = int(os.path.basename(self.filepaths[index]))  # chech what path you have/want
-        frames_paths = self.clips_dictionary[clip_id]
-        # print(f"FRAMES list[:2]: {frames_paths[:2]} and number of frames {len(frames_paths)}")
-        
+        frames_paths = self.clips_dictionary[str(clip_id)]
+
         frames = []
-        for f in frames_paths[:10]:  # get same size clips - random pick for eval
-            frame = Image.open(f).convert('RGB')
-            if self.transform is not None:  # BE CAREFUL TRANSFORMATION MIGHT NEED TO CHANGE FOR VIDEO EVAL!!!!!
-                frame = self.transform(frame)
+        for f in frames_paths:
+            try:
+                frame = Image.open(f).convert('RGB')
+            except Exception as e:
+                print(e)
+                continue
+            
+            frame = self.transform_img(frame)
             frames.append(frame)
         
-        img = torch.stack(frames)  # need to be of the same size!
+        img = torch.stack(frames)  
+        img = torch.transpose(img, 0, 1) 
+        video_data = {'video': img}
+        img = self.transform_vid(video_data)
         
         if self.labels is not None:
             if self.label_map is not None:
                 label = torch.tensor(self.label_map[(self.labels[index])])
+                
             else:
                 label = torch.tensor(int(self.labels[index]))
-            return img, label
+            return img, label#, clip_id
         else:
             return img
     
     def __len__(self):
         return len(self.filepaths)
+
+class HandleExceptionCustomVideoDataset(CustomVideoDataset):
+    __init__ = CustomVideoDataset.__init__
+    def __getitem__(self, index):
+        try: 
+            return super(HandleExceptionCustomVideoDataset, self).__getitem__(index)
+        except Exception as e:
+            print(e)
 
 
 class SoftLabelDataset(Dataset):

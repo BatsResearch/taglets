@@ -1,1 +1,1 @@
-from .custom_dataset import CustomImageDataset, CustomVideoDataset, SoftLabelDataset
+from .custom_dataset import CustomImageDataset, CustomVideoDataset, SoftLabelDataset, HandleExceptionCustomVideoDataset
