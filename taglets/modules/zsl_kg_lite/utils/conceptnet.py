@@ -126,8 +126,7 @@ def query_conceptnet(output_path, concept_syn, database_path, n=2):
         nodes.extend(x)
 
     # create directory if not present
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
+    os.makedirs(output_path, exist_ok=True)
     
     # copy conceptnet path to output dir and save as syns.json
     syns_path = os.path.join(output_path, 'syns.json')

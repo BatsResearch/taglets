@@ -1,5 +1,4 @@
 import os
-import random
 import torch
 import logging
 import numpy as np
@@ -9,9 +8,7 @@ from accelerate import Accelerator
 accelerator = Accelerator()
 
 from .module import Module
-from ..data.custom_dataset import CustomImageDataset
-from ..pipeline import Cache, ImageTaglet
-from ..scads import Scads, ScadsEmbedding
+from ..pipeline import ImageTagletWithAuxData
 
 log = logging.getLogger(__name__)
 
@@ -62,23 +59,19 @@ class MultiTaskModule(Module):
         self.taglets = [MultiTaskTaglet(task)]
 
 
-class MultiTaskTaglet(ImageTaglet):
+class MultiTaskTaglet(ImageTagletWithAuxData):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'multitask'
-        self.num_epochs = 50 if not os.environ.get("CI") else 5
+        self.num_epochs = 8 if not os.environ.get("CI") else 5
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
             self.save_dir = os.path.join('trained_models', self.name)
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
+        os.makedirs(self.save_dir, exist_ok=True)
         self.source_data = None
-
-        self.img_per_related_class = 600 if not os.environ.get("CI") else 1
-        self.num_related_class = 5
         
-        self.batch_size = self.batch_size // 2 # This module uses more GPU memory than other modules
+        self.batch_size = self.batch_size // 2
 
     def transform_image(self, train=True):
         """
@@ -102,59 +95,6 @@ class MultiTaskTaglet(ImageTaglet):
                 transforms.Normalize(mean=data_mean, std=data_std)
             ])
 
-    def _get_scads_data(self):
-        data = Cache.get("scads", self.task.classes)
-        if data is not None:
-            image_paths, image_labels, all_related_class = data
-        else:
-            root_path = Scads.get_root_path()
-            Scads.open(self.task.scads_path)
-            ScadsEmbedding.load(self.task.scads_embedding_path)
-            image_paths = []
-            image_labels = []
-            visited = set()
-
-            def get_images(node, label):
-                if node.get_conceptnet_id() not in visited:
-                    visited.add(node.get_conceptnet_id())
-                    images = node.get_images_whitelist(self.task.whitelist)
-                    if len(images) < self.img_per_related_class:
-                        return False
-                    images = random.sample(images, self.img_per_related_class)
-                    images = [os.path.join(root_path, image) for image in images]
-                    image_paths.extend(images)
-                    image_labels.extend([label] * len(images))
-                    log.debug("Source class found: {}".format(node.get_conceptnet_id()))
-                    return True
-                return False
-
-            all_related_class = 0
-            for conceptnet_id in self.task.classes:
-                cur_related_class = 0
-                target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
-                if get_images(target_node, all_related_class):
-                    cur_related_class += 1
-                    all_related_class += 1
-
-                neighbors = ScadsEmbedding.get_related_nodes(target_node, self.num_related_class * 100)
-                for neighbor in neighbors:
-                    if get_images(neighbor, all_related_class):
-                        cur_related_class += 1
-                        all_related_class += 1
-                        if cur_related_class >= self.num_related_class:
-                            break
-
-            Scads.close()
-            Cache.set('scads', self.task.classes,
-                      (image_paths, image_labels, all_related_class))
-
-        transform = self.transform_image(train=True)
-        train_data = CustomImageDataset(image_paths,
-                                        labels=image_labels,
-                                        transform=transform)
-
-        return train_data, all_related_class
-
     def train(self, train_data, val_data, unlabeled_data=None):
         # Get Scads data and set up model
         self.source_data, num_classes = self._get_scads_data()
@@ -173,25 +113,32 @@ class MultiTaskTaglet(ImageTaglet):
             if param.requires_grad:
                 params_to_update.append(param)
         self._params_to_update = params_to_update
-        self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+        self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.003, momentum=0.9)
+        self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[4, 6], gamma=0.1)
+        
+        if len(train_data) < 1024:
+            num_duplicates = (1024 // len(train_data)) + 1
+            train_data = torch.utils.data.ConcatDataset([train_data] * num_duplicates)
         
         super(MultiTaskTaglet, self).train(train_data, val_data, unlabeled_data)
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):
         self.source_data_loader = self._get_dataloader(data=self.source_data, shuffle=True)
-
-        old_batch_size = self.batch_size
-        self.batch_size = max(int(old_batch_size/8), 8)
         super(MultiTaskTaglet, self)._do_train(train_data, val_data, unlabeled_data)
-        self.batch_size = old_batch_size
 
     def _train_epoch(self, train_data_loader, unlabeled_train_loader=None):
         self.model.train()
         running_loss = 0
         running_acc = 0
         total_len = 0
-        for source_batch, target_batch in zip(self.source_data_loader, train_data_loader):
+        data_iter = iter(train_data_loader)
+        for source_batch in self.source_data_loader:
+            try:
+                target_batch = next(data_iter)
+            except StopIteration:
+                data_iter = iter(train_data_loader)
+                target_batch = next(data_iter)
+
             source_inputs, source_labels = source_batch
             target_inputs, target_labels = target_batch
 

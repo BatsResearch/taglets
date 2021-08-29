@@ -7,6 +7,11 @@ import numpy as np
 from .trainable import ImageTrainable, VideoTrainable
 from ..scads import Scads, ScadsEmbedding
 from ..pipeline import Cache
+from ..data.custom_dataset import CustomImageDataset
+
+from .trainable import ImageTrainable, VideoTrainable
+from ..scads import Scads, ScadsEmbedding
+from ..pipeline import Cache
 from ..data.custom_dataset import CustomVideoDataset, HandleExceptionCustomVideoDataset
 
 log = logging.getLogger(__name__)
@@ -21,10 +26,14 @@ class TagletMixin:
         """
         
         outputs = self.predict(unlabeled_data)
-        if self.name == 'svc-video':
+        if self.video_classification:
+            if self.name == 'svc-video':
+                return outputs
+            return np.argmax(outputs, 1)
+        else:
+            if isinstance(outputs, tuple):
+                outputs, _ = outputs
             return outputs
-        
-        return np.argmax(outputs, 1)
 
 class AuxDataMixin:
     def __init__(self, task):
@@ -33,7 +42,7 @@ class AuxDataMixin:
         if os.environ.get("CI"):
             self.num_related_class = 1
         else:
-            self.num_related_class = 10 if len(self.task.classes) < 100 else (5 if len(self.task.classes) < 300 else 3)
+            self.num_related_class = 5 if len(self.task.classes) < 100 else (3 if len(self.task.classes) < 300 else 1)
     
     def _get_scads_data(self):
         data = Cache.get("scads", self.task.classes)
@@ -95,6 +104,7 @@ class AuxDataMixin:
                                            transform=transform)
     
         return train_dataset, all_related_class
+
 
 class VideoAuxDataMixin(AuxDataMixin):
     def __init__(self, task):
@@ -250,6 +260,12 @@ class VideoAuxDataMixin(AuxDataMixin):
 class ImageTaglet(ImageTrainable, TagletMixin):
     """
     A trainable model that produces votes for unlabeled images
+    """
+    
+    
+class ImageTagletWithAuxData(AuxDataMixin, TagletMixin, ImageTrainable):
+    """
+    A trainable model that produces votes for unlabeled images and uses ScadsEmbedding to get auxiliary data
     """
 
 class ImageTagletWithAuxData(AuxDataMixin, TagletMixin, ImageTrainable):

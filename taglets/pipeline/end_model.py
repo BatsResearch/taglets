@@ -23,8 +23,7 @@ class ImageEndModel(ImageTrainable):
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
             self.save_dir = os.path.join('trained_models', self.name)
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
+        os.makedirs(self.save_dir, exist_ok=True)
         self.criterion = self.soft_cross_entropy
 
         params_to_update = []
@@ -34,6 +33,16 @@ class ImageEndModel(ImageTrainable):
         self._params_to_update = params_to_update
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+
+    def train(self, train_data, val_data, unlabeled_data=None):
+        if len(train_data) > 200000:
+            self.num_epochs = 10
+            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=5, gamma=0.1)
+        elif len(train_data) > 80000:
+            self.num_epochs = 20
+            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.1)
+    
+        super().train(train_data, val_data, unlabeled_data)
 
     @staticmethod
     def soft_cross_entropy(outputs, target):

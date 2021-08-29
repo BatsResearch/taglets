@@ -25,8 +25,7 @@ class FineTuneTaglet(ImageTaglet):
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
             self.save_dir = os.path.join('trained_models', self.name)
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
+        os.makedirs(self.save_dir, exist_ok=True)
 
         # Parameters needed to be updated based on freezing layer
         params_to_update = []
@@ -37,3 +36,12 @@ class FineTuneTaglet(ImageTaglet):
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
+    def train(self, train_data, val_data, unlabeled_data=None):
+        if len(train_data) > 200000:
+            self.num_epochs = 10
+            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=5, gamma=0.1)
+        elif len(train_data) > 80000:
+            self.num_epochs = 20
+            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.1)
+    
+        super().train(train_data, val_data, unlabeled_data)

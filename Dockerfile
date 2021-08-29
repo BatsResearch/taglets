@@ -62,5 +62,5 @@ ENV TORCH_HOME=/tmp
 
 WORKDIR /tmp
 
-CMD ["taglets"]
+CMD bash run_jpl.sh
 

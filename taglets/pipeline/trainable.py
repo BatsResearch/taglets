@@ -237,9 +237,11 @@ class Trainable:
         pred_classifier = self._get_pred_classifier()
         pred_classifier.eval()
         
-        #log.info(f"Data dataLoader {data.filepaths}")
-        data_loader = self._get_dataloader(data, False)
-        dataset_len = len(data_loader.dataset)
+        if self.video_classification:
+            data_loader = self._get_dataloader(data, False)
+        else:
+            data_loader = self._get_dataloader(data, False, batch_size=128)
+        dataset_len = len(data_loader.dataset)  
         
         accelerator.wait_for_everyone()
         self.model = accelerator.prepare(self.model)

@@ -1,11 +1,15 @@
 import os
 import sys
+import datetime
 import time
 import logging
 import argparse
 import json
 import requests
+import pickle
 from pathlib import Path
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 from accelerate import Accelerator
 accelerator = Accelerator()
@@ -35,6 +39,24 @@ if gpu_list is not None and gpu_list != "all":
 log = logging.getLogger(__name__)
 
 
+DEFAULT_TIMEOUT = 10 # seconds
+
+
+class TimeoutHTTPAdapter(HTTPAdapter):
+    def __init__(self, *args, **kwargs):
+        self.timeout = DEFAULT_TIMEOUT
+        if "timeout" in kwargs:
+            self.timeout = kwargs["timeout"]
+            del kwargs["timeout"]
+        super().__init__(*args, **kwargs)
+
+    def send(self, request, **kwargs):
+        timeout = kwargs.get("timeout")
+        if timeout is None:
+            kwargs["timeout"] = self.timeout
+        return super().send(request, **kwargs)
+
+
 class JPL:
     """
     A class to interact with JPL-like APIs.
@@ -50,6 +72,16 @@ class JPL:
         self.session_token = ''
         self.data_type = dataset_type
         self.saved_api_response_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saved_api_response')
+        
+        retry_strategy = Retry(
+            total=10,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504]
+        )
+        adapter = TimeoutHTTPAdapter(max_retries=retry_strategy)
+        self.session = requests.Session()
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
 
     def get_available_tasks(self, problem_type):
         """
@@ -59,12 +91,12 @@ class JPL:
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret
                    }
-        r = requests.get(self.url + "/list_tasks", headers=headers)
+        r = self.session.get(self.url + "/list_tasks", headers=headers)
         task_list = r.json()['tasks']
 
         subset_tasks = []
         for _task in task_list:
-            r = requests.get(self.url+"/task_metadata/"+_task, headers=headers)
+            r = self.session.get(self.url+"/task_metadata/"+_task, headers=headers)
             task_metadata = r.json()
             if task_metadata['task_metadata']['problem_type'] == problem_type:
                 subset_tasks.append(_task)
@@ -79,7 +111,7 @@ class JPL:
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret}
         
-        r = requests.get(self.url + "/task_metadata/" + task_name, headers=headers)
+        r = self.session.get(self.url + "/task_metadata/" + task_name, headers=headers)
         return r.json()['task_metadata']
 
     def create_session(self, task_name):
@@ -97,6 +129,20 @@ class JPL:
         session_token = response['session_token']
         self.session_token = session_token
 
+    def skip_checkpoint(self):
+        """ Skip checkpoint.
+
+        :return: session status after skipping checkpoint
+        """
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret,
+                   'session_token': self.session_token}
+        self.get_only_once("skip_checkpoint", headers)
+        # if 'Session_Status' in r.json():
+        #     return r.json()['Session_Status']
+        # else:
+        #     return {}
+
 
     def get_session_status(self):
         """
@@ -106,40 +152,42 @@ class JPL:
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
-        r = requests.get(self.url + "/session_status", headers=headers)
+        r = self.session.get(self.url + "/session_status", headers=headers)
         if 'Session_Status' in r.json():
             return r.json()['Session_Status']
         else:
             return {}
 
-    def get_initial_seed_labels(self, video=False):
-        """
-        Get seed labels.
-        :return: A list of lists with name and label e.g., ['2', '1.png'], ['7', '2.png'], etc.
-        """
 
-        log.info('Request seed labels.')
-        headers = {'user_secret': self.team_secret,
-                   'govteam_secret': self.gov_team_secret,
-                   'session_token': self.session_token}
-        log.debug(f"HEADERS: {headers}")
-        response = self.get_only_once("seed_labels", headers)
-        labels = response['Labels']
+#     def get_initial_seed_labels(self, video=False):
+#         """
+#         Get seed labels.
+#         :return: A list of lists with name and label e.g., ['2', '1.png'], ['7', '2.png'], etc.
+#         """
 
-        if video:
-            seed_labels = []
-            dictionary_clips = {}
-            for clip in labels:
-                action_frames = [str(clip['video_id']) + '/' + str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'] + 1)]
-                dictionary_clips[clip["id"]] = action_frames
-                seed_labels.append([clip["class"], clip["id"]])
-            return seed_labels, dictionary_clips
+#         log.info('Request seed labels.')
+#         headers = {'user_secret': self.team_secret,
+#                    'govteam_secret': self.gov_team_secret,
+#                    'session_token': self.session_token}
+#         log.debug(f"HEADERS: {headers}")
+#         response = self.get_only_once("seed_labels", headers)
+#         labels = response['Labels']
 
-        else:
-            seed_labels = []
-            for image in labels:
-                seed_labels.append([image["class"], image["id"]])
-            return seed_labels, None
+#         if video:
+#             seed_labels = []
+#             dictionary_clips = {}
+#             for clip in labels:
+#                 action_frames = [str(clip['video_id']) + '/' + str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'] + 1)]
+#                 dictionary_clips[clip["id"]] = action_frames
+#                 seed_labels.append([clip["class"], clip["id"]])
+#             return seed_labels, dictionary_clips
+
+#         else:
+#             seed_labels = []
+#             for image in labels:
+#                 seed_labels.append([image["class"], image["id"]])
+#             return seed_labels, None
+
 
     def deactivate_session(self, deactivate_session):
         if accelerator.is_local_main_process:
@@ -147,11 +195,11 @@ class JPL:
                                       'govteam_secret': self.gov_team_secret,
                                       'session_token': self.session_token}
     
-            r = requests.post(self.url + "/deactivate_session",
+            r = self.session.post(self.url + "/deactivate_session",
                               json={'session_token': deactivate_session},
                               headers=headers_active_session)
 
-    def request_label(self, query, video=False):
+    def request_label(self, query=None, video=False):
         """
         Get labels of requested examples.
 
@@ -169,13 +217,25 @@ class JPL:
         For example:
          [['7','56392.png'], ['8','3211.png'], ['4','19952.png']]
         """
-        log.debug(f"Query for new labels: {type(query['example_ids'][0])}")
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
-        response = self.post_only_once("query_labels", headers, query)
-        labels = response['Labels']
-        log.debug(f"NUM OF NEW RAW RETRIEVED LABELS: {len(labels)}")
+        log.info(f'Headers: {headers}')
+        if query is None:
+            log.info('Requesting seed labels...')
+            response = self.get_only_once("seed_labels", headers)
+            labels = response['Labels']
+        else:
+            log.info('Requesting labels...')
+            labels = []
+            for i in range(0, len(query['example_ids']), 10000):
+                batched_query = {'example_ids': query['example_ids'][i: i+10000]}
+                log.info(f'Length of batched query {len(batched_query["example_ids"])}')
+                log.info(f'Batched query ids {batched_query["example_ids"]}')
+                response = self.post_only_once("query_labels", headers, batched_query)
+                batched_labels = response['Labels']
+                labels = labels + batched_labels
+        log.info(f"Num of new raw retrieved labels: {len(labels)}")
 
         if video:
             labels_list = []
@@ -210,14 +270,14 @@ class JPL:
     def deactivate_all_sessions(self):
         headers_session = {'user_secret': self.team_secret,
                            'govteam_secret': self.gov_team_secret}
-        r = requests.get(self.url + "/list_active_sessions", headers=headers_session)
+        r = self.session.get(self.url + "/list_active_sessions", headers=headers_session)
         active_sessions = r.json()['active_sessions']
         for session_token in active_sessions:
             self.deactivate_session(session_token)
 
     def post_only_once(self, command, headers, posting_json):
         if accelerator.is_local_main_process:
-            r = requests.post(self.url + "/" + command, json=posting_json, headers=headers)
+            r = self.session.post(self.url + "/" + command, json=posting_json, headers=headers)
             with open(os.path.join(self.saved_api_response_dir, command.replace("/", "_") + "_response.json"), "w") as f:
                 json.dump(r.json(), f)
         accelerator.wait_for_everyone()
@@ -227,7 +287,7 @@ class JPL:
     
     def get_only_once(self, command, headers):
         if accelerator.is_local_main_process:
-            r = requests.get(self.url + "/" + command, headers=headers)
+            r = self.session.get(self.url + "/" + command, headers=headers)
             with open(os.path.join(self.saved_api_response_dir, command.replace("/", "_") + "_response.json"), "w") as f:
                 json.dump(r.json(), f)
         accelerator.wait_for_everyone()
@@ -601,6 +661,13 @@ class JPLRunner:
         self.mode = mode
         self.simple_run = simple_run
         self.batch_size = batch_size
+        
+        if not os.path.exists('saved_vote_matrices') and accelerator.is_local_main_process:
+            os.makedirs('saved_vote_matrices')
+        accelerator.wait_for_everyone()
+        self.vote_matrix_dict = {}
+        self.vote_matrix_save_path = os.path.join('saved_vote_matrices',
+                                                  datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
 
     def get_jpl_information(self):
         # Elaheh: (need change in eval) choose image classification task you would like. Now there are four tasks
@@ -674,22 +741,36 @@ class JPLRunner:
 
         start_time = time.time()
 
+        #log.info(f"session STATUS {self.api.get_session_status()}")
+        # Skip checkpoint before getting available budget
+        
+
         available_budget = self.get_available_budget()
         if checkpoint_num == 0:
             self.jpl_storage.labeled_images, self.jpl_storage.dictionary_clips = \
-                self.api.get_initial_seed_labels(self.video)
+                self.api.request_label(video=self.video)
             log.info(f'Get initial seeds at {checkpoint_num} checkpoint')
         elif 1 <= checkpoint_num <= 3:
-            new_labeled_images, new_dictionary_clips = self.api.get_initial_seed_labels(self.video)
+            new_labeled_images, new_dictionary_clips = self.api.request_label(video=self.video)
             self.jpl_storage.add_labeled_images(new_labeled_images)
             if self.jpl_storage.dictionary_clips != None:
                 self.jpl_storage.dictionary_clips.update(new_dictionary_clips)
             log.info(f'Get seeds at {checkpoint_num} checkpoints')
+
+            if checkpoint_num == 1:
+                log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
+                                                                            checkpoint_num,
+                                                                            time.strftime("%H:%M:%S",
+                                                                                          time.gmtime(
+                                                                                              time.time() - start_time))))
+                return self.api.skip_checkpoint()
         
         # Get sets of unlabeled samples
         unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names(self.jpl_storage.dictionary_clips,
                                                                            self.video)
-        log.debug('Number of unlabeled data: {}'.format(len(unlabeled_image_names)))
+        log.info('Number of unlabeled data: {}'.format(len(unlabeled_image_names)))
+
+        
         
         if checkpoint_num >= 4:
             """ For the last evaluation we used to start asking for custom labels after the first 2 checkpoints.
@@ -697,9 +778,15 @@ class JPLRunner:
             """
 
             # Add all labeled data
-            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
-            #log.debug(f"Candidates to query[0]: {candidates[0]}")
+            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names
             self.request_labels(candidates, self.video)
+
+            if checkpoint_num == 6:                
+                log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
+                                                                checkpoint_num,
+                                                                time.strftime("%H:%M:%S",
+                                                                                time.gmtime(time.time()-start_time))))
+                return self.api.skip_checkpoint()
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
         #log.info(f"number training : {len(labeled_dataset.filepaths)}")
@@ -726,105 +813,136 @@ class JPLRunner:
                     video_classification=self.video)
         task.set_initial_model(self.initial_model)
         controller = Controller(task, self.simple_run)
-
-        taglet_executor, taglets = controller.train_end_model()
-
-        #sys.exit()
-
-
-        labeled = task.get_labeled_train_data()
-        unlabeled_train = task.get_unlabeled_data(True) # augmentation is applied
-        unlabeled_test = task.get_unlabeled_data(False)
-        val = task.get_validation_data()
         
-        if unlabeled_test is not None:
-            log.info("Executing taglets on unlabeled data")
-            self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test)
-            log.info("Finished executing taglets on unlabeled data")
+        if self.video:
+            taglet_executor, taglets = controller.train_end_model()
+            labeled = task.get_labeled_train_data()
+            unlabeled_train = task.get_unlabeled_data(True) # augmentation is applied
+            unlabeled_test = task.get_unlabeled_data(False)
+            val = task.get_validation_data()
 
-            if task.unlabeled_train_labels is not None:
-                log.info('Accuracies of each taglet on the unlabeled train data:')
-                for i in range(len(taglets)):
-                    acc = np.sum(self.unlabeled_vote_matrix[:, i] == np.array(task.unlabeled_train_labels)) / len(task.unlabeled_train_labels)
-                    log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
+            if unlabeled_test is not None:
+                log.info("Executing taglets on unlabeled data")
+                self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test)
+                log.info("Finished executing taglets on unlabeled data")
 
-            # Combines taglets' votes into soft labels
-            if val is not None and len(val) >= len(task.classes) * 10:
-                # Weight votes using development set
-                weights = [taglet.evaluate(val) for taglet in taglets]
-                log.info("Validation accuracies of each taglet:")
-                for w, taglet in zip(weights, taglets):
-                    log.info("Module {} - acc {:.4f}".format(taglet.name, w))
+                if task.unlabeled_train_labels is not None:
+                    log.info('Accuracies of each taglet on the unlabeled train data:')
+                    for i in range(len(taglets)):
+                        acc = np.sum(self.unlabeled_vote_matrix[:, i] == np.array(task.unlabeled_train_labels)) / len(task.unlabeled_train_labels)
+                        log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
+
+                # Combines taglets' votes into soft labels
+                if val is not None and len(val) >= len(task.classes) * 10:
+                    # Weight votes using development set
+                    weights = [taglet.evaluate(val) for taglet in taglets]
+                    log.info("Validation accuracies of each taglet:")
+                    for w, taglet in zip(weights, taglets):
+                        log.info("Module {} - acc {:.4f}".format(taglet.name, w))
+                else:
+                    # Weight all votes equally
+                    weights = [1.0] * len(taglets)
+                weak_labels = self._get_weighted_dist(self.unlabeled_vote_matrix, weights, task.classes)
+
+
+                if task.unlabeled_train_labels is not None:
+                    log.info('Accuracy of the labelmodel on the unlabeled train data:')
+                    predictions = np.asarray([np.argmax(label) for label in weak_labels])
+                    acc = np.sum(predictions == task.unlabeled_train_labels) / len(task.unlabeled_train_labels)
+                    log.info('Acc {:.4f}'.format(acc))
             else:
-                # Weight all votes equally
-                weights = [1.0] * len(taglets)
+                if val is not None and len(val) >= len(task.classes) * 10:
+                    # Weight votes using development set
+                    weights = [taglet.evaluate(val) for taglet in taglets]
+                    log.info("Validation accuracies of each taglet:")
+                    for w, taglet in zip(weights, taglets):
+                        log.info("Module {} - acc {:.4f}".format(taglet.name, w))
+                else:
+                    # Weight all votes equally
+                    weights = [1.0] * len(taglets)
+
+            # Evaluate on test set
+            evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.video)    
+
+            log.info("Executing taglets on eval data")
+            self.unlabeled_vote_matrix = taglet_executor.execute(evaluation_dataset)
+            log.info("Finished executing taglets on eval data")
+
+            log.info(f"Use weights of validation to weight labelers vote {weights}")
             weak_labels = self._get_weighted_dist(self.unlabeled_vote_matrix, weights, task.classes)
-            
+            predictions = np.asarray([np.argmax(label) for label in weak_labels])
 
-            if task.unlabeled_train_labels is not None:
-                log.info('Accuracy of the labelmodel on the unlabeled train data:')
-                predictions = np.asarray([np.argmax(label) for label in weak_labels])
-                acc = np.sum(predictions == task.unlabeled_train_labels) / len(task.unlabeled_train_labels)
+            test_labels = self.jpl_storage.get_true_labels('test', self.mode, 
+                                                            dict_clips=self.jpl_storage.dictionary_clips, 
+                                                            video=self.video)
+            if test_labels is not None:        
+                log.info('Accuracy of Taglets on the eval data:')
+                acc = np.sum(predictions == test_labels) / len(test_labels)
                 log.info('Acc {:.4f}'.format(acc))
+
+            #log.info(f"Predictions with one taglet: {predictions}")
+            log.info(f"Length eval data: {len(evaluation_dataset.filepaths)}")
+
+            prediction_names = []
+            for p in predictions:
+                prediction_names.append([k for k, v in self.jpl_storage.label_map.items() if v == p][0])
+
+            #log.info(f"Predictions with one taglet: {prediction_names}, length: {len(prediction_names)}")
+            evaluate_on = self.jpl_storage.get_evaluation_image_names(self.video)
+            #log.info(f"Predictions with one taglet: {evaluate_on}, length: {len(evaluate_on)}")
+
+            predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(self.video), 'class': prediction_names}
+
+            self.submit_predictions(predictions_dict)
+
         else:
-            if val is not None and len(val) >= len(task.classes) * 10:
-                # Weight votes using development set
-                weights = [taglet.evaluate(val) for taglet in taglets]
-                log.info("Validation accuracies of each taglet:")
-                for w, taglet in zip(weights, taglets):
-                    log.info("Module {} - acc {:.4f}".format(taglet.name, w))
-            else:
-                # Weight all votes equally
-                weights = [1.0] * len(taglets)
+            end_model = controller.train_end_model()
+            if self.vote_matrix_save_path is not None:
+                val_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
+                if val_dataset is not None:
+                    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=False)
+                    val_image_names = [os.path.basename(image_path) for image_path in val_dataset.filepaths]
+                    val_labels = [image_labels for _, image_labels in val_loader]
+                else:
+                    val_image_names = None
+                    val_labels = None
+                checkpoint_dict = {'val_images_names': val_image_names,
+                                   'val_images_votes': val_vote_matrix,
+                                   'val_images_labels': val_labels,
+                                   'unlabeled_images_names': self.jpl_storage.get_unlabeled_image_names(),
+                                   'unlabeled_images_votes': unlabeled_vote_matrix}
+                self.vote_matrix_dict[f'{phase} {checkpoint_num}'] = checkpoint_dict
+                with open(self.vote_matrix_save_path, 'wb') as f:
+                    pickle.dump(self.vote_matrix_dict, f)
 
-        # Evaluate on test set
-        evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.video)    
+            evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.video)
+            outputs = end_model.predict(evaluation_dataset)
+            predictions = np.argmax(outputs, 1)
 
-        log.info("Executing taglets on eval data")
-        self.unlabeled_vote_matrix = taglet_executor.execute(evaluation_dataset)
-        log.info("Finished executing taglets on eval data")
+            test_labels = self.jpl_storage.get_true_labels('test', self.mode)
+            if test_labels is not None:
+                log.info('Accuracy of taglets on this checkpoint:')
+                acc = np.sum(predictions == test_labels) / len(test_labels)
+                log.info('Acc {:.4f}'.format(acc))
 
-        log.info(f"Use weights of validation to weight labelers vote {weights}")
-        weak_labels = self._get_weighted_dist(self.unlabeled_vote_matrix, weights, task.classes)
-        predictions = np.asarray([np.argmax(label) for label in weak_labels])
-        
-        test_labels = self.jpl_storage.get_true_labels('test', self.mode, 
-                                                        dict_clips=self.jpl_storage.dictionary_clips, 
-                                                        video=self.video)
-        if test_labels is not None:        
-            log.info('Accuracy of Taglets on the eval data:')
-            acc = np.sum(predictions == test_labels) / len(test_labels)
-            log.info('Acc {:.4f}'.format(acc))
-        
-        #log.info(f"Predictions with one taglet: {predictions}")
-        log.info(f"Length eval data: {len(evaluation_dataset.filepaths)}")
+            prediction_names = []
+            for p in predictions:
+                prediction_names.append([k for k, v in self.jpl_storage.label_map.items() if v == p][0])
 
-        prediction_names = []
-        for p in predictions:
-            prediction_names.append([k for k, v in self.jpl_storage.label_map.items() if v == p][0])
-        
-        #log.info(f"Predictions with one taglet: {prediction_names}, length: {len(prediction_names)}")
-        evaluate_on = self.jpl_storage.get_evaluation_image_names(self.video)
-        #log.info(f"Predictions with one taglet: {evaluate_on}, length: {len(evaluate_on)}")
+            predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(self.video), 'class': prediction_names}
 
-        predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(self.video), 'class': prediction_names}
+            self.submit_predictions(predictions_dict)
 
-        self.submit_predictions(predictions_dict)
-    
-        # if unlabeled_test_dataset is not None:
-        #     outputs = end_model.predict(unlabeled_test_dataset)
-        #     confidences = np.max(outputs, 1)
-        #     candidates = np.argsort(confidences)
-        #     self.confidence_active_learning.set_candidates(candidates)
+            if unlabeled_test_dataset is not None:
+                outputs = end_model.predict(unlabeled_test_dataset)
+                confidences = np.max(outputs, 1)
+                candidates = np.argsort(confidences)
+                self.confidence_active_learning.set_candidates(candidates)
 
-        # update initial model
-        # if checkpoint_num == 7:
-        #     if self.video:
-        #         self.initial_model = end_model.model # Set the model of FineTuneVideoModule
-        #         self.initial_model.blocks[6].proj = torch.nn.Sequential()
-        #     else:
-        #         self.initial_model = end_model.model # Set the model of FineTuneVideoModule
-        #         self.initial_model.fc = torch.nn.Identity()
+            # update initial model
+            if checkpoint_num == 7:
+                self.initial_model = end_model.model
+                self.initial_model.fc = torch.nn.Identity()
 
         log.info('{} Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                checkpoint_num,
@@ -842,7 +960,7 @@ class JPLRunner:
     def request_labels(self, examples, video=False):
         query = {'example_ids': examples}
         labeled_images, labeled_dictionary_clips = self.api.request_label(query, video)
-
+        log.info('Done requesting labels!')
         self.jpl_storage.add_labeled_images(labeled_images)
         if self.jpl_storage.dictionary_clips != None:
             self.jpl_storage.dictionary_clips.update(labeled_dictionary_clips)
@@ -887,15 +1005,15 @@ def setup_production(simple_run):
     dataset_type = os.environ.get('LWLL_TA1_DATASET_TYPE')
     problem_type = os.environ.get('LWLL_TA1_PROB_TYPE')
     dataset_dir = os.environ.get('LWLL_TA1_DATA_PATH')
-    log.debug(dataset_dir)
     api_url = os.environ.get('LWLL_TA1_API_ENDPOINT')
     problem_task = os.environ.get('LWLL_TA1_PROB_TASK')
     gpu_list = os.environ.get('LWLL_TA1_GPUS')
     run_time = os.environ.get('LWLL_TA1_HOURS')
     team_secret = os.environ.get('LWLL_TA1_TEAM_SECRET')
     gov_team_secret = os.environ.get('LWLL_TA1_GOVTEAM_SECRET')
-    data_paths = ('/tmp/predefined/scads.fall2020.sqlite3',
-                  '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz')
+    data_paths = ('/tmp/predefined/scads.spring2021.sqlite3',
+                  '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz',
+                  '/tmp/predefined/embeddings/spring2021_processed_numberbatch.h5')
 
     if simple_run:
         log.info(f"Running production in simple mode, not all GPUs required")
@@ -958,7 +1076,7 @@ def main():
     
     saved_api_response_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saved_api_response')
     if not os.path.exists(saved_api_response_dir) and accelerator.is_local_main_process:
-        os.makedirs(saved_api_response_dir)
+        os.makedirs(saved_api_response_dir, exist_ok=True)
     accelerator.wait_for_everyone()
     
     dataset_type = variables[0]
