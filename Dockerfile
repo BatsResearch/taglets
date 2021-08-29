@@ -48,6 +48,7 @@ RUN curl -s https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 #Copy all files in ~/taglets to /tmp/
 COPY . /tmp
 
+RUN cd /tmp && pip install torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html
 RUN cd /tmp && pip install .
 RUN cd /tmp && ./setup.sh
 RUN cd /tmp/ && git clone https://${LOGGER_REPO_DEPLOY_USER}:${LOGGER_REPO_DEPLOY_TOKEN}@gitlab.lollllz.com/brown/logger
