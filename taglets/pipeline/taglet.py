@@ -5,7 +5,7 @@ import logging
 import numpy as np
 
 from .trainable import ImageTrainable, VideoTrainable
-from ..scads import Scads, ScadsEmbedding
+from ..scads import Scads, ScadsEmbedding, ScadsEmbeddingVideo
 from ..pipeline import Cache
 from ..data.custom_dataset import CustomImageDataset
 
