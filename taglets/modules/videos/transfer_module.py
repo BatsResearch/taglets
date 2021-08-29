@@ -170,7 +170,7 @@ class TransferVideoTaglet(VideoTagletWithAuxData):
                 param.requires_grad = False
 
         orig_num_epochs = self.num_epochs
-        self.num_epochs = 40 if not os.environ.get("CI") else 5
+        self.num_epochs = 50 if not os.environ.get("CI") else 5
         self._set_num_classes(len(self.task.classes))
         super(TransferVideoTaglet, self).train(train_data, val_data, unlabeled_data)
         self.num_epochs = orig_num_epochs

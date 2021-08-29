@@ -6,6 +6,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 
 
+
 class CustomImageDataset(Dataset):
     """
     A custom dataset used to create dataloaders.
@@ -71,7 +72,12 @@ class CustomVideoDataset(Dataset):
 
         frames = []
         for f in frames_paths:
-            frame = Image.open(f).convert('RGB')
+            try:
+                frame = Image.open(f).convert('RGB')
+            except Exception as e:
+                print(e)
+                continue
+            
             frame = self.transform_img(frame)
             frames.append(frame)
         
@@ -92,6 +98,14 @@ class CustomVideoDataset(Dataset):
     
     def __len__(self):
         return len(self.filepaths)
+
+class HandleExceptionCustomVideoDataset(CustomVideoDataset):
+    __init__ = CustomVideoDataset.__init__
+    def __getitem__(self, index):
+        try: 
+            return super(HandleExceptionCustomVideoDataset, self).__getitem__(index)
+        except Exception as e:
+            print(e)
 
 
 class SoftLabelDataset(Dataset):

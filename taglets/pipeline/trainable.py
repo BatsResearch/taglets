@@ -5,11 +5,17 @@ import numpy as np
 import os
 import random
 import torch
+import torch.utils.data
+from torch.utils.data.dataloader import default_collate
 import torch.multiprocessing as mp
 from accelerate import Accelerator
 accelerator = Accelerator()
 
 log = logging.getLogger(__name__)
+
+def my_collate(batch):
+    batch = list(filter(lambda x : x is not None, batch))
+    return default_collate(batch)
 
 
 class Trainable:
@@ -78,7 +84,7 @@ class Trainable:
             batch_size = self.batch_size
         return accelerator.prepare(torch.utils.data.DataLoader(
             dataset=data, batch_size=batch_size, shuffle=shuffle,
-            num_workers=self.num_workers, pin_memory=True
+            num_workers=self.num_workers, pin_memory=True, collate_fn=my_collate
         ))
 
     def _get_pred_classifier(self):
@@ -381,8 +387,8 @@ class VideoTrainable(Trainable):
         running_acc = 0
         num_pred = 0 
         
-        # error = True
-        # while error == True:
+        # run = False
+        # while run == False:
         #     try:
         for batch in train_data_loader:
             inputs = batch[0]
@@ -405,6 +411,7 @@ class VideoTrainable(Trainable):
 
             running_loss += loss.item()
             running_acc += self._get_train_acc(aggregated_outputs, labels).item()
+            
         
         if not len(train_data_loader.dataset):
             return 0, 0

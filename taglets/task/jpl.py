@@ -18,7 +18,7 @@ import pytorchvideo.transforms as video_transform
 import torchvision.transforms._transforms_video as transform_video
 
 from ..task import Task
-from ..data import CustomImageDataset, CustomVideoDataset
+from ..data import CustomImageDataset, CustomVideoDataset, HandleExceptionCustomVideoDataset
 from ..controller import Controller
 from .utils import labels_to_concept_ids
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
@@ -440,14 +440,14 @@ class JPLStorage:
         
         if self.video:
             #log.info(f"Disctionary clip: {dictionary_clips}")
-            train_dataset = CustomVideoDataset(image_paths[train_idx],
+            train_dataset = HandleExceptionCustomVideoDataset(image_paths[train_idx],
                                                labels=image_labels[train_idx],
                                                label_map=self.label_map,
                                                transform_img=self.transform_image(video=self.video),
                                                transform_vid=self.transformer_video(),
                                                clips_dictionary=dictionary_clips)
             if len(val_idx) != 0:
-                val_dataset = CustomVideoDataset(image_paths[val_idx],
+                val_dataset = HandleExceptionCustomVideoDataset(image_paths[val_idx],
                                                  labels=image_labels[val_idx],
                                                  label_map=self.label_map,
                                                  transform_img=self.transform_image(video=self.video),
@@ -500,12 +500,12 @@ class JPLStorage:
             return None
         else:
             if self.video:
-                return CustomVideoDataset(image_paths,
+                return HandleExceptionCustomVideoDataset(image_paths,
                                           transform_img=self.transform_image(train=train, video=self.video),
                                           transform_vid=self.transformer_video(),
                                           clips_dictionary=dictionary_clips)
             else:
-                return CustomImageDataset(image_paths,
+                return HandleExceptionCustomVideoDataset(image_paths,
                                           transform=transform)
 
     def get_evaluation_dataset(self, video=False):
@@ -535,7 +535,7 @@ class JPLStorage:
             dictionary_clips = None
         
         if self.video:
-            return CustomVideoDataset(image_paths,
+            return HandleExceptionCustomVideoDataset(image_paths,
                                       transform_img=self.transform_image(train=False, video=self.video),
                                       transform_vid=self.transformer_video(),
                                       clips_dictionary=dictionary_clips)

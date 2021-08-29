@@ -4,7 +4,10 @@ import numpy as np
 import pandas as pd
 import os
 
+
 from .scads import Scads
+
+
 
 class ScadsEmbedding:
     """
@@ -174,7 +177,7 @@ class ScadsEmbedding:
             related_nodes = []
             for concept in similar_concepts:
                 try:
-                    related_node = Scads.get_node_by_conceptnet_id('/c/en/' +concept)
+                    related_node = Scads.get_node_by_conceptnet_id('/c/en/' + concept)
                     related_nodes.append(related_node)
                 except:
                     continue

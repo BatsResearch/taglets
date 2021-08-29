@@ -7,8 +7,7 @@ import numpy as np
 from .trainable import ImageTrainable, VideoTrainable
 from ..scads import Scads, ScadsEmbedding
 from ..pipeline import Cache
-from ..data.custom_dataset import CustomVideoDataset
-
+from ..data.custom_dataset import CustomVideoDataset, HandleExceptionCustomVideoDataset
 
 log = logging.getLogger(__name__)
 
@@ -101,11 +100,25 @@ class VideoAuxDataMixin(AuxDataMixin):
     def __init__(self, task):
         super().__init__(task)
         
-        self.img_per_related_class = 50 if not os.environ.get("CI") else 1
+        self.img_per_related_class = 100 if not os.environ.get("CI") else 1
         if os.environ.get("CI"):
             self.num_related_class = 1
         else:
             self.num_related_class = 5 if len(self.task.classes) < 30 else (1 if len(self.task.classes) < 60 else 1)
+
+        self.seed = 0
+        self._init_random(self.seed)
+
+    @staticmethod
+    def _init_random(seed):
+        """
+        Initialize random numbers with a seed.
+        :param seed: The seed to initialize with
+        :return: None
+        """
+        random.seed(seed)
+        np.random.seed(seed)
+
 
     def _get_scads_data(self):
         data = Cache.get("scads", self.task.classes)
@@ -118,7 +131,7 @@ class VideoAuxDataMixin(AuxDataMixin):
             visited = set()
         
             def get_clips(node, label, is_neighbor):
-                extra_ds = ['kinetics400']
+                extra_ds = ['kinetics400', 'moments-in-time']
 
                 if is_neighbor and node.get_conceptnet_id() in self.task.classes:
                     return False
@@ -128,8 +141,16 @@ class VideoAuxDataMixin(AuxDataMixin):
                     
                     # Get clips for the class
                     clips = node.get_clips_whitelist(proc_whitelist)
-                    clips = [(path, start, end, c_idx, v_idx, name_concept) \
-                        for path, start, end, c_idx, v_idx, name_concept in clips if ('/c/en/' + name_concept == node.get_conceptnet_id()) and (path.split('/')[0] in proc_whitelist)]
+                    tmp_clips = [(path, start, end, c_idx, v_idx, name_concept) \
+                        for path, start, end, c_idx, v_idx, name_concept in clips \
+                        if ('/c/en/' + name_concept == node.get_conceptnet_id()) and (path.split('/')[0] in proc_whitelist)]
+                    
+                    clips = []
+                    for path, start, end, c_idx, v_idx, name_concept in tmp_clips:
+                        if (path.split('/')[0] == 'moments-in-time') and (path.split('/')[2] == 'train'):
+                            continue
+                        else:
+                            clips.append((path, start, end, c_idx, v_idx, name_concept))
 
                     if len(clips) < 10:#self.img_per_related_class:
                         return False
@@ -139,7 +160,8 @@ class VideoAuxDataMixin(AuxDataMixin):
                     for path, start, end, c_idx, v_idx, name_concept in clips:
                         if '/c/en/' + name_concept == node.get_conceptnet_id():
                             #print(f"root path scads {root_path.split('/')[-1]}, path {path}")
-                            if path.split('/')[0] in extra_ds:
+                            split_path = path.split('/')
+                            if split_path[0] in extra_ds:
                                 base = '/'.join(root_path.split('/')[0:-1]) + '/extra/' 
                                 paths.append(os.path.join(base, path))
                                 base_path_clip = os.path.join(base, path)
@@ -152,7 +174,7 @@ class VideoAuxDataMixin(AuxDataMixin):
                                 action_frames = [base_path_clip + '/' + str(i) +'.jpg' for i in range(int(start), int(end) + 1)]
                                 dictionary_clips[str(c_idx)] = action_frames
 
-                    #log.info(f"Concept: {node.get_conceptnet_id()} and {'/c/en/' + name_concept} and paths: {paths}")
+                    log.info(f"Concept: {node.get_conceptnet_id()} and {'/c/en/' + name_concept} and length paths: {len(paths)}")
                     
                     clip_paths.extend(paths)
                     clip_labels.extend([label] * len(clips))
@@ -200,8 +222,10 @@ class VideoAuxDataMixin(AuxDataMixin):
                     neighbors = ScadsEmbedding.get_related_nodes(target_nodes,
                                                                  limit=self.num_related_class * 10 * ct,
                                                                  only_with_images=processed_embeddings_exist)
+                    
                     for neighbor in neighbors:
                         if get_clips(neighbor, all_related_class, True):
+                            log.info(f"Neighbor accepted: {neighbor.node} and concept: {conceptnet_id}")
                             cur_related_class += 1
                             all_related_class += 1
                             if cur_related_class >= self.num_related_class:
