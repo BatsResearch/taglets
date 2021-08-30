@@ -237,7 +237,7 @@ class Trainable:
         pred_classifier = self._get_pred_classifier()
         pred_classifier.eval()
         
-        if self.video_classification:
+        if self.task.video_classification:
             data_loader = self._get_dataloader(data, False)
         else:
             data_loader = self._get_dataloader(data, False, batch_size=128)

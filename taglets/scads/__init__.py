@@ -1,1 +1,1 @@
-from .interface import Scads, ScadsEmbedding
+from .interface import Scads, ScadsEmbedding, ScadsEmbeddingVideo

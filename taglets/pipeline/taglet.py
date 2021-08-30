@@ -26,7 +26,8 @@ class TagletMixin:
         """
         
         outputs = self.predict(unlabeled_data)
-        if self.video_classification:
+        if self.task.video_classification:
+            log.info('Executing video-classification')
             if self.name == 'svc-video':
                 return outputs
             return np.argmax(outputs, 1)
@@ -110,7 +111,7 @@ class VideoAuxDataMixin(AuxDataMixin):
     def __init__(self, task):
         super().__init__(task)
         
-        self.img_per_related_class = 100 if not os.environ.get("CI") else 1
+        self.img_per_related_class = 150 if not os.environ.get("CI") else 1
         if os.environ.get("CI"):
             self.num_related_class = 1
         else:
@@ -194,7 +195,7 @@ class VideoAuxDataMixin(AuxDataMixin):
             # Modify for multiple roots
             root_path = Scads.get_root_path()
             Scads.open(self.task.scads_path)
-            ScadsEmbedding.load(self.task.scads_embedding_path, self.task.processed_scads_embedding_path)
+            ScadsEmbeddingVideo.load(self.task.scads_embedding_path, self.task.processed_scads_embedding_path)
             all_related_class = 0
             
             for conceptnet_id in self.task.classes:
@@ -229,7 +230,7 @@ class VideoAuxDataMixin(AuxDataMixin):
                     #print(f"path processed scads {processed_embeddings_exist}")
 
                     #print(f"{conceptnet_id} and nodes {target_nodes}")
-                    neighbors = ScadsEmbedding.get_related_nodes(target_nodes,
+                    neighbors = ScadsEmbeddingVideo.get_related_nodes(target_nodes,
                                                                  limit=self.num_related_class * 10 * ct,
                                                                  only_with_images=processed_embeddings_exist)
                     

@@ -650,9 +650,18 @@ class JPLRunner:
         self.confidence_active_learning = LeastConfidenceActiveLearning()
 
         if self.video:
+            if accelerator.is_local_main_process:
+                # This line is a patch for a bug in the pytorch core code base: https://github.com/pytorch/pytorch/issues/61755
+                torch.hub._validate_not_a_forked_repo=lambda a,b,c: True
+                initial_model = torch.hub.load("facebookresearch/pytorchvideo", 
+                                            model='slowfast_r50', 
+                                            pretrained=True,
+                                            force_reload=True)
+            accelerator.wait_for_everyone()
             self.initial_model = torch.hub.load("facebookresearch/pytorchvideo", 
                                             model='slowfast_r50', 
                                             pretrained=True)
+            
         else:
             self.initial_model = models.resnet50(pretrained=True)
             self.initial_model.fc = torch.nn.Identity()
@@ -757,13 +766,13 @@ class JPLRunner:
                 self.jpl_storage.dictionary_clips.update(new_dictionary_clips)
             log.info(f'Get seeds at {checkpoint_num} checkpoints')
 
-            if checkpoint_num == 1:
-                log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
-                                                                            checkpoint_num,
-                                                                            time.strftime("%H:%M:%S",
-                                                                                          time.gmtime(
-                                                                                              time.time() - start_time))))
-                return self.api.skip_checkpoint()
+            # if checkpoint_num == 1:
+            #     log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
+            #                                                                 checkpoint_num,
+            #                                                                 time.strftime("%H:%M:%S",
+            #                                                                               time.gmtime(
+            #                                                                                   time.time() - start_time))))
+            #     return self.api.skip_checkpoint()
         
         # Get sets of unlabeled samples
         unlabeled_image_names = self.jpl_storage.get_unlabeled_image_names(self.jpl_storage.dictionary_clips,
@@ -778,15 +787,15 @@ class JPLRunner:
             """
 
             # Add all labeled data
-            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names
+            candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
             self.request_labels(candidates, self.video)
 
-            if checkpoint_num == 6:                
-                log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
-                                                                checkpoint_num,
-                                                                time.strftime("%H:%M:%S",
-                                                                                time.gmtime(time.time()-start_time))))
-                return self.api.skip_checkpoint()
+            # if checkpoint_num == 6:                
+            #     log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
+            #                                                     checkpoint_num,
+            #                                                     time.strftime("%H:%M:%S",
+            #                                                                     time.gmtime(time.time()-start_time))))
+            #     return self.api.skip_checkpoint()
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
         #log.info(f"number training : {len(labeled_dataset.filepaths)}")
@@ -823,7 +832,7 @@ class JPLRunner:
 
             if unlabeled_test is not None:
                 log.info("Executing taglets on unlabeled data")
-                self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test)
+                self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test, video=self.video)
                 log.info("Finished executing taglets on unlabeled data")
 
                 if task.unlabeled_train_labels is not None:
@@ -842,6 +851,8 @@ class JPLRunner:
                 else:
                     # Weight all votes equally
                     weights = [1.0] * len(taglets)
+                
+                #log.info(f"Unlabeled vote matric: {self.unlabeled_vote_matrix} and shape {self.unlabeled_vote_matrix.shape}, weights: {weights}, task.classes {task.classes}")
                 weak_labels = self._get_weighted_dist(self.unlabeled_vote_matrix, weights, task.classes)
 
 

@@ -95,7 +95,8 @@ class Controller:
             taglet_executor = TagletExecutor()
             taglet_executor.set_taglets(taglets)
         
-            if self.video_classification:
+            if self.task.video_classification:
+                log.info("Return values for video-classification")
                 return taglet_executor, taglets
             
             else:
@@ -165,55 +166,55 @@ class Controller:
 
                 for label in weak_labels:
                     unlabeled_images_labels.append(torch.FloatTensor(label))
-
-        if self.video_classification:
-            # Creates taglets
-            modules = self._get_taglets_modules()
-            taglets = []
-            for cls in modules:
-                try:
-                    log.info("Initializing %s module", cls.__name__)
-                    module = cls(task=self.task)
-                    log.info("Training %s module", cls.__name__)
-                    module.train_taglets(labeled, val, unlabeled_train)
-                    log.info("Finished training %s module", cls.__name__)
-
-                    # Collects taglets
-                    taglets.extend(module.get_valid_taglets())
-                except Exception:
-                    log.error("Exception raised in %s module", cls.__name__)
-                    for line in traceback.format_exc().splitlines():
-                        log.error(line)
-                    log.error("Continuing execution")
-    
-            taglet_executor = TagletExecutor()
-            taglet_executor.set_taglets(taglets)
-            return taglet_executor, taglets
-        
         else:
-            # Trains end model
-            log.info("Training end model")
+            if self.task.video_classification:
+                # Creates taglets
+                modules = self._get_taglets_modules()
+                taglets = []
+                for cls in modules:
+                    try:
+                        log.info("Initializing %s module", cls.__name__)
+                        module = cls(task=self.task)
+                        log.info("Training %s module", cls.__name__)
+                        module.train_taglets(labeled, val, unlabeled_train)
+                        log.info("Finished training %s module", cls.__name__)
 
-            end_model_train_data = self._combine_soft_labels(unlabeled_images_labels,
-                                                             unlabeled_train,
-                                                             self.task.get_labeled_train_data())
-            if self.simple_run:
-                self.end_model = RandomEndModel(self.task)
-            elif self.task.video_classification:
-                self.end_model = VideoEndModel(self.task)
+                        # Collects taglets
+                        taglets.extend(module.get_valid_taglets())
+                    except Exception:
+                        log.error("Exception raised in %s module", cls.__name__)
+                        for line in traceback.format_exc().splitlines():
+                            log.error(line)
+                        log.error("Continuing execution")
+        
+                taglet_executor = TagletExecutor()
+                taglet_executor.set_taglets(taglets)
+                return taglet_executor, taglets
+        
             else:
-                self.end_model = ImageEndModel(self.task)
-            self.end_model.train(end_model_train_data, val)
-            log.info("Finished training end model")
+                # Trains end model
+                log.info("Training end model")
 
-            if self.task.unlabeled_train_labels is not None and unlabeled_test is not None:
-                log.info('Accuracy of the end model on the unlabeled train data:')
-                outputs = self.end_model.predict(unlabeled_test)
-                predictions = np.argmax(outputs, 1)
-                acc = np.sum(predictions == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
-                log.info('Acc {:.4f}'.format(acc))
+                end_model_train_data = self._combine_soft_labels(unlabeled_images_labels,
+                                                                unlabeled_train,
+                                                                self.task.get_labeled_train_data())
+                if self.simple_run:
+                    self.end_model = RandomEndModel(self.task)
+                elif self.task.video_classification:
+                    self.end_model = VideoEndModel(self.task)
+                else:
+                    self.end_model = ImageEndModel(self.task)
+                self.end_model.train(end_model_train_data, val)
+                log.info("Finished training end model")
 
-            return self.end_model
+                if self.task.unlabeled_train_labels is not None and unlabeled_test is not None:
+                    log.info('Accuracy of the end model on the unlabeled train data:')
+                    outputs = self.end_model.predict(unlabeled_test)
+                    predictions = np.argmax(outputs, 1)
+                    acc = np.sum(predictions == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
+                    log.info('Acc {:.4f}'.format(acc))
+
+                return self.end_model
 
     def _get_taglets_modules(self):
         if self.simple_run:

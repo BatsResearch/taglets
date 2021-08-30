@@ -1,6 +1,6 @@
 git+git://github.com/huggingface/accelerate@f0cdbf152eaed2fac4468eaa2cbdbb0071c64e11
 git+git://github.com/BatsResearch/labelmodels@dda942e2a0913c111f503727e6fa5105b0de41ca
-accelerate==0.4.0.dev0
+git+git://github.com/facebookresearch/pytorchvideo@d9ea0fa57785cd80598403ca6cfbb2bfa72cd912
 alabaster==0.7.12
 allennlp==0.9.0
 attrs==21.2.0
@@ -71,7 +71,6 @@ pytest==6.2.4
 python-dateutil==2.8.1
 pytorch-pretrained-bert==0.6.2
 pytorch-transformers==1.1.0
-pytorchvideo==0.1.2
 pytz==2019.3
 PyYAML==5.4.1
 qdldl==0.1.5.post0
