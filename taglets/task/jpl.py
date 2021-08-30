@@ -806,6 +806,12 @@ class JPLRunner:
         unlabeled_train_labels = self.jpl_storage.get_true_labels('train', self.mode, dict_clips=self.jpl_storage.dictionary_clips, video=self.video)
         #log.info(f"unlabeled_train_labels: {len(unlabeled_train_labels)}")
         
+
+        if self.video:
+            processed_scads_path = self.data_paths[2]
+        else:
+            processed_scads_path = self.data_paths[3]
+            
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),
                     (224, 224), 
@@ -816,7 +822,7 @@ class JPLRunner:
                     self.jpl_storage.whitelist,
                     self.data_paths[0],
                     self.data_paths[1],
-                    self.data_paths[2],
+                    processed_scads_path,
                     unlabeled_test_data=unlabeled_test_dataset,
                     unlabeled_train_labels=unlabeled_train_labels,
                     video_classification=self.video)
@@ -1024,6 +1030,7 @@ def setup_production(simple_run):
     gov_team_secret = os.environ.get('LWLL_TA1_GOVTEAM_SECRET')
     data_paths = ('/tmp/predefined/scads.spring2021.sqlite3',
                   '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz',
+                  '/tmp/predefined/embeddings/predefined/embeddings/spring2021_video_processed_numberbatch.h5',
                   '/tmp/predefined/embeddings/spring2021_processed_numberbatch.h5')
 
     if simple_run:
