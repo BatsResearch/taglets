@@ -1100,7 +1100,7 @@ def main():
     dataset_type = variables[0]
     problem_type = variables[1]
     log.info(f"Problem type: {problem_type}")
-    dataset_dir = os.path.join(variables[2], 'datasets', args.folder)
+    dataset_dir = os.path.join(variables[2], args.folder)
     log.info(f"Dataset dir: {dataset_dir}")
     api_url = variables[3]
     problem_task = variables[4]
