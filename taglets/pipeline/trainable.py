@@ -138,8 +138,10 @@ class Trainable:
         train_data_loader = self._get_dataloader(data=train_data, shuffle=True)
 
         if val_data is None:
+            log.info('Val data is None')
             val_data_loader = None
         else:
+            log.info('Val data is NOT None')
             val_data_loader = self._get_dataloader(data=val_data, shuffle=False)
 
         if unlabeled_data is None:

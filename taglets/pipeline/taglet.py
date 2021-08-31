@@ -115,7 +115,7 @@ class VideoAuxDataMixin(AuxDataMixin):
         if os.environ.get("CI"):
             self.num_related_class = 1
         else:
-            self.num_related_class = 5 if len(self.task.classes) < 30 else (2 if len(self.task.classes) < 60 else 1)
+            self.num_related_class = 5 if len(self.task.classes) < 30 else (1 if len(self.task.classes) < 60 else 1)
 
         self.seed = 0
         self._init_random(self.seed)
@@ -252,6 +252,7 @@ class VideoAuxDataMixin(AuxDataMixin):
 
         # Do train/val split
         if split:
+            log.info(f"SPLIT TRAIN AND TEST")
             train_percent = 0.8
             num_data = len(clip_paths)
             indices = list(range(num_data))
