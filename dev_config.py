@@ -7,4 +7,5 @@ team_secret = 'a5aed2a8-db80-4b22-bf72-11f2d0765572'
 gov_team_secret = 'mock-secret'
 data_paths = ('predefined/scads.spring2021.sqlite3',
               'predefined/embeddings/numberbatch-en19.08.txt.gz',
-              'predefined/embeddings/spring2021_video_processed_numberbatch.h5') #'predefined/embeddings/spring2021_processed_numberbatch.h5')
+              'predefined/embeddings/spring2021_video_processed_numberbatch.h5',
+              'predefined/embeddings/spring2021_processed_numberbatch.h5') 

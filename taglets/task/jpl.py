@@ -811,7 +811,7 @@ class JPLRunner:
             processed_scads_path = self.data_paths[2]
         else:
             processed_scads_path = self.data_paths[3]
-            
+
         task = Task(self.jpl_storage.name,
                     labels_to_concept_ids(self.jpl_storage.classes),
                     (224, 224), 
@@ -882,7 +882,7 @@ class JPLRunner:
             evaluation_dataset = self.jpl_storage.get_evaluation_dataset(self.video)    
 
             log.info("Executing taglets on eval data")
-            self.unlabeled_vote_matrix = taglet_executor.execute(evaluation_dataset)
+            self.unlabeled_vote_matrix = taglet_executor.execute(evaluation_dataset, video=self.video)
             log.info("Finished executing taglets on eval data")
 
             log.info(f"Use weights of validation to weight labelers vote {weights}")

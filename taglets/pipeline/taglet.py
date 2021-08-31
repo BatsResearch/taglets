@@ -111,11 +111,11 @@ class VideoAuxDataMixin(AuxDataMixin):
     def __init__(self, task):
         super().__init__(task)
         
-        self.img_per_related_class = 150 if not os.environ.get("CI") else 1
+        self.img_per_related_class = 100 if not os.environ.get("CI") else 1
         if os.environ.get("CI"):
             self.num_related_class = 1
         else:
-            self.num_related_class = 5 if len(self.task.classes) < 30 else (1 if len(self.task.classes) < 60 else 1)
+            self.num_related_class = 5 if len(self.task.classes) < 30 else (2 if len(self.task.classes) < 60 else 1)
 
         self.seed = 0
         self._init_random(self.seed)
@@ -131,7 +131,7 @@ class VideoAuxDataMixin(AuxDataMixin):
         np.random.seed(seed)
 
 
-    def _get_scads_data(self):
+    def _get_scads_data(self, split=False):
         data = Cache.get("scads", self.task.classes)
         if data is not None:
             clip_paths, clip_labels, dictionary_clips, all_related_class = data
@@ -142,14 +142,14 @@ class VideoAuxDataMixin(AuxDataMixin):
             visited = set()
         
             def get_clips(node, label, is_neighbor):
-                extra_ds = ['kinetics400', 'moments-in-time']
+                extra_ds = ['moments-in-time']
 
                 if is_neighbor and node.get_conceptnet_id() in self.task.classes:
                     return False
                 if node.get_conceptnet_id() not in visited:
                     visited.add(node.get_conceptnet_id())
                     proc_whitelist = [d.lower() for d in self.task.whitelist] 
-                    
+                    proc_whitelist.remove('kinetics400')
                     # Get clips for the class
                     clips = node.get_clips_whitelist(proc_whitelist)
                     tmp_clips = [(path, start, end, c_idx, v_idx, name_concept) \
@@ -250,13 +250,41 @@ class VideoAuxDataMixin(AuxDataMixin):
             Cache.set('scads', self.task.classes,
                       (clip_paths, clip_labels, dictionary_clips, all_related_class))
 
-        train_dataset = CustomVideoDataset(clip_paths,
-                                            labels=clip_labels,
-                                            transform_img=self.transform_image(video=self.video),
-                                            transform_vid=self.transformer_video(),
-                                            clips_dictionary=dictionary_clips)
-    
-        return train_dataset, all_related_class
+        # Do train/val split
+        if split:
+            train_percent = 0.8
+            num_data = len(clip_paths)
+            indices = list(range(num_data))
+            train_split = int(np.floor(train_percent * num_data))
+            np.random.shuffle(indices)
+            train_idx = indices[:train_split]
+            val_idx = indices[train_split:]
+
+            train_dataset = HandleExceptionCustomVideoDataset(np.array(clip_paths)[train_idx],
+                                                labels=np.array(clip_labels)[train_idx],
+                                                transform_img=self.transform_image(video=self.video),
+                                                transform_vid=self.transformer_video(),
+                                                clips_dictionary=dictionary_clips)
+
+            val_dataset = HandleExceptionCustomVideoDataset(np.array(clip_paths)[val_idx],
+                                                 labels=np.array(clip_labels)[val_idx],
+                                                 transform_img=self.transform_image(video=self.video),
+                                                 transform_vid=self.transformer_video(),
+                                                 clips_dictionary=dictionary_clips)
+            
+            return train_dataset, val_dataset, all_related_class
+
+        else:
+            train_dataset = HandleExceptionCustomVideoDataset(clip_paths,
+                                                labels=clip_labels,
+                                                transform_img=self.transform_image(video=self.video),
+                                                transform_vid=self.transformer_video(),
+                                                clips_dictionary=dictionary_clips)
+        
+            return train_dataset, None, all_related_class
+
+
+
 
 class ImageTaglet(ImageTrainable, TagletMixin):
     """

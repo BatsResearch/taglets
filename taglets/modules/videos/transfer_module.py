@@ -146,7 +146,7 @@ class TransferVideoTaglet(VideoTagletWithAuxData):
     def train(self, train_data, val_data, unlabeled_data=None):
         aux_weights = Cache.get("scads-weights", self.task.classes)
         if aux_weights is None:
-            scads_train_data, scads_num_classes = self._get_scads_data()
+            scads_train_data, scads_val_data, scads_num_classes = self._get_scads_data(split=False)
             log.info("Source classes found: {}".format(scads_num_classes))
             
             if scads_num_classes == 0:
@@ -156,7 +156,7 @@ class TransferVideoTaglet(VideoTagletWithAuxData):
             orig_num_epochs = self.num_epochs
             self.num_epochs = 5 if not os.environ.get("CI") else 5
             self._set_num_classes(scads_num_classes)
-            super(TransferVideoTaglet, self).train(scads_train_data, None, None)
+            super(TransferVideoTaglet, self).train(scads_train_data, scads_val_data, None) # Add here validation data return validation set from _get_scads_data()
             self.num_epochs = orig_num_epochs
             
             self.model.blocks[6].proj = nn.Sequential()
