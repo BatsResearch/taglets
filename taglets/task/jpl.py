@@ -1030,7 +1030,7 @@ def setup_production(simple_run):
     gov_team_secret = os.environ.get('LWLL_TA1_GOVTEAM_SECRET')
     data_paths = ('/tmp/predefined/scads.spring2021.sqlite3',
                   '/tmp/predefined/embeddings/numberbatch-en19.08.txt.gz',
-                  '/tmp/predefined/embeddings/predefined/embeddings/spring2021_video_processed_numberbatch.h5',
+                  '/tmp/predefined/embeddings/spring2021_video_processed_numberbatch.h5',
                   '/tmp/predefined/embeddings/spring2021_processed_numberbatch.h5')
 
     if simple_run:
