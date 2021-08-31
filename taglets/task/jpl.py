@@ -1120,6 +1120,7 @@ def main():
         raise Exception(f'Invalid `problem_type`, expected one of {valid_problem_types}')
 
     # Check dataset directory exists
+    log.info(f"Dataset dir: {dataset_dir}")
     if not Path(dataset_dir).exists():
         raise Exception('`dataset_dir` does not exist..')
 
