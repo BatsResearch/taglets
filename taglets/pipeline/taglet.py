@@ -173,7 +173,9 @@ class VideoAuxDataMixin(AuxDataMixin):
                             #print(f"root path scads {root_path.split('/')[-1]}, path {path}")
                             split_path = path.split('/')
                             if split_path[0] in extra_ds:
-                                base = '/'.join(root_path.split('/')[0:-1]) + '/extra/' 
+                                # Comment it out for submission
+                                #base = '/'.join(root_path.split('/')[0:-1]) + '/extra/' 
+                                base = '/'.join(root_path.split('/')[0:-2]) + '/lwll-taglets/extra/' 
                                 paths.append(os.path.join(base, path))
                                 base_path_clip = os.path.join(base, path)
                                 action_frames = [base_path_clip + '/img_' + str(i).zfill(5) +'.jpg' for i in range(int(start), int(end) + 1)]
