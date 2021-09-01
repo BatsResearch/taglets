@@ -12,14 +12,11 @@ import warnings
 from accelerate import Accelerator
 accelerator = Accelerator()
 
-from taglets.task import Task
-from taglets.controller import Controller
-from taglets.task.utils import labels_to_concept_ids
 from taglets.scads import Scads
 from taglets.labelmodel import AMCLLogReg, AMCLWeightedVote, WeightedVote, UnweightedVote, NaiveBayes
 
 from .dataset_api import FMD, Places205, OfficeHomeProduct, OfficeHomeClipart
-
+from .models import KNOWN_MODELS
 
 log = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", "(Possibly )?corrupt EXIF data", UserWarning)
@@ -39,8 +36,9 @@ class CheckpointRunner:
                         'office_home-clipart': OfficeHomeClipart}
         self.dataset_api = dataset_dict[dataset](dataset_dir)
 
-        self.initial_model = models.resnet50(pretrained=True)
-        self.initial_model.fc = torch.nn.Identity()
+        model = KNOWN_MODELS['BiT-M-R50x1']()
+        model.load_from(np.load("BiT-M-R50x1.npz"))
+        self.initial_model = model
         
         if not os.path.exists('saved_vote_matrices') and accelerator.is_local_main_process:
             os.makedirs('saved_vote_matrices')
@@ -63,55 +61,45 @@ class CheckpointRunner:
         start_time = time.time()
         
         class_names = self.dataset_api.get_class_names()
-        
-        unlabeled_train_labels = self.dataset_api.get_unlabeled_labels(checkpoint_num)
-        labeled_dataset, val_dataset = self.dataset_api.get_labeled_dataset(checkpoint_num)
-        unlabeled_train_dataset, unlabeled_test_dataset = self.dataset_api.get_unlabeled_dataset(checkpoint_num)
 
         evaluation_dataset = self.dataset_api.get_test_dataset()
         test_labels = self.dataset_api.get_test_labels()
-        task = Task(self.dataset,
-                    labels_to_concept_ids(class_names),
-                    (224, 224), 
-                    labeled_dataset,
-                    unlabeled_train_dataset,
-                    val_dataset,
-                    self.batch_size,
-                    None,
-                    'predefined/scads.imagenet22k.sqlite3',
-                    'predefined/embeddings/numberbatch-en19.08.txt.gz',
-                    'predefined/embeddings/imagenet22k_processed_numberbatch.h5',
-                    unlabeled_test_data=unlabeled_test_dataset,
-                    unlabeled_train_labels=unlabeled_train_labels,
-                    test_data=evaluation_dataset,
-                    test_labels=test_labels)
-        task.set_initial_model(self.initial_model)
-        controller = Controller(task)
         
-        if self.load_votes_path is None:
-            weak_labels = None
-        else:
-            weak_labels = self._get_weak_labels(checkpoint_num)
+        mapping = {'alarm_clock': ['4234'], 'backpack': ['4479'], 'batteries': ['4664'], 'bed': ['4706', '4707'],
+         'bike': ['4774'], 'bottle': ['4961'], 'bucket': ['5112'], 'calculator': ['5235'], 'calendar': ['6179'],
+         'candles': ['5276'], 'chair': ['5515', '5516'], 'clipboards': ['21842'], 'computer': ['5848'],
+         'couch': ['5977', '5978'], 'curtains': ['6129'], 'desk_lamp': ['8087', '8088'], 'drill': ['6478'],
+         'eraser': ['6696'], 'exit_sign': ['12241'], 'fan': ['6774'], 'file_cabinet': ['6851'], 'flipflops': ['6955'],
+         'flowers': ['17522'], 'folder': ['7000'], 'fork': ['7038'], 'glasses': ['10621'], 'hammer': ['7446', '7448'],
+         'helmet': ['7592', '7593'], 'kettle': ['7989'], 'keyboard': ['7993'], 'knives': ['8039', '8040'],
+         'lamp_shade': ['8091'], 'laptop': ['8113'], 'marker': ['8422'], 'monitor': ['8627', '8628'], 'mop': ['11004'],
+         'mouse': ['8675'], 'mug': ['8693'], 'notebook': ['8816'], 'oven': ['8937'], 'pan': ['9007', '9008'],
+         'paper_clip': ['9035'], 'pen': ['9124'], 'pencil': ['9129', '9130'], 'printer': ['9502', '9503'],
+         'push_pin': ['11267'], 'radio': ['9644'], 'refrigerator': ['6622'], 'ruler': ['9964'], 'scissors': ['10103'],
+         'screwdriver': ['10125'], 'shelf': ['10266'], 'sink': ['14403'], 'sneakers': ['7408'],
+         'soda': ['14039', '14040'], 'speaker': ['8290'], 'spoon': ['10673', '10674'], 'table': ['11052', '11053'],
+         'telephone': ['11152'], 'toothbrush': ['11356'], 'toys': ['11391'], 'trash_can': ['4379'], 'tv': ['11169'],
+         'webcam': ['11792'], 'post_it_notes': ['12165']}
 
-        end_model = controller.train_end_model(weak_labels)
+        class_indices = []
+        inverse_mapping = {}
+        for cls, ss in mapping.items():
+            for s in ss:
+                inverse_mapping[len(class_indices)] = np.where(class_names == cls)[0][0]
+                class_indices.append(int(s) - 1)
         
-        if self.vote_matrix_save_path is not None:
-            val_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
-            if val_dataset is not None:
-                val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=False)
-                val_labels = [image_labels for _, image_labels in val_loader]
-            else:
-                val_labels = None
-            checkpoint_dict = {'val_images_votes': val_vote_matrix,
-                               'val_images_labels': val_labels,
-                               'unlabeled_images_votes': unlabeled_vote_matrix,
-                               'unlabeled_images_labels': unlabeled_train_labels}
-            self.vote_matrix_dict[checkpoint_num] = checkpoint_dict
-            with open(self.vote_matrix_save_path, 'wb') as f:
-                pickle.dump(self.vote_matrix_dict, f)
-        
-        outputs = end_model.predict(evaluation_dataset)
+        self.initial_model.cuda()
+        eval_loader = DataLoader(evaluation_dataset, shuffle=False, batch_size=256)
+        outputs = []
+        for batch in eval_loader:
+            batch = batch.cuda()
+            with torch.no_grad():
+                logits = self.initial_model(batch)
+                outputs.append(logits[class_indices].detach().cpu())
+        outputs = torch.cat(outputs).numpy()
         predictions = np.argmax(outputs, 1)
+        for i in range(len(predictions)):
+            predictions[i] = inverse_mapping[predictions[i]]
         
         if test_labels is not None:
             log.info('Accuracy of taglets on this checkpoint:')
@@ -226,4 +214,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-     
+    
