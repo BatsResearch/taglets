@@ -87,13 +87,12 @@ class JPL:
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret
                    }
-        r = self.session.get(self.url + "/list_tasks", headers=headers)
-        task_list = r.json()['tasks']
+        r = self.get_only_once("list_tasks", headers)
+        task_list = r['tasks']
 
         subset_tasks = []
         for _task in task_list:
-            r = self.session.get(self.url+"/task_metadata/"+_task, headers=headers)
-            task_metadata = r.json()
+            task_metadata = self.get_only_once("task_metadata/" + _task, headers)
             if task_metadata['task_metadata']['problem_type'] == problem_type:
                 subset_tasks.append(_task)
         return subset_tasks
@@ -107,8 +106,8 @@ class JPL:
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret}
         
-        r = self.session.get(self.url + "/task_metadata/" + task_name, headers=headers)
-        return r.json()['task_metadata']
+        r = self.get_only_once("task_metadata/" + task_name, headers)
+        return r['task_metadata']
 
     def create_session(self, task_name):
         """
@@ -147,9 +146,9 @@ class JPL:
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
-        r = self.session.get(self.url + "/session_status", headers=headers)
-        if 'Session_Status' in r.json():
-            return r.json()['Session_Status']
+        r = self.get_only_once("session_status", headers)
+        if 'Session_Status' in r:
+            return r['Session_Status']
         else:
             return {}
 
@@ -232,10 +231,10 @@ class JPL:
         return self.post_only_once('submit_predictions', headers, predictions_json)
         
     def deactivate_all_sessions(self):
-        headers_session = {'user_secret': self.team_secret,
-                           'govteam_secret': self.gov_team_secret}
-        r = self.session.get(self.url + "/list_active_sessions", headers=headers_session)
-        active_sessions = r.json()['active_sessions']
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret}
+        r = self.get_only_once("list_active_sessions", headers)
+        active_sessions = r['active_sessions']
         for session_token in active_sessions:
             self.deactivate_session(session_token)
 
