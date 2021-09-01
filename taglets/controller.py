@@ -33,7 +33,8 @@ class AccelerateHandler(StreamHandler):
         super().__init__(stream)
     
     def emit(self, record):
-        super().emit(record)
+        if accelerator.is_local_main_process:
+            super().emit(record)
 
 
 stream_handler = AccelerateHandler(sys.stdout)
