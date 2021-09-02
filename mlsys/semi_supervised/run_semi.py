@@ -104,8 +104,8 @@ class CheckpointRunner:
                     logits = self.initial_model(batch)
                     outputs.append(logits[:, class_indices].detach().cpu())
             outputs = torch.cat(outputs).numpy()
-            outputs = np.reshape(outputs, (len(test_labels), -1))
-            predictions = np.zeros((len(test_labels), len(class_names)))
+            outputs = np.reshape(outputs, (len(outputs), -1))
+            predictions = np.zeros((len(outputs), len(class_names)))
             for i in range(len(predictions)):
                 for j in range(outputs.shape[1]):
                     predictions[i][inverse_mapping[j]] = max(predictions[i][inverse_mapping[j]], outputs[i][j])
