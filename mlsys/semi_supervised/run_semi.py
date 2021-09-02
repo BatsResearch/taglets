@@ -22,6 +22,12 @@ log = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", "(Possibly )?corrupt EXIF data", UserWarning)
 
 
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum(axis=-1)
+
+
 class CheckpointRunner:
     def __init__(self, dataset, dataset_dir, batch_size, load_votes_path=None, labelmodel_type=None):
         self.dataset = dataset
@@ -87,24 +93,41 @@ class CheckpointRunner:
             for s in ss:
                 inverse_mapping[len(class_indices)] = np.where(class_names == cls)[0][0]
                 class_indices.append(int(s) - 1)
-        
-        self.initial_model.cuda()
-        eval_loader = DataLoader(evaluation_dataset, shuffle=False, batch_size=256)
-        outputs = []
-        for batch in eval_loader:
-            batch = batch.cuda()
-            with torch.no_grad():
-                logits = self.initial_model(batch)
-                outputs.append(logits[class_indices].detach().cpu())
-        outputs = torch.cat(outputs).numpy()
-        predictions = np.argmax(outputs, 1)
-        for i in range(len(predictions)):
-            predictions[i] = inverse_mapping[predictions[i]]
+                
+        def get_preds(dataset):
+            self.initial_model.cuda()
+            dataloader = DataLoader(dataset, shuffle=False, batch_size=256)
+            outputs = []
+            for batch in dataloader:
+                batch = batch.cuda()
+                with torch.no_grad():
+                    logits = self.initial_model(batch)
+                    outputs.append(logits[:, class_indices].detach().cpu())
+            outputs = torch.cat(outputs).numpy()
+            outputs = np.reshape(outputs, (len(test_labels), -1))
+            predictions = np.zeros((len(test_labels), len(class_names)))
+            for i in range(len(predictions)):
+                for j in range(outputs.shape[1]):
+                    predictions[i][inverse_mapping[j]] = max(predictions[i][inverse_mapping[j]], outputs[i][j])
+                predictions[i] = softmax(predictions[i])
+            return predictions
         
         if test_labels is not None:
             log.info('Accuracy of taglets on this checkpoint:')
+            preds = get_preds(evaluation_dataset)
+            predictions = np.argmax(preds, axis=-1)
             acc = np.sum(predictions == test_labels) / len(test_labels)
             log.info('Acc {:.4f}'.format(acc))
+
+        if self.vote_matrix_save_path is not None:
+            unlabeled_train_labels = self.dataset_api.get_unlabeled_labels(checkpoint_num)
+            _, unlabeled_test_dataset = self.dataset_api.get_unlabeled_dataset(checkpoint_num)
+            preds = get_preds(unlabeled_test_dataset)
+            checkpoint_dict = {'unlabeled_images_votes': np.asarray([preds]),
+                               'unlabeled_images_labels': unlabeled_train_labels}
+            self.vote_matrix_dict[checkpoint_num] = checkpoint_dict
+            with open(self.vote_matrix_save_path, 'wb') as f:
+                pickle.dump(self.vote_matrix_dict, f)
 
         log.info('Checkpoint: {} Elapsed Time =  {}'.format(checkpoint_num,
                                                             time.strftime("%H:%M:%S",
