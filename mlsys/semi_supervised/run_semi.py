@@ -106,6 +106,7 @@ class CheckpointRunner:
             outputs = torch.cat(outputs).numpy()
             outputs = np.reshape(outputs, (len(outputs), -1))
             predictions = np.zeros((len(outputs), len(class_names)))
+            predictions.fill(-1000000)
             for i in range(len(predictions)):
                 for j in range(outputs.shape[1]):
                     predictions[i][inverse_mapping[j]] = max(predictions[i][inverse_mapping[j]], outputs[i][j])
