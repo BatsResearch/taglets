@@ -15,6 +15,9 @@ class Cache:
     def get(key, classes):
         if key in Cache.CACHE:
             saved_classes, data = Cache.CACHE[key]
+            if classes == 'other':
+                log.info("Cache hit without using classes")
+                return saved_classes, data
             if saved_classes == classes:
                 log.info("Cache hit")
                 return data

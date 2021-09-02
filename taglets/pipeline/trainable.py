@@ -440,7 +440,7 @@ class VideoTrainable(Trainable):
         running_loss = 0
         running_acc = 0
         num_pred = 0
-
+        log.info(f"Validate epochs")
         for batch in val_data_loader:
             inputs = batch[0]
             labels = batch[1]

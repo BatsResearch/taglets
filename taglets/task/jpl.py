@@ -838,7 +838,7 @@ class JPLRunner:
 
             if unlabeled_test is not None:
                 log.info("Executing taglets on unlabeled data")
-                self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test, video=self.video)
+                self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test, video=self.video, test=True)
                 log.info("Finished executing taglets on unlabeled data")
 
                 if task.unlabeled_train_labels is not None:
