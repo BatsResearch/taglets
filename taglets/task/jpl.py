@@ -91,13 +91,13 @@ class JPL:
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret
                    }
-        r = self.session.get(self.url + "/list_tasks", headers=headers)
-        task_list = r.json()['tasks']
+        r = self.get_only_once("list_tasks", headers)
+        task_list = r['tasks']
 
         subset_tasks = []
         for _task in task_list:
-            r = self.session.get(self.url+"/task_metadata/"+_task, headers=headers)
-            task_metadata = r.json()
+            task_metadata = self.get_only_once("task_metadata/" + _task, headers)
+            
             if task_metadata['task_metadata']['problem_type'] == problem_type:
                 subset_tasks.append(_task)
         return subset_tasks
@@ -111,8 +111,8 @@ class JPL:
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret}
         
-        r = self.session.get(self.url + "/task_metadata/" + task_name, headers=headers)
-        return r.json()['task_metadata']
+        r = self.get_only_once("task_metadata/" + task_name, headers)
+        return r['task_metadata']
 
     def create_session(self, task_name):
         """
@@ -138,11 +138,6 @@ class JPL:
                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
         self.get_only_once("skip_checkpoint", headers)
-        # if 'Session_Status' in r.json():
-        #     return r.json()['Session_Status']
-        # else:
-        #     return {}
-
 
     def get_session_status(self):
         """
@@ -152,9 +147,9 @@ class JPL:
         headers = {'user_secret': self.team_secret,
                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
-        r = self.session.get(self.url + "/session_status", headers=headers)
-        if 'Session_Status' in r.json():
-            return r.json()['Session_Status']
+        r = self.get_only_once("session_status", headers)
+        if 'Session_Status' in r:
+            return r['Session_Status']
         else:
             return {}
 
@@ -268,10 +263,10 @@ class JPL:
         return self.post_only_once('submit_predictions', headers, predictions_json)
         
     def deactivate_all_sessions(self):
-        headers_session = {'user_secret': self.team_secret,
+        headers = {'user_secret': self.team_secret,
                            'govteam_secret': self.gov_team_secret}
-        r = self.session.get(self.url + "/list_active_sessions", headers=headers_session)
-        active_sessions = r.json()['active_sessions']
+        r = self.get_only_once("list_active_sessions", headers)
+        active_sessions = r['active_sessions']
         for session_token in active_sessions:
             self.deactivate_session(session_token)
 
@@ -790,12 +785,19 @@ class JPLRunner:
             candidates = self.random_active_learning.find_candidates(available_budget, unlabeled_image_names)
             self.request_labels(candidates, self.video)
 
-            # if checkpoint_num == 6:                
-            #     log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
-            #                                                     checkpoint_num,
-            #                                                     time.strftime("%H:%M:%S",
-            #                                                                     time.gmtime(time.time()-start_time))))
-            #     return self.api.skip_checkpoint()
+            if checkpoint_num == 5:                
+                log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
+                                                                checkpoint_num,
+                                                                time.strftime("%H:%M:%S",
+                                                                                time.gmtime(time.time()-start_time))))
+                return self.api.skip_checkpoint()
+
+            elif checkpoint_num == 6:
+                log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
+                                                                checkpoint_num,
+                                                                time.strftime("%H:%M:%S",
+                                                                                time.gmtime(time.time()-start_time))))
+                return self.api.skip_checkpoint()
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
         #log.info(f"number training : {len(labeled_dataset.filepaths)}")
@@ -818,6 +820,7 @@ class JPLRunner:
                     labeled_dataset,
                     unlabeled_train_dataset,
                     val_dataset,
+                    checkpoint_num,
                     self.batch_size,
                     self.jpl_storage.whitelist,
                     self.data_paths[0],
@@ -837,36 +840,36 @@ class JPLRunner:
             val = task.get_validation_data()
 
             if unlabeled_test is not None:
-                log.info("Executing taglets on unlabeled data")
-                self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test, video=self.video, test=True)
-                log.info("Finished executing taglets on unlabeled data")
+                log.info("Evaluate only on evaluation points")
+                # self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test, video=self.video, test=True)
+                # log.info("Finished executing taglets on unlabeled data")
 
-                if task.unlabeled_train_labels is not None:
-                    log.info('Accuracies of each taglet on the unlabeled train data:')
-                    for i in range(len(taglets)):
-                        acc = np.sum(self.unlabeled_vote_matrix[:, i] == np.array(task.unlabeled_train_labels)) / len(task.unlabeled_train_labels)
-                        log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
+                # if task.unlabeled_train_labels is not None:
+                #     log.info('Accuracies of each taglet on the unlabeled train data:')
+                #     for i in range(len(taglets)):
+                #         acc = np.sum(self.unlabeled_vote_matrix[:, i] == np.array(task.unlabeled_train_labels)) / len(task.unlabeled_train_labels)
+                #         log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
 
-                # Combines taglets' votes into soft labels
-                if val is not None and len(val) >= len(task.classes) * 10:
-                    # Weight votes using development set
-                    weights = [taglet.evaluate(val) for taglet in taglets]
-                    log.info("Validation accuracies of each taglet:")
-                    for w, taglet in zip(weights, taglets):
-                        log.info("Module {} - acc {:.4f}".format(taglet.name, w))
-                else:
-                    # Weight all votes equally
-                    weights = [1.0] * len(taglets)
+                # # Combines taglets' votes into soft labels
+                # if val is not None and len(val) >= len(task.classes) * 10:
+                #     # Weight votes using development set
+                #     weights = [taglet.evaluate(val) for taglet in taglets]
+                #     log.info("Validation accuracies of each taglet:")
+                #     for w, taglet in zip(weights, taglets):
+                #         log.info("Module {} - acc {:.4f}".format(taglet.name, w))
+                # else:
+                #     # Weight all votes equally
+                #     weights = [1.0] * len(taglets)
                 
-                #log.info(f"Unlabeled vote matric: {self.unlabeled_vote_matrix} and shape {self.unlabeled_vote_matrix.shape}, weights: {weights}, task.classes {task.classes}")
-                weak_labels = self._get_weighted_dist(self.unlabeled_vote_matrix, weights, task.classes)
+                # #log.info(f"Unlabeled vote matric: {self.unlabeled_vote_matrix} and shape {self.unlabeled_vote_matrix.shape}, weights: {weights}, task.classes {task.classes}")
+                # weak_labels = self._get_weighted_dist(self.unlabeled_vote_matrix, weights, task.classes)
 
 
-                if task.unlabeled_train_labels is not None:
-                    log.info('Accuracy of the labelmodel on the unlabeled train data:')
-                    predictions = np.asarray([np.argmax(label) for label in weak_labels])
-                    acc = np.sum(predictions == task.unlabeled_train_labels) / len(task.unlabeled_train_labels)
-                    log.info('Acc {:.4f}'.format(acc))
+                # if task.unlabeled_train_labels is not None:
+                #     log.info('Accuracy of the labelmodel on the unlabeled train data:')
+                #     predictions = np.asarray([np.argmax(label) for label in weak_labels])
+                #     acc = np.sum(predictions == task.unlabeled_train_labels) / len(task.unlabeled_train_labels)
+                #     log.info('Acc {:.4f}'.format(acc))
             else:
                 if val is not None and len(val) >= len(task.classes) * 10:
                     # Weight votes using development set
