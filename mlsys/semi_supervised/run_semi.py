@@ -18,7 +18,8 @@ from taglets.task.utils import labels_to_concept_ids
 from taglets.scads import Scads
 from taglets.labelmodel import AMCLLogReg, AMCLWeightedVote, WeightedVote, UnweightedVote, NaiveBayes
 
-from .dataset_api import FMD, Places205, OfficeHomeProduct, OfficeHomeClipart
+from .dataset_api import FMD, Places205, OfficeHomeProduct, OfficeHomeClipart, GroceryStoreFineGrained, \
+    GroceryStoreCoarseGrained
 
 
 log = logging.getLogger(__name__)
@@ -36,7 +37,9 @@ class CheckpointRunner:
         dataset_dict = {'fmd': FMD,
                         'places205': Places205,
                         'office_home-product': OfficeHomeProduct,
-                        'office_home-clipart': OfficeHomeClipart}
+                        'office_home-clipart': OfficeHomeClipart,
+                        'grocery-coarse': GroceryStoreCoarseGrained,
+                        'grocery-fine': GroceryStoreFineGrained}
         self.dataset_api = dataset_dict[dataset](dataset_dir)
 
         self.initial_model = models.resnet50(pretrained=True)
@@ -198,7 +201,8 @@ def main():
     parser.add_argument('--dataset',
                         type=str,
                         default='fmd',
-                        choices=['fmd', 'places205', 'office_home-product', 'office_home-clipart'])
+                        choices=['fmd', 'places205', 'office_home-product', 'office_home-clipart',
+                                 'grocery-coarse', 'grocery-fine'])
     parser.add_argument('--dataset_dir',
                         type=str,
                         default='true',
