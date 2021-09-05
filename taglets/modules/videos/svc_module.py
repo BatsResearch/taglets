@@ -81,7 +81,9 @@ class SVCVideoTaglet(VideoTaglet):
 
     def _extract_features(self, data, evaluation=False, test=False, train=True):
 
-        #num_proc = 1
+        # Clean cache at the beginning of each stage
+        if self.task.checkpoint == 0:
+            Cache.reset()
         
         if train:
             data_loader = self._get_dataloader(data, shuffle=True)

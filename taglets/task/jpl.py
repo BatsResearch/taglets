@@ -11,6 +11,7 @@ from pathlib import Path
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
+
 from accelerate import Accelerator
 accelerator = Accelerator()
 import torch
@@ -839,37 +840,38 @@ class JPLRunner:
             unlabeled_test = task.get_unlabeled_data(False)
             val = task.get_validation_data()
 
+            unlabeled_test = None
             if unlabeled_test is not None:
                 log.info("Evaluate only on evaluation points")
-                # self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test, video=self.video, test=True)
-                # log.info("Finished executing taglets on unlabeled data")
+                self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test, video=self.video, test=True)
+                log.info("Finished executing taglets on unlabeled data")
 
-                # if task.unlabeled_train_labels is not None:
-                #     log.info('Accuracies of each taglet on the unlabeled train data:')
-                #     for i in range(len(taglets)):
-                #         acc = np.sum(self.unlabeled_vote_matrix[:, i] == np.array(task.unlabeled_train_labels)) / len(task.unlabeled_train_labels)
-                #         log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
+                if task.unlabeled_train_labels is not None:
+                    log.info('Accuracies of each taglet on the unlabeled train data:')
+                    for i in range(len(taglets)):
+                        acc = np.sum(self.unlabeled_vote_matrix[:, i] == np.array(task.unlabeled_train_labels)) / len(task.unlabeled_train_labels)
+                        log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
 
-                # # Combines taglets' votes into soft labels
-                # if val is not None and len(val) >= len(task.classes) * 10:
-                #     # Weight votes using development set
-                #     weights = [taglet.evaluate(val) for taglet in taglets]
-                #     log.info("Validation accuracies of each taglet:")
-                #     for w, taglet in zip(weights, taglets):
-                #         log.info("Module {} - acc {:.4f}".format(taglet.name, w))
-                # else:
-                #     # Weight all votes equally
-                #     weights = [1.0] * len(taglets)
+                # Combines taglets' votes into soft labels
+                if val is not None and len(val) >= len(task.classes) * 10:
+                    # Weight votes using development set
+                    weights = [taglet.evaluate(val) for taglet in taglets]
+                    log.info("Validation accuracies of each taglet:")
+                    for w, taglet in zip(weights, taglets):
+                        log.info("Module {} - acc {:.4f}".format(taglet.name, w))
+                else:
+                    # Weight all votes equally
+                    weights = [1.0] * len(taglets)
                 
-                # #log.info(f"Unlabeled vote matric: {self.unlabeled_vote_matrix} and shape {self.unlabeled_vote_matrix.shape}, weights: {weights}, task.classes {task.classes}")
-                # weak_labels = self._get_weighted_dist(self.unlabeled_vote_matrix, weights, task.classes)
+                #log.info(f"Unlabeled vote matric: {self.unlabeled_vote_matrix} and shape {self.unlabeled_vote_matrix.shape}, weights: {weights}, task.classes {task.classes}")
+                weak_labels = self._get_weighted_dist(self.unlabeled_vote_matrix, weights, task.classes)
 
 
-                # if task.unlabeled_train_labels is not None:
-                #     log.info('Accuracy of the labelmodel on the unlabeled train data:')
-                #     predictions = np.asarray([np.argmax(label) for label in weak_labels])
-                #     acc = np.sum(predictions == task.unlabeled_train_labels) / len(task.unlabeled_train_labels)
-                #     log.info('Acc {:.4f}'.format(acc))
+                if task.unlabeled_train_labels is not None:
+                    log.info('Accuracy of the labelmodel on the unlabeled train data:')
+                    predictions = np.asarray([np.argmax(label) for label in weak_labels])
+                    acc = np.sum(predictions == task.unlabeled_train_labels) / len(task.unlabeled_train_labels)
+                    log.info('Acc {:.4f}'.format(acc))
             else:
                 if val is not None and len(val) >= len(task.classes) * 10:
                     # Weight votes using development set
@@ -914,6 +916,11 @@ class JPLRunner:
             predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(self.video), 'class': prediction_names}
 
             self.submit_predictions(predictions_dict)
+
+            if checkpoint_num == 7:
+                best_taglet = np.argmax(weights)
+                self.initial_model = taglets[best_taglet]._get_pred_classifier() # Set the model of best taglets at the checkpoint
+                self.initial_model.blocks[6].proj = torch.nn.Sequential()
 
         else:
             end_model = controller.train_end_model()

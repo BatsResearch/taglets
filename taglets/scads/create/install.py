@@ -49,7 +49,7 @@ class ImageClassificationInstaller(DatasetInstaller):
                     label_to_node_id[label] = node_id
                 
                 # Scads is missing a missing conceptnet id
-                if node_id is None:
+                if not node_id:
                     continue
                 
                 img = Image(dataset_id=dataset.id,
@@ -129,6 +129,8 @@ class VideoClassificationInstaller(DatasetInstaller):
             return [w.strip() for w in string.split('/')[-1].split('_') if len(w) > 2]
         elif dataset.name == 'MomentsInTime':
             return [w.strip() for w in string.split('_')]
+        elif dataset.name == 'Kinetics700':
+            return [w.strip() for w in string.split('/')[-1].split('_') if len(w) > 2]
 
     
     def get_data(self, dataset, session, root):
@@ -141,8 +143,11 @@ class VideoClassificationInstaller(DatasetInstaller):
             base_path = os.path.join(dataset.path, dataset.path + '_' + size, mode)
 
             #print(base_path, dataset.path, root)
-            df = pd.read_feather(
-                os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            try:
+                df = pd.read_feather(
+                    os.path.join(root, dataset.path, "labels_" + size, 'labels_' + mode + '.feather'))
+            except:
+                continue
             if mode == "test":
                 df_label = pd.crosstab(df['id'], df['class'])
                 df = pd.read_feather(
@@ -381,6 +386,20 @@ class Kinetics400Installation(VideoClassificationInstaller):
                 return "/c/en/" + label_clean
             else:
                 return "/c/en/" + label.lower()
+            
+class Kinetics700Installation(VideoClassificationInstaller):
+    def get_name(self):
+        return "Kinetics700"
+    def get_conceptnet_id(self, label):
+        exceptions = {}
+        if label in exceptions:
+            return "/c/en/" + exceptions[label]
+        else:
+            label_clean = label.replace('(','').replace(')','').replace("''",'').lower()
+            if len(label_clean) != 0:
+                return "/c/en/" + label_clean
+            else:
+                return "/c/en/" + label.lower()
 
 class MomentsInTimeInstallation(VideoClassificationInstaller):
     def get_name(self):
@@ -423,6 +442,7 @@ if __name__ == "__main__":
     parser.add_argument("--hmdb", type=str, help="Path to hmdb directory from the root")
     parser.add_argument("--ucf101", type=str, help="Path to ufc101 directory from the root")
     parser.add_argument("--kinetics400", type=str, help="Path to kinetics directory from the root")
+    parser.add_argument("--kinetics700", type=str, help="Path to kinetics directory from the root")
     parser.add_argument("--moments_in_time", type=str, help="Path to mit directory from the root")
     parser.add_argument("--msl_curiosity", type=str, help="Path to msl_curiosity directory from the root")
     parser.add_argument("--mars_surface_imgs", type=str, help="Path to mars_surface_imgs directory from the root")
@@ -481,6 +501,11 @@ if __name__ == "__main__":
         if not args.root:
             raise RuntimeError("Must specify root directory.")
         installer.install_dataset(args.root, args.kinetics400, Kinetics400Installation())
+        
+    if args.kinetics700:
+        if not args.root:
+            raise RuntimeError("Must specify root directory.")
+        installer.install_dataset(args.root, args.kinetics700, Kinetics700Installation())
     
     if args.moments_in_time:
         if not args.root:

@@ -5,7 +5,13 @@ log = logging.getLogger(__name__)
 
 class Cache:
     CACHE = {}
-
+    @staticmethod
+    def reset():
+        log.info("Reset cache")
+        try:
+            del Cache.CACHE['svc-eval-embeddings']
+        except:
+            log.info('Key for SVC did not exist')
     @staticmethod
     def set(key, classes, data):
         log.info("Setting cache key %s", key)
