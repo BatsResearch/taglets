@@ -177,6 +177,8 @@ class TransferVideoTaglet(VideoTagletWithAuxData):
             self.num_epochs = 10 if not os.environ.get("CI") else 5
         elif 4 <= self.task.checkpoint <= 6:
             self.num_epochs = 30 if not os.environ.get("CI") else 5
+        elif self.task.checkpoint == 0:
+            self.num_epochs = 50 if not os.environ.get("CI") else 5
         else:
             self.num_epochs = 40 if not os.environ.get("CI") else 5
         self._set_num_classes(len(self.task.classes))
