@@ -1,2 +1,2 @@
 from .scads import Scads
-from .scads_embedding import ScadsEmbedding
+from .scads_embedding import ScadsEmbedding, ScadsEmbeddingVideo

@@ -6,11 +6,14 @@ import torch
 import numpy as np
 
 log = logging.getLogger(__name__)
+    
 
-
-class EndModelMixin():
+class ImageEndModel(ImageTrainable):
+    """
+    An end model for image data
+    """
     def __init__(self, task):
-        super().__init__(task)
+        super().__init__(task) 
         self.name = 'end model'
         m = torch.nn.Sequential(*list(self.model.children())[:-1])
         output_shape = self._get_model_output_shape(self.task.input_shape, m)
@@ -51,19 +54,51 @@ class EndModelMixin():
     @staticmethod
     def _get_train_acc(outputs, labels):
         return torch.sum(torch.max(outputs, 1)[1] == torch.max(labels, 1)[1])
-    
 
-class ImageEndModel(EndModelMixin, ImageTrainable):
-    """
-    An end model for image data
-    """
-    
-
-class VideoEndModel(EndModelMixin, VideoTrainable):
+class VideoEndModel(VideoTrainable):
     """
     An end model for video data
     """
+    def __init__(self, task):
+        super().__init__(task) 
+        self.name = 'end model'
+        m = torch.nn.Sequential(*list(self.model.children())[:-1])
+        output_shape = self.model.blocks[6].proj.in_features #self._get_model_output_shape(self.task.input_shape, m)
 
+        #log.info(f"EndModel shapes: {m}, {output_shape}, {len(self.task.classes)}")
+
+        self.model.blocks[6].proj = torch.nn.Sequential(torch.nn.Linear(output_shape, len(self.task.classes)))
+        if os.getenv("LWLL_TA1_PROB_TASK") is not None:
+            self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
+        else:
+            self.save_dir = os.path.join('trained_models', self.name)
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+        
+        self.criterion = self.soft_cross_entropy
+
+        params_to_update = []
+        for param in self.model.parameters():
+            if param.requires_grad:
+                params_to_update.append(param)
+        self._params_to_update = params_to_update
+        self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
+        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+
+    @staticmethod
+    def soft_cross_entropy(outputs, target):
+        outputs = outputs.double()
+        target = target.double()
+        logs = torch.nn.LogSoftmax(dim=1)
+
+        #log.info(f"outputsize {outputs.size()}")
+        #log.info(f"target {target.size()}")
+        #log.info(f"logs {logs(outputs).size()}")
+        return torch.mean(torch.sum(-target * logs(outputs), 1))
+
+    @staticmethod
+    def _get_train_acc(outputs, labels):
+        return torch.sum(torch.max(outputs, 1)[1] == torch.max(labels, 1)[1])
 
 class RandomEndModel(ImageEndModel):
     def train(self, train_data, val_data, unlabeled_data=None):
