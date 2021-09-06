@@ -157,7 +157,7 @@ class TransferVideoTaglet(VideoTagletWithAuxData):
                 return
     
             orig_num_epochs = self.num_epochs
-            self.num_epochs = 10 if not os.environ.get("CI") else 5
+            self.num_epochs = 1 if not os.environ.get("CI") else 5
             self._set_num_classes(scads_num_classes, aux=True)
             super(TransferVideoTaglet, self).train(scads_train_data, scads_val_data, None) # Add here validation data return validation set from _get_scads_data()
             self.num_epochs = orig_num_epochs
@@ -174,13 +174,13 @@ class TransferVideoTaglet(VideoTagletWithAuxData):
 
         orig_num_epochs = self.num_epochs
         if self.task.checkpoint == 7:
-            self.num_epochs = 10 if not os.environ.get("CI") else 5
+            self.num_epochs = 1 if not os.environ.get("CI") else 5
         elif 4 <= self.task.checkpoint <= 6:
-            self.num_epochs = 30 if not os.environ.get("CI") else 5
+            self.num_epochs = 1 if not os.environ.get("CI") else 5
         elif self.task.checkpoint == 0:
-            self.num_epochs = 50 if not os.environ.get("CI") else 5
+            self.num_epochs = 1 if not os.environ.get("CI") else 5
         else:
-            self.num_epochs = 40 if not os.environ.get("CI") else 5
+            self.num_epochs = 1 if not os.environ.get("CI") else 5
         self._set_num_classes(len(self.task.classes))
         super(TransferVideoTaglet, self).train(train_data, val_data, unlabeled_data)
         self.num_epochs = orig_num_epochs
