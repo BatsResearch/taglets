@@ -14,7 +14,7 @@ from accelerate import Accelerator
 accelerator = Accelerator()
 
 from ..module import Module
-from ...pipeline import VideoTaglet
+from ...pipeline import VideoTaglet, Cache
 
 
 
@@ -59,17 +59,17 @@ class SVCVideoTaglet(VideoTaglet):
         self.classifier = self.classifier.fit(nembs_train, labs_train)
 
     def evaluate(self, labeled_data):
-        preds, labels = self.predict(labeled_data)
+        preds, labels = self.predict(labeled_data, evaluation=True)
         correct = (preds == labels).sum()
         
         return correct / len(preds)
         
 
-    def predict(self, data):
+    def predict(self, data, evaluation=False, test=False):
         log.info('Beginning prediction')
         pred_classifier = self.classifier
         
-        X, Y = self._extract_features(data, train=False)
+        X, Y = self._extract_features(data, evaluation, test, train=False)
         nembs_valid = normalize(X, axis=1)
 
         preds = pred_classifier.predict(nembs_valid)
@@ -79,9 +79,11 @@ class SVCVideoTaglet(VideoTaglet):
         else:
             return preds
 
-    def _extract_features(self, data, train=True):
+    def _extract_features(self, data, evaluation=False, test=False, train=True):
 
-        #num_proc = 1
+        # Clean cache at the beginning of each stage
+        if self.task.checkpoint == 0:
+            Cache.reset()
         
         if train:
             data_loader = self._get_dataloader(data, shuffle=True)
@@ -90,12 +92,12 @@ class SVCVideoTaglet(VideoTaglet):
         
         accelerator.wait_for_everyone()
         self.model.eval()
-
+        
+        # Init matrices            
+        X = np.array([]).reshape(0, 2304)
+        Y = np.array([])
+        
         if train:
-            # Init matrices            
-            X = np.array([]).reshape(0, 2304)
-            Y = np.array([])
-            
             for batch in data_loader:
                 inputs = batch[0]['video']
                 labels = batch[1]
@@ -117,44 +119,52 @@ class SVCVideoTaglet(VideoTaglet):
             return X, Y
 
         else:
-            # Check if embeddings already computed
-            # if os.path.isfile("X.p"):
-            #     X = pickle.load(open("X.p", "rb" ))
-            #     Y = pickle.load(open("Y.p", "rb" ))
-
-            # else: 
-            X = np.array([]).reshape(0, 2304)
-            Y = np.array([])
-
-            for batch in data_loader:
-                if isinstance(batch, list):
+            if evaluation:
+                for batch in data_loader:
                     inputs = batch[0]['video'] 
                     targets = batch[1]
-                else:
-                    #if os.path.isfile("X.p"):
-                    #    X = pickle.load(open("X.p", "rb" ))
-                    #    Y = pickle.load(open("Y.p", "rb" ))
-                    #    return X, Y
-                    inputs, targets = batch['video'], None
 
-                output = self.model(inputs)
-                output  = accelerator.gather(output.detach())
-                if targets is not None:
+                    output = self.model(inputs)
+                    output  = accelerator.gather(output.detach())
+                    
                     labels = accelerator.gather(targets)
                     lab = labels.cpu()
                     Y = np.concatenate((Y, lab), axis=0)
-                # Embeddings to cpu
-                emb = output.cpu().numpy()
-                X = np.concatenate((X, emb), axis=0)
+                    # Embeddings to cpu
+                    emb = output.cpu().numpy()
+                    X = np.concatenate((X, emb), axis=0)
 
+                dataset_len = len(data_loader.dataset)
+                X = X[:dataset_len, :]
+                Y = Y[:dataset_len]
+                return X, Y
+            elif test == True:
+                for batch in data_loader:
+                    inputs, targets = batch['video'], None
+                    output = self.model(inputs)
+                    output  = accelerator.gather(output.detach())
+                    # Embeddings to cpu
+                    emb = output.cpu().numpy()
+                    X = np.concatenate((X, emb), axis=0)
+                dataset_len = len(data_loader.dataset)
+                X = X[:dataset_len, :]
+                return X, Y
+            else:
+                # Check if embeddings already computed
+                eval_embeddings = Cache.get("svc-eval-embeddings", 'other')
+                if eval_embeddings is None:
+                    for batch in data_loader:
+                        inputs, targets = batch['video'], None
+                        output = self.model(inputs)
+                        output  = accelerator.gather(output.detach())
+                        # Embeddings to cpu
+                        emb = output.cpu().numpy()
+                        X = np.concatenate((X, emb), axis=0)
 
-            dataset_len = len(data_loader.dataset)
-            X = X[:dataset_len, :]
-            Y = Y[:dataset_len]
-            
-            #if isinstance(batch, list):
-            #    return X, Y
-            #else:
-            #    pickle.dump(X, open("X.p","wb"))
-            #    pickle.dump(Y, open("Y.p","wb"))
-            return X, Y
+                    dataset_len = len(data_loader.dataset)
+                    X = X[:dataset_len, :]
+                    Cache.set('svc-eval-embeddings', X, Y)
+                    return X, Y
+                else:
+                    return eval_embeddings[0], eval_embeddings[1]
+

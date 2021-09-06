@@ -17,7 +17,7 @@ from ..data.custom_dataset import CustomVideoDataset, HandleExceptionCustomVideo
 log = logging.getLogger(__name__)
 
 class TagletMixin:
-    def execute(self, unlabeled_data):
+    def execute(self, unlabeled_data, evaluation=False, test=False):
         """
         Execute the Taglet on unlabeled images.
 
@@ -25,13 +25,17 @@ class TagletMixin:
         :return: A 1-d NumPy array of predicted labels
         """
         
-        outputs = self.predict(unlabeled_data)
+        
         if self.task.video_classification:
             log.info('Executing video-classification')
             if self.name == 'svc-video':
+                outputs = self.predict(unlabeled_data, evaluation, test)
                 return outputs
-            return np.argmax(outputs, 1)
+            else:
+                outputs = self.predict(unlabeled_data)
+                return np.argmax(outputs, 1)
         else:
+            outputs = self.predict(unlabeled_data)
             if isinstance(outputs, tuple):
                 outputs, _ = outputs
             return outputs
