@@ -146,7 +146,7 @@ class VideoAuxDataMixin(AuxDataMixin):
             visited = set()
         
             def get_clips(node, label, is_neighbor):
-                extra_ds = ['moments-in-time']
+                extra_ds = ['moments-in-time', 'kinetics700']
 
                 if is_neighbor and node.get_conceptnet_id() in self.task.classes:
                     return False
@@ -163,6 +163,8 @@ class VideoAuxDataMixin(AuxDataMixin):
                     clips = []
                     for path, start, end, c_idx, v_idx, name_concept in tmp_clips:
                         if (path.split('/')[0] == 'moments-in-time') and (path.split('/')[2] == 'train'):
+                            continue
+                        elif (path.split('/')[0] == 'kinetics700') and (path.split('/')[2] == 'train'):
                             continue
                         else:
                             clips.append((path, start, end, c_idx, v_idx, name_concept))
