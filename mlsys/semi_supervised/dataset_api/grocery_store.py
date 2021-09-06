@@ -21,7 +21,9 @@ class GroceryStore(DatasetAPI):
         self.classes = [None] * num_cls
         with open(os.path.join(dataset_dir, 'classes.csv')) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
-            for row in csv_reader:
+            for idx, row in enumerate(csv_reader):
+                if idx == 0:
+                    continue
                 if fine_grained:
                     self.classes[int(row[1])] = row[0].lower().replace('-', '_')
                 else:
