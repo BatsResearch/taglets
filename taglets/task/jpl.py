@@ -98,6 +98,7 @@ class JPL:
         subset_tasks = []
         for _task in task_list:
             task_metadata = self.get_only_once("task_metadata/" + _task, headers)
+            
             if task_metadata['task_metadata']['problem_type'] == problem_type:
                 subset_tasks.append(_task)
         return subset_tasks
@@ -264,8 +265,7 @@ class JPL:
         
     def deactivate_all_sessions(self):
         headers = {'user_secret': self.team_secret,
-                   'govteam_secret': self.gov_team_secret}
-        
+                           'govteam_secret': self.gov_team_secret}
         r = self.get_only_once("list_active_sessions", headers)
         active_sessions = r['active_sessions']
         for session_token in active_sessions:
