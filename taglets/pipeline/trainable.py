@@ -38,13 +38,13 @@ class Trainable:
         self.criterion = torch.nn.CrossEntropyLoss()
         self.seed = 0
         if self.task.checkpoint == 7:
-            self.num_epochs = 1 if not os.environ.get("CI") else 5
+            self.num_epochs = 10 if not os.environ.get("CI") else 5
         elif 4 <= self.task.checkpoint <= 6:
-            self.num_epochs = 1 if not os.environ.get("CI") else 5
+            self.num_epochs = 30 if not os.environ.get("CI") else 5
         elif self.task.checkpoint == 0:
-            self.num_epochs = 1 if not os.environ.get("CI") else 5
+            self.num_epochs = 50 if not os.environ.get("CI") else 5
         else:
-            self.num_epochs = 1 if not os.environ.get("CI") else 5
+            self.num_epochs = 40 if not os.environ.get("CI") else 5
         self.batch_size = task.batch_size if not os.environ.get("CI") else 32
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
