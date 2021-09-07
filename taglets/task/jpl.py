@@ -1078,7 +1078,7 @@ def main():
                         help="Option to choose whether to execute or not the entire trining pipeline")
     parser.add_argument("--folder",
                         type=str,
-                        default="external",# external, evaluation
+                        default="evaluation",# external, evaluation
                         help="Option to choose the data folder")
     parser.add_argument("--batch_size",
                         type=int,
