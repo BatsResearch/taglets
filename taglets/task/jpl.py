@@ -840,7 +840,7 @@ class JPLRunner:
             unlabeled_test = task.get_unlabeled_data(False)
             val = task.get_validation_data()
 
-            unlabeled_test = None
+            #unlabeled_test = None
             if unlabeled_test is not None:
                 log.info("Evaluate only on evaluation points")
                 self.unlabeled_vote_matrix = taglet_executor.execute(unlabeled_test, video=self.video, test=True)
