@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 
-accelerate launch --config_file ./accelerate_config.yml ./run_jpl.py --mode prod --simple_version false --folder external
+accelerate launch --config_file ./accelerate_config.yml ./run_jpl.py --mode prod --simple_version false --folder evaluation
 
 # gpu_array=($LWLL_TA1_GPUS)
 # if [[ -z $LWLL_TA1_GPUS || $LWLL_TA1_GPUS == "all" ]]; then
