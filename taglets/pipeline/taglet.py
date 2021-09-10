@@ -70,7 +70,8 @@ class AuxDataMixin:
                         return False
 
                     bad_images = ['imagenet/n06470073/n06470073_47249.JPEG', 'imagenet/n04135315/n04135315_8814.JPEG',
-                                  'imagenet/n04257684/n04257684_9033.JPEG']
+                                  'imagenet/n04257684/n04257684_9033.JPEG', 'imagenet/n12630763/n12630763_8018.JPEG',
+                                  'imagenet/n07930062/n07930062_4147.JPEG', 'imagenet/n12353203/n12353203_3849.JPEG']
                     
                     images = random.sample(images, self.img_per_related_class)
                     images = [os.path.join(root_path, image) for image in images if image not in bad_images]
