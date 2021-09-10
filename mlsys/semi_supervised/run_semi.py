@@ -164,7 +164,7 @@ class CheckpointRunner:
                                'naive_bayes': NaiveBayes,
                                'weighted': WeightedVote,
                                'unweighted': UnweightedVote}
-            num_classes = 10 if self.dataset == 'fmd' else 65
+            num_classes = 10 if self.dataset == 'fmd' else 65 if self.dataset.startswith('officehome') else 43
             
             labelmodel = labelmodel_dict[self.labelmodel_type](num_classes)
     
