@@ -35,9 +35,9 @@ class GroceryStore(DatasetAPI):
             csv_reader = csv.reader(csv_file, delimiter=',')
             for row in csv_reader:
                 if fine_grained:
-                    self.all_img_paths[int(row[1])].append(row[0])
+                    self.all_img_paths[int(row[1])].append(os.path.join(self.dataset_dir, row[0]))
                 else:
-                    self.all_img_paths[int(row[2])].append(row[0])
+                    self.all_img_paths[int(row[2])].append(os.path.join(self.dataset_dir, row[0]))
         for i in range(len(self.all_img_paths)):
             self.all_img_paths[i] = np.asarray(self.all_img_paths[i])
 
@@ -46,7 +46,7 @@ class GroceryStore(DatasetAPI):
         with open(os.path.join(dataset_dir, 'test.txt')) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
             for row in csv_reader:
-                self.test_img_paths.append(row[0])
+                self.test_img_paths.append(os.path.join(self.dataset_dir, row[0]))
                 if fine_grained:
                     self.test_labels.append(int(row[1]))
                 else:
