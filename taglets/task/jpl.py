@@ -836,8 +836,8 @@ class JPLRunner:
         if self.video:
             taglet_executor, taglets = controller.train_end_model()
             labeled = task.get_labeled_train_data()
-            unlabeled_train = task.get_unlabeled_data(True) # augmentation is applied
-            unlabeled_test = task.get_unlabeled_data(False)
+            unlabeled_train = None #task.get_unlabeled_data(True) # augmentation is applied
+            unlabeled_test = None #task.get_unlabeled_data(False)
             val = task.get_validation_data()
 
             #unlabeled_test = None
