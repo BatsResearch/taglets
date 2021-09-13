@@ -802,11 +802,11 @@ class JPLRunner:
 
         labeled_dataset, val_dataset = self.jpl_storage.get_labeled_dataset(checkpoint_num, self.jpl_storage.dictionary_clips, self.video)
         #log.info(f"number training : {len(labeled_dataset.filepaths)}")
-        unlabeled_train_dataset = self.jpl_storage.get_unlabeled_dataset(True, self.video, dict_clips=self.jpl_storage.dictionary_clips)
+        unlabeled_train_dataset = None #self.jpl_storage.get_unlabeled_dataset(True, self.video, dict_clips=self.jpl_storage.dictionary_clips)
         #log.info(f" number unlabeled_train_dataset: {len(unlabeled_train_dataset.filepaths)}")
-        unlabeled_test_dataset = self.jpl_storage.get_unlabeled_dataset(False, self.video, dict_clips=self.jpl_storage.dictionary_clips)
+        unlabeled_test_dataset = None #self.jpl_storage.get_unlabeled_dataset(False, self.video, dict_clips=self.jpl_storage.dictionary_clips)
         #log.info(f"unlabeled_test_dataset: {len(unlabeled_test_dataset.filepaths)}")
-        unlabeled_train_labels = self.jpl_storage.get_true_labels('train', self.mode, dict_clips=self.jpl_storage.dictionary_clips, video=self.video)
+        unlabeled_train_labels = None #self.jpl_storage.get_true_labels('train', self.mode, dict_clips=self.jpl_storage.dictionary_clips, video=self.video)
         #log.info(f"unlabeled_train_labels: {len(unlabeled_train_labels)}")
         
 
