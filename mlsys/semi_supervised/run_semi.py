@@ -20,6 +20,7 @@ from taglets.labelmodel import AMCLLogReg, AMCLWeightedVote, WeightedVote, Unwei
 
 from .dataset_api import FMD, Places205, OfficeHomeProduct, OfficeHomeClipart, GroceryStoreFineGrained, \
     GroceryStoreCoarseGrained
+from .models import KNOWN_MODELS
 
 
 log = logging.getLogger(__name__)
