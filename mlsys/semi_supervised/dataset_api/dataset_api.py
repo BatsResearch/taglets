@@ -73,9 +73,6 @@ class DatasetAPI:
             return labeled_dataset, val_dataset
 
     def get_unlabeled_dataset(self, checkpoint_num):
-        if checkpoint_num == len(self.checkpoint_shot) - 1:
-            return None, None
-    
         shot = self.checkpoint_shot[checkpoint_num]
         img_paths = []
         for i in range(len(self.classes)):
@@ -90,9 +87,6 @@ class DatasetAPI:
         return unlabeled_train_dataset, unlabeled_test_dataset
 
     def get_unlabeled_labels(self, checkpoint_num):
-        if checkpoint_num == len(self.checkpoint_shot) - 1:
-            return None
-    
         shot = self.checkpoint_shot[checkpoint_num]
         labels = []
         for i in range(len(self.classes)):

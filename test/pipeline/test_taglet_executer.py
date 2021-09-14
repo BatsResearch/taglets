@@ -92,12 +92,12 @@ class TestTagletExecuter(unittest.TestCase):
         cls.label_matrix = executor.execute(cls.unlabeled)
 
     def test_weak_label_shape(self):
-        self.assertTrue(self.label_matrix.shape[0] == len(self.unlabeled))
-        self.assertTrue(self.label_matrix.shape[1] == len(self.taglets))
+        self.assertTrue(self.label_matrix.shape[1] == len(self.unlabeled))
+        self.assertTrue(self.label_matrix.shape[0] == len(self.taglets))
 
     def test_weak_label_correctness(self):
         taglet_output = self.taglets[0].execute(self.unlabeled)
-        self.assertTrue(np.array_equal(taglet_output, self.label_matrix[:, 0]))
+        self.assertTrue(np.array_equal(taglet_output, self.label_matrix[0]))
 
 
 if __name__ == "__main__":

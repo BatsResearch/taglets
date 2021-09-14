@@ -14,7 +14,7 @@ accelerator = Accelerator()
 from .data import SoftLabelDataset
 from .labelmodel import UnweightedVote, WeightedVote, AMCLWeightedVote
 from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
-    RandomModule, DannModule
+    RandomModule, DannModule, PseudoShotModule
 from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
 ####################################################################
@@ -43,7 +43,7 @@ stream_handler.setLevel(logging.INFO)
 stream_handler.setFormatter(formatter)
 logger_.addHandler(stream_handler)
 
-if not os.environ.get("CI"):
+if os.environ.get("LWLL_TA1_API_ENDPOINT") is not None:
     import logger
     
     class JPLHandler(StreamHandler):
@@ -84,7 +84,7 @@ class Controller:
         self.simple_run = simple_run
         nltk.download('wordnet')
 
-    def train_end_model(self):
+    def train_end_model(self, weak_labels=None):
         """
         Executes a training pipeline end-to-end, turning a Task into an EndModel
         :return: A trained EndModel
@@ -95,8 +95,11 @@ class Controller:
         unlabeled_train = self.task.get_unlabeled_data(True) # augmentation is applied
         val = self.task.get_validation_data()
 
-        unlabeled_images_labels = []
-        if unlabeled_test is not None:
+        if weak_labels is None:
+            unlabeled_images_labels = []
+        else:
+            unlabeled_images_labels = [torch.FloatTensor(label) for label in weak_labels]
+        if unlabeled_test is not None and weak_labels is None:
             # Creates taglets
             modules = self._get_taglets_modules()
             taglets = []
@@ -139,6 +142,12 @@ class Controller:
 
             # Train a labelmodel and get weak labels
             if val is not None:
+                weights = [taglet.evaluate(val) for taglet in taglets]
+                log.info("Validation accuracies of each taglet:")
+                for w, taglet in zip(weights, taglets):
+                    log.info("Module {} - acc {:.4f}".format(taglet.name, w))
+                
+                
                 log.info("Using AMCLWeightedVote as the labelmodel")
 
                 log.info("Executing taglets on val data")
@@ -170,11 +179,6 @@ class Controller:
                 
                 # # Weight votes using development set
                 # log.info("Using WeightedVote as the labelmodel")
-                # weights = [taglet.evaluate(val) for taglet in taglets]
-                # log.info("Validation accuracies of each taglet:")
-                # for w, taglet in zip(weights, taglets):
-                #     log.info("Module {} - acc {:.4f}".format(taglet.name, w))
-                #
                 # lm = WeightedVote(len(self.task.classes))
                 # weak_labels = lm.get_weak_labels(self.unlabeled_vote_matrix, weights)
             else:
@@ -227,7 +231,8 @@ class Controller:
                         ZSLKGModule,
                         TransferModule,
                         FineTuneModule,
-                        FixMatchModule]
+                        FixMatchModule,
+                        PseudoShotModule]
             return [FineTuneModule, FixMatchModule]
     
     def get_vote_matrix(self):

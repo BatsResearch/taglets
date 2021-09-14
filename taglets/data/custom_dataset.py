@@ -44,6 +44,34 @@ class CustomImageDataset(Dataset):
 
     def __len__(self):
         return len(self.filepaths)
+
+class PseudoshotImageDataset(CustomImageDataset):
+    """
+    A custom dataset used to create dataloaders.
+    """
+    def __init__(self, filepaths, labels=None, label_mask=None, label_map=None, transform=None):
+        super(PseudoshotImageDataset, self).__init__(filepaths, labels, label_map, transform)
+        self.label_mask = label_mask
+
+    def __getitem__(self, index):
+        img = Image.open(self.filepaths[index]).convert('RGB')
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.labels is not None:
+            if self.label_map is not None:
+                label = torch.tensor(self.label_map[(self.labels[index])])
+            else:
+                label = torch.tensor(int(self.labels[index]))
+            if self.label_mask:
+                return img, label, int(self.label_mask[index])
+            return img, label
+        else:
+            return img
+
+    def __len__(self):
+        return len(self.filepaths)
     
 
 class CustomVideoDataset(Dataset):

@@ -95,8 +95,6 @@ class FixMatchTaglet(ImageTagletWithAuxData):
                  optimizer=Optimizer.SGD,
                  verbose=False,
                  use_scads=True):
-        self.name = 'fixmatch'
-
         self.steps_per_epoch = steps_per_epoch
         self.conf_thresh = conf_thresh
         self.lambda_u = lambda_u
@@ -120,6 +118,8 @@ class FixMatchTaglet(ImageTagletWithAuxData):
             log.info('temperature: %.4f', self.temp)
 
         super().__init__(task)
+
+        self.name = 'fixmatch'
 
         self.weight_decay = weight_decay
         
@@ -182,7 +182,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
 
         # warm-up using scads data
         if self.use_scads:
-            aux_weights = Cache.get("scads-weights", self.task.classes)
+            aux_weights = Cache.get("scads-weights-fixmatch", self.task.classes)
             if aux_weights is None:
                 scads_train_data, scads_num_classes = self._get_scads_data()
     
@@ -214,7 +214,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
 
                 self.model.fc = torch.nn.Identity()
                 aux_weights = copy.deepcopy(self.model.state_dict())
-                Cache.set('scads-weights', self.task.classes, aux_weights)
+                Cache.set('scads-weights-fixmatch', self.task.classes, aux_weights)
             self.use_scads = False
             self.model.load_state_dict(aux_weights, strict=False)
 
@@ -249,10 +249,8 @@ class FixMatchTaglet(ImageTagletWithAuxData):
     def _do_train(self, train_data, val_data, unlabeled_data=None):
         """
                One worker for training.
-
                This method carries out the actual training iterations. It is designed
                to be called by train().
-
                :param train_data: A dataset containing training data
                :param val_data: A dataset containing validation data
                :param unlabeled_data: A dataset containing unlabeled data
