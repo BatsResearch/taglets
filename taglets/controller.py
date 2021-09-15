@@ -231,8 +231,7 @@ class Controller:
                         ZSLKGModule,
                         TransferModule,
                         FineTuneModule,
-                        FixMatchModule,
-                        PseudoShotModule]
+                        FixMatchModule]
             return [FineTuneModule, FixMatchModule]
     
     def get_vote_matrix(self):
