@@ -240,7 +240,7 @@ def main():
         else:
             save_votes_path = args.save_votes_path + {f'-seed{seed}'}
         runner = CheckpointRunner(args.dataset, args.dataset_dir, args.batch_size, args.load_votes_path,
-                                  args.save_votes_path, args.labelmodel_type, seed)
+                                  save_votes_path, args.labelmodel_type, seed)
         all_accs.append(runner.run_checkpoints())
         log.info(f'Checkpoint Accs {all_accs[-1]}')
 
