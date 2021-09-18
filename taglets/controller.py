@@ -89,6 +89,8 @@ class Controller:
         Executes a training pipeline end-to-end, turning a Task into an EndModel
         :return: A trained EndModel
         """
+        accs = []
+        
         # Gets datasets
         labeled = self.task.get_labeled_train_data()
         unlabeled_test = self.task.get_unlabeled_data(False) # augmentation is not applied
@@ -139,6 +141,7 @@ class Controller:
                 for i in range(len(taglets)):
                     acc = np.sum(np.argmax(test_vote_matrix[i], 1) == self.task.test_labels) / len(self.task.test_labels)
                     log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
+                    accs.append(acc)
 
             # Train a labelmodel and get weak labels
             if val is not None:
@@ -218,7 +221,7 @@ class Controller:
             acc = np.sum(predictions == self.task.unlabeled_train_labels) / len(self.task.unlabeled_train_labels)
             log.info('Acc {:.4f}'.format(acc))
         
-        return self.end_model
+        return self.end_model, accs
 
     def _get_taglets_modules(self):
         if self.simple_run:
