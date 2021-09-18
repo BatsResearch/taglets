@@ -238,7 +238,7 @@ def main():
         if args.save_votes_path is None:
             save_votes_path = None
         else:
-            save_votes_path = args.save_votes_path + {f'-seed{seed}'}
+            save_votes_path = args.save_votes_path + f'-seed{seed}'
         runner = CheckpointRunner(args.dataset, args.dataset_dir, args.batch_size, args.load_votes_path,
                                   save_votes_path, args.labelmodel_type, seed)
         all_accs.append(runner.run_checkpoints())
