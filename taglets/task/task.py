@@ -16,7 +16,7 @@ def _slowfast(
     model = model_builder(**kwargs)
     if pretrained:
         # All models are loaded onto CPU by default
-        checkpoint = torch.load('SLOWFAST_8x8_R50.pyth')
+        checkpoint = torch.load('/lwll/extra/SLOWFAST_8x8_R50.pyth')
         state_dict = checkpoint["model_state"]
         model.load_state_dict(state_dict)
     return model
