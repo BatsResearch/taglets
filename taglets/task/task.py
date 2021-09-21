@@ -1,8 +1,25 @@
 import copy
+from typing import Any, Callable
 
 import torch
 import torchvision.models as models
+from pytorchvideo.models.slowfast import create_slowfast
 
+# Adapted from https://github.com/facebookresearch/pytorchvideo/blob/main/pytorchvideo/models/hub/slowfast.py#L19
+def _slowfast(
+    pretrained: bool = False,
+    progress: bool = True,
+    checkpoint_path: str = "",
+    model_builder: Callable = create_slowfast,
+    **kwargs: Any,
+) -> nn.Module:
+    model = model_builder(**kwargs)
+    if pretrained:
+        # All models are loaded onto CPU by default
+        checkpoint = torch.load('SLOWFAST_8x8_R50.pyth')
+        state_dict = checkpoint["model_state"]
+        model.load_state_dict(state_dict)
+    return model
 
 class Task:
     """
@@ -61,7 +78,7 @@ class Task:
         self.initial = initial
 
         if self.video_classification :
-            self.initial = torch.hub.load("facebookresearch/pytorchvideo", model='slowfast_r50', pretrained=True)
+            self.initial = _slowfast(pretrained=True)
         
         else:
             self.initial = models.resnet50(pretrained=True)
