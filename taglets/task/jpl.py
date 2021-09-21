@@ -8,6 +8,7 @@ import json
 import requests
 import pickle
 from pathlib import Path
+from typing import Any, Callable
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
@@ -20,6 +21,7 @@ import pandas as pd
 import torchvision.models as models
 import torchvision.transforms as transforms
 import pytorchvideo.transforms as video_transform
+from pytorchvideo.models.slowfast import create_slowfast
 import torchvision.transforms._transforms_video as transform_video
 
 from ..task import Task
@@ -57,7 +59,22 @@ class TimeoutHTTPAdapter(HTTPAdapter):
             kwargs["timeout"] = self.timeout
         return super().send(request, **kwargs)
 
-
+# Adapted from https://github.com/facebookresearch/pytorchvideo/blob/main/pytorchvideo/models/hub/slowfast.py#L19
+def _slowfast(
+    pretrained: bool = False,
+    progress: bool = True,
+    checkpoint_path: str = "",
+    model_builder: Callable = create_slowfast,
+    **kwargs: Any,
+) -> nn.Module:
+    model = model_builder(**kwargs)
+    if pretrained:
+        # All models are loaded onto CPU by default
+        checkpoint = torch.load('SLOWFAST_8x8_R50.pyth', map_location=torch.device('cpu'))
+        state_dict = checkpoint["model_state"]
+        model.load_state_dict(state_dict)
+    return model
+    
 class JPL:
     """
     A class to interact with JPL-like APIs.
@@ -646,17 +663,15 @@ class JPLRunner:
         self.confidence_active_learning = LeastConfidenceActiveLearning()
 
         if self.video:
-            if accelerator.is_local_main_process:
+            #if accelerator.is_local_main_process:
                 # This line is a patch for a bug in the pytorch core code base: https://github.com/pytorch/pytorch/issues/61755
-                torch.hub._validate_not_a_forked_repo=lambda a,b,c: True
-                initial_model = torch.hub.load("facebookresearch/pytorchvideo", 
-                                            model='slowfast_r50', 
-                                            pretrained=True,
-                                            force_reload=True)
-            accelerator.wait_for_everyone()
-            self.initial_model = torch.hub.load("facebookresearch/pytorchvideo", 
-                                            model='slowfast_r50', 
-                                            pretrained=True)
+            #    torch.hub._validate_not_a_forked_repo=lambda a,b,c: True
+            #    initial_model = torch.hub.load("facebookresearch/pytorchvideo", 
+            #                                model='slowfast_r50', 
+            #                                pretrained=True,
+            #                                force_reload=True)
+            #accelerator.wait_for_everyone()
+            self.initial_model = _slowfast(pretrained=True)
             
         else:
             self.initial_model = models.resnet50(pretrained=True)
