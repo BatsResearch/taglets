@@ -8,6 +8,7 @@ import torch
 import numpy as np
 import torchvision.models as models
 from torch.utils.data import DataLoader
+import scipy.stats
 import warnings
 from accelerate import Accelerator
 accelerator = Accelerator()
@@ -28,7 +29,8 @@ warnings.filterwarnings("ignore", "(Possibly )?corrupt EXIF data", UserWarning)
 
 
 class CheckpointRunner:
-    def __init__(self, dataset, dataset_dir, batch_size, load_votes_path=None, labelmodel_type=None):
+    def __init__(self, dataset, dataset_dir, batch_size, load_votes_path=None, save_votes_path=None,
+                 labelmodel_type=None, seed=0):
         self.dataset = dataset
         self.dataset_dir = dataset_dir
         self.batch_size = batch_size
@@ -41,7 +43,7 @@ class CheckpointRunner:
                         'office_home-clipart': OfficeHomeClipart,
                         'grocery-coarse': GroceryStoreCoarseGrained,
                         'grocery-fine': GroceryStoreFineGrained}
-        self.dataset_api = dataset_dict[dataset](dataset_dir)
+        self.dataset_api = dataset_dict[dataset](dataset_dir, seed)
 
         model = KNOWN_MODELS['BiT-M-R50x1'](head_size=len(self.dataset_api.get_class_names()),
                                             zero_head=True)
@@ -53,14 +55,19 @@ class CheckpointRunner:
             os.makedirs('saved_vote_matrices')
         accelerator.wait_for_everyone()
         self.vote_matrix_dict = {}
-        self.vote_matrix_save_path = os.path.join('saved_vote_matrices',
-                                                  datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+        if save_votes_path is None:
+            self.vote_matrix_save_path = os.path.join('saved_vote_matrices',
+                                                      datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+        else:
+            self.vote_matrix_save_path = os.path.join('saved_vote_matrices', save_votes_path)
 
     def run_checkpoints(self):
         log.info("Enter checkpoint")
+        accs = []
         num_checkpoints = self.dataset_api.get_num_checkpoints()
         for i in range(num_checkpoints):
-            self.run_one_checkpoint(i)
+            accs.extend(self.run_one_checkpoint(i))
+        return accs
 
     def run_one_checkpoint(self, checkpoint_num):
         log.info('------------------------------------------------------------')
@@ -100,7 +107,7 @@ class CheckpointRunner:
         else:
             weak_labels = self._get_weak_labels(checkpoint_num)
 
-        end_model = controller.train_end_model(weak_labels)
+        end_model, accs = controller.train_end_model(weak_labels)
         
         if self.vote_matrix_save_path is not None:
             val_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
@@ -124,10 +131,12 @@ class CheckpointRunner:
             log.info('Accuracy of taglets on this checkpoint:')
             acc = np.sum(predictions == test_labels) / len(test_labels)
             log.info('Acc {:.4f}'.format(acc))
+            accs.append(acc)
 
         log.info('Checkpoint: {} Elapsed Time =  {}'.format(checkpoint_num,
                                                             time.strftime("%H:%M:%S",
                                                                           time.gmtime(time.time()-start_time))))
+        return accs
 
     def _load_votes(self, checkpoint_num):
         '''
@@ -198,6 +207,14 @@ class CheckpointRunner:
         if accelerator.is_local_main_process:
             os.remove('tmp_labelmodel_output.pkl')
         return weak_labels
+    
+    
+def mean_confidence_interval(data, confidence=0.95):
+    a = 1.0 * np.array(data)
+    n = len(a)
+    m, se = np.mean(a), scipy.stats.sem(a)
+    h = se * scipy.stats.t.ppf((1 + confidence) / 2., n-1)
+    return m, m-h, m+h
 
 
 def main():
@@ -218,6 +235,8 @@ def main():
     parser.add_argument('--scads_root_path', 
                         type=str,
                         default='/users/wpiriyak/data/bats/datasets')
+    parser.add_argument('--save_votes_path',
+                        type=str)
     parser.add_argument('--load_votes_path',
                         type=str)
     parser.add_argument('--labelmodel_type',
@@ -225,11 +244,27 @@ def main():
     args = parser.parse_args()
 
     Scads.set_root_path(args.scads_root_path)
-
-    runner = CheckpointRunner(args.dataset, args.dataset_dir, args.batch_size, args.load_votes_path,
-                              args.labelmodel_type)
-    runner.run_checkpoints()
     
+    all_accs = []
+    for seed in [0, 1, 2]:
+        log.info(f'---------------Running checkpoints with seed {seed}---------------')
+        if args.save_votes_path is None:
+            save_votes_path = None
+        else:
+            save_votes_path = args.save_votes_path + f'-seed{seed}'
+        runner = CheckpointRunner(args.dataset, args.dataset_dir, args.batch_size, args.load_votes_path,
+                                  save_votes_path, args.labelmodel_type, seed)
+        all_accs.append(runner.run_checkpoints())
+        log.info(f'Checkpoint Accs {all_accs[-1]}')
+        
+    for i in range(len(all_accs[0])):
+        data = [all_accs[j][i] for j in range(len(all_accs))]
+        if len(all_accs) > 1:
+            ci = mean_confidence_interval(data)
+            log.info(f'CI {ci}')
+        else:
+            log.info(f'CI {np.mean(data)}')
+
 
 if __name__ == "__main__":
     main()
