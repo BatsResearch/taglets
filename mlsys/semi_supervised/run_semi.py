@@ -8,6 +8,7 @@ import torch
 import numpy as np
 import torchvision.models as models
 from torch.utils.data import DataLoader
+import scipy.stats
 import warnings
 from accelerate import Accelerator
 accelerator = Accelerator()
@@ -202,6 +203,14 @@ class CheckpointRunner:
         if accelerator.is_local_main_process:
             os.remove('tmp_labelmodel_output.pkl')
         return weak_labels
+    
+    
+def mean_confidence_interval(data, confidence=0.95):
+    a = 1.0 * np.array(data)
+    n = len(a)
+    m, se = np.mean(a), scipy.stats.sem(a)
+    h = se * scipy.stats.t.ppf((1 + confidence) / 2., n-1)
+    return m, m-h, m+h
 
 
 def main():
@@ -243,12 +252,11 @@ def main():
                                   save_votes_path, args.labelmodel_type, seed)
         all_accs.append(runner.run_checkpoints())
         log.info(f'Checkpoint Accs {all_accs[-1]}')
-
-    import scipy.stats as st
+        
     for i in range(len(all_accs[0])):
         data = [all_accs[j][i] for j in range(len(all_accs))]
         if len(all_accs) > 1:
-            ci = st.t.interval(alpha=0.95, df=len(data) - 1, loc=np.mean(data), scale=st.sem(data))
+            ci = mean_confidence_interval(data)
             log.info(f'CI {ci}')
         else:
             log.info(f'CI {np.mean(data)}')
