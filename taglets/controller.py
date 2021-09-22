@@ -136,12 +136,22 @@ class Controller:
                     log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
                     
             if self.task.test_data is not None and self.task.test_labels is not None:
-                log.info('Accuracies of each taglet on the test data:')
+                log.info('All taglets predicting on test data')
                 test_vote_matrix = taglet_executor.execute(self.task.test_data)
+                lm = UnweightedVote(len(self.task.classes))
+                test_weak_labels = lm.get_weak_labels(test_vote_matrix)
+                predictions = np.asarray([np.argmax(label) for label in test_weak_labels])
+                log.info('Done predicting on test data')
+
+                log.info('Accuracies of each taglet on the test data:')
                 for i in range(len(taglets)):
                     acc = np.sum(np.argmax(test_vote_matrix[i], 1) == self.task.test_labels) / len(self.task.test_labels)
                     log.info("Module {} - acc {:.4f}".format(taglets[i].name, acc))
                     accs.append(acc)
+
+                log.info('Accuracy of the labelmodel on the test data:')
+                acc = np.sum(predictions == self.task.test_labels) / len(self.task.test_labels)
+                log.info('Acc {:.4f}'.format(acc))
 
             # Train a labelmodel and get weak labels
             if val is not None:
