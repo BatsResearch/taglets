@@ -124,8 +124,10 @@ class CheckpointRunner:
             with open(self.vote_matrix_save_path, 'wb') as f:
                 pickle.dump(self.vote_matrix_dict, f)
         
+        log.info('Endmodel predicting on test data')
         outputs = end_model.predict(evaluation_dataset)
         predictions = np.argmax(outputs, 1)
+        log.info('Done predicting on test data')
         
         if test_labels is not None:
             log.info('Accuracy of taglets on this checkpoint:')
