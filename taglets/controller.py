@@ -152,6 +152,7 @@ class Controller:
                 log.info('Accuracy of the labelmodel on the test data:')
                 acc = np.sum(predictions == self.task.test_labels) / len(self.task.test_labels)
                 log.info('Acc {:.4f}'.format(acc))
+                accs.append(acc)
 
             # Train a labelmodel and get weak labels
             if val is not None:
@@ -243,7 +244,6 @@ class Controller:
                 return [MultiTaskModule,
                         ZSLKGModule,
                         TransferModule,
-                        FineTuneModule,
                         FixMatchModule]
             return [FineTuneModule, FixMatchModule]
     

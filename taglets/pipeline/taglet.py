@@ -33,7 +33,7 @@ class AuxDataMixin:
             self.num_related_class = 1
         else:
             self.num_related_class = 10 if len(self.task.classes) < 100 else (5 if len(self.task.classes) < 300 else 3)
-        self.prune = 0
+        self.prune = task.prune
     
     def _get_scads_data(self):
         data = Cache.get("scads", self.task.classes)
