@@ -30,12 +30,14 @@ warnings.filterwarnings("ignore", "(Possibly )?corrupt EXIF data", UserWarning)
 
 class CheckpointRunner:
     def __init__(self, dataset, dataset_dir, batch_size, load_votes_path=None, save_votes_path=None,
-                 labelmodel_type=None, seed=0):
+                 labelmodel_type=None, data_seed=0, model_seed=0, prune=-1):
         self.dataset = dataset
         self.dataset_dir = dataset_dir
         self.batch_size = batch_size
         self.load_votes_path = load_votes_path
         self.labelmodel_type = labelmodel_type
+        self.model_seed = model_seed
+        self.prune = prune
         
         dataset_dict = {'fmd': FMD,
                         'places205': Places205,
@@ -43,7 +45,7 @@ class CheckpointRunner:
                         'office_home-clipart': OfficeHomeClipart,
                         'grocery-coarse': GroceryStoreCoarseGrained,
                         'grocery-fine': GroceryStoreFineGrained}
-        self.dataset_api = dataset_dict[dataset](dataset_dir, seed)
+        self.dataset_api = dataset_dict[dataset](dataset_dir, data_seed)
 
         model = KNOWN_MODELS['BiT-M-R50x1'](head_size=len(self.dataset_api.get_class_names()),
                                             zero_head=True)
@@ -91,6 +93,8 @@ class CheckpointRunner:
                     unlabeled_train_dataset,
                     val_dataset,
                     self.batch_size,
+                    self.model_seed,
+                    self.prune,
                     None,
                     'predefined/scads.imagenet22k-mod.sqlite3',
                     'predefined/embeddings/numberbatch-en19.08.txt.gz',
@@ -234,6 +238,9 @@ def main():
                         type=int,
                         default='32',
                         help='Universal batch size')
+    parser.add_argument('--data_seed', type=str)
+    parser.add_argument('--prune', type=str)
+    parser.add_argument('--model_seed', type=str)
     parser.add_argument('--scads_root_path', 
                         type=str,
                         default='/users/wpiriyak/data/bats/datasets')
@@ -247,30 +254,49 @@ def main():
 
     Scads.set_root_path(args.scads_root_path)
     
-    all_accs = []
-    for seed in [0, 1, 2]:
-        log.info(f'---------------Running checkpoints with seed {seed}---------------')
-        if args.save_votes_path is None:
-            save_votes_path = None
-        else:
-            save_votes_path = args.save_votes_path + f'-seed{seed}'
-            
-        if args.load_votes_path is None:
-            load_votes_path = None
-        else:
-            load_votes_path = args.load_votes_path + f'-seed{seed}'
-        runner = CheckpointRunner(args.dataset, args.dataset_dir, args.batch_size, load_votes_path,
-                                  save_votes_path, args.labelmodel_type, seed)
-        all_accs.append(runner.run_checkpoints())
-        log.info(f'Checkpoint Accs {all_accs[-1]}')
+    if args.data_seed is None or args.data_seed == 'all':
+        data_seeds = range(3)
+    else:
+        data_seeds = [int(args.data_seed)]
+    if args.prune is None or args.prune == 'all':
+        prunes = range(-1, 2)
+    else:
+        prunes = [int(args.prune)]
+    if args.model_seed is None or args.model_seed == 'all':
+        model_seeds = range(3)
+    else:
+        model_seeds = [int(args.model_seed)]
         
-    for i in range(len(all_accs[0])):
-        data = [all_accs[j][i] for j in range(len(all_accs))]
-        if len(all_accs) > 1:
-            ci = mean_confidence_interval(data)
-            log.info(f'CI {ci}')
-        else:
-            log.info(f'CI {np.mean(data)}')
+    
+    for data_seed in data_seeds:
+        for prune in prunes:
+            all_accs = []
+            for model_seed in model_seeds:
+                log.info(f'---------------Running checkpoints with data_seed {data_seed}---------------')
+                if args.save_votes_path is None:
+                    save_votes_path = None
+                else:
+                    save_votes_path = args.save_votes_path + f'-data_seed{data_seed}'
+                    
+                if args.load_votes_path is None:
+                    load_votes_path = None
+                else:
+                    load_votes_path = args.load_votes_path + f'-data_seed{data_seed}'
+                runner = CheckpointRunner(args.dataset, args.dataset_dir, args.batch_size, load_votes_path,
+                                          save_votes_path, args.labelmodel_type, data_seed=data_seed,
+                                          model_seed=model_seed, prune=prune)
+                all_accs.append(runner.run_checkpoints())
+                log.info(f'Checkpoint Accs {all_accs[-1]}')
+        
+            cis = []
+            for i in range(len(all_accs[0])):
+                data = [all_accs[j][i] for j in range(len(all_accs))]
+                if len(all_accs) > 1:
+                    ci = mean_confidence_interval(data)
+                else:
+                    ci = np.mean(data)
+                cis.append(ci)
+            log.info(f'CIs {cis}')
 
 
 if __name__ == "__main__":
