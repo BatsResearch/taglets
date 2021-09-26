@@ -3,6 +3,7 @@ import os
 import logging
 import sys
 import numpy as np
+import time
 import torch
 import traceback
 import nltk
@@ -137,10 +138,13 @@ class Controller:
                     
             if self.task.test_data is not None and self.task.test_labels is not None:
                 log.info('All taglets predicting on test data')
+                st = time.time()
                 test_vote_matrix = taglet_executor.execute(self.task.test_data)
                 lm = UnweightedVote(len(self.task.classes))
                 test_weak_labels = lm.get_weak_labels(test_vote_matrix)
                 predictions = np.asarray([np.argmax(label) for label in test_weak_labels])
+                ed = time.time()
+                log.info(f'{st - ed} sec')
                 log.info('Done predicting on test data')
 
                 log.info('Accuracies of each taglet on the test data:')

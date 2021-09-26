@@ -9,6 +9,7 @@ import numpy as np
 import torchvision.models as models
 from torch.utils.data import DataLoader
 import scipy.stats
+import time
 import warnings
 from accelerate import Accelerator
 accelerator = Accelerator()
@@ -125,8 +126,11 @@ class CheckpointRunner:
                 pickle.dump(self.vote_matrix_dict, f)
         
         log.info('Endmodel predicting on test data')
+        st = time.time()
         outputs = end_model.predict(evaluation_dataset)
         predictions = np.argmax(outputs, 1)
+        ed = time.time()
+        log.info(f'{st - ed} sec')
         log.info('Done predicting on test data')
         
         if test_labels is not None:
