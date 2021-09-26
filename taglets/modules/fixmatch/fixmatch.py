@@ -120,8 +120,8 @@ class FixMatchTaglet(ImageTagletWithAuxData):
 
         super().__init__(task)
 
-        self.initial_model = models.resnet50(pretrained=True)
-        self.initial_model.fc = torch.nn.Identity()
+        self.model = models.resnet50(pretrained=True)
+        self.model.fc = torch.nn.Identity()
 
         self.name = 'fixmatch'
 
@@ -233,10 +233,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
         # init fixmatch head
         encoder = torch.nn.Sequential(*list(self.model.children())[:-1])
         output_shape = self._get_model_output_shape(self.task.input_shape, encoder)
-        self.model.fc = torch.nn.Conv2d(2048, len(self.task.classes), kernel_size=1, bias=True)
-        with torch.no_grad():
-            torch.nn.init.zeros_(self.model.fc.weight)
-            torch.nn.init.zeros_(self.model.fc.bias)
+        self.model.fc = torch.nn.Linear(output_shape, len(self.task.classes))
 
         params_to_update = []
         for param in self.model.parameters():
