@@ -5,6 +5,7 @@ import torch
 import logging
 import torch.nn.functional as F
 import torchvision.transforms as transforms
+import torchvision.models as models
 from copy import deepcopy
 from enum import Enum
 from accelerate import Accelerator
@@ -119,6 +120,9 @@ class FixMatchTaglet(ImageTagletWithAuxData):
 
         super().__init__(task)
 
+        self.initial_model = models.resnet50(pretrained=True)
+        self.initial_model.fc = torch.nn.Identity()
+
         self.name = 'fixmatch'
 
         self.weight_decay = weight_decay
@@ -160,6 +164,14 @@ class FixMatchTaglet(ImageTagletWithAuxData):
                 transforms.ToTensor(),
                 transforms.Normalize(mean=data_mean, std=data_std)
             ])
+        
+    def _get_dataloader(self, data, shuffle, batch_size=None):
+        if batch_size is None:
+            batch_size = self.batch_size
+        return accelerator.prepare(torch.utils.data.DataLoader(
+            dataset=data, batch_size=batch_size, shuffle=shuffle,
+            num_workers=self.num_workers, pin_memory=True
+        ))
 
     def _init_unlabeled_transform(self, unlabeled_data):
         if not hasattr(unlabeled_data, "transform"):
@@ -188,10 +200,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
     
                 encoder = torch.nn.Sequential(*list(self.model.children())[:-1])
                 output_shape = self._get_model_output_shape(self.task.input_shape, encoder)
-                self.model.fc = torch.nn.Conv2d(2048, scads_num_classes, kernel_size=1, bias=True)
-                with torch.no_grad():
-                    torch.nn.init.zeros_(self.model.fc.weight)
-                    torch.nn.init.zeros_(self.model.fc.bias)
+                self.model.fc = torch.nn.Linear(output_shape, scads_num_classes)
     
                 params_to_update = []
                 for param in self.model.parameters():
@@ -206,7 +215,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
                 use_ema_copy = self.use_ema
     
                 self.batch_size = 2 * self.batch_size
-                self.num_epochs = 2000
+                self.num_epochs = 5
                 self.use_ema = False
     
                 super(FixMatchTaglet, self).train(scads_train_data, None, None)

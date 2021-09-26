@@ -32,7 +32,7 @@ class EndModelMixin():
         self._params_to_update = params_to_update
         self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.003, momentum=0.9)
         self.lr_scheduler = None
-        self.num_epochs = 2000
+        self.num_epochs = 500
 
     @staticmethod
     def soft_cross_entropy(outputs, target):
