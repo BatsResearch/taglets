@@ -19,6 +19,7 @@ from taglets.controller import Controller
 from taglets.task.utils import labels_to_concept_ids
 from taglets.scads import Scads
 from taglets.labelmodel import AMCLLogReg, AMCLWeightedVote, WeightedVote, UnweightedVote, NaiveBayes
+from taglets.pipeline import Cache
 
 from .dataset_api import FMD, Places205, OfficeHomeProduct, OfficeHomeClipart, GroceryStoreFineGrained, \
     GroceryStoreCoarseGrained
@@ -272,6 +273,8 @@ def main():
         for prune in prunes:
             all_accs = []
             for model_seed in model_seeds:
+                Cache.CACHE = {}
+                
                 log.info(f'---------------Running checkpoints with data_seed {data_seed}---------------')
                 if args.save_votes_path is None:
                     save_votes_path = None
