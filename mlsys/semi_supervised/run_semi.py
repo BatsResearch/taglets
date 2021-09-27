@@ -275,16 +275,19 @@ def main():
             for model_seed in model_seeds:
                 Cache.CACHE = {}
                 
-                log.info(f'---------------Running checkpoints with data_seed {data_seed}---------------')
+                log.info(f'----------Running checkpoints with data_seed {data_seed} prune {prune} '
+                         f'model_seed {model_seed}---------------')
                 if args.save_votes_path is None:
                     save_votes_path = None
                 else:
-                    save_votes_path = args.save_votes_path + f'-data_seed{data_seed}'
+                    save_votes_path = args.save_votes_path + f'-data_seed{data_seed}' + f'-prune{prune}' \
+                                      + f'-model_seed{model_seed}'
                     
                 if args.load_votes_path is None:
                     load_votes_path = None
                 else:
-                    load_votes_path = args.load_votes_path + f'-data_seed{data_seed}'
+                    load_votes_path = args.load_votes_path + f'-data_seed{data_seed}' + f'-prune{prune}' \
+                                      + f'-model_seed{model_seed}'
                 runner = CheckpointRunner(args.dataset, args.dataset_dir, args.batch_size, load_votes_path,
                                           save_votes_path, args.labelmodel_type, data_seed=data_seed,
                                           model_seed=model_seed, prune=prune)
