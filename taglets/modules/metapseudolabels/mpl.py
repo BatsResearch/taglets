@@ -52,14 +52,14 @@ class MetaPseudoLabelsTaglet(ImageTaglet):
         output_shape = self._get_model_output_shape(self.task.input_shape, m)
         self.teacher.fc = torch.nn.Linear(output_shape, num_classes)
 
-        self.teacher = KNOWN_MODELS['BiT-M-R50x1'](head_size=num_classes,
-                                            zero_head=True)
-        self.teacher.load_from(np.load("BiT-M-R50x1.npz"))
-        self.teacher.head.conv = torch.nn.Identity()
-        self.teacher.fc = torch.nn.Conv2d(2048, num_classes, kernel_size=1, bias=True)
-        with torch.no_grad():
-            torch.nn.init.zeros_(self.teacher.fc.weight)
-            torch.nn.init.zeros_(self.teacher.fc.bias)
+        #self.teacher = KNOWN_MODELS['BiT-M-R50x1'](head_size=num_classes,
+        #                                    zero_head=True)
+        #self.teacher.load_from(np.load("BiT-M-R50x1.npz"))
+        #self.teacher.head.conv = torch.nn.Identity()
+        #self.teacher.fc = torch.nn.Conv2d(2048, num_classes, kernel_size=1, bias=True)
+        #with torch.no_grad():
+        #    torch.nn.init.zeros_(self.teacher.fc.weight)
+        #    torch.nn.init.zeros_(self.teacher.fc.bias)
 
         self.student = models.resnet18(pretrained=False)
         m = torch.nn.Sequential(*list(self.student.children())[:-1])
