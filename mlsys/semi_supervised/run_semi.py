@@ -12,6 +12,7 @@ import scipy.stats
 import time
 import warnings
 from accelerate import Accelerator
+import numpy as np 
 accelerator = Accelerator()
 
 from taglets.task import Task
@@ -94,7 +95,7 @@ class CheckpointRunner:
                     self.model_seed,
                     self.prune,
                     None,
-                    'predefined/scads.imagenet22k-mod.sqlite3',
+                    'predefined/scads.spring2021.sqlite3',
                     'predefined/embeddings/numberbatch-en19.08.txt.gz',
                     'predefined/embeddings/imagenet22k-mod_processed_numberbatch.h5',
                     unlabeled_test_data=unlabeled_test_dataset,
@@ -267,7 +268,8 @@ def main():
         model_seeds = range(3)
     else:
         model_seeds = [int(args.model_seed)]
-        
+
+    prunes = [-1]
     
     for data_seed in data_seeds:
         for prune in prunes:

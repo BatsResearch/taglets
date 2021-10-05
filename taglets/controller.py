@@ -15,7 +15,7 @@ accelerator = Accelerator()
 from .data import SoftLabelDataset
 from .labelmodel import UnweightedVote, WeightedVote, AMCLWeightedVote
 from .modules import FineTuneModule, TransferModule, MultiTaskModule, ZSLKGModule, FixMatchModule, NaiveVideoModule, \
-    RandomModule, DannModule, PseudoShotModule
+    RandomModule, DannModule, PseudoShotModule, MetaPseudoLabelsModule
 from .pipeline import ImageEndModel, VideoEndModel, RandomEndModel, TagletExecutor
 
 ####################################################################
@@ -226,7 +226,7 @@ class Controller:
             self.end_model = VideoEndModel(self.task)
         else:
             self.end_model = ImageEndModel(self.task)
-        self.end_model.train(end_model_train_data, val)
+        #self.end_model.train(end_model_train_data, val)
         log.info("Finished training end model")
 
         if self.task.unlabeled_train_labels is not None and unlabeled_test is not None:
@@ -245,11 +245,11 @@ class Controller:
              return [NaiveVideoModule]
         else:
             if self.task.scads_path is not None:
-                return [MultiTaskModule,
-                        ZSLKGModule,
-                        TransferModule,
-                        FixMatchModule]
-            return [FineTuneModule, FixMatchModule]
+                return [
+                        
+                        
+                        MetaPseudoLabelsModule]
+            return [MetaPseudoLabelsModule]
     
     def get_vote_matrix(self):
         return self.val_vote_matrix, self.unlabeled_vote_matrix

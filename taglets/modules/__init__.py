@@ -8,3 +8,5 @@ from .fixmatch import FixMatchModule
 from .naive_video import NaiveVideoModule
 from .random import RandomModule
 from .pseudoshots import PseudoShotModule
+
+from .metapseudolabels import MetaPseudoLabelsModule
