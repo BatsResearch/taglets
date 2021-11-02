@@ -21,7 +21,7 @@ from taglets.scads import Scads
 from taglets.labelmodel import AMCLLogReg, AMCLWeightedVote, WeightedVote, UnweightedVote, NaiveBayes
 from taglets.pipeline import Cache
 
-from .dataset_api import FMD, Places205, OfficeHomeProduct, OfficeHomeClipart, GroceryStoreFineGrained, \
+from .dataset_api import FMD, OfficeHomeProduct, OfficeHomeClipart, GroceryStoreFineGrained, \
     GroceryStoreCoarseGrained
 from .models import KNOWN_MODELS
 
@@ -43,7 +43,6 @@ class CheckpointRunner:
         self.prune = prune
         
         dataset_dict = {'fmd': FMD,
-                        'places205': Places205,
                         'office_home-product': OfficeHomeProduct,
                         'office_home-clipart': OfficeHomeClipart,
                         'grocery-coarse': GroceryStoreCoarseGrained,
@@ -241,7 +240,7 @@ def main():
     parser.add_argument('--dataset',
                         type=str,
                         default='fmd',
-                        choices=['fmd', 'places205', 'office_home-product', 'office_home-clipart',
+                        choices=['fmd', 'office_home-product', 'office_home-clipart',
                                  'grocery-coarse', 'grocery-fine'])
     parser.add_argument('--dataset_dir',
                         type=str,
