@@ -17,6 +17,7 @@
 
 from collections import OrderedDict  # pylint: disable=g-importing-member
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -176,22 +177,8 @@ class ResNetV2(nn.Module):
           unit.load_from(weights, prefix=f'{prefix}{bname}/{uname}/')
 
 
-KNOWN_MODELS = OrderedDict([
-    ('BiT-M-R50x1', lambda *a, **kw: ResNetV2([3, 4, 6, 3], 1, *a, **kw)),
-    ('BiT-M-R50x3', lambda *a, **kw: ResNetV2([3, 4, 6, 3], 3, *a, **kw)),
-    ('BiT-M-R101x1', lambda *a, **kw: ResNetV2([3, 4, 23, 3], 1, *a, **kw)),
-    ('BiT-M-R101x3', lambda *a, **kw: ResNetV2([3, 4, 23, 3], 3, *a, **kw)),
-    ('BiT-M-R152x2', lambda *a, **kw: ResNetV2([3, 8, 36, 3], 2, *a, **kw)),
-    ('BiT-M-R152x4', lambda *a, **kw: ResNetV2([3, 8, 36, 3], 4, *a, **kw)),
-    ('BiT-S-R50x1', lambda *a, **kw: ResNetV2([3, 4, 6, 3], 1, *a, **kw)),
-    ('BiT-S-R50x3', lambda *a, **kw: ResNetV2([3, 4, 6, 3], 3, *a, **kw)),
-    ('BiT-S-R101x1', lambda *a, **kw: ResNetV2([3, 4, 23, 3], 1, *a, **kw)),
-    ('BiT-S-R101x3', lambda *a, **kw: ResNetV2([3, 4, 23, 3], 3, *a, **kw)),
-    ('BiT-S-R152x2', lambda *a, **kw: ResNetV2([3, 8, 36, 3], 2, *a, **kw)),
-    ('BiT-S-R152x4', lambda *a, **kw: ResNetV2([3, 8, 36, 3], 4, *a, **kw)),
-])
-
-if __name__ == '__main__':
-    model = KNOWN_MODELS['BiT-M-R50x1'](head_size=10,
-                                        zero_head=True)
-    print(*list(model.children())[:-1])
+def bit_backbone():
+    model = ResNetV2([3, 4, 6, 3], 1, head_size=10, zero_head=True)
+    model.load_from(np.load("predefined/BiT-M-R50x1.npz"))
+    model.head.conv = torch.nn.Identity()
+    return model
