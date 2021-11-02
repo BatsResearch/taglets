@@ -23,6 +23,7 @@ from taglets.pipeline import Cache
 
 from .dataset_api import FMD, Places205, OfficeHomeProduct, OfficeHomeClipart, GroceryStoreFineGrained, \
     GroceryStoreCoarseGrained
+from .models import KNOWN_MODELS
 
 
 log = logging.getLogger(__name__)
@@ -31,12 +32,13 @@ warnings.filterwarnings("ignore", "(Possibly )?corrupt EXIF data", UserWarning)
 
 class CheckpointRunner:
     def __init__(self, dataset, dataset_dir, batch_size, load_votes_path=None, save_votes_path=None,
-                 labelmodel_type=None, data_seed=0, model_seed=0, prune=-1):
+                 labelmodel_type=None, model_type='resnet50', data_seed=0, model_seed=0, prune=-1):
         self.dataset = dataset
         self.dataset_dir = dataset_dir
         self.batch_size = batch_size
         self.load_votes_path = load_votes_path
         self.labelmodel_type = labelmodel_type
+        self.model_type = model_type
         self.model_seed = model_seed
         self.prune = prune
         
@@ -48,8 +50,17 @@ class CheckpointRunner:
                         'grocery-fine': GroceryStoreFineGrained}
         self.dataset_api = dataset_dict[dataset](dataset_dir, data_seed)
 
-        self.initial_model = models.resnet50(pretrained=True)
-        self.initial_model.fc = torch.nn.Identity()
+        if self.model_type == 'resnet50':
+            self.initial_model = models.resnet50(pretrained=True)
+            self.initial_model.fc = torch.nn.Identity()
+        elif self.model_type == 'bigtransfer':
+            model = KNOWN_MODELS['BiT-M-R50x1'](head_size=len(self.dataset_api.get_class_names()),
+                                                zero_head=True)
+            model.load_from(np.load("predefined/BiT-M-R50x1.npz"))
+            model.head.conv = torch.nn.Identity()
+            self.initial_model = model
+        else:
+            raise ValueError("The requested type of model is not available")
         
         if not os.path.exists('saved_vote_matrices') and accelerator.is_local_main_process:
             os.makedirs('saved_vote_matrices')
@@ -102,6 +113,7 @@ class CheckpointRunner:
                     test_data=evaluation_dataset,
                     test_labels=test_labels)
         task.set_initial_model(self.initial_model)
+        task.set_model_type(self.model_type)
         controller = Controller(task)
         
         if self.load_votes_path is None:
@@ -251,6 +263,10 @@ def main():
                         type=str)
     parser.add_argument('--labelmodel_type',
                         type=str)
+    parser.add_argument('--model_type',
+                        type=str,
+                        default='resnet50',
+                        choices=['resnet50', 'bigtransfer'])
     args = parser.parse_args()
 
     Scads.set_root_path(args.scads_root_path)
@@ -289,8 +305,8 @@ def main():
                     load_votes_path = args.load_votes_path + f'-data_seed{data_seed}' + f'-prune{prune}' \
                                       + f'-model_seed{model_seed}'
                 runner = CheckpointRunner(args.dataset, args.dataset_dir, args.batch_size, load_votes_path,
-                                          save_votes_path, args.labelmodel_type, data_seed=data_seed,
-                                          model_seed=model_seed, prune=prune)
+                                          save_votes_path, args.labelmodel_type, model_type=args.model_type,
+                                          data_seed=data_seed, model_seed=model_seed, prune=prune)
                 all_accs.append(runner.run_checkpoints())
                 log.info(f'Checkpoint Accs {all_accs[-1]}')
         

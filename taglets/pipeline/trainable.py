@@ -13,6 +13,39 @@ accelerator = Accelerator()
 log = logging.getLogger(__name__)
 faulthandler.enable()
 
+
+def get_schedule(num_epoch):
+    # if dataset_size < 20_000:
+    #     return [100, 200, 300, 400, 500]
+    # elif dataset_size < 500_000:
+    #     return [500, 900, 1300, 1700, 2000]
+    # else:
+    #     return [500, 6000, 12_000, 18_000, 20_000]
+    if num_epoch == 500:
+        return [100, 200, 300, 400, 500]
+    elif num_epoch == 2000:
+        return [500, 900, 1300, 1700, 2000]
+    else:
+        return [500, 6000, 12_000, 18_000, 20_000]
+
+
+def get_lr(step, dataset_size, base_lr=0.003):
+    """Returns learning-rate for `step` or None at the end."""
+    supports = get_schedule(dataset_size)
+    # Linear warmup
+    if step < supports[0]:
+        return base_lr * step / supports[0]
+    # End of training
+    elif step >= supports[-1]:
+        return None
+    # Staircase decays by factor of 10
+    else:
+        for s in supports[1:]:
+            if s < step:
+                base_lr /= 10
+        return base_lr
+
+
 class Trainable:
     """
     A class with a trainable model.
@@ -32,7 +65,14 @@ class Trainable:
         self.lr = 0.0005
         self.criterion = torch.nn.CrossEntropyLoss()
         self.seed = task.model_seed
-        self.num_epochs = 30 if not os.environ.get("CI") else 5
+        if os.environ.get("CI"):
+            self.num_epochs = 5
+        elif task.model_type == 'resnet50':
+            self.num_epochs = 30
+        elif task.model_type == 'bigtransfer':
+            self.num_epochs = 500
+        else:
+            raise ValueError("The requested type of model is not available")
         self.batch_size = task.batch_size if not os.environ.get("CI") else 32
         self.select_on_val = True  # If true, save model on the best validation performance
         self.save_dir = None
@@ -44,6 +84,7 @@ class Trainable:
         self.num_workers = min(max(0, mp.cpu_count() // self.n_proc - 1), 2) if not os.environ.get("CI") else 0
 
         self.model = task.get_initial_model()
+        self.model_type = task.model_type
 
         self._init_random(self.seed)
 
@@ -77,10 +118,17 @@ class Trainable:
     def _get_dataloader(self, data, shuffle, batch_size=None):
         if batch_size is None:
             batch_size = self.batch_size
-        return accelerator.prepare(torch.utils.data.DataLoader(
-            dataset=data, batch_size=batch_size, shuffle=shuffle,
-            num_workers=self.num_workers, pin_memory=True
-        ))
+        if self.model_type == 'bigtransfer' and shuffle:
+            return accelerator.prepare(torch.utils.data.DataLoader(
+                dataset=data, batch_size=batch_size,
+                num_workers=self.num_workers, pin_memory=True,
+                sampler=torch.utils.data.RandomSampler(data, replacement=True, num_samples=batch_size)
+            ))
+        else:
+            return accelerator.prepare(torch.utils.data.DataLoader(
+                dataset=data, batch_size=batch_size, shuffle=shuffle,
+                num_workers=self.num_workers, pin_memory=True
+            ))
 
     def _get_pred_classifier(self):
         return self.model
@@ -159,6 +207,11 @@ class Trainable:
         for epoch in range(self.num_epochs):
             log.info("Epoch {}: ".format(epoch + 1))
 
+            if self.model_type == 'bigtransfer':
+                lr = get_lr(epoch, self.num_epochs, 0.003)
+                for param_group in self.optimizer.optimizer.param_groups:
+                    param_group["lr"] = lr
+
             # Trains on training data
             train_loss, train_acc = self._train_epoch(train_data_loader, unlabeled_data_loader)
             
@@ -189,7 +242,7 @@ class Trainable:
                 if self.save_dir:
                     accelerator.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
-            if self.lr_scheduler:
+            if self.model_type == 'resnet50' and self.lr_scheduler:
                 self.lr_scheduler.step()
 
         accelerator.wait_for_everyone()
