@@ -14,26 +14,41 @@ log = logging.getLogger(__name__)
 
 
 class MultiTaskModel(nn.Module):
-    def __init__(self, model, num_target, num_source, input_shape):
+    def __init__(self, model, model_type, num_target, num_source, input_shape):
         super().__init__()
-        self.model = model
-        self.num_target= num_target
+        self.num_target = num_target
         self.num_source = num_source
-        self.base = nn.Sequential(*list(self.model.children())[:-1])
+        self.model_type = model_type
+        self.base = nn.Sequential(*list(model.children())[:-1])
         output_shape = self._get_model_output_shape(input_shape, self.base)
-        self.fc_target = torch.nn.Linear(output_shape, self.num_target)
-        self.fc_source = torch.nn.Linear(output_shape, self.num_source)
+        if self.model_type == 'resnet50':
+            self.fc_target = torch.nn.Linear(output_shape, self.num_target)
+            self.fc_source = torch.nn.Linear(output_shape, self.num_source)
+        elif self.model_type == 'bigtransfer':
+            self.fc_target = nn.Conv2d(2048, self.num_target, kernel_size=1, bias=True)
+            self.fc_source = nn.Conv2d(2048, self.num_source, kernel_size=1, bias=True)
+            with torch.no_grad():
+                torch.nn.init.zeros_(self.fc_target.weight)
+                torch.nn.init.zeros_(self.fc_target.bias)
+                torch.nn.init.zeros_(self.fc_source.weight)
+                torch.nn.init.zeros_(self.fc_source.bias)
 
     def forward(self, target_inputs, source_inputs=None):
         x = self.base(target_inputs)
-        x = torch.flatten(x, 1)
-        target_outputs = self.fc_target(x)
+        if self.model_type == 'resnet50':
+            x = torch.flatten(x, 1)
+            target_outputs = self.fc_target(x)
+        elif self.model_type == 'bigtransfer':
+            target_outputs = self.fc_target(x)[..., 0, 0]
         if source_inputs is None:
             return target_outputs
         else:
             x = self.base(source_inputs)
-            x = torch.flatten(x, 1)
-            source_outputs = self.fc_source(x)
+            if self.model_type == 'resnet50':
+                x = torch.flatten(x, 1)
+                source_outputs = self.fc_source(x)
+            elif self.model_type == 'bigtransfer':
+                source_outputs = self.fc_source(x)[..., 0, 0]
             return target_outputs, source_outputs
 
     def _get_model_output_shape(self, in_size, mod):
@@ -63,7 +78,12 @@ class MultiTaskTaglet(ImageTagletWithAuxData):
     def __init__(self, task):
         super().__init__(task)
         self.name = 'multitask'
-        self.num_epochs = 8 if not os.environ.get("CI") else 5
+        if os.environ.get("CI"):
+            self.num_epochs = 5
+        elif self.model_type == 'resnet50':
+            self.num_epochs = 8
+        elif self.model_type == 'bigtransfer':
+            self.num_epochs = 2000
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
@@ -105,7 +125,7 @@ class MultiTaskTaglet(ImageTagletWithAuxData):
             self.valid = False
             return
 
-        self.model = MultiTaskModel(self.model, len(self.task.classes),
+        self.model = MultiTaskModel(self.model, self.model_type, len(self.task.classes),
                                     num_classes, self.task.input_shape)
 
         params_to_update = []

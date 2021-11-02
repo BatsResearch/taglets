@@ -1,0 +1,1 @@
+from .resnetv2 import KNOWN_MODELS

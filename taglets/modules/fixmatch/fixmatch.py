@@ -5,6 +5,7 @@ import torch
 import logging
 import torch.nn.functional as F
 import torchvision.transforms as transforms
+import torchvision.models as models
 from copy import deepcopy
 from enum import Enum
 from accelerate import Accelerator
@@ -118,6 +119,12 @@ class FixMatchTaglet(ImageTagletWithAuxData):
             log.info('temperature: %.4f', self.temp)
 
         super().__init__(task)
+
+        # FixMatch doesn't work too well with BigTransfer
+        if self.model_type == 'bigtransfer':
+            self.model = models.resnet50(pretrained=True)
+            self.model.fc = torch.nn.Identity()
+            self.model_type = 'resnet-50'
 
         self.name = 'fixmatch'
 
