@@ -9,6 +9,7 @@ mkdir -p predefined/zsl_kg_lite
 
 cd predefined
 wget -nc https://storage.googleapis.com/taglets-public/scads.spring2021.sqlite3
+wget -nc https://storage.googleapis.com/bit_models/BiT-M-R50x1.npz
 
 cd embeddings
 wget -nc https://storage.googleapis.com/taglets-public/embeddings/glove.840B.300d.txt.gz
