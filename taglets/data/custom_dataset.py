@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 from torch.utils.data import Dataset
 from PIL import Image
 import torch
@@ -28,7 +29,15 @@ class CustomImageDataset(Dataset):
         if self.loaded:
             img = self.filepaths[index]
         else:
-            img = Image.open(self.filepaths[index]).convert('RGB')
+            while True:
+                try:
+                    img = Image.open(self.filepaths[index]).convert('RGB')
+                    break
+                except:
+                    replace_index = np.random.randint(len(self.filepaths))
+                    self.filepaths[index] = self.filepaths[replace_index]
+                    self.labels[index] = self.labels[replace_index]
+                    continue
 
         if self.transform is not None:
             img = self.transform(img)
