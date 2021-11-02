@@ -218,7 +218,6 @@ class Controller:
                 return [MultiTaskModule,
                         ZSLKGModule,
                         TransferModule,
-                        FineTuneModule,
                         FixMatchModule]
             return [FineTuneModule, FixMatchModule]
     
