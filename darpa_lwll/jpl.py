@@ -6,6 +6,7 @@ import argparse
 import json
 import requests
 import pickle
+from logging import StreamHandler
 from pathlib import Path
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
@@ -18,12 +19,47 @@ import pandas as pd
 import torchvision.models as models
 import torchvision.transforms as transforms
 
-from ..task import Task
-from ..data import CustomImageDataset, CustomVideoDataset
-from ..controller import Controller
-from .utils import labels_to_concept_ids
-from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
-from ..scads import Scads
+from taglets.task import Task
+from taglets.data import CustomImageDataset, CustomVideoDataset
+from taglets.controller import Controller
+from taglets.task.utils import labels_to_concept_ids
+from taglets.active import RandomActiveLearning, LeastConfidenceActiveLearning
+from taglets.scads import Scads
+
+####################################################################
+# Start of logging configuration
+####################################################################
+
+# logger_ = logging.getLogger()
+# logger_.level = logging.INFO
+# formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+#
+# import logger
+#
+#
+# class JPLHandler(StreamHandler):
+#     "Handle the log stream and wrap it into the JPL logger."
+#
+#     def __init__(self):
+#         StreamHandler.__init__(self)
+#
+#     def emit(self, record):
+#         if accelerator.is_local_main_process:
+#             try:
+#                 msg = self.format(record)
+#                 self.jpl_logger = logger.log(msg, 'Brown', 0)  # For the moment fixed checkpoint
+#             except:
+#                 pass
+#
+#
+# jpl_handler = JPLHandler()
+# jpl_handler.setLevel(logging.INFO)
+# jpl_handler.setFormatter(formatter)
+# logger_.addHandler(jpl_handler)
+
+####################################################################
+# End of logging configuration
+####################################################################
 
 
 gpu_list = os.getenv("LWLL_TA1_GPUS")
