@@ -250,7 +250,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
         # replace default transform with FixMatch Transform
         self._init_unlabeled_transform(unlabeled_data)
         self.steps_per_epoch = -1
-        self.num_epochs = 10
+        self.num_epochs = 30
         super(FixMatchTaglet, self).train(train_data, val_data, unlabeled_data)
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):
