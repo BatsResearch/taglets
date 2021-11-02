@@ -1,1 +1,0 @@
-from .resnet import resnet12, resnet18, resnet24
