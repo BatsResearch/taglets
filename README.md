@@ -1,14 +1,12 @@
 # TAGLETS:  A System for Automatic Semi-Supervised Learning with Auxiliary Data
-TAGLETS is a system that automatically and efficiently exploits all available data, including labeled, unlabeled, and auxiliary data, for a given task to produce a single, robust classifier. TAGLETS extracts relevant auxiliary data for training using SCADs, a database of auxiliary data aligned with concepts in ConceptNet, and passes all relevant data to an ensemble of user-specified modules, which are trained and distilled into a final classifier.  
 ![Tests](https://github.com/BatsResearch/taglets/actions/workflows/test.yml/badge.svg)
-
 [![Build Status](https://travis-ci.com/BatsResearch/taglets.svg?token=sinAgJjnTsxQ2oN3R9vi&branch=master)](https://travis-ci.com/BatsResearch/taglets)
+
+TAGLETS is a system that automatically and efficiently exploits all available data, including labeled, unlabeled, and auxiliary data, for a given task to produce a single, robust classifier. TAGLETS extracts relevant auxiliary data for training using SCADs, a database of auxiliary data aligned with concepts in ConceptNet, and passes all relevant data to an ensemble of user-specified modules, which are trained and distilled into a final classifier.  
 
 ![TAGLETS](figures_for_readme/taglets.jpg)
 
 Our paper can be accessed on [arxiv](https://www.google.com).
-
-![alt text](assets/arch.png)
 
 ## Performance
 We evaluate TAGLETS on three image classification datasets: [**Flickr Material database**](https://people.csail.mit.edu/lavanya/fmd.html), [**Office-Home dataset**](https://www.hemanthdv.org/officeHomeDataset.html), and [**Grocery Store dataset**](https://github.com/marcusklasson/GroceryStoreDataset). In our experiments, we vary the number of labeled examples per class from 1 to 20 and treat the remaining training data as unlabeled data. We compare TAGLETS to state-of-the-art transfer and semi-supervised learning methods, all of which use [BigTransfer](https://arxiv.org/abs/1912.11370) (ImageNet-21k) as a pretrained backbone. 
