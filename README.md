@@ -14,7 +14,7 @@ Our paper can be accessed on [arxiv](https://www.google.com).
 We evaluate TAGLETS on three image classification datasets: [**Flickr Material database**](https://people.csail.mit.edu/lavanya/fmd.html), [**Office-Home dataset**](https://www.hemanthdv.org/officeHomeDataset.html), and [**Grocery Store dataset**](https://github.com/marcusklasson/GroceryStoreDataset). In our experiments, we vary the number of labeled examples per class from 1 to 20 and treat the remaining training data as unlabeled data. We compare TAGLETS to state-of-the-art transfer and semi-supervised learning methods, all of which use [BigTransfer](https://arxiv.org/abs/1912.11370) (ImageNet-21k) as a pretrained backbone. 
 
 |    Method        | OfficeHome-Product (1-shot)  | OfficeHome-Product (5-shot) | OfficeHome-Clipart (1-shot) | OfficeHome-Clipart (5-shot) |  
-|---------------------|--------------------|--------------------|
+|------------------|--------------------|--------------------|--------------------|--------------------|
 | Fine-tuning             | 57.28 ± 5.20   |  84.41 ± 1.17 | 30.36 ± 2.54 |  63.44 ± 2.10  | 
 | Fine-tuning (distilled) | 58.21 ± 4.56   |  85.03 ± 0.22 | 31.74 ± 1.96 | 62.92 ± 1.99 | 
 | FixMatch                | 49.03 ± 2.54   |  83.03 ± 2.97 | 30.67 ± 5.44 | 64.77 ± 1.75  | 
@@ -23,7 +23,7 @@ We evaluate TAGLETS on three image classification datasets: [**Flickr Material d
 
 
 |    Method        | Grocery Store (1-shot)  | Grocery Store (5-shot) | Flickr Material (1-shot) | Flickr Material (5-shot) |  
-|---------------------|--------------------|--------------------|
+|---------------------|--------------------|--------------------|--------------------|--------------------|
 | Fine-tuning             |  51.32 ± 3.23   |  85.16 ± 2.41 | 52.67 ± 2.35 | 70.07 ± 1.52  | 
 | Fine-tuning (distilled) | 52.42 ± 1.03   | 86.06 ± 1.81| 57.53 ± 10.95 | 73.27 ± 1.03 | 
 | FixMatch                |  48.58 ± 13.41   | 87.61 ± 4.82 | 19.07 ± 31.91 | 60.67 ± 5.03  | 
