@@ -1,3 +1,7 @@
+"""
+This code is adapated from https://github.com/google-research/fixmatch and https://github.com/kekmodel/FixMatch-pytorch. 
+"""
+
 import logging
 import random
 
