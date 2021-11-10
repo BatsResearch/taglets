@@ -75,7 +75,7 @@ from taglets.task.utils import labels_to_concept_ids
 # from taglets.models import bit_backbone
 
 # ---------------- Setting up an example task with limited labeled data ---------------
-# This example task is CIFAR10 but with only 0.1% of the training data is labeled.
+# This example task is CIFAR10, but only 0.1% of the training data is labeled.
 # The rest of the training data is used as unlabeled examples.
 
 data_mean = [0.485, 0.456, 0.406]
