@@ -365,7 +365,7 @@ concepts = labels_to_concept_ids(class_names)
 
 ## Citation
 
-Please cite the following paper if you are using out framework :)
+Please cite the following paper if you are using our framework :)
 
 ```
 @article{piriyakulkij:arxiv21,
