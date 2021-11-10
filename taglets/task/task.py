@@ -37,6 +37,7 @@ class Task:
 
         self.initial = models.resnet50(pretrained=True)
         self.initial.fc = torch.nn.Identity()
+        self.model_type = 'resnet50'
         self.whitelist = whitelist
 
     def get_labeled_train_data(self):
@@ -50,6 +51,16 @@ class Task:
 
     def get_validation_data(self):
         return self.validation_data
+    
+    def set_model_type(self, model_type):
+        """
+        Sets an initial model on the task that will be used as the architecture
+        and initial weights of models created for the task, including taglets and
+        the end model
+
+        :param initial: the initial model
+        """
+        self.model_type = model_type
 
     def set_initial_model(self, initial):
         """

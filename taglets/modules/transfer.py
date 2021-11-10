@@ -61,7 +61,13 @@ class TransferTaglet(ImageTagletWithAuxData):
     def _set_num_classes(self, num_classes):
         m = torch.nn.Sequential(*list(self.model.children())[:-1])
         output_shape = self._get_model_output_shape(self.task.input_shape, m)
-        self.model.fc = NormLinear(torch.nn.Linear(output_shape, num_classes), self.is_norm)
+        if self.model_type == 'resnet50':
+            self.model.fc = NormLinear(torch.nn.Linear(output_shape, num_classes), self.is_norm)
+        elif self.model_type == 'bigtransfer':
+            self.model.fc = torch.nn.Conv2d(2048, num_classes, kernel_size=1, bias=True)
+            with torch.no_grad():
+                torch.nn.init.zeros_(self.model.fc.weight)
+                torch.nn.init.zeros_(self.model.fc.bias)
 
         params_to_update = []
         for param in self.model.parameters():
@@ -82,7 +88,12 @@ class TransferTaglet(ImageTagletWithAuxData):
                 return
     
             orig_num_epochs = self.num_epochs
-            self.num_epochs = 5 if not os.environ.get("CI") else 5
+            if os.environ.get("CI"):
+                self.num_epochs = 5
+            elif self.model_type == 'resnet50':
+                self.num_epochs = 5
+            elif self.model_type == 'bigtransfer':
+                self.num_epochs = 2000
             self._set_num_classes(scads_num_classes)
             super(TransferTaglet, self).train(scads_train_data, None, None)
             self.num_epochs = orig_num_epochs
@@ -98,7 +109,12 @@ class TransferTaglet(ImageTagletWithAuxData):
                 param.requires_grad = False
 
         orig_num_epochs = self.num_epochs
-        self.num_epochs = 40 if not os.environ.get("CI") else 5
+        if os.environ.get("CI"):
+            self.num_epochs = 5
+        elif self.model_type == 'resnet50':
+            self.num_epochs = 40
+        elif self.model_type == 'bigtransfer':
+            self.num_epochs = 500
         self._set_num_classes(len(self.task.classes))
         super(TransferTaglet, self).train(train_data, val_data, unlabeled_data)
         self.num_epochs = orig_num_epochs

@@ -1,3 +1,7 @@
+"""
+This code is adapated from https://github.com/google-research/fixmatch and https://github.com/kekmodel/FixMatch-pytorch. 
+"""
+
 import copy
 import math
 import os
@@ -5,6 +9,7 @@ import torch
 import logging
 import torch.nn.functional as F
 import torchvision.transforms as transforms
+import torchvision.models as models
 from copy import deepcopy
 from enum import Enum
 from accelerate import Accelerator
@@ -118,6 +123,12 @@ class FixMatchTaglet(ImageTagletWithAuxData):
             log.info('temperature: %.4f', self.temp)
 
         super().__init__(task)
+
+        # FixMatch doesn't work too well with BigTransfer
+        if self.model_type == 'bigtransfer':
+            self.model = models.resnet50(pretrained=True)
+            self.model.fc = torch.nn.Identity()
+            self.model_type = 'resnet-50'
 
         self.name = 'fixmatch'
 
@@ -243,7 +254,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
         # replace default transform with FixMatch Transform
         self._init_unlabeled_transform(unlabeled_data)
         self.steps_per_epoch = -1
-        self.num_epochs = 10
+        self.num_epochs = 30
         super(FixMatchTaglet, self).train(train_data, val_data, unlabeled_data)
 
     def _do_train(self, train_data, val_data, unlabeled_data=None):
