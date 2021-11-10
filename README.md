@@ -6,7 +6,7 @@ TAGLETS is a system that automatically and efficiently exploits all available da
 
 ![TAGLETS](figures_for_readme/taglets.jpg)
 
-Our paper can be accessed on [arxiv](https://www.google.com).
+Our paper can be accessed on [arxiv](https://arxiv.org/abs/2111.04798).
 
 ## Performance
 We evaluate TAGLETS on three image classification datasets: [**Flickr Material database**](https://people.csail.mit.edu/lavanya/fmd.html), [**Office-Home dataset**](https://www.hemanthdv.org/officeHomeDataset.html), and [**Grocery Store dataset**](https://github.com/marcusklasson/GroceryStoreDataset). In our experiments, we vary the number of labeled examples per class from 1 to 20 and treat the remaining training data as unlabeled data. We compare TAGLETS to state-of-the-art transfer and semi-supervised learning methods, all of which use [BigTransfer](https://arxiv.org/abs/1912.11370) (ImageNet-21k) as a pretrained backbone. 
