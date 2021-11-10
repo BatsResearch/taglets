@@ -144,6 +144,8 @@ initial_model.fc = nn.Identity()
 # initial_model = bit_backbone()
 
 # Configure your Task instance
+# SCADS and SCADS Embedding files for the setup of SCADS used in the paper (ConceptNet + ImageNet21k) 
+# is automatically downloaded when you install and set up TAGLETS
 scads_path = 'predefined/scads.imagenet22k.sqlite3' # Path to SCADS file
 scads_embedding_path = 'predefined/embeddings/numberbatch-en19.08.txt.gz' # Path to SCADS Embedding file
 # Path to processed SCADS Embedding file where all embeddings of nodes without images are removed
@@ -365,5 +367,9 @@ concepts = labels_to_concept_ids(class_names)
 Please cite the following paper if you are using out framework :)
 
 ```
-@article{TBD}
+@article{piriyakulkij:arxiv21,
+  Author = {Wasu Piriyakulkij and Cristina Menghini and Ross Briden and Nihal V. Nayak and Jeffrey Zhu and Elaheh Raisi and Stephen H. Bach},
+  Title = {{TAGLETS}: {A} System for Automatic Semi-Supervised Learning with Auxiliary Data},
+  Volume = {arXiv:2111.04798 [cs.LG]},
+  Year = {2021}}
 ```
