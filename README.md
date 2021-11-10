@@ -28,7 +28,7 @@ We evaluate TAGLETS on three image classification datasets: [**Flickr Material d
 | Meta Pseudo Labels      | 54.51 ± 6.22   |   84.02 ± 1.30 | 52.73 ± 5.82 | 69.80 ± 2.24           |           
 | TAGLETS                 | **61.60 ± 2.90** | **88.91 ± 1.07** | **68.07 ± 5.76**  |   **75.20 ± 1.72** |
 
-In the few-shot setting, TAGLETS outperforms existing semi-supervised and transfer learning methods in all datasets and matches the performance of these methods in the mid-shot regime. See **Section 4** of our [arxiv](https://arxiv.org/abs/2111.04798) for more fine-grained results and an ablation study. 
+In the few-shot setting, TAGLETS outperforms existing semi-supervised and transfer learning methods in all datasets and matches the performance of these methods in the mid-shot regime. See **Section 4** of our [paper](https://arxiv.org/abs/2111.04798) for more fine-grained results and an ablation study. 
 
 
 
