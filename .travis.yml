@@ -9,7 +9,7 @@ python:
 cache:
   directories:
     - download
-    - predefined
+    - travis_wait 30 predefined
 
 before_install:
   - travis_retry
