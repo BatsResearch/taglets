@@ -7,6 +7,7 @@ from .trainable import ImageTrainable, VideoTrainable
 from ..scads import Scads, ScadsEmbedding
 from ..pipeline import Cache
 from ..data.custom_dataset import CustomImageDataset
+import json
 
 log = logging.getLogger(__name__)
 
@@ -44,19 +45,26 @@ class AuxDataMixin:
             image_paths = []
             image_labels = []
             visited = set()
+
+            aux_classes = {}
+
+            for v in self.task.classes:
+                aux_classes[v] = set()
         
             def get_images(node, label, is_neighbor):
                 if is_neighbor and node.get_conceptnet_id() in self.task.classes:
                     return False
                 if node.get_conceptnet_id() not in visited:
+
                     visited.add(node.get_conceptnet_id())
                     images = node.get_images_whitelist(self.task.whitelist)
                     if len(images) < self.img_per_related_class:
                         return False
                     images = random.sample(images, self.img_per_related_class)
                     images = [os.path.join(root_path, image) for image in images]
-                    image_paths.extend(images)
+                    image_paths.add(node.get_conceptnet_id());
                     image_labels.extend([label] * len(images))
+
                     log.debug("Source class found: {}".format(node.get_conceptnet_id()))
                     return True
                 return False
@@ -66,6 +74,7 @@ class AuxDataMixin:
                 cur_related_class = 0
                 target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
                 if get_images(target_node, all_related_class, False):
+                    aux_classes[conceptnet_id].append(conceptnet_id)
                     cur_related_class += 1
                     all_related_class += 1
 
@@ -77,6 +86,7 @@ class AuxDataMixin:
                                                                  only_with_images=processed_embeddings_exist)
                     for neighbor in neighbors:
                         if get_images(neighbor, all_related_class, True):
+                            aux_classes[conceptnet_id].append(neighbor.get_conceptnet_id())
                             cur_related_class += 1
                             all_related_class += 1
                             if cur_related_class >= self.num_related_class:
@@ -91,6 +101,9 @@ class AuxDataMixin:
         train_dataset = CustomImageDataset(image_paths,
                                            labels=image_labels,
                                            transform=transform)
+
+        with open('fmd-aux-class.json', 'w') as f:
+            json.dump(aux_classes, f)
     
         return train_dataset, all_related_class
 
