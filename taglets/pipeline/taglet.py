@@ -46,6 +46,10 @@ class AuxDataMixin:
             image_paths = []
             image_labels = []
             visited = set()
+            
+            aux_classes = {}
+            for v in self.task.classes:
+              aux_classes[v] = set()
 
             target_synsets = []
             for conceptnet_id in self.task.classes:
@@ -82,6 +86,7 @@ class AuxDataMixin:
                 cur_related_class = 0
                 target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
                 if get_images(target_node, all_related_class, False):
+                    aux_classes[conceptnet_id].add(conceptnet_id)
                     cur_related_class += 1
                     all_related_class += 1
 
@@ -93,6 +98,7 @@ class AuxDataMixin:
                                                                  only_with_images=processed_embeddings_exist)
                     for neighbor in neighbors:
                         if get_images(neighbor, all_related_class, True):
+                            aux_classes[conceptnet_id].add(neighbord.get_conceptnet_id())
                             cur_related_class += 1
                             all_related_class += 1
                             if cur_related_class >= self.num_related_class:
