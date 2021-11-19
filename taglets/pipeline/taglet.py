@@ -50,7 +50,7 @@ class AuxDataMixin:
             
             aux_classes = {}
             for v in self.task.classes:
-              aux_classes[v] = set()
+              aux_classes[v] = []
 
             target_synsets = []
             for conceptnet_id in self.task.classes:
@@ -75,7 +75,7 @@ class AuxDataMixin:
                         return False
                     
                     images = random.sample(images, self.img_per_related_class)
-                    images = [os.path.join(root_path, image) for image in images if image not in bad_images]
+                    images = [os.path.join(root_path, image) for image in images]
                     image_paths.extend(images)
                     image_labels.extend([label] * len(images))
                     log.debug("Source class found: {}".format(node.get_conceptnet_id()))
@@ -87,7 +87,7 @@ class AuxDataMixin:
                 cur_related_class = 0
                 target_node = Scads.get_node_by_conceptnet_id(conceptnet_id)
                 if get_images(target_node, all_related_class, False):
-                    aux_classes[conceptnet_id].add(conceptnet_id)
+                    aux_classes[conceptnet_id].append(conceptnet_id)
                     cur_related_class += 1
                     all_related_class += 1
 
@@ -99,7 +99,7 @@ class AuxDataMixin:
                                                                  only_with_images=processed_embeddings_exist)
                     for neighbor in neighbors:
                         if get_images(neighbor, all_related_class, True):
-                            aux_classes[conceptnet_id].add(neighbord.get_conceptnet_id())
+                            aux_classes[conceptnet_id].append(neighbor.get_conceptnet_id())
                             cur_related_class += 1
                             all_related_class += 1
                             if cur_related_class >= self.num_related_class:
