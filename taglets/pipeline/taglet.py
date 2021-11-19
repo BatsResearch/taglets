@@ -2,6 +2,7 @@ import os
 import logging
 import numpy as np
 import random
+import json 
 from nltk.corpus import wordnet as wn
 
 from .trainable import ImageTrainable, VideoTrainable
@@ -113,7 +114,9 @@ class AuxDataMixin:
         train_dataset = CustomImageDataset(image_paths,
                                            labels=image_labels,
                                            transform=transform)
-    
+        with open('aux-fmd.json', 'w') as f:
+          json.dump(aux_classes, f)
+
         return train_dataset, all_related_class
 
 
