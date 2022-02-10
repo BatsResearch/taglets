@@ -143,24 +143,13 @@ initial_model.fc = nn.Identity()
 # We provide BigTransfer using resnet50v2 pre-trained on ImageNet-21k:
 # initial_model = bit_backbone()
 
-# Configure your Task instance
-# SCADS and SCADS Embeddings files for the setup of SCADS used in the paper (ConceptNet + ImageNet21k) 
-# is automatically downloaded when you install and set up TAGLETS
-scads_path = 'predefined/scads.imagenet22k.sqlite3' # Path to SCADS file
-scads_embedding_path = 'predefined/embeddings/numberbatch-en19.08.txt.gz' # Path to SCADS Embedding file
-# Path to processed SCADS Embedding file where all embeddings of nodes without images are removed
-processed_scads_embedding_path='predefined/embeddings/imagenet22k_processed_numberbatch.h5'
-
 task = Task('limited-labeled-cifar10', # Task name
             concepts, # Target concepts
             (224, 224), # Image size
             labeled_dataset, # Training labeled data
             unlabeled_dataset, # Training unlabeled data
             None, # Validation dataset
-            32, # Batch size
-            scads_path=scads_path, # Path to the SCADS file
-            scads_embedding_path=scads_embedding_path, # Path to the SCADS Embeddings file
-            processed_scads_embedding_path=processed_scads_embedding_path) # (Optional) Path to  
+            32 # Batch size) # (Optional) Path to  
             # the processed SCADS Embeddings file where the nodes without any auxiliary images are pruned 
 task.set_initial_model(initial_model)
 task.set_model_type('resnet50') # or 'bigtransfer'
