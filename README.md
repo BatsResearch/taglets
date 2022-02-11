@@ -198,6 +198,7 @@ We recommend reading more about `accelerate` before you try to use multiple gpus
 To use the above example script with multiple gpus, you want to modify the part we set up the task as following:
 
 ```python
+from accelerate import Accelerator
 data_mean = [0.485, 0.456, 0.406]
 data_std = [0.229, 0.224, 0.225]
 train_transform = transforms.Compose([
