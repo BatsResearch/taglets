@@ -59,6 +59,24 @@ bash setup.sh
 
 ## Solve a task (with limited labeled data) with TAGLETS
 
+For this demo, we will assume that our auxiliary dataset is CIFAR-100, and we want to solve CIFAR-10 with only 
+0.1% of its training data labeled.
+
+First, download CIFAR-100 and the SCADS file with CIFAR-100 installed by running the below bash script at the outermost 
+directory of TAGLETS 
+
+```
+mkdir aux_data
+cd aux_data
+wget -nc https://storage.googleapis.com/taglets-public/cifar100.zip
+unzip cifar100.zip
+rm cifar100.zip
+cd ../predefined
+wget -nc https://storage.googleapis.com/taglets-public/scads.spring2021.sqlite3
+```
+
+Then, run the below python script
+
 ```python
 import numpy as np
 import torch.nn as nn
@@ -135,7 +153,7 @@ concepts = labels_to_concept_ids(class_names)
 # --------------------------------------------------------------------------------------
 
 # Set the path where your auxiliary datasets are at
-Scads.set_root_path('path to the directory containing auxiliary datasets')
+Scads.set_root_path('aux_data')
 
 # Choose your backbone - we support ResNet50 and Bit-ResNet50v2
 initial_model = models.resnet50(pretrained=True)
@@ -143,13 +161,24 @@ initial_model.fc = nn.Identity()
 # We provide BigTransfer using resnet50v2 pre-trained on ImageNet-21k:
 # initial_model = bit_backbone()
 
+# Configure your Task instance
+# SCADS and SCADS Embeddings files for the setup of SCADS used in the paper (ConceptNet + ImageNet21k) 
+# is automatically downloaded when you install and set up TAGLETS
+scads_path = 'predefined/scads.cifar100.sqlite3' # Path to SCADS file
+scads_embedding_path = 'predefined/embeddings/numberbatch-en19.08.txt.gz' # Path to SCADS Embedding file
+# Optional (for faster computation): path to processed SCADS Embedding file where all embeddings of nodes without images are removed
+processed_scads_embedding_path='predefined/embeddings/cifar100_processed_numberbatch.h5'
+
 task = Task('limited-labeled-cifar10', # Task name
             concepts, # Target concepts
             (224, 224), # Image size
             labeled_dataset, # Training labeled data
             unlabeled_dataset, # Training unlabeled data
             None, # Validation dataset
-            32 # Batch size) # (Optional) Path to  
+            32, # Batch size
+            scads_path=scads_path, # Path to the SCADS file
+            scads_embedding_path=scads_embedding_path, # Path to the SCADS Embeddings file
+            processed_scads_embedding_path=processed_scads_embedding_path) # (Optional) Path to    
             # the processed SCADS Embeddings file where the nodes without any auxiliary images are pruned 
 task.set_initial_model(initial_model)
 task.set_model_type('resnet50') # or 'bigtransfer'
