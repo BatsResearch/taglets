@@ -1,41 +1,8 @@
 # TAGLETS:  A System for Automatic Semi-Supervised Learning with Auxiliary Data
-![Tests](https://github.com/BatsResearch/taglets/actions/workflows/test.yml/badge.svg)
-[![Build Status](https://travis-ci.com/BatsResearch/taglets.svg?token=sinAgJjnTsxQ2oN3R9vi&branch=master)](https://travis-ci.com/BatsResearch/taglets)
-
-TAGLETS is a system that automatically and efficiently exploits all available data, including labeled, unlabeled, and auxiliary data, for a given task to produce a single, robust classifier. TAGLETS extracts relevant auxiliary data for training using SCADs, a database of auxiliary data aligned with concepts in ConceptNet, and passes all relevant data to an ensemble of user-specified modules, which are trained and distilled into a final classifier.  
-
-![TAGLETS](figures_for_readme/taglets.jpg)
-
-Our paper can be accessed on [arxiv](https://arxiv.org/abs/2111.04798).
-
-## Performance
-We evaluate TAGLETS on three image classification datasets: [**Flickr Material database**](https://people.csail.mit.edu/lavanya/fmd.html), [**Office-Home dataset**](https://www.hemanthdv.org/officeHomeDataset.html), and [**Grocery Store dataset**](https://github.com/marcusklasson/GroceryStoreDataset). In our experiments, we vary the number of labeled examples per class from 1 to 20 and treat the remaining training data as unlabeled data. We compare TAGLETS to state-of-the-art transfer and semi-supervised learning methods, all of which use [BigTransfer](https://arxiv.org/abs/1912.11370) (ImageNet-21k) as a pretrained backbone. 
-
-|    Method        | OfficeHome-Product (1-shot)  | OfficeHome-Product (5-shot) | OfficeHome-Clipart (1-shot) | OfficeHome-Clipart (5-shot) |  
-|------------------|--------------------|--------------------|--------------------|--------------------|
-| Fine-tuning             | 57.28 ± 5.20   |  84.41 ± 1.17 | 30.36 ± 2.54 |  63.44 ± 2.10  | 
-| Fine-tuning (distilled) | 58.21 ± 4.56   |  85.03 ± 0.22 | 31.74 ± 1.96 | 62.92 ± 1.99 | 
-| FixMatch                | 49.03 ± 2.54   |  83.03 ± 2.97 | 30.67 ± 5.44 | 64.77 ± 1.75  | 
-| Meta Pseudo Labels      | 59.95 ± 0.44   |  81.53 ± 1.01 | 31.74 ± 2.10 | 62.92 ± 2.13            |           
-| TAGLETS                 | **70.92 ± 1.67** | **86.31 ± 1.01** | **46.97 ± 2.46**  |   **67.64 ± 3.34** |
-
-
-|    Method        | Grocery Store (1-shot)  | Grocery Store (5-shot) | Flickr Material (1-shot) | Flickr Material (5-shot) |  
-|---------------------|--------------------|--------------------|--------------------|--------------------|
-| Fine-tuning             |  51.32 ± 3.23   |  85.16 ± 2.41 | 52.67 ± 2.35 | 70.07 ± 1.52  | 
-| Fine-tuning (distilled) | 52.42 ± 1.03   | 86.06 ± 1.81| 57.53 ± 10.95 | 73.27 ± 1.03 | 
-| FixMatch                |  48.58 ± 13.41   | 87.61 ± 4.82 | 19.07 ± 31.91 | 60.67 ± 5.03  | 
-| Meta Pseudo Labels      | 54.51 ± 6.22   |   84.02 ± 1.30 | 52.73 ± 5.82 | 69.80 ± 2.24           |           
-| TAGLETS                 | **61.60 ± 2.90** | **88.91 ± 1.07** | **68.07 ± 5.76**  |   **75.20 ± 1.72** |
-
-In the few-shot setting, TAGLETS outperforms existing semi-supervised and transfer learning methods in all datasets and matches the performance of these methods in the mid-shot regime. See **Section 4** of our [paper](https://arxiv.org/abs/2111.04798) for more fine-grained results and an ablation study. 
-
-
-
 
 ## Installation
 
-The package requires `python >= 3.7`. You first need to clone this repository:
+The package requires `python3.7`. You first need to clone this repository:
 ```
 git clone https://github.com/BatsResearch/taglets.git
 ```
@@ -73,6 +40,7 @@ unzip cifar100.zip
 rm cifar100.zip
 cd ../predefined
 wget -nc https://storage.googleapis.com/taglets-public/scads.spring2021.sqlite3
+wget -nc https://storage.googleapis.com/taglets-public/embeddings/cifar100_processed_numberbatch.h5
 ```
 
 Then, run the below python script
@@ -196,104 +164,6 @@ predictions = np.argmax(outputs, 1)
 print(f'Accuracy on the test data = {end_model.evaluate(test_dataset)}')
 ```
 
-## Customize SCADs
-
-One main component of TAGLETS is its Structured Collection of Annotated Datasets, or SCADs. 
-
-In the previous example, we assume SCADs to be composed of ImageNet-21k installed on top of [ConceptNet](https://conceptnet.io/). 
-But the original idea of SCADs is to gather all the datasets, public accessible or available to internal organization, that can be helpful to learn the novel target task.
-
-Here we show you how to fully exploit the potential of a SCADs by introducing how new annotated datasets can be installed on top of ConceptNet.
-
-![SCADs](figures_for_readme/scads.jpg)
-
-
-Conceptually, to install a new dataset in SCADs means to:
-
-1. Align the dataset's categories to nodes (or concepts) in ConceptNets.
-2. Associate categories' images to the corresponding concepts.
-
-Practically, to install a new dataset, we proceed as follows.
-
-1. In `taglets/taglets/scads/create/intall.py`, define a subclass of `ImageClassificationInstaller` that at least:
-    - Get the name of the new dataset (`get_name()`).
-    ```python
-    def get_name(self):
-        return "New dataset"
-    ```
-    - Rename dataset's categories to handle string mismatch with the corresponding concept. In particular you can specify a dictionary to resolve the names conflicts between your categories' names and SCADs nodes (`get_conceptnet_id(label)`).
-    ```python
-    def get_conceptnet_id(self, label):
-        label_to_label = {1: 'person', 2: 'bicycle', 
-                          3: 'car', 4: 'motorcycle',
-                          5: 'airplane', 6: 'bus'
-                          }
-
-        return "/c/en/" + label_to_label[label].lower().replace(" ", "_").replace("-", "_")
-    ```
-    or
-    ```python
-    def get_conceptnet_id(self, label):
-        exceptions = {'paint_can': 'can_of_paint',
-                      'The_Eiffel_Tower': 'eiffel_tower',
-                      'animal_migration': 'migration'
-                      }
-        
-        if label in exceptions:
-            return "/c/en/" + exceptions[label]
-        return "/c/en/" + label.lower().replace(" ", "_").replace("-", "_")
-    ```
-    - Add each image inthe dataset to its corresponding concept in the knowledge graph (`get_data(dataset, session, root)`).  
-    ```python
-    def get_data(self, dataset, session, root):
-        # Initialize the list of images
-        all_images = []
-        
-        # Loop over the new dataset's categories 
-        for label in categories:
-            # Get the the node in SCADs corresponding
-            # to the image's label
-            node = session.query(Node)\
-                   .filter_by(conceptnet_id=self.get_conceptnet_id(label))\
-                   .first()
-
-            node_id = node.id if node else None
-            if not node_id:
-                continue
-            # If node exists, iterate through the category's images
-            for image in os.listdir('path to where labeled images are stored')):
-                img = Image(dataset_id=dataset.id, # dataset is an instance to find in install.py
-                            node_id=node_id, # node in SCADs extracted above
-                            path='path to the image'))
-                all_images.append(img)
-        return all_images
-    ```
-    
-  
-  In the same file, you can find several examples of `ImageClassificationInstaller` subclasses that you can refer to.
-
-
-2. Make sure that [here](https://github.com/BatsResearch/taglets/blob/general_system/taglets/scads/create/install.py#L420) and [here](https://github.com/BatsResearch/taglets/blob/general_system/taglets/scads/create/install.py#L461) you add your dataset to properly install it.
-
-
-3. Install the dataset. To update the current version of SCADs:
-    
-    - Place yourself in the root folder and run 
-    
-    ```
-    python -m taglets.scads.create.install --db predefined/<current scads> --root <dataset root folder>  --newdata <name>
-    ```
-
-4. Update the list of concepts to consider while looking for target-related auxiliary data (i.e., only the concepts corresponding to images).
-    - Add [here](https://github.com/BatsResearch/taglets/blob/general_system/taglets/scads/interface/scads_embedding.py#L267) the following line of code 
-    ```
-    process_embeddings()
-    ```
-    - To update the file `predefined/embeddings/processed_numberbatch.h5`, place yourself in the root folder and run
-    ```
-    python -m taglets.scads.interface.scadsembedding
-    ```
-  
 ## GPU/Multi-GPU Support
 
 TAGLETS uses the package `accelerate` to support the use of one or more gpus. You need to use the `accelerate launcher` to run the script in order to use gpus. 
@@ -379,16 +249,4 @@ unlabeled_dataset = UnlabeledDataset(unlabeled_dataset)
 class_names = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog',
                'horse', 'ship', 'truck']
 concepts = labels_to_concept_ids(class_names)
-```
-
-## Citation
-
-Please cite the following paper if you are using our framework :)
-
-```
-@article{piriyakulkij:arxiv21,
-  Author = {Wasu Piriyakulkij and Cristina Menghini and Ross Briden and Nihal V. Nayak and Jeffrey Zhu and Elaheh Raisi and Stephen H. Bach},
-  Title = {{TAGLETS}: {A} System for Automatic Semi-Supervised Learning with Auxiliary Data},
-  Volume = {arXiv:2111.04798 [cs.LG]},
-  Year = {2021}}
 ```
