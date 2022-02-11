@@ -48,7 +48,7 @@ Then, run the below python script
 ```python
 import numpy as np
 import torch.nn as nn
-from torch.utils.data import Subset
+from torch.utils.data import Subset, Dataset
 from torchvision.datasets import CIFAR10
 import torchvision.models as models
 import torchvision.transforms as transforms
