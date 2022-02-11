@@ -63,6 +63,7 @@ from taglets.task.utils import labels_to_concept_ids
 # ---------------- Setting up an example task with limited labeled data ---------------
 # This example task is CIFAR10, but only 0.1% of the training data is labeled.
 # The rest of the training data is used as unlabeled examples.
+# !! Please swap this part of the code with the script in the GPU/Multi-GPU Support if you want to use gpu(s)
 
 data_mean = [0.485, 0.456, 0.406]
 data_std = [0.229, 0.224, 0.225]
@@ -198,6 +199,7 @@ We recommend reading more about `accelerate` before you try to use multiple gpus
 To use the above example script with multiple gpus, you want to modify the part we set up the task as following:
 
 ```python
+import random
 from accelerate import Accelerator
 accelerator = Accelerator()
 data_mean = [0.485, 0.456, 0.406]
