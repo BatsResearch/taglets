@@ -43,7 +43,8 @@ wget -nc https://storage.googleapis.com/taglets-public/scads.spring2021.sqlite3
 wget -nc https://storage.googleapis.com/taglets-public/embeddings/cifar100_processed_numberbatch.h5
 ```
 
-Then, run the below python script
+Then, run the below python script (We recommend using GPUs to run the script below, 
+please see the GPU/Multi-GPU support for instructions on how to use one or more GPUs)
 
 ```python
 import numpy as np
@@ -168,9 +169,9 @@ print(f'Accuracy on the test data = {end_model.evaluate(test_dataset)}')
 
 ## GPU/Multi-GPU Support
 
-TAGLETS uses the package `accelerate` to support the use of one or more gpus. You need to use the `accelerate launcher` to run the script in order to use gpus. 
+TAGLETS uses the package `accelerate` to support the use of one or more GPUs. You need to use the `accelerate launcher` to run the script in order to use GPUs. 
 
-Suppose you want to use 4 gpus. Your config file, e.g., `acclerate_config.yml`, should look similar to this:
+Suppose you want to use 4 GPUs. Your config file, e.g., `acclerate_config.yml`, should look similar to this:
 ```yml
 compute_environment: LOCAL_MACHINE
 distributed_type: MULTI_GPU
@@ -197,7 +198,7 @@ One important thing to note of `accelerate` is it spawns multiple processes runn
 
 We recommend reading more about `accelerate` before you try to use multiple gpus: https://huggingface.co/docs/accelerate/ 
 
-To use the above example script with multiple gpus, you want to modify the part we set up the task as following:
+To use the above example script with GPU support, you want to modify the part we set up the task as following:
 
 ```python
 import random
