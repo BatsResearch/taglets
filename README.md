@@ -195,6 +195,12 @@ Conceptually, to install a new dataset in SCADs means to:
 1. Align the dataset's categories to nodes (or concepts) in ConceptNets.
 2. Associate categories' images to the corresponding concepts.
 
+To download SCADs sqlite file with no datasets installed, you can run the following script:
+```
+mv predefined 
+wget -nc https://storage.googleapis.com/taglets-public/scads.nodataset.sqlite3
+```
+
 Practically, to install a new dataset, we proceed as follows.
 
 1. In `taglets/taglets/scads/create/intall.py`, define a subclass of `ImageClassificationInstaller` that at least:
