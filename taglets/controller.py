@@ -195,8 +195,7 @@ class Controller:
             if self.task.scads_path is not None:
                 return [MultiTaskModule,
                         ZSLKGModule,
-                        TransferModule,
-                        FixMatchModule]
+                        TransferModule]
             return [FineTuneModule, FixMatchModule]
     
     def get_vote_matrix(self):
