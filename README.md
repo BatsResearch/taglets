@@ -44,7 +44,8 @@ wget -nc https://storage.googleapis.com/taglets-public/embeddings/cifar100_proce
 ```
 
 Then, run the below python script (We recommend using GPUs to run the script below, 
-please see the GPU/Multi-GPU support for instructions on how to use one or more GPUs)
+please see the GPU/Multi-GPU support for instructions on how to launch the python script so that it uses GPUs and also 
+uncomment the commented part of the code below)
 
 ```python
 import numpy as np
@@ -60,6 +61,20 @@ from taglets.task import Task
 from taglets.task.utils import labels_to_concept_ids
 
 # from taglets.models import bit_backbone
+
+# IMPORTANT!!: Uncomment this part of the code if you want to use GPUs
+# import random
+# from accelerate import Accelerator
+# accelerator = Accelerator()
+# # We want to avoid non-deterministic behavoirs in our multi-GPU code
+# random.seed(0)
+# np.random.seed(0)
+# # If multiple processes try to download CIFAR10 to the filesytem at once, you might get an error
+# # So we modify the code to download the dataset only in the main process
+# if accelerator.is_local_main_process:
+#     _ = CIFAR10('.', train=True, download=True)
+#     _ = CIFAR10('.', train=False, download=True)
+# accelerator.wait_for_everyone()
 
 # ---------------- Setting up an example task with limited labeled data ---------------
 # This example task is CIFAR10, but only 0.1% of the training data is labeled.
@@ -80,7 +95,7 @@ test_transform = transforms.Compose([
     transforms.Normalize(mean=data_mean, std=data_std)
 ])
 train_dataset = CIFAR10('.', train=True, transform=train_transform, download=True)
-test_dataset = CIFAR10('.', train=True, transform=train_transform, download=True)
+test_dataset = CIFAR10('.', train=True, transform=test_transform, download=True)
 
 labeled_percent = 0.001
 num_train_data = 50000
@@ -197,71 +212,3 @@ One important thing to note of `accelerate` is it spawns multiple processes runn
 - When interacting with an external server, might want to only do that only in the main process to avoid duplicate requests
 
 We recommend reading more about `accelerate` before you try to use multiple gpus: https://huggingface.co/docs/accelerate/ 
-
-To use the above example script with GPU support, you want to modify the part we set up the task as following:
-
-```python
-import random
-from accelerate import Accelerator
-accelerator = Accelerator()
-data_mean = [0.485, 0.456, 0.406]
-data_std = [0.229, 0.224, 0.225]
-train_transform = transforms.Compose([
-    transforms.RandomResizedCrop((224, 224), scale=(0.8, 1.0)),
-    transforms.RandomHorizontalFlip(),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=data_mean, std=data_std)
-])
-test_transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=data_mean, std=data_std)
-])
-
-# !! If multiple processes try to download CIFAR10 to the filesytem at once, you might get an error
-# So we modify the code to download the dataset only in the main process
-if accelerator.is_local_main_process:
-    _ = CIFAR10('.', train=True, download=True)
-    _ = CIFAR10('.', train=False, download=True)
-accelerator.wait_for_everyone()
-train_dataset = CIFAR10('.', train=True, transform=train_transform)
-test_dataset = CIFAR10('.', train=False, transform=test_transform)
-
-# !! We want to avoid non-deterministic behavoirs in our code , we we set the seeds before doing data sampling
-random.seed(0)
-np.random.seed(0)
-labeled_percent = 0.001
-num_train_data = 50000
-indices = list(range(num_train_data))
-train_split = int(np.floor(labeled_percent * num_train_data))
-np.random.shuffle(indices)
-labeled_idx = indices[:train_split]
-unlabeled_idx = indices[train_split:]
-labeled_dataset = Subset(train_dataset, labeled_idx)
-unlabeled_dataset = Subset(train_dataset, unlabeled_idx)
-
-class HiddenLabelDataset(Dataset):
-    """
-    Wraps a labeled dataset so that it appears unlabeled
-    """
-    def __init__(self, dataset):
-        self.subset = dataset
-        self.dataset = self.subset.dataset
-
-    def __getitem__(self, idx):
-        data = self.subset[idx]
-        try:
-            img1, img2, _ = data
-            return img1, img2
-
-        except ValueError:
-            return data[0]
-
-    def __len__(self):
-        return len(self.subset)
-unlabeled_dataset = HiddenLabelDataset(unlabeled_dataset)
-
-class_names = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog',
-               'horse', 'ship', 'truck']
-concepts = labels_to_concept_ids(class_names)
-```
