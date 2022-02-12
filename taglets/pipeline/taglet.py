@@ -30,6 +30,8 @@ class AuxDataMixin:
         self.img_per_related_class = 600 if not os.environ.get("CI") else 1
         if os.environ.get("CI"):
             self.num_related_class = 1
+        elif self.task.wanted_num_related_class:
+            self.num_related_class = self.task.wanted_num_related_class
         else:
             self.num_related_class = 10 if len(self.task.classes) < 100 else (5 if len(self.task.classes) < 300 else 3)
     

@@ -147,8 +147,9 @@ task = Task('limited-labeled-cifar10', # Task name
             32, # Batch size
             scads_path=scads_path, # Path to the SCADS file
             scads_embedding_path=scads_embedding_path, # Path to the SCADS Embeddings file
-            processed_scads_embedding_path=processed_scads_embedding_path) # (Optional) Path to    
-            # the processed SCADS Embeddings file where the nodes without any auxiliary images are pruned 
+            processed_scads_embedding_path=processed_scads_embedding_path, # (Optional) Path to    
+            # the processed SCADS Embeddings file where the nodes without any auxiliary images are pruned
+            wanted_num_related_class=3) # Num of auxiliary classes per target class 
 task.set_initial_model(initial_model)
 task.set_model_type('resnet50') # or 'bigtransfer'
 
