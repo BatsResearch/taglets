@@ -43,8 +43,9 @@ wget -nc https://storage.googleapis.com/taglets-public/scads.spring2021.sqlite3
 wget -nc https://storage.googleapis.com/taglets-public/embeddings/cifar100_processed_numberbatch.h5
 ```
 
-Then, run the below python script (We recommend using GPUs to run the script below, 
-please see the GPU/Multi-GPU support for instructions on how to launch the python script so that it uses GPUs and also 
+Then, run the below python script: 
+
+(We recommend using GPUs to run the script below. Please see the GPU/Multi-GPU support for instructions on how to launch the python script so that it uses GPUs and also 
 uncomment the commented part of the code below)
 
 ```python
