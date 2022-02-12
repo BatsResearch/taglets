@@ -239,17 +239,26 @@ unlabeled_idx = indices[train_split:]
 labeled_dataset = Subset(train_dataset, labeled_idx)
 unlabeled_dataset = Subset(train_dataset, unlabeled_idx)
 
-class UnlabeledDataset(Dataset):
+class HiddenLabelDataset(Dataset):
+    """
+    Wraps a labeled dataset so that it appears unlabeled
+    """
     def __init__(self, dataset):
-        self.dataset = dataset
-
-    def __len__(self):
-        return len(self.dataset)
+        self.subset = dataset
+        self.dataset = self.subset.dataset
 
     def __getitem__(self, idx):
-        data = self.dataset[idx]
-        return data[0]
-unlabeled_dataset = UnlabeledDataset(unlabeled_dataset)
+        data = self.subset[idx]
+        try:
+            img1, img2, _ = data
+            return img1, img2
+
+        except ValueError:
+            return data[0]
+
+    def __len__(self):
+        return len(self.subset)
+unlabeled_dataset = HiddenLabelDataset(unlabeled_dataset)
 
 class_names = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog',
                'horse', 'ship', 'truck']
