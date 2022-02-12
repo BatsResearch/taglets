@@ -39,7 +39,8 @@ wget -nc https://storage.googleapis.com/taglets-public/cifar100.zip
 unzip cifar100.zip
 rm cifar100.zip
 cd ../predefined
-wget -nc https://storage.googleapis.com/taglets-public/scads.spring2021.sqlite3
+wget -nc https://storage.googleapis.com/taglets-public/scads.cifar100.sqlite3
+cd embeddings
 wget -nc https://storage.googleapis.com/taglets-public/embeddings/cifar100_processed_numberbatch.h5
 ```
 
