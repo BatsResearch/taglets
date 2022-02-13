@@ -1,55 +1,3 @@
-# TAGLETS:  A System for Automatic Semi-Supervised Learning with Auxiliary Data
-
-## Installation
-
-The package requires `python3.7`. You first need to clone this repository:
-```
-git clone https://github.com/BatsResearch/taglets.git
-```
-
-Before installing TAGLETS, we recommend creating and activating a new virtual environment which can be done by the following script:
-```
-python -m venv taglets_venv
-source taglets_venv/bin/activate
-```
-
-You also want to make sure `pip` is up-to-date:
-```
-pip install --upgrade pip
-```
-
-Then, to install TAGLETS and download related files, run:
-```
-bash setup.sh
-```
-
-
-## Solve a task (with limited labeled data) with TAGLETS
-
-For this demo, we will assume that our auxiliary dataset is CIFAR-100, and we want to solve CIFAR-10 with only 
-0.1% of its training data labeled.
-
-First, download CIFAR-100 and the SCADS file with CIFAR-100 installed by running the below bash script at the outermost 
-directory of TAGLETS 
-
-```
-mkdir aux_data
-cd aux_data
-wget -nc https://storage.googleapis.com/taglets-public/cifar100.zip
-unzip cifar100.zip
-rm cifar100.zip
-cd ../predefined
-wget -nc https://storage.googleapis.com/taglets-public/scads.cifar100.sqlite3
-cd embeddings
-wget -nc https://storage.googleapis.com/taglets-public/embeddings/cifar100_processed_numberbatch.h5
-```
-
-Then, run the below python script (this exact script is available in run_demo.py): 
-
-(!!We recommend using GPUs to run the script below. It takes 30 minutes to run the script on 4 V100s. Please see the GPU/Multi-GPU support for instructions on how to launch the python script so that it uses GPUs and also 
-uncomment the commented part of the code below)
-
-```python
 import numpy as np
 import torch.nn as nn
 from torch.utils.data import Subset, Dataset
@@ -148,7 +96,7 @@ initial_model.fc = nn.Identity()
 # initial_model = bit_backbone()
 
 # Configure your Task instance
-# SCADS and SCADS Embeddings files for the setup of SCADS used in the paper (ConceptNet + ImageNet21k) 
+# SCADS and SCADS Embeddings files for the setup of SCADS used in the paper (ConceptNet + ImageNet21k)
 # is automatically downloaded when you install and set up TAGLETS
 scads_path = 'predefined/scads.cifar100.sqlite3' # Path to SCADS file
 scads_embedding_path = 'predefined/embeddings/numberbatch-en19.08.txt.gz' # Path to SCADS Embedding file
@@ -164,9 +112,9 @@ task = Task('limited-labeled-cifar10', # Task name
             32, # Batch size
             scads_path=scads_path, # Path to the SCADS file
             scads_embedding_path=scads_embedding_path, # Path to the SCADS Embeddings file
-            processed_scads_embedding_path=processed_scads_embedding_path, # (Optional) Path to    
+            processed_scads_embedding_path=processed_scads_embedding_path, # (Optional) Path to
             # the processed SCADS Embeddings file where the nodes without any auxiliary images are pruned
-            wanted_num_related_class=3) # Num of auxiliary classes per target class 
+            wanted_num_related_class=3) # Num of auxiliary classes per target class
 task.set_initial_model(initial_model)
 task.set_model_type('resnet50') # or 'bigtransfer'
 
@@ -181,35 +129,3 @@ predictions = np.argmax(outputs, 1)
 
 # Or get the end model's accuracy on the test data
 print(f'Accuracy on the test data = {end_model.evaluate(test_dataset)}')
-```
-
-## GPU/Multi-GPU Support
-
-TAGLETS uses the package `accelerate` to support the use of one or more GPUs. You need to use the `accelerate launcher` to run the script in order to use GPUs. 
-
-Suppose you want to use 4 GPUs. Your config file, e.g., `acclerate_config.yml`, should look similar to this:
-```yml
-compute_environment: LOCAL_MACHINE
-distributed_type: MULTI_GPU
-fp16: false
-machine_rank: 0
-main_process_ip: null
-main_process_port: null
-main_training_function: main
-num_machines: 1
-num_processes: 4 # set this number to the number of gpus
-```
-
-Then, you can run the launcher as following:
-```
-accelerate launch --config_file accelerate_config.yml run_demo.py
-```
-where `run_demo.py` contains your python script using TAGLETS
-
-One important thing to note of `accelerate` is it spawns multiple processes running the same python script, so as with other multiprocessing code, you need to keep in mind the usual parallelization caveats. These include but not limited to:
-
-- Make sure the script is deterministic across processes
-- When saving or loading files, make sure all processes are joined before doing so
-- When interacting with an external server, might want to only do that only in the main process to avoid duplicate requests
-
-We recommend reading more about `accelerate` before you try to use multiple gpus: https://huggingface.co/docs/accelerate/ 
