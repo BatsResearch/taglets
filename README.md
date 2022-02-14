@@ -61,6 +61,7 @@ from taglets import Controller
 from taglets.scads import Scads
 from taglets.task import Task
 from taglets.task.utils import labels_to_concept_ids
+from taglets.modules import MultiTaskModule, ZSLKGModule, TransferModule
 
 # from taglets.models import bit_backbone
 
@@ -148,7 +149,7 @@ initial_model.fc = nn.Identity()
 # initial_model = bit_backbone()
 
 # Configure your Task instance
-# SCADS and SCADS Embeddings files for the setup of SCADS used in the paper (ConceptNet + ImageNet21k) 
+# SCADS and SCADS Embeddings files for the setup of SCADS used in the paper (ConceptNet + ImageNet21k)
 # is automatically downloaded when you install and set up TAGLETS
 scads_path = 'predefined/scads.cifar100.sqlite3' # Path to SCADS file
 scads_embedding_path = 'predefined/embeddings/numberbatch-en19.08.txt.gz' # Path to SCADS Embedding file
@@ -164,15 +165,18 @@ task = Task('limited-labeled-cifar10', # Task name
             32, # Batch size
             scads_path=scads_path, # Path to the SCADS file
             scads_embedding_path=scads_embedding_path, # Path to the SCADS Embeddings file
-            processed_scads_embedding_path=processed_scads_embedding_path, # (Optional) Path to    
+            processed_scads_embedding_path=processed_scads_embedding_path, # (Optional) Path to
             # the processed SCADS Embeddings file where the nodes without any auxiliary images are pruned
-            wanted_num_related_class=3) # Num of auxiliary classes per target class 
+            wanted_num_related_class=3) # Num of auxiliary classes per target class
 task.set_initial_model(initial_model)
 task.set_model_type('resnet50') # or 'bigtransfer'
 
+# Pick the training modules
+modules = [MultiTaskModule, ZSLKGModule, TransferModule]
+
 # Use the Task instance to create a Controller
 # Then, use the Controller to get a trained end model, ready to do prediction
-controller = Controller(task)
+controller = Controller(task, modules=modules)
 end_model = controller.train_end_model()
 
 # Use the trained end model to get predictions
