@@ -9,6 +9,7 @@ from taglets import Controller
 from taglets.scads import Scads
 from taglets.task import Task
 from taglets.task.utils import labels_to_concept_ids
+from taglets.modules import MultiTaskModule, ZSLKGModule, TransferModule
 
 # from taglets.models import bit_backbone
 
@@ -118,9 +119,12 @@ task = Task('limited-labeled-cifar10', # Task name
 task.set_initial_model(initial_model)
 task.set_model_type('resnet50') # or 'bigtransfer'
 
+# Pick the training modules
+modules = [MultiTaskModule, ZSLKGModule, TransferModule]
+
 # Use the Task instance to create a Controller
 # Then, use the Controller to get a trained end model, ready to do prediction
-controller = Controller(task)
+controller = Controller(task, modules=modules)
 end_model = controller.train_end_model()
 
 # Use the trained end model to get predictions

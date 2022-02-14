@@ -53,12 +53,13 @@ class Controller:
     """
     Manages training and execution of taglets, as well as training EndModels
     """
-    def __init__(self, task, simple_run=False):
+    def __init__(self, task, simple_run=False, modules=None):
         self.task = task
         self.end_model = None
         self.unlabeled_vote_matrix = None
         self.val_vote_matrix = None
         self.simple_run = simple_run
+        self.modules = modules
 
     def train_end_model(self):
         """
@@ -192,6 +193,8 @@ class Controller:
         elif self.task.video_classification:
              return [NaiveVideoModule]
         else:
+            if self.modules is not None:
+                return self.modules
             if self.task.scads_path is not None:
                 return [MultiTaskModule,
                         ZSLKGModule,
