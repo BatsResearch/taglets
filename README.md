@@ -30,12 +30,9 @@ We evaluate TAGLETS on three image classification datasets: [**Flickr Material d
 
 In the few-shot setting, TAGLETS outperforms existing semi-supervised and transfer learning methods in all datasets and matches the performance of these methods in the mid-shot regime. See **Section 4** of our [paper](https://arxiv.org/abs/2111.04798) for more fine-grained results and an ablation study. 
 
-
-
-
 ## Installation
 
-The package requires `python >= 3.7`. You first need to clone this repository:
+The package requires `python3.7`. You first need to clone this repository:
 ```
 git clone https://github.com/BatsResearch/taglets.git
 ```
@@ -59,10 +56,33 @@ bash setup.sh
 
 ## Solve a task (with limited labeled data) with TAGLETS
 
+For this demo, we will assume that our auxiliary dataset is CIFAR-100, and we want to solve CIFAR-10 with only 
+0.1% of its training data labeled.
+
+First, download CIFAR-100 and the SCADS file with CIFAR-100 installed by running the below bash script at the outermost 
+directory of TAGLETS 
+
+```
+mkdir aux_data
+cd aux_data
+wget -nc https://storage.googleapis.com/taglets-public/cifar100.zip
+unzip cifar100.zip
+rm cifar100.zip
+cd ../predefined
+wget -nc https://storage.googleapis.com/taglets-public/scads.cifar100.sqlite3
+cd embeddings
+wget -nc https://storage.googleapis.com/taglets-public/embeddings/cifar100_processed_numberbatch.h5
+```
+
+Then, run the below python script (this exact script is available in run_demo.py): 
+
+(!!We recommend using GPUs to run the script below. It takes 30 minutes to run the script on 4 V100s. Please see the GPU/Multi-GPU support for instructions on how to launch the python script so that it uses GPUs and also 
+uncomment the commented part of the code below)
+
 ```python
 import numpy as np
 import torch.nn as nn
-from torch.utils.data import Subset
+from torch.utils.data import Subset, Dataset
 from torchvision.datasets import CIFAR10
 import torchvision.models as models
 import torchvision.transforms as transforms
@@ -71,8 +91,23 @@ from taglets import Controller
 from taglets.scads import Scads
 from taglets.task import Task
 from taglets.task.utils import labels_to_concept_ids
+from taglets.modules import MultiTaskModule, ZSLKGModule, TransferModule
 
 # from taglets.models import bit_backbone
+
+# IMPORTANT!!: Uncomment this part of the code if you want to use GPUs
+# import random
+# from accelerate import Accelerator
+# accelerator = Accelerator()
+# # We want to avoid non-deterministic behavoirs in our multi-GPU code
+# random.seed(0)
+# np.random.seed(0)
+# # If multiple processes try to download CIFAR10 to the filesytem at once, you might get an error
+# # So we modify the code to download the dataset only in the main process
+# if accelerator.is_local_main_process:
+#     _ = CIFAR10('.', train=True, download=True)
+#     _ = CIFAR10('.', train=False, download=True)
+# accelerator.wait_for_everyone()
 
 # ---------------- Setting up an example task with limited labeled data ---------------
 # This example task is CIFAR10, but only 0.1% of the training data is labeled.
@@ -92,7 +127,7 @@ test_transform = transforms.Compose([
     transforms.Normalize(mean=data_mean, std=data_std)
 ])
 train_dataset = CIFAR10('.', train=True, transform=train_transform, download=True)
-test_dataset = CIFAR10('.', train=True, transform=train_transform, download=True)
+test_dataset = CIFAR10('.', train=True, transform=test_transform, download=True)
 
 labeled_percent = 0.001
 num_train_data = 50000
@@ -135,7 +170,7 @@ concepts = labels_to_concept_ids(class_names)
 # --------------------------------------------------------------------------------------
 
 # Set the path where your auxiliary datasets are at
-Scads.set_root_path('path to the directory containing auxiliary datasets')
+Scads.set_root_path('aux_data')
 
 # Choose your backbone - we support ResNet50 and Bit-ResNet50v2
 initial_model = models.resnet50(pretrained=True)
@@ -144,12 +179,12 @@ initial_model.fc = nn.Identity()
 # initial_model = bit_backbone()
 
 # Configure your Task instance
-# SCADS and SCADS Embeddings files for the setup of SCADS used in the paper (ConceptNet + ImageNet21k) 
+# SCADS and SCADS Embeddings files for the setup of SCADS used in the paper (ConceptNet + ImageNet21k)
 # is automatically downloaded when you install and set up TAGLETS
-scads_path = 'predefined/scads.imagenet22k.sqlite3' # Path to SCADS file
+scads_path = 'predefined/scads.cifar100.sqlite3' # Path to SCADS file
 scads_embedding_path = 'predefined/embeddings/numberbatch-en19.08.txt.gz' # Path to SCADS Embedding file
-# Path to processed SCADS Embedding file where all embeddings of nodes without images are removed
-processed_scads_embedding_path='predefined/embeddings/imagenet22k_processed_numberbatch.h5'
+# Optional (for faster computation): path to processed SCADS Embedding file where all embeddings of nodes without images are removed
+processed_scads_embedding_path='predefined/embeddings/cifar100_processed_numberbatch.h5'
 
 task = Task('limited-labeled-cifar10', # Task name
             concepts, # Target concepts
@@ -160,14 +195,18 @@ task = Task('limited-labeled-cifar10', # Task name
             32, # Batch size
             scads_path=scads_path, # Path to the SCADS file
             scads_embedding_path=scads_embedding_path, # Path to the SCADS Embeddings file
-            processed_scads_embedding_path=processed_scads_embedding_path) # (Optional) Path to  
-            # the processed SCADS Embeddings file where the nodes without any auxiliary images are pruned 
+            processed_scads_embedding_path=processed_scads_embedding_path, # (Optional) Path to
+            # the processed SCADS Embeddings file where the nodes without any auxiliary images are pruned
+            wanted_num_related_class=3) # Num of auxiliary classes per target class
 task.set_initial_model(initial_model)
 task.set_model_type('resnet50') # or 'bigtransfer'
 
+# Pick the training modules
+modules = [MultiTaskModule, ZSLKGModule, TransferModule]
+
 # Use the Task instance to create a Controller
 # Then, use the Controller to get a trained end model, ready to do prediction
-controller = Controller(task)
+controller = Controller(task, modules=modules)
 end_model = controller.train_end_model()
 
 # Use the trained end model to get predictions
@@ -177,6 +216,37 @@ predictions = np.argmax(outputs, 1)
 # Or get the end model's accuracy on the test data
 print(f'Accuracy on the test data = {end_model.evaluate(test_dataset)}')
 ```
+
+## GPU/Multi-GPU Support
+
+TAGLETS uses the package `accelerate` to support the use of one or more GPUs. You need to use the `accelerate launcher` to run the script in order to use GPUs. 
+
+Suppose you want to use 4 GPUs. Your config file, e.g., `acclerate_config.yml`, should look similar to this:
+```yml
+compute_environment: LOCAL_MACHINE
+distributed_type: MULTI_GPU
+fp16: false
+machine_rank: 0
+main_process_ip: null
+main_process_port: null
+main_training_function: main
+num_machines: 1
+num_processes: 4 # set this number to the number of gpus
+```
+
+Then, you can run the launcher as following:
+```
+accelerate launch --config_file accelerate_config.yml run_demo.py
+```
+where `run_demo.py` contains your python script using TAGLETS
+
+One important thing to note of `accelerate` is it spawns multiple processes running the same python script, so as with other multiprocessing code, you need to keep in mind the usual parallelization caveats. These include but not limited to:
+
+- Make sure the script is deterministic across processes
+- When saving or loading files, make sure all processes are joined before doing so
+- When interacting with an external server, might want to only do that only in the main process to avoid duplicate requests
+
+We recommend reading more about `accelerate` before you try to use multiple gpus: https://huggingface.co/docs/accelerate/ 
 
 ## Customize SCADs
 
@@ -281,102 +351,15 @@ Practically, to install a new dataset, we proceed as follows.
     ```
     python -m taglets.scads.interface.scadsembedding
     ```
-  
-## GPU/Multi-GPU Support
-
-TAGLETS uses the package `accelerate` to support the use of one or more gpus. You need to use the `accelerate launcher` to run the script in order to use gpus. 
-
-Suppose you want to use 4 gpus. Your config file, e.g., `acclerate_config.yml`, should look similar to this:
-```yml
-compute_environment: LOCAL_MACHINE
-distributed_type: MULTI_GPU
-fp16: false
-machine_rank: 0
-main_process_ip: null
-main_process_port: null
-main_training_function: main
-num_machines: 1
-num_processes: 4 # set this number to the number of gpus
-```
-
-Then, you can run the launcher as following:
-```
-CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch --config_file accelerate_config.yml run_demo.py
-```
-where `run_demo.py` contains your python script using TAGLETS
-
-One important thing to note of `accelerate` is it spawns multiple processes running the same python script, so as with other multiprocessing code, you need to keep in mind the usual parallelization caveats. These include but not limited to:
-
-- Make sure the script is deterministic across processes
-- When saving or loading files, make sure all processes are joined before doing so
-- When interacting with an external server, might want to only do that only in the main process to avoid duplicate requests
-
-We recommend reading more about `accelerate` before you try to use multiple gpus: https://huggingface.co/docs/accelerate/ 
-
-To use the above example script with multiple gpus, you want to modify the part we set up the task as following:
-
-```python
-data_mean = [0.485, 0.456, 0.406]
-data_std = [0.229, 0.224, 0.225]
-train_transform = transforms.Compose([
-    transforms.RandomResizedCrop((224, 224), scale=(0.8, 1.0)),
-    transforms.RandomHorizontalFlip(),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=data_mean, std=data_std)
-])
-test_transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=data_mean, std=data_std)
-])
-
-# !! If multiple processes try to download CIFAR10 to the filesytem at once, you might get an error
-# So we modify the code to download the dataset only in the main process
-if accelerator.is_local_main_process:
-    _ = CIFAR10('.', train=True, download=True)
-    _ = CIFAR10('.', train=False, download=True)
-accelerator.wait_for_everyone()
-train_dataset = CIFAR10('.', train=True, transform=train_transform)
-test_dataset = CIFAR10('.', train=False, transform=test_transform)
-
-# !! We want to avoid non-deterministic behavoirs in our code , we we set the seeds before doing data sampling
-random.seed(0)
-np.random.seed(0)
-labeled_percent = 0.001
-num_train_data = 50000
-indices = list(range(num_train_data))
-train_split = int(np.floor(labeled_percent * num_train_data))
-np.random.shuffle(indices)
-labeled_idx = indices[:train_split]
-unlabeled_idx = indices[train_split:]
-labeled_dataset = Subset(train_dataset, labeled_idx)
-unlabeled_dataset = Subset(train_dataset, unlabeled_idx)
-
-class UnlabeledDataset(Dataset):
-    def __init__(self, dataset):
-        self.dataset = dataset
-
-    def __len__(self):
-        return len(self.dataset)
-
-    def __getitem__(self, idx):
-        data = self.dataset[idx]
-        return data[0]
-unlabeled_dataset = UnlabeledDataset(unlabeled_dataset)
-
-class_names = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog',
-               'horse', 'ship', 'truck']
-concepts = labels_to_concept_ids(class_names)
-```
-
+    
 ## Citation
 
 Please cite the following paper if you are using our framework :)
 
 ```
-@article{piriyakulkij:arxiv21,
+@inproceedings{piriyakulkij:mlsys22,
   Author = {Wasu Piriyakulkij and Cristina Menghini and Ross Briden and Nihal V. Nayak and Jeffrey Zhu and Elaheh Raisi and Stephen H. Bach},
   Title = {{TAGLETS}: {A} System for Automatic Semi-Supervised Learning with Auxiliary Data},
-  Volume = {arXiv:2111.04798 [cs.LG]},
-  Year = {2021}}
+  Booktitle = {Conference on Machine Learning and Systems (MLSys)},
+  Year = {2022}}
 ```

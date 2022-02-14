@@ -236,8 +236,7 @@ class ScadsEmbedding:
         # remove concepts with no images
         query_res = Scads.session.query(Node).all()
         concepts_with_no_images = [node.conceptnet_id for node in query_res if len(node.images) == 0]
-        to_drop = [conceptnet_id for conceptnet_id in df.index if conceptnet_id in concepts_with_no_images]
-        df = df.drop(to_drop)
+        df = df.drop(concepts_with_no_images, erros='ignore')
 
         # remove concepts not in Scads
         to_drop2 = []
