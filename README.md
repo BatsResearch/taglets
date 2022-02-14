@@ -76,7 +76,7 @@ wget -nc https://storage.googleapis.com/taglets-public/embeddings/cifar100_proce
 
 Then, run the below python script (this exact script is available in run_demo.py): 
 
-(!!We recommend using GPUs to run the script below. It takes 30 minutes to run the script on 4 V100s. Please see the GPU/Multi-GPU support for instructions on how to launch the python script so that it uses GPUs and also 
+(!!We recommend using GPUs to run the script below. It takes 2 hours to run the script on 1 NVIDIA V100s. Please see the GPU/Multi-GPU support for instructions on how to launch the python script so that it uses GPUs and also 
 uncomment the commented part of the code below)
 
 ```python
