@@ -56,11 +56,10 @@ bash setup.sh
 
 ## Solve a task (with limited labeled data) with TAGLETS
 
-For this demo, we will assume that our auxiliary dataset is CIFAR-100, and we want to solve CIFAR-10 with only 
-0.1% of its training data labeled.
+For this demo, we will solve CIFAR-10 with only 0.1% of the available training data. First, we download and setup the required auxiliary data. Then, we provide instructions on how to run the demo with the auxiliary data. Finally, we describe optional gpu/multi-gpu setup to run the experiments. 
 
-First, download CIFAR-100 and the SCADS file with CIFAR-100 installed by running the below bash script at the outermost 
-directory of TAGLETS 
+### 1. Set up the auxiliary data
+For this task, we will use use CIFAR-100 as our auxilliary dataset. We will download CIFAR-100 and the SCADS file corresponding to CIFAR-100 by running the below bash script in the outermost directory of TAGLETS.
 
 ```
 mkdir aux_data
@@ -73,11 +72,12 @@ wget -nc https://storage.googleapis.com/taglets-public/scads.cifar100.sqlite3
 cd embeddings
 wget -nc https://storage.googleapis.com/taglets-public/embeddings/cifar100_processed_numberbatch.h5
 ```
+### 2. Run the task
 
-Then, run the below python script (this exact script is available in run_demo.py): 
+Run the demo using the `run_demo.py` file (shown below). We recommend using GPUs to run the scrip. It takes around two hours to run the script on one NVIDIA V100s.
 
-(!!We recommend using GPUs to run the script below. It takes 2 hours to run the script on 1 NVIDIA V100s. Please see the GPU/Multi-GPU support for instructions on how to launch the python script so that it uses GPUs and also 
-uncomment the commented part of the code below)
+
+For GPU/Multi-GPU support, uncomment the part of the code below and read the instructions on how to launch the python script in [this](#multigpus) section. 
 
 ```python
 import numpy as np
@@ -217,7 +217,7 @@ predictions = np.argmax(outputs, 1)
 print(f'Accuracy on the test data = {end_model.evaluate(test_dataset)}')
 ```
 
-## GPU/Multi-GPU Support
+## GPU/Multi-GPU Support <a name="multigpus"></a>
 
 TAGLETS uses the package `accelerate` to support the use of one or more GPUs. You need to use the `accelerate launcher` to run the script in order to use GPUs. 
 
