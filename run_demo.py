@@ -4,6 +4,8 @@ from torch.utils.data import Subset, Dataset
 from torchvision.datasets import CIFAR10
 import torchvision.models as models
 import torchvision.transforms as transforms
+import torch
+torch.set_deterministic(True)
 
 from taglets import Controller
 from taglets.scads import Scads
