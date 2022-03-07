@@ -20,8 +20,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--use_gpu', action='store_true', help='should have this flag if you use gpu(s)')
 args = parser.parse_args()
 
-# This if statement will be executed if the argument --use_gpu is set.
-# If you use gpu(s), please make use to set the argument --use_gpu
+# This if statement will be executed if the argument --use_gpu is supplied.
+# If you use gpu(s), please make sure to add the argument --use_gpu when launching your script
 if args.use_gpu:
     import random
     from accelerate import Accelerator
