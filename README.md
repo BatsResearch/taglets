@@ -74,7 +74,10 @@ wget -nc https://storage.googleapis.com/taglets-public/embeddings/cifar100_proce
 ```
 ### 2. Run the task
 
-Run the demo using the `run_demo.py` file (shown below). We recommend using GPUs to run the scrip. It takes around two hours to run the script on one NVIDIA V100s.
+Before running the demo, set the environment variable `export CUBLAS_WORKSPACE_CONFIG=:4096:8`. The demo script contains 
+`torch.set_deterministic(True)` which requires the environment variable to be set. 
+
+Run the demo using the `run_demo.py` file (shown below). We recommend using GPUs to run the script. It takes around two hours to run the script on one NVIDIA V100s.
 
 
 For GPU/Multi-GPU support, we need to add the argument `--use_gpu` when launching the script and also use `accelerate launcher` to launch the script.
