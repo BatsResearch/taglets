@@ -77,15 +77,19 @@ wget -nc https://storage.googleapis.com/taglets-public/embeddings/cifar100_proce
 Run the demo using the `run_demo.py` file (shown below). We recommend using GPUs to run the scrip. It takes around two hours to run the script on one NVIDIA V100s.
 
 
-For GPU/Multi-GPU support, uncomment the part of the code below and read the instructions on how to launch the python script in [this](#multigpus) section. 
+For GPU/Multi-GPU support, we need to add the argument `--use_gpu` when launching the script and also use `accelerate launcher` to launch the script.
+Please read the instructions on how to launch the python script in [this](#multigpus) section. 
 
 ```python
+import argparse
 import numpy as np
 import torch.nn as nn
 from torch.utils.data import Subset, Dataset
 from torchvision.datasets import CIFAR10
 import torchvision.models as models
 import torchvision.transforms as transforms
+import torch
+torch.set_deterministic(True)
 
 from taglets import Controller
 from taglets.scads import Scads
@@ -95,19 +99,25 @@ from taglets.modules import MultiTaskModule, ZSLKGModule, TransferModule
 
 # from taglets.models import bit_backbone
 
-# IMPORTANT!!: Uncomment this part of the code if you want to use GPUs
-# import random
-# from accelerate import Accelerator
-# accelerator = Accelerator()
-# # We want to avoid non-deterministic behavoirs in our multi-GPU code
-# random.seed(0)
-# np.random.seed(0)
-# # If multiple processes try to download CIFAR10 to the filesytem at once, you might get an error
-# # So we modify the code to download the dataset only in the main process
-# if accelerator.is_local_main_process:
-#     _ = CIFAR10('.', train=True, download=True)
-#     _ = CIFAR10('.', train=False, download=True)
-# accelerator.wait_for_everyone()
+parser = argparse.ArgumentParser()
+parser.add_argument('--use_gpu', action='store_true', help='should have this flag if you use gpu(s)')
+args = parser.parse_args()
+
+# This if statement will be executed if the argument --use_gpu is set.
+# If you use gpu(s), please make use to set the argument --use_gpu
+if args.use_gpu:
+    import random
+    from accelerate import Accelerator
+    accelerator = Accelerator()
+    # We want to avoid non-deterministic behavoirs in our multi-GPU code
+    random.seed(0)
+    np.random.seed(0)
+    # If multiple processes try to download CIFAR10 to the filesytem at once, you might get an error
+    # So we modify the code to download the dataset only in the main process
+    if accelerator.is_local_main_process:
+        _ = CIFAR10('.', train=True, download=True)
+        _ = CIFAR10('.', train=False, download=True)
+    accelerator.wait_for_everyone()
 
 # ---------------- Setting up an example task with limited labeled data ---------------
 # This example task is CIFAR10, but only 0.1% of the training data is labeled.
@@ -236,7 +246,7 @@ num_processes: 4 # set this number to the number of gpus
 
 Then, you can run the launcher as following:
 ```
-accelerate launch --config_file accelerate_config.yml run_demo.py
+accelerate launch --config_file accelerate_config.yml run_demo.py --use_gpu
 ```
 where `run_demo.py` contains your python script using TAGLETS
 
