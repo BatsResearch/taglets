@@ -1,4 +1,0 @@
-include:
-  project: dmc/ci-builds
-  file: /ci/dmc.yml
-  ref: master
