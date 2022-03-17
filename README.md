@@ -1,6 +1,5 @@
 # TAGLETS:  A System for Automatic Semi-Supervised Learning with Auxiliary Data
 ![Tests](https://github.com/BatsResearch/taglets/actions/workflows/test.yml/badge.svg)
-[![Build Status](https://travis-ci.com/BatsResearch/taglets.svg?token=sinAgJjnTsxQ2oN3R9vi&branch=master)](https://travis-ci.com/BatsResearch/taglets)
 
 TAGLETS is a system that automatically and efficiently exploits all available data, including labeled, unlabeled, and auxiliary data, for a given task to produce a single, robust classifier. TAGLETS extracts relevant auxiliary data for training using SCADs, a database of auxiliary data aligned with concepts in ConceptNet, and passes all relevant data to an ensemble of user-specified modules, which are trained and distilled into a final classifier.  
 
@@ -28,7 +27,9 @@ We evaluate TAGLETS on three image classification datasets: [**Flickr Material d
 | Meta Pseudo Labels      | 54.51 ± 6.22   |   84.02 ± 1.30 | 52.73 ± 5.82 | 69.80 ± 2.24           |           
 | TAGLETS                 | **61.60 ± 2.90** | **88.91 ± 1.07** | **68.07 ± 5.76**  |   **75.20 ± 1.72** |
 
-In the few-shot setting, TAGLETS outperforms existing semi-supervised and transfer learning methods in all datasets and matches the performance of these methods in the mid-shot regime. See **Section 4** of our [paper](https://arxiv.org/abs/2111.04798) for more fine-grained results and an ablation study. 
+In the few-shot setting, TAGLETS outperforms existing semi-supervised and transfer learning methods in all datasets and matches the performance of these methods in the mid-shot regime. See **Section 4** of our [paper](https://arxiv.org/abs/2111.04798) for more fine-grained results and an ablation study.
+
+For more details on the experiments, refer to [wpiriyak-mlsys22-code](https://github.com/BatsResearch/piriyakulkij-mlsys22-code). 
 
 ## Installation
 
