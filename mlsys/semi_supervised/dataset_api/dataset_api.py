@@ -102,3 +102,21 @@ class DatasetAPI:
 
     def get_test_labels(self):
         return self.test_labels
+    
+    def save_split(self, name):
+        import csv
+        with open(f'{name}-classes.csv', 'w') as csvfile:
+            writer = csv.writer(csvfile, delimiter=' ')
+            for cls in self.classes:
+                writer.writerow(cls)
+                
+        with open(f'{name}-train-split{self.seed}.csv', 'w') as csvfile:
+            writer = csv.writer(csvfile, delimiter=' ')
+            for i in range(len(self.classes)):
+                for j in range(len(self.train_indices[i])):
+                    writer.writerow([self.all_img_paths[i][self.train_indices[i][j]], i])
+    
+        with open(f'{name}-test-split{self.seed}.csv', 'w') as csvfile:
+            writer = csv.writer(csvfile, delimiter=' ')
+            for j in range(len(self.test_img_paths)):
+                writer.writerow([self.test_img_paths[j], self.test_labels[j]])
