@@ -587,10 +587,13 @@ class JPLRunner:
         
         if not os.path.exists('saved_vote_matrices') and accelerator.is_local_main_process:
             os.makedirs('saved_vote_matrices')
+        if not os.path.exists('saved_model_weights_checkpoints') and accelerator.is_local_main_process:
+            os.makedirs('saved_model_weights_checkpoints')
         accelerator.wait_for_everyone()
         self.vote_matrix_dict = {}
         self.vote_matrix_save_path = os.path.join('saved_vote_matrices',
                                                   datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+        
 
     def get_jpl_information(self):
         # Elaheh: (need change in eval) choose image classification task you would like. Now there are four tasks
@@ -683,7 +686,7 @@ class JPLRunner:
             log.info(f'Get seeds at {checkpoint_num} checkpoints')
 
             # if checkpoint_num == 1:
-            if checkpoint_num in [1, 2, 3]:
+            if checkpoint_num == 2:
                 log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                             checkpoint_num,
                                                                             time.strftime("%H:%M:%S",
@@ -786,6 +789,11 @@ class JPLRunner:
         predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(self.video), 'class': prediction_names}
 
         self.submit_predictions(predictions_dict)
+
+        # Save end_model
+        endmodel_save_path = os.path.join('saved_model_weights_checkpoints',
+                                           f"checkpoint_{checkpoint_num}_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
+        torch.save(end_model.state_dict(), endmodel_save_path)
 
         if unlabeled_test_dataset is not None:
             outputs = end_model.predict(unlabeled_test_dataset)
