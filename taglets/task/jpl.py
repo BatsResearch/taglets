@@ -632,7 +632,8 @@ class JPLRunner:
     def run_checkpoints(self):
         try:
             self.run_checkpoints_base()
-            self.run_checkpoints_adapt()
+            # Comment the following line for theory group
+            # self.run_checkpoints_adapt()
         except Exception as ex:
             #exc_type, exc_obj, tb = sys.exc_info()
             #f = tb.tb_frame
@@ -681,7 +682,8 @@ class JPLRunner:
                 self.jpl_storage.dictionary_clips.update(new_dictionary_clips)
             log.info(f'Get seeds at {checkpoint_num} checkpoints')
 
-            if checkpoint_num == 1:
+            # if checkpoint_num == 1:
+            if checkpoint_num in [1, 2, 3]:
                 log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                             checkpoint_num,
                                                                             time.strftime("%H:%M:%S",
@@ -717,7 +719,7 @@ class JPLRunner:
             #log.info(f"NUMBER OF LABELED DATA: {len(labels)}")
             self.request_labels(candidates, self.video)
 
-            if checkpoint_num == 6:                
+            if checkpoint_num in [4, 6, 7]:                
                 log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                 checkpoint_num,
                                                                 time.strftime("%H:%M:%S",
