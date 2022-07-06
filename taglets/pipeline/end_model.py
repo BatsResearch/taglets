@@ -66,7 +66,7 @@ class VideoEndModel(EndModelMixin, VideoTrainable):
 
 
 class RandomEndModel(ImageEndModel):
-    def train(self, train_data, val_data, unlabeled_data=None):
+    def train(self, train_data, val_data, unlabeled_data=None, checkpoint_num=0):
         pass
     
     def predict(self, data):
