@@ -750,7 +750,7 @@ class JPLRunner:
                     unlabeled_train_labels=unlabeled_train_labels,
                     video_classification=self.video)
         task.set_initial_model(self.initial_model)
-        controller = Controller(task, self.simple_run, self.checkpoint_num)
+        controller = Controller(task, self.simple_run, checkpoint_num)
 
         end_model = controller.train_end_model()
         
