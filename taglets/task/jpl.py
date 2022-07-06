@@ -187,6 +187,7 @@ class JPL:
         if query is None:
             log.info('Requesting seed labels...')
             response = self.get_only_once("seed_labels", headers)
+            log.info(f'Response no query {response['Labels']}')
             labels = response['Labels']
         else:
             log.info('Requesting labels...')
