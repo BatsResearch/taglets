@@ -750,7 +750,7 @@ class JPLRunner:
                     unlabeled_train_labels=unlabeled_train_labels,
                     video_classification=self.video)
         task.set_initial_model(self.initial_model)
-        controller = Controller(task, self.simple_run)
+        controller = Controller(task, self.simple_run, self.checkpoint_num)
 
         end_model = controller.train_end_model()
         
@@ -789,11 +789,6 @@ class JPLRunner:
         predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(self.video), 'class': prediction_names}
 
         self.submit_predictions(predictions_dict)
-
-        # Save end_model
-        endmodel_save_path = os.path.join('saved_model_weights_checkpoints',
-                                           f"checkpoint_{checkpoint_num}_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
-        torch.save(end_model.state_dict(), endmodel_save_path)
 
         if unlabeled_test_dataset is not None:
             outputs = end_model.predict(unlabeled_test_dataset)

@@ -54,12 +54,13 @@ class Controller:
     """
     Manages training and execution of taglets, as well as training EndModels
     """
-    def __init__(self, task, simple_run=False):
+    def __init__(self, task, simple_run=False, checkpoint_num=0):
         self.task = task
         self.end_model = None
         self.unlabeled_vote_matrix = None
         self.val_vote_matrix = None
         self.simple_run = simple_run
+        self.checkpoint_num = checkpoint_num
 
     def train_end_model(self):
         """
@@ -174,7 +175,7 @@ class Controller:
             self.end_model = VideoEndModel(self.task)
         else:
             self.end_model = ImageEndModel(self.task)
-        self.end_model.train(end_model_train_data, val)
+        self.end_model.train(end_model_train_data, val, checkpoint_num=self.checkpoint_num)
         log.info("Finished training end model")
 
         if self.task.unlabeled_train_labels is not None and unlabeled_test is not None:
