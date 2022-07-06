@@ -176,7 +176,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
                                                          input_shape=self.task.input_shape,
                                                          grayscale=is_grayscale(unlabeled_data.transform))
 
-    def train(self, train_data, val_data, unlabeled_data=None):
+    def train(self, train_data, val_data, unlabeled_data=None, checkpoint_num=0):
         if self.task.scads_path is None:
             self.use_scads = False
 
@@ -255,9 +255,9 @@ class FixMatchTaglet(ImageTagletWithAuxData):
             self.num_epochs = 20
         else:
             self.num_epochs = 30
-        super(FixMatchTaglet, self).train(train_data, val_data, unlabeled_data)
+        super(FixMatchTaglet, self).train(train_data, val_data, unlabeled_data, checkpoint_num=checkpoint_num)
 
-    def _do_train(self, train_data, val_data, unlabeled_data=None):
+    def _do_train(self, train_data, val_data, unlabeled_data=None, checkpoint_num=0):
         """
                One worker for training.
 
@@ -362,6 +362,9 @@ class FixMatchTaglet(ImageTagletWithAuxData):
         self.model = accelerator.unwrap_model(self.model)
         if self.use_ema:
             self.ema_model.ema = accelerator.unwrap_model(self.ema_model.ema)
+        if val_data_loader == False:
+            model_to_save = copy.deepcopy(self.model.state_dict())
+            accelerator.save(model_to_save, self.save_dir + f'/model_checkpoint_{checkpoint_num}.pth.tar')
         self.model.cpu()
         accelerator.free_memory()
         
