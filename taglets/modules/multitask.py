@@ -122,7 +122,7 @@ class MultiTaskTaglet(ImageTagletWithAuxData):
         
         super(MultiTaskTaglet, self).train(train_data, val_data, unlabeled_data, checkpoint_num=checkpoint_num)
 
-    def _do_train(self, train_data, val_data, unlabeled_data=None):
+    def _do_train(self, train_data, val_data, unlabeled_data=None, checkpoint_num=0):
         self.source_data_loader = self._get_dataloader(data=self.source_data, shuffle=True)
         super(MultiTaskTaglet, self)._do_train(train_data, val_data, unlabeled_data, checkpoint_num=checkpoint_num)
 
