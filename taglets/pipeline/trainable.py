@@ -56,8 +56,8 @@ class Trainable:
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
         self.valid = True
 
-    def train(self, train_data, val_data, unlabeled_data=None, checkpoint_num=0):
-        self._do_train(train_data, val_data, unlabeled_data, checkpoint_num=checkpoint_num)
+    def train(self, train_data, val_data, unlabeled_data=None):
+        self._do_train(train_data, val_data, unlabeled_data)
 
     def predict(self, data):
         return self._do_predict(data)
@@ -116,7 +116,7 @@ class Trainable:
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
 
-    def _do_train(self, train_data, val_data, unlabeled_data=None, checkpoint_num=0):
+    def _do_train(self, train_data, val_data, unlabeled_data=None):
         """
         One worker for training.
 
@@ -174,8 +174,6 @@ class Trainable:
             log.info('Validation acc: {:.4f}%'.format(val_acc * 100))
             val_loss_list.append(val_loss)
             val_acc_list.append(val_acc)
-            
-            log.info('Validation acc: {:.4f}%'.format(val_acc * 100))
             if val_acc > best_val_acc:
                 accelerator.wait_for_everyone()
                 unwrapped_model = accelerator.unwrap_model(self.model)
@@ -186,19 +184,15 @@ class Trainable:
                 best_model_to_save = copy.deepcopy(unwrapped_model.state_dict())
                 best_val_acc = val_acc
                 if self.save_dir:
-                    accelerator.save(best_model_to_save, self.save_dir + f'/model_checkpoint_{checkpoint_num}.pth.tar')
-            
+                    accelerator.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
             if self.lr_scheduler:
                 self.lr_scheduler.step()
-        
 
         accelerator.wait_for_everyone()
         self.optimizer = self.optimizer.optimizer
         self.model = accelerator.unwrap_model(self.model)
         self.model.cpu()
-        
-
         accelerator.free_memory()
 
         if self.save_dir and accelerator.is_local_main_process:

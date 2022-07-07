@@ -95,7 +95,7 @@ class MultiTaskTaglet(ImageTagletWithAuxData):
                 transforms.Normalize(mean=data_mean, std=data_std)
             ])
 
-    def train(self, train_data, val_data, unlabeled_data=None, checkpoint_num=0):
+    def train(self, train_data, val_data, unlabeled_data=None):
         # Get Scads data and set up model
         self.source_data, num_classes = self._get_scads_data()
         log.info("Source classes found: {}".format(num_classes))
@@ -120,11 +120,11 @@ class MultiTaskTaglet(ImageTagletWithAuxData):
             num_duplicates = (1024 // len(train_data)) + 1
             train_data = torch.utils.data.ConcatDataset([train_data] * num_duplicates)
         
-        super(MultiTaskTaglet, self).train(train_data, val_data, unlabeled_data, checkpoint_num=checkpoint_num)
+        super(MultiTaskTaglet, self).train(train_data, val_data, unlabeled_data)
 
-    def _do_train(self, train_data, val_data, unlabeled_data=None, checkpoint_num=0):
+    def _do_train(self, train_data, val_data, unlabeled_data=None):
         self.source_data_loader = self._get_dataloader(data=self.source_data, shuffle=True)
-        super(MultiTaskTaglet, self)._do_train(train_data, val_data, unlabeled_data, checkpoint_num=checkpoint_num)
+        super(MultiTaskTaglet, self)._do_train(train_data, val_data, unlabeled_data)
 
     def _train_epoch(self, train_data_loader, unlabeled_train_loader=None):
         self.model.train()

@@ -71,7 +71,7 @@ class TransferTaglet(ImageTagletWithAuxData):
         self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.003, momentum=0.9)
         self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[20, 30], gamma=0.1)
 
-    def train(self, train_data, val_data, unlabeled_data=None, checkpoint_num=0):
+    def train(self, train_data, val_data, unlabeled_data=None):
         aux_weights = Cache.get("scads-weights", self.task.classes)
         if aux_weights is None:
             scads_train_data, scads_num_classes = self._get_scads_data()
@@ -116,7 +116,7 @@ class TransferTaglet(ImageTagletWithAuxData):
             self.num_epochs = 40
             self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[20, 30], gamma=0.1)
         self._set_num_classes(len(self.task.classes))
-        super(TransferTaglet, self).train(train_data, val_data, unlabeled_data, checkpoint_num=checkpoint_num)
+        super(TransferTaglet, self).train(train_data, val_data, unlabeled_data)
         self.num_epochs = orig_num_epochs
 
         # Unfreeze layers

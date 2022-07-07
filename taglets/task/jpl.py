@@ -120,7 +120,7 @@ class JPL:
         session_json = {'session_name': 'testing', 'data_type': self.data_type, 'task_id': task_name}
         
         response = self.post_only_once("auth/create_session", headers, session_json)
-        log.info(f'RESPONSE CREATE SESSION: {response} and {headers} and {session_json}')
+
         session_token = response['session_token']
         self.session_token = session_token
 
@@ -187,7 +187,6 @@ class JPL:
         if query is None:
             log.info('Requesting seed labels...')
             response = self.get_only_once("seed_labels", headers)
-            #log.info(f"Response no query {response['Labels']}")
             labels = response['Labels']
         else:
             log.info('Requesting labels...')
@@ -588,13 +587,10 @@ class JPLRunner:
         
         if not os.path.exists('saved_vote_matrices') and accelerator.is_local_main_process:
             os.makedirs('saved_vote_matrices')
-        if not os.path.exists('saved_model_weights_checkpoints') and accelerator.is_local_main_process:
-            os.makedirs('saved_model_weights_checkpoints')
         accelerator.wait_for_everyone()
         self.vote_matrix_dict = {}
         self.vote_matrix_save_path = os.path.join('saved_vote_matrices',
                                                   datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
-        
 
     def get_jpl_information(self):
         # Elaheh: (need change in eval) choose image classification task you would like. Now there are four tasks
@@ -636,8 +632,7 @@ class JPLRunner:
     def run_checkpoints(self):
         try:
             self.run_checkpoints_base()
-            # Comment the following line for theory group
-            # self.run_checkpoints_adapt()
+            self.run_checkpoints_adapt()
         except Exception as ex:
             #exc_type, exc_obj, tb = sys.exc_info()
             #f = tb.tb_frame
@@ -686,8 +681,7 @@ class JPLRunner:
                 self.jpl_storage.dictionary_clips.update(new_dictionary_clips)
             log.info(f'Get seeds at {checkpoint_num} checkpoints')
 
-            # if checkpoint_num == 1:
-            if checkpoint_num == 2:
+            if checkpoint_num == 1:
                 log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                             checkpoint_num,
                                                                             time.strftime("%H:%M:%S",
@@ -723,7 +717,7 @@ class JPLRunner:
             #log.info(f"NUMBER OF LABELED DATA: {len(labels)}")
             self.request_labels(candidates, self.video)
 
-            if checkpoint_num in [4, 6, 7]:                
+            if checkpoint_num == 6:                
                 log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                 checkpoint_num,
                                                                 time.strftime("%H:%M:%S",
@@ -751,7 +745,7 @@ class JPLRunner:
                     unlabeled_train_labels=unlabeled_train_labels,
                     video_classification=self.video)
         task.set_initial_model(self.initial_model)
-        controller = Controller(task, self.simple_run, checkpoint_num)
+        controller = Controller(task, self.simple_run)
 
         end_model = controller.train_end_model()
         
