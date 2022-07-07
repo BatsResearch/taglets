@@ -351,7 +351,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
                 best_model_to_save = deepcopy(unwrapped_model.state_dict())
                 best_val_acc = val_acc
                 if self.save_dir:
-                    accelerator.save(best_model_to_save, self.save_dir + '/model.pth.tar')
+                    accelerator.save(best_model_to_save, self.save_dir + f'/model_{checkpoint_num}.pth.tar')
 
             if self.opt_type == Optimizer.ADAM and self.lr_scheduler is not None:
                 self.lr_scheduler.step()
@@ -362,9 +362,6 @@ class FixMatchTaglet(ImageTagletWithAuxData):
         self.model = accelerator.unwrap_model(self.model)
         if self.use_ema:
             self.ema_model.ema = accelerator.unwrap_model(self.ema_model.ema)
-        if val_data_loader == False:
-            model_to_save = copy.deepcopy(self.model.state_dict())
-            accelerator.save(model_to_save, self.save_dir + f'/model_checkpoint_{checkpoint_num}.pth.tar')
         self.model.cpu()
         accelerator.free_memory()
         

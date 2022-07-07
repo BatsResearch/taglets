@@ -196,9 +196,6 @@ class Trainable:
         accelerator.wait_for_everyone()
         self.optimizer = self.optimizer.optimizer
         self.model = accelerator.unwrap_model(self.model)
-        if val_data_loader == False:
-            model_to_save = copy.deepcopy(self.model.state_dict())
-            accelerator.save(model_to_save, self.save_dir + f'/model_checkpoint_{checkpoint_num}.pth.tar')
         self.model.cpu()
         
 
