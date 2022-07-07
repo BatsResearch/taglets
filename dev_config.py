@@ -1,4 +1,4 @@
-dataset_type ='full'
+dataset_type ='sample'
 problem_type = 'image_classification'
 dataset_dir = '/users/cmenghin/data/bats/datasets/lwll'
 api_url = 'https://api-dev.lollllz.com/'
