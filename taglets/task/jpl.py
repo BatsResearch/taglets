@@ -384,6 +384,7 @@ class JPLStorage:
             return unlabeled_clip_names
 
         else:
+            log.info(f"labeled_images: {self.labeled_images}")
             labeled_image_names = [img_name for label, img_name in self.labeled_images]
             
             unlabeled_image_names = []
@@ -539,6 +540,7 @@ class JPLStorage:
             return None
         if split == 'train':
             df = pd.read_feather(self.all_train_labels_path)
+            log.info(f"Size of the training datapoints {df.shape}")
         else:
             df = pd.read_feather(self.test_labels_path)
         
