@@ -549,12 +549,14 @@ class JPLStorage:
         # turn Dataframe into a dict
         df = df.set_index('id')
         labels_dict = df.to_dict()['class']
+        log.info(f"Dict labels: {labels_dict}")
 
         # get a list of corresponding labels
         if split == 'train':
             image_names = self.get_unlabeled_image_names()
         else:
             image_names = self.get_evaluation_image_names()
+        log.info(f"Image names: {image_names}")
         labels = [labels_dict[image_name] for image_name in image_names]
         return labels
 
