@@ -384,11 +384,11 @@ class JPLStorage:
             return unlabeled_clip_names
 
         else:
-            log.info(f"labeled_images: {self.labeled_images}")
+            #log.info(f"labeled_images: {self.labeled_images}")
             labeled_image_names = [img_name for label, img_name in self.labeled_images]
             
             unlabeled_image_names = []
-            log.info(f"unlabeled list of files {os.listdir(self.unlabeled_image_path)}")
+            #log.info(f"unlabeled list of files {os.listdir(self.unlabeled_image_path)}")
             for img in os.listdir(self.unlabeled_image_path):
                 if img not in labeled_image_names:
                     unlabeled_image_names.append(img)
@@ -559,7 +559,7 @@ class JPLStorage:
             image_names = self.get_unlabeled_image_names()
         else:
             image_names = self.get_evaluation_image_names()
-        log.info(f"Image names: {image_names}")
+        #log.info(f"Image names: {image_names}")
         labels = [labels_dict[image_name] for image_name in image_names]
         return labels
 
