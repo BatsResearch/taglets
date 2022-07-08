@@ -388,6 +388,7 @@ class JPLStorage:
             labeled_image_names = [img_name for label, img_name in self.labeled_images]
             
             unlabeled_image_names = []
+            log.info(f"unlabeled list of files {os.listdir(self.unlabeled_image_path)}")
             for img in os.listdir(self.unlabeled_image_path):
                 if img not in labeled_image_names:
                     unlabeled_image_names.append(img)
@@ -551,7 +552,7 @@ class JPLStorage:
         # turn Dataframe into a dict
         df = df.set_index('id')
         labels_dict = df.to_dict()['class']
-        log.info(f"Dict labels: {labels_dict}")
+        #log.info(f"Dict labels: {labels_dict}")
 
         # get a list of corresponding labels
         if split == 'train':
