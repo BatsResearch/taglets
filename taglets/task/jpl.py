@@ -35,7 +35,7 @@ if gpu_list is not None and gpu_list != "all":
 log = logging.getLogger(__name__)
 
 
-DEFAULT_TIMEOUT = 10 # seconds
+DEFAULT_TIMEOUT = 120 # seconds
 
 
 class TimeoutHTTPAdapter(HTTPAdapter):
@@ -240,7 +240,7 @@ class JPL:
 
     def post_only_once(self, command, headers, posting_json):
         if accelerator.is_local_main_process:
-            r = self.session.post(self.url + "/" + command, json=posting_json, headers=headers)
+            r = self.session.post(self.url + "/" + command, json=posting_json, headers=headers, timeout=180)
             with open(os.path.join(self.saved_api_response_dir, command.replace("/", "_") + "_response.json"), "w") as f:
                 json.dump(r.json(), f)
         accelerator.wait_for_everyone()
