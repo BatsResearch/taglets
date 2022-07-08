@@ -787,6 +787,7 @@ class JPLRunner:
             prediction_names.append([k for k, v in self.jpl_storage.label_map.items() if v == p][0])
 
         predictions_dict = {'id': self.jpl_storage.get_evaluation_image_names(self.video), 'class': prediction_names}
+        log.info(f"PREDICTION DICT: {predictions_dict}")
 
         self.submit_predictions(predictions_dict)
 
