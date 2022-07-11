@@ -257,7 +257,7 @@ class FixMatchTaglet(ImageTagletWithAuxData):
             self.num_epochs = 30
         super(FixMatchTaglet, self).train(train_data, val_data, unlabeled_data)
 
-    def _do_train(self, train_data, val_data, unlabeled_data=None):
+    def _do_train(self, train_data, val_data, unlabeled_data=None, num_checkpoint=None):
         """
                One worker for training.
 

@@ -752,7 +752,7 @@ class JPLRunner:
         task.set_initial_model(self.initial_model)
         controller = Controller(task, self.simple_run)
 
-        end_model = controller.train_end_model()
+        end_model = controller.train_end_model(checkpoint_num)
         
         if self.vote_matrix_save_path is not None:
             val_vote_matrix, unlabeled_vote_matrix = controller.get_vote_matrix()
