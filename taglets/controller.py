@@ -61,7 +61,7 @@ class Controller:
         self.val_vote_matrix = None
         self.simple_run = simple_run
 
-    def train_end_model(self, num_checkpoint):
+    def train_end_model(self):
         """
         Executes a training pipeline end-to-end, turning a Task into an EndModel
         :return: A trained EndModel
@@ -82,7 +82,7 @@ class Controller:
                     log.info("Initializing %s module", cls.__name__)
                     module = cls(task=self.task)
                     log.info("Training %s module", cls.__name__)
-                    module.train_taglets(labeled, val, unlabeled_train, num_checkpoint=num_checkpoint)
+                    module.train_taglets(labeled, val, unlabeled_train)
                     log.info("Finished training %s module", cls.__name__)
 
                     # Collects taglets
