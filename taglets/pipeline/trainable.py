@@ -175,29 +175,30 @@ class Trainable:
             val_loss_list.append(val_loss)
             val_acc_list.append(val_acc)
             if self.name == 'end model':
-                if num_checkpoint > 3:
-                    if val_acc > best_val_acc:
-                        accelerator.wait_for_everyone()
-                        unwrapped_model = accelerator.unwrap_model(self.model)
-                        
-                        log.debug("Deep copying new best model." +
-                                "(validation of {:.4f}%, over {:.4f}%)".format(
-                                    val_acc * 100, best_val_acc * 100))
-                        best_model_to_save = copy.deepcopy(unwrapped_model.state_dict())
-                        best_val_acc = val_acc
-                        if self.save_dir:
-                            accelerator.save(best_model_to_save, self.save_dir + f'/model_{num_checkpoint}.pth.tar')
-                else:
-                    if epoch == self.num_epochs - 1:
-                        accelerator.wait_for_everyone()
-                        unwrapped_model = accelerator.unwrap_model(self.model)
-                        
-                        log.debug("Deep copying model.")
-                        best_model_to_save = copy.deepcopy(unwrapped_model.state_dict())
-                        best_val_acc = val_acc
-                        if self.save_dir:
-                            accelerator.save(best_model_to_save, self.save_dir + f'/model_{num_checkpoint}.pth.tar')
-                
+                if num_checkpoint != None:
+                    if num_checkpoint > 3:
+                        if val_acc > best_val_acc:
+                            accelerator.wait_for_everyone()
+                            unwrapped_model = accelerator.unwrap_model(self.model)
+                            
+                            log.debug("Deep copying new best model." +
+                                    "(validation of {:.4f}%, over {:.4f}%)".format(
+                                        val_acc * 100, best_val_acc * 100))
+                            best_model_to_save = copy.deepcopy(unwrapped_model.state_dict())
+                            best_val_acc = val_acc
+                            if self.save_dir:
+                                accelerator.save(best_model_to_save, self.save_dir + f'/model_{num_checkpoint}.pth.tar')
+                    else:
+                        if epoch == self.num_epochs - 1:
+                            accelerator.wait_for_everyone()
+                            unwrapped_model = accelerator.unwrap_model(self.model)
+                            
+                            log.debug("Deep copying model.")
+                            best_model_to_save = copy.deepcopy(unwrapped_model.state_dict())
+                            best_val_acc = val_acc
+                            if self.save_dir:
+                                accelerator.save(best_model_to_save, self.save_dir + f'/model_{num_checkpoint}.pth.tar')
+                    
 
             if self.lr_scheduler:
                 self.lr_scheduler.step()
