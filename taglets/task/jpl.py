@@ -722,7 +722,7 @@ class JPLRunner:
             #log.info(f"NUMBER OF LABELED DATA: {len(labels)}")
             self.request_labels(candidates, self.video)
 
-            if checkpoint_num in [4, 6, 7]:                
+            if checkpoint_num in [4, 6]:                
                 log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                 checkpoint_num,
                                                                 time.strftime("%H:%M:%S",

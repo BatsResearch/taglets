@@ -56,8 +56,8 @@ class Trainable:
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
         self.valid = True
 
-    def train(self, train_data, val_data, unlabeled_data=None):
-        self._do_train(train_data, val_data, unlabeled_data)
+    def train(self, train_data, val_data, unlabeled_data=None, num_checkpoint=None):
+        self._do_train(train_data, val_data, unlabeled_data, num_checkpoint=num_checkpoint)
 
     def predict(self, data):
         return self._do_predict(data)
@@ -116,7 +116,7 @@ class Trainable:
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
 
-    def _do_train(self, train_data, val_data, unlabeled_data=None):
+    def _do_train(self, train_data, val_data, unlabeled_data=None, num_checkpoint=None):
         """
         One worker for training.
 
@@ -174,17 +174,30 @@ class Trainable:
             log.info('Validation acc: {:.4f}%'.format(val_acc * 100))
             val_loss_list.append(val_loss)
             val_acc_list.append(val_acc)
-            if val_acc > best_val_acc:
-                accelerator.wait_for_everyone()
-                unwrapped_model = accelerator.unwrap_model(self.model)
+            if self.name == 'end model':
+                if num_checkpoint > 3:
+                    if val_acc > best_val_acc:
+                        accelerator.wait_for_everyone()
+                        unwrapped_model = accelerator.unwrap_model(self.model)
+                        
+                        log.debug("Deep copying new best model." +
+                                "(validation of {:.4f}%, over {:.4f}%)".format(
+                                    val_acc * 100, best_val_acc * 100))
+                        best_model_to_save = copy.deepcopy(unwrapped_model.state_dict())
+                        best_val_acc = val_acc
+                        if self.save_dir:
+                            accelerator.save(best_model_to_save, self.save_dir + f'/model_{num_checkpoint}.pth.tar')
+                else:
+                    if epoch == self.num_epochs - 1:
+                        accelerator.wait_for_everyone()
+                        unwrapped_model = accelerator.unwrap_model(self.model)
+                        
+                        log.debug("Deep copying model.")
+                        best_model_to_save = copy.deepcopy(unwrapped_model.state_dict())
+                        best_val_acc = val_acc
+                        if self.save_dir:
+                            accelerator.save(best_model_to_save, self.save_dir + f'/model_{num_checkpoint}.pth.tar')
                 
-                log.debug("Deep copying new best model." +
-                          "(validation of {:.4f}%, over {:.4f}%)".format(
-                              val_acc * 100, best_val_acc * 100))
-                best_model_to_save = copy.deepcopy(unwrapped_model.state_dict())
-                best_val_acc = val_acc
-                if self.save_dir:
-                    accelerator.save(best_model_to_save, self.save_dir + '/model.pth.tar')
 
             if self.lr_scheduler:
                 self.lr_scheduler.step()

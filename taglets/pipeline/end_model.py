@@ -31,7 +31,7 @@ class EndModelMixin():
         self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
 
-    def train(self, train_data, val_data, unlabeled_data=None):
+    def train(self, train_data, val_data, unlabeled_data=None, num_checkpoint=None):
         if len(train_data) > 200000:
             self.num_epochs = 10
             self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=5, gamma=0.1)
@@ -39,7 +39,7 @@ class EndModelMixin():
             self.num_epochs = 20
             self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.1)
     
-        super().train(train_data, val_data, unlabeled_data)
+        super().train(train_data, val_data, unlabeled_data, num_checkpoint=num_checkpoint)
 
     @staticmethod
     def soft_cross_entropy(outputs, target):
