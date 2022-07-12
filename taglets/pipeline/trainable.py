@@ -175,6 +175,7 @@ class Trainable:
             val_loss_list.append(val_loss)
             val_acc_list.append(val_acc)
             if self.name == 'end model':
+                lof.info(f"NUM CHECKPOINT: {num_checkpoint}")
                 if num_checkpoint != None:
                     if num_checkpoint > 3:
                         if val_acc > best_val_acc:
