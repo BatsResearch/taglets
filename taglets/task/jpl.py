@@ -608,6 +608,7 @@ class JPLRunner:
         self.jpl_storage, self.num_base_checkpoints, self.num_adapt_checkpoints = self.get_jpl_information()
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
+        self.backbone = backbone
 
         if self.backbone == 'resnet50':
             self.initial_model = models.resnet50(pretrained=True)
