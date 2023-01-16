@@ -20,7 +20,7 @@ class MultiTaskModel(nn.Module):
         self.num_target= num_target
         self.num_source = num_source
         self.model_type = model_type
-        self.base = nn.Sequential(*list(self.model.children())[:-1])
+        self.base = nn.Sequential(*list(model.children())[:-1])
         output_shape = self._get_model_output_shape(input_shape, self.base)
         if self.model_type == 'resnet50':
             self.fc_target = torch.nn.Linear(output_shape, self.num_target)
