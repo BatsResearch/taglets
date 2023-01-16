@@ -122,7 +122,7 @@ class JPL:
         session_json = {'session_name': 'testing', 'data_type': self.data_type, 'task_id': task_name}
         
         response = self.post_only_once("auth/create_session", headers, session_json)
-
+        print("RESPONSEEEEE")
         session_token = response['session_token']
         self.session_token = session_token
 
@@ -953,7 +953,7 @@ def main():
                         type=str,
                         default="resnet50",
                         help="Select resnet50/bigtransfer")
-
+ 
     args = parser.parse_args()
     
 
