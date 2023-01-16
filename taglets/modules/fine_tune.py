@@ -19,8 +19,15 @@ class FineTuneTaglet(ImageTaglet):
         super().__init__(task)
         self.name = 'finetune'
         output_shape = self._get_model_output_shape(self.task.input_shape, self.model)
-        self.model = torch.nn.Sequential(self.model,
-                                         torch.nn.Linear(output_shape, len(self.task.classes)))
+        if self.model_type == 'resnet50':
+            self.model = torch.nn.Sequential(self.model,
+                                             torch.nn.Linear(output_shape, len(self.task.classes)))
+        else:
+            self.model.fc = torch.nn.Conv2d(2048, len(self.task.classes), kernel_size=1, bias=True)
+            with torch.no_grad():
+                torch.nn.init.zeros_(self.model.fc.weight)
+                torch.nn.init.zeros_(self.model.fc.bias)
+        
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
@@ -33,15 +40,28 @@ class FineTuneTaglet(ImageTaglet):
             if param.requires_grad:
                 params_to_update.append(param)
         self._params_to_update = params_to_update
-        self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+        if self.model_type == 'resnet50':
+            self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
+            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+        elif self.model_type == 'bigtransfer':
+            self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.003, momentum=0.9)
+            self.lr_scheduler = None
+            self.num_epochs = 500
 
     def train(self, train_data, val_data, unlabeled_data=None):
         if len(train_data) > 200000:
-            self.num_epochs = 10
-            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=5, gamma=0.1)
+            if self.model_type == 'resnet50':
+                self.num_epochs = 10
+                self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=5, gamma=0.1)
+            elif self.model_type == 'bigtransfer':
+                self.lr_scheduler = None
+                self.num_epochs = 120
         elif len(train_data) > 80000:
-            self.num_epochs = 20
-            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.1)
+            if self.model_type == 'resnet50':
+                self.num_epochs = 20
+                self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.1)
+            elif self.model_type == 'bigtransfer':
+                self.lr_scheduler = None
+                self.num_epochs = 240
     
         super().train(train_data, val_data, unlabeled_data)
