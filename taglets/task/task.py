@@ -7,10 +7,10 @@ class Task:
     """
     A class defining an image classification task
     """
-    def __init__(self, name, classes, input_shape, labeled_train_data, unlabeled_train_data, validation_data,
-                 batch_size=128, whitelist=None, scads_path=None, scads_embedding_path=None,
-                 processed_scads_embedding_path=None, unlabeled_test_data=None, unlabeled_train_labels=None,
-                 video_classification=False):
+    def __init__(self, name, classes, input_shape, labeled_train_data, unlabeled_train_data, validation_data, 
+                batch_size=128, whitelist=None, scads_path=None, scads_embedding_path=None, 
+                processed_scads_embedding_path=None, unlabeled_test_data=None, unlabeled_train_labels=None, 
+                video_classification=False, wanted_num_related_class=None):
         """
         Create a new Task
 
@@ -34,9 +34,11 @@ class Task:
         self.unlabeled_test_data = unlabeled_test_data
         self.unlabeled_train_labels = unlabeled_train_labels
         self.video_classification = video_classification
+        self.wanted_num_related_class = wanted_num_related_class
 
         self.initial = models.resnet50(pretrained=True)
         self.initial.fc = torch.nn.Identity()
+        self.model_type = 'resnet50'
         self.whitelist = whitelist
 
     def get_labeled_train_data(self):
@@ -50,6 +52,16 @@ class Task:
 
     def get_validation_data(self):
         return self.validation_data
+
+    def set_model_type(self, model_type):
+        """
+        Sets an initial model on the task that will be used as the architecture
+        and initial weights of models created for the task, including taglets and
+        the end model
+        
+        :param initial: the initial model
+        """
+        self.model_type = model_type
 
     def set_initial_model(self, initial):
         """

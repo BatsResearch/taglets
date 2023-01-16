@@ -14,8 +14,14 @@ class EndModelMixin():
         self.name = 'end model'
         m = torch.nn.Sequential(*list(self.model.children())[:-1])
         output_shape = self._get_model_output_shape(self.task.input_shape, m)
-        self.model.fc = torch.nn.Sequential(torch.nn.Dropout(0.3),
-                                            torch.nn.Linear(output_shape, len(self.task.classes)))
+        if self.model_type == 'resnet50':
+            self.model.fc = torch.nn.Sequential(torch.nn.Dropout(0.3),
+                                                torch.nn.Linear(output_shape, len(self.task.classes)))
+        elif self.model_type == 'bigtransfer':
+            self.model.fc = torch.nn.Conv2d(2048, len(self.task.classes), kernel_size=1, bias=True)
+            with torch.no_grad():
+                torch.nn.init.zeros_(self.model.fc.weight)
+                torch.nn.init.zeros_(self.model.fc.bias)
         if os.getenv("LWLL_TA1_PROB_TASK") is not None:
             self.save_dir = os.path.join('/home/tagletuser/trained_models', self.name)
         else:
@@ -28,8 +34,13 @@ class EndModelMixin():
             if param.requires_grad:
                 params_to_update.append(param)
         self._params_to_update = params_to_update
-        self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+        if self.model_type == 'resnet50':
+            self.optimizer = torch.optim.Adam(self._params_to_update, lr=self.lr, weight_decay=1e-4)
+            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+        elif self.model_type == 'bigtransfer':
+            self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.003, momentum=0.9)
+            self.lr_scheduler = None
+            self.num_epochs = 500
 
     def train(self, train_data, val_data, unlabeled_data=None):
         if len(train_data) > 200000:

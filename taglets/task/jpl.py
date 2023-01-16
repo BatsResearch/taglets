@@ -6,6 +6,7 @@ import argparse
 import json
 import requests
 import pickle
+from logging import StreamHandler
 from pathlib import Path
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
@@ -24,6 +25,7 @@ from ..controller import Controller
 from .utils import labels_to_concept_ids
 from ..active import RandomActiveLearning, LeastConfidenceActiveLearning
 from ..scads import Scads
+from ..models import bit_backbone
 
 
 gpu_list = os.getenv("LWLL_TA1_GPUS")
@@ -151,6 +153,36 @@ class JPL:
             return r['Session_Status']
         else:
             return {}
+
+    def get_initial_seed_labels(self, video=False):
+        """
+        Get seed labels.
+        :return: A list of lists with name and label e.g., ['2', '1.png'], ['7', '2.png'], etc.
+        """
+
+        log.info('Request seed labels.')
+        headers = {'user_secret': self.team_secret,
+                   'govteam_secret': self.gov_team_secret,
+                   'session_token': self.session_token}
+        log.debug(f"HEADERS: {headers}")
+        response = self.get_only_once("seed_labels", headers)
+        labels = response['Labels']
+        #log.info(f"NUMBER OF LABELED DATA: {len(labels)}")
+
+        if video:
+            seed_labels = []
+            dictionary_clips = {}
+            for clip in labels:
+                action_frames = [str(i)+'.jpg' for i in range(clip['start_frame'], clip['end_frame'])]
+                dictionary_clips[clip["id"]] = action_frames
+                seed_labels.append([clip["class"], clip["id"]])
+            return seed_labels, dictionary_clips
+
+        else:
+            seed_labels = []
+            for image in labels:
+                seed_labels.append([image["class"], image["id"]])
+            return seed_labels, None
 
     def deactivate_session(self, deactivate_session):
         if accelerator.is_local_main_process:
@@ -561,7 +593,7 @@ class JPLStorage:
 
 class JPLRunner:
     def __init__(self, dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
-                 data_paths, mode, simple_run, batch_size, testing=False):
+                 data_paths, mode, simple_run, batch_size, backbone, testing=False):
 
         self.dataset_dir = dataset_dir
         self.problem_type = problem_type
@@ -577,13 +609,17 @@ class JPLRunner:
         self.random_active_learning = RandomActiveLearning()
         self.confidence_active_learning = LeastConfidenceActiveLearning()
 
-        self.initial_model = models.resnet50(pretrained=True)
-        self.initial_model.fc = torch.nn.Identity()
+        if self.backbone == 'resnet50':
+            self.initial_model = models.resnet50(pretrained=True)
+            self.initial_model.fc = torch.nn.Identity()
+        elif self.backbone == 'bigtransfer':
+            self.initial_model = bit_backbone()
 
         self.testing = testing
         self.mode = mode
         self.simple_run = simple_run
         self.batch_size = batch_size
+        
         
         if not os.path.exists('saved_vote_matrices') and accelerator.is_local_main_process:
             os.makedirs('saved_vote_matrices')
@@ -745,8 +781,13 @@ class JPLRunner:
                     unlabeled_train_labels=unlabeled_train_labels,
                     video_classification=self.video)
         task.set_initial_model(self.initial_model)
-        controller = Controller(task, self.simple_run)
+        task.set_model_type(self.backbone)
 
+        # Pick the training modules
+        modules = None#[MultiTaskModule, ZSLKGModule, TransferModule]
+        
+        
+        controller = Controller(task, self.simple_run, modules=modules)
         end_model = controller.train_end_model()
         
         if self.vote_matrix_save_path is not None:
@@ -832,7 +873,7 @@ class JPLRunner:
 
 
 def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths,
-             mode, simple_run, batch_size):
+             mode, simple_run, batch_size, backbone):
     if problem_task == 'all':
         log.info('Execute all tasks')
         print(log.info('Execute all tasks'))
@@ -840,12 +881,12 @@ def workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, tea
         problem_task_list = jpl.get_available_tasks(problem_type)
         for task in problem_task_list:
             runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, task, team_secret, gov_team_secret,
-                               data_paths, mode, simple_run, batch_size, testing=False)
+                               data_paths, mode, simple_run, batch_size, backbone, testing=False)
             runner.run_checkpoints()
     else:
         log.info("Execute a single task")
         runner = JPLRunner(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret,
-                           data_paths, mode, simple_run, batch_size, testing=False)
+                           data_paths, mode, simple_run, batch_size, backbone, testing=False)
         runner.run_checkpoints()
 
 
@@ -908,6 +949,11 @@ def main():
                         type=int,
                         default="32",
                         help="Universal batch size")
+    parser.add_argument("--backbone",
+                        type=str,
+                        default="resnet50",
+                        help="Select resnet50/bigtransfer")
+
     args = parser.parse_args()
     
 
@@ -916,6 +962,7 @@ def main():
     else: 
         simple_run = False
     batch_size = args.batch_size
+    backbone = args.backbone
 
     if args.mode == 'prod':
         variables = setup_production(simple_run)
@@ -965,7 +1012,7 @@ def main():
     #_logger.addHandler(stream_handler)
     
     workflow(dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret, data_paths,
-             mode, simple_run, batch_size)
+             mode, simple_run, batch_size, backbone)
     
 
 if __name__ == "__main__":
