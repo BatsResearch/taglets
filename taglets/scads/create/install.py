@@ -283,46 +283,46 @@ class ImageNet22kInstallation(ImageClassificationInstaller):
         else:
             return super().get_conceptnet_id(label)
 
-    class lwll_ImageNet22kInstallation(ImageClassificationInstaller):
-        def wnid_to_name(self, wnid):
-            synset = wn.synset_from_pos_and_offset('n', int(wnid[1:]))
-            return synset.lemmas()[0].name()
+class lwll_ImageNet22kInstallation(ImageClassificationInstaller):
+    def wnid_to_name(self, wnid):
+        synset = wn.synset_from_pos_and_offset('n', int(wnid[1:]))
+        return synset.lemmas()[0].name()
+    
+    def get_name(self):
+        return "ImageNet22k"
+    
+    def get_data(self, dataset, session, root):
+        nltk.download('wordnet')
+        size = "full"
+        modes = ['train', 'test']
+        all_images = []
         
-        def get_name(self):
-            return "ImageNet22k"
-        
-        def get_data(self, dataset, session, root):
-            nltk.download('wordnet')
-            size = "full"
-            modes = ['train', 'test']
-            all_images = []
-            
-            for mode in modes:
-                wnids_images = defaultdict(list)
-                all_train_imgs = os.listdir(os.path.join(root, dataset.path, f"{dataset.path}_{size}", mode))
-                for i in all_train_imgs:
-                    wnid = i.split('_')[0]
-                    all_wnids.add(wnid)
-                    wnids_images[wnid].append(i)
+        for mode in modes:
+            wnids_images = defaultdict(list)
+            all_train_imgs = os.listdir(os.path.join(root, dataset.path, f"{dataset.path}_{size}", mode))
+            for i in all_train_imgs:
+                wnid = i.split('_')[0]
+                all_wnids.add(wnid)
+                wnids_images[wnid].append(i)
 
-                for wnid in wnids_images:
-                    label = self.wnid_to_name(wnid)
-                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
-                    node_id = node.id if node else None
-                    if not node_id:
-                        continue
-                    for image in wnids_images[wnid]:
-                        img = Image(dataset_id=dataset.id,
-                                    node_id=node_id,
-                                    path=os.path.join(dataset.path, f"{dataset.path}_{size}", mode, image))
-                        all_images.append(img)
-            return all_images
-        
-        def get_conceptnet_id(self, label):
-            if label in SYNSET_TO_CONCEPTNET_ID:
-                return SYNSET_TO_CONCEPTNET_ID[label]
-            else:
-                return super().get_conceptnet_id(label)
+            for wnid in wnids_images:
+                label = self.wnid_to_name(wnid)
+                node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                node_id = node.id if node else None
+                if not node_id:
+                    continue
+                for image in wnids_images[wnid]:
+                    img = Image(dataset_id=dataset.id,
+                                node_id=node_id,
+                                path=os.path.join(dataset.path, f"{dataset.path}_{size}", mode, image))
+                    all_images.append(img)
+        return all_images
+    
+    def get_conceptnet_id(self, label):
+        if label in SYNSET_TO_CONCEPTNET_ID:
+            return SYNSET_TO_CONCEPTNET_ID[label]
+        else:
+            return super().get_conceptnet_id(label)
 
 class COCO2014Installation(ObjectDetectionInstaller):
     def get_name(self):
