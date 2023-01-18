@@ -302,7 +302,6 @@ class lwll_ImageNet22kInstallation(ImageClassificationInstaller):
             all_train_imgs = os.listdir(os.path.join(root, dataset.path, f"{dataset.path}_{size}", mode))
             for i in all_train_imgs:
                 wnid = i.split('_')[0]
-                all_wnids.add(wnid)
                 wnids_images[wnid].append(i)
 
             for wnid in wnids_images:
