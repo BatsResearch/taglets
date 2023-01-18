@@ -258,7 +258,7 @@ if __name__ == '__main__':
 
     st = time.time()
     print('Start loading database')
-    Scads.open('predefined/scads.fall2020.sqlite3')
+    Scads.open('predefined/2021_eval_scads.sqlite3') #scads.fall2020.sqlite3')
     print(f'End loading database: {(time.time() - st) / 60} mins')
     
     st = time.time()
