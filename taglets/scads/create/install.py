@@ -2,6 +2,7 @@ import argparse
 import os
 import pandas as pd
 import imagesize
+from collections import defaultdict
 import nltk
 from nltk.corpus import wordnet as wn
 import numpy as np
@@ -282,6 +283,46 @@ class ImageNet22kInstallation(ImageClassificationInstaller):
         else:
             return super().get_conceptnet_id(label)
 
+    class lwll_ImageNet22kInstallation(ImageClassificationInstaller):
+        def wnid_to_name(self, wnid):
+            synset = wn.synset_from_pos_and_offset('n', int(wnid[1:]))
+            return synset.lemmas()[0].name()
+        
+        def get_name(self):
+            return "ImageNet22k"
+        
+        def get_data(self, dataset, session, root):
+            nltk.download('wordnet')
+            size = "full"
+            modes = ['train', 'test']
+            all_images = []
+            
+            for mode in modes:
+                wnids_images = defaultdict(list)
+                all_train_imgs = os.listdir(os.path.join(root, dataset.path, f"{dataset.path}_{size}", mode))
+                for i in all_train_imgs:
+                    wnid = i.split('_')[0]
+                    all_wnids.add(wnid)
+                    wnids_images[wnid].append(i)
+
+                for wnid in wnids_images:
+                    label = self.wnid_to_name(wnid)
+                    node = session.query(Node).filter_by(conceptnet_id=self.get_conceptnet_id(label)).first()
+                    node_id = node.id if node else None
+                    if not node_id:
+                        continue
+                    for image in wnids_images[wnid]:
+                        img = Image(dataset_id=dataset.id,
+                                    node_id=node_id,
+                                    path=os.path.join(dataset.path, f"{dataset.path}_{size}", mode, image))
+                        all_images.append(img)
+            return all_images
+        
+        def get_conceptnet_id(self, label):
+            if label in SYNSET_TO_CONCEPTNET_ID:
+                return SYNSET_TO_CONCEPTNET_ID[label]
+            else:
+                return super().get_conceptnet_id(label)
 
 class COCO2014Installation(ObjectDetectionInstaller):
     def get_name(self):
@@ -410,6 +451,7 @@ if __name__ == "__main__":
     parser.add_argument("--mnist", type=str, help="Path to MNIST directory from the root")
     parser.add_argument("--imagenet", type=str, help="Path to ImageNet directory from the root")
     parser.add_argument("--imagenet22k", type=str, help="Path to ImageNet22k directory from the root")
+    parser.add_argument("--lwll_imagenet22k", type=str, help="Path to lwll_ImageNet22k directory from the root")
     parser.add_argument("--coco2014", type=str, help="Path to COCO2014 directory from the root")
     parser.add_argument("--voc2009", type=str, help="Path to voc2009 directory from the root")
     parser.add_argument("--googleopenimage", type=str, help="Path to googleopenimage directory from the root")
@@ -439,6 +481,8 @@ if __name__ == "__main__":
         installer.install_dataset(args.root, args.imagenet, ImageNetInstallation())
     if args.imagenet22k:
         installer.install_dataset(args.root, args.imagenet22k, ImageNet22kInstallation())
+    if args.lwll_imagenet22k:
+        installer.install_dataset(args.root, args.lwll_imagenet22k, lwll_ImageNet22kInstallation())
     if args.coco2014:
         if not args.root:
             raise RuntimeError("Must specify root directory.")
