@@ -7,4 +7,4 @@
 #     sed -i "/num_processes:/c\num_processes: ${#gpu_array[@]}" accelerate_config.yml
 # fi
 
-accelerate launch --config_file ./accelerate_config.yml ./run_jpl.py --mode dev --simple_version false --folder development --backbone resnet50
+accelerate launch --config_file ./accelerate_config.yml ./run_jpl.py --mode dev --simple_version false --folder development --backbone resnet50 --username cmenghin
