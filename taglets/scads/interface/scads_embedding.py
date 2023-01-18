@@ -265,6 +265,8 @@ if __name__ == '__main__':
     print('Start loading embedding')
     ScadsEmbedding.load('predefined/embeddings/numberbatch-en19.08.txt.gz')
     print(f'End loading embedding: {(time.time()-st) / 60} mins')
+
+    process_embeddings()
     
     node = Scads.get_node_by_conceptnet_id('/c/en/dog')
     related_nodes = ScadsEmbedding.get_related_nodes(node)
