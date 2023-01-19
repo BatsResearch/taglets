@@ -958,6 +958,11 @@ def main():
                         type=str,
                         default="cmenghin",
                         help="Insert your username")
+    parser.add_argument("--data_paths", 
+                        nargs='+'
+                        type=str,
+                        default='None',
+                        help="Insert: scads.spring2023.sqlite3, predefined/embeddings/numberbatch-en19.08.txt.gz, predefined/embeddings/spring2023_processed_numberbatch.h5")
  
     args = parser.parse_args()
     
@@ -1000,7 +1005,10 @@ def main():
     problem_task = variables[4]
     team_secret = variables[5]
     gov_team_secret = variables[6]
-    data_paths = variables[7]
+    if args.data_paths == 'None': 
+        data_paths = variables[7]
+    else:
+        data_paths = tuple(args.data_paths)
     
 
     valid_dataset_types = ['sample', 'full', 'all']

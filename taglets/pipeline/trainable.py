@@ -70,7 +70,7 @@ class Trainable:
         elif task.model_type == 'resnet50':
             self.num_epochs = 30
         elif task.model_type == 'bigtransfer':
-            self.num_epochs = 500
+            self.num_epochs = 1000
         else:
             raise ValueError("The requested type of model is not available")
         self.batch_size = task.batch_size if not os.environ.get("CI") else 32
