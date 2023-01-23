@@ -959,10 +959,10 @@ def main():
                         default="cmenghin",
                         help="Insert your username")
     parser.add_argument("--data_paths", 
-                        nargs='+'
+                        nargs='+',
                         type=str,
                         default='None',
-                        help="Insert: scads.spring2023.sqlite3, predefined/embeddings/numberbatch-en19.08.txt.gz, predefined/embeddings/spring2023_processed_numberbatch.h5")
+                        help="Insert: predefined/scads.spring2023.sqlite3, predefined/embeddings/numberbatch-en19.08.txt.gz, predefined/embeddings/spring2023_processed_numberbatch.h5")
  
     args = parser.parse_args()
     
