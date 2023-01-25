@@ -63,6 +63,6 @@ class CustomDataset(Dataset):
         # Get image label
         if self.labels is not None:
             label = int(self.label_map[self.labels[index]])
-            return img, aug_1, aug_2, label
+            return img, aug_1, aug_2, label, self.filepaths[index].split('/')[-1]
         else:
-            return img, aug_1, aug_2
+            return img, aug_1, aug_2, self.filepaths[index].split('/')[-1]

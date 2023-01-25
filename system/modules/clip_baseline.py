@@ -44,7 +44,7 @@ class ClipBaseline(object):
 
         accelerator.wait_for_everyone()
 
-        accelerator.prepare(self.model, test_loader)
+        self.model, test_loader = accelerator.prepare(self.model, test_loader)
 
         # Define text queries
         if standard_zsl:
@@ -60,21 +60,28 @@ class ClipBaseline(object):
 
         log.info(f"Start inference for test data")
         predictions = []
+        images = []
         # Iterate through data loader
-        for img, _, _ in tqdm(test_loader):
+        for img, _, _, img_path in tqdm(test_loader):
             with torch.no_grad():
                 image_features = self.model.encode_image(img)
                 logits_per_image, logits_per_text = self.model(img, text)
                 probs = logits_per_image.softmax(dim=-1)
                 if standard_zsl:
-                    idx_preds = torch.argmax(probs, dim=1).detach().numpy()
+                    idx_preds = torch.argmax(probs, dim=1)
                     predictions += [self.unseen_classes[i] for i in idx_preds]
                 else:
-                    idx_preds = torch.argmax(probs, dim=1).detach().numpy()
+                    idx_preds = torch.argmax(probs, dim=1)
                     predictions += [self.classes[i] for i in idx_preds]
 
-        df_predictions = pd.DataFrame({'id': [d.split('/')[-1] for d in data.filepaths], 
-                                       'class': predictions})
+                images += [i for i in img_path]
+
+        predictions_outputs = accelerator.gather(predictions)
+        image_outputs = accelerator.gather(images)
+
+
+        df_predictions = pd.DataFrame({'id': image_outputs, 
+                                       'class': predictions_outputs})
 
         return df_predictions
         
