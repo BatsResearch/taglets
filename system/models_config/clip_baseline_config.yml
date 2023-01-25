@@ -1,0 +1,11 @@
+MODEL: "clip_baseline"
+# Visual ecoder
+VIS_ENCODER: "ViT-B/32"
+# Prompt template
+PROMPT_TEMPLATE: "a photo of a "
+# Seeed to separate train and validation
+validation_seed: 0
+# Ratio validation
+ratio_train_val: 0.8
+# Batch size
+BATCH_SIZE: 8

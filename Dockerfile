@@ -52,7 +52,7 @@ RUN cd /tmp && pip install .
 RUN cd /tmp && ./setup.sh
 RUN cd /tmp/ && git clone https://${LOGGER_REPO_DEPLOY_USER}:${LOGGER_REPO_DEPLOY_TOKEN}@gitlab.lollllz.com/brown/logger
 RUN cd /tmp/logger && pip install -e .
-
+# Need to add the installation of correct torch/cuda version
 
 RUN useradd --create-home tagletuser
 RUN chmod -R 777 /tmp
