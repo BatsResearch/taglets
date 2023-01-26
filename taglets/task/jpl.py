@@ -1009,6 +1009,7 @@ def main():
         data_paths = variables[7]
     else:
         data_paths = tuple(args.data_paths)
+    log.info(f"This is the data paths variabile: {data_paths}")
     
 
     valid_dataset_types = ['sample', 'full', 'all']
