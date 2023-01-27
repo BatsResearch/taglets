@@ -19,12 +19,12 @@ EPOCHS: 15
 # Scheduler
 SCHEDULER: "cosine"
 # Scheduler warmup epochs
-WARMUP_EPOCHS: 1
+WARMUP_EPOCHS: 5
 WARMUP_LR: 0.0001
 # Number of accumulation iter
 ACCUMULATION_ITER: 2
 # Optimizer
 OPTIM: "SGD"
-LR: 0.01
+LR: 10
 DECAY: 0.1
 STEP_SIZE: 2

@@ -37,7 +37,7 @@ class TextPrefixModel(nn.Module):
         return out
 
 class CoopBaseline(object):
-    def __init__(self, config, label_to_idx, 
+    def __init__(self, config, 
                  classes, seen_classes, unseen_classes,
                  device):
 
@@ -46,15 +46,6 @@ class CoopBaseline(object):
         self.classes = classes
         self.seen_classes = seen_classes
         self.unseen_classes = unseen_classes
-
-        self.label_to_idx = label_to_idx
-        self.seen_to_idx = {c:idx for idx, c in enumerate(self.seen_classes)}
-        self.seen_to_real = {self.seen_to_idx[c]:self.label_to_idx[c] for c in self.seen_classes}
-        self.real_to_seen = {r:s for s, r in self.seen_to_real.items()}
-
-        self.unseen_to_idx = {c:idx for idx, c in enumerate(self.unseen_classes)}
-        self.unseen_to_real = {self.unseen_to_idx[c]:self.label_to_idx[c] for c in self.unseen_classes}
-        self.real_to_unseen = {r:s for s, r in self.unseen_to_real.items()}
 
         self.device = device
         self.clip_model, self.transform = clip.load(self.config.VIS_ENCODER, 

@@ -351,7 +351,7 @@ def workflow(dataset_type, dataset_dir, api_url,
                              **dict_classes)
     elif obj_conf.MODEL == 'coop_baseline':
         log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = CoopBaseline(obj_conf, label_to_idx, 
+        model = CoopBaseline(obj_conf, 
                              device=device, 
                              **dict_classes) 
 
