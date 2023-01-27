@@ -258,7 +258,7 @@ if __name__ == '__main__':
 
     st = time.time()
     print('Start loading database')
-    Scads.open('predefined/2021_eval_scads.sqlite3') #scads.fall2020.sqlite3')
+    Scads.open('predefined/scads.spring2021.sqlite3') #scads.fall2020.sqlite3')
     print(f'End loading database: {(time.time() - st) / 60} mins')
     
     st = time.time()
@@ -266,7 +266,7 @@ if __name__ == '__main__':
     ScadsEmbedding.load('predefined/embeddings/numberbatch-en19.08.txt.gz')
     print(f'End loading embedding: {(time.time()-st) / 60} mins')
 
-    ScadsEmbedding.process_embeddings()
+    #ScadsEmbedding.process_embeddings()
     
     node = Scads.get_node_by_conceptnet_id('/c/en/dog')
     related_nodes = ScadsEmbedding.get_related_nodes(node)
