@@ -11,3 +11,4 @@ class Config(object):
     def __init__(self, config):
         for k, v in config.items():
             setattr(self, k, v)   
+

@@ -14,12 +14,13 @@ from urllib3.util import Retry
 
 from collections import defaultdict
 import torch
+from torch import nn
 from accelerate import Accelerator
 accelerator = Accelerator()
 
 from .utils import Config
 from .data import CustomDataset
-from .modules import ClipBaseline
+from .modules import ClipBaseline, CoopBaseline
 
 gpu_list = os.getenv("LWLL_TA1_GPUS")
 if gpu_list is not None and gpu_list != "all":
@@ -348,7 +349,18 @@ def workflow(dataset_type, dataset_dir, api_url,
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = ClipBaseline(obj_conf, device=device, 
                              **dict_classes)
-    
+    elif obj_conf.MODEL == 'coop_baseline':
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = CoopBaseline(obj_conf, label_to_idx, 
+                             device=device, 
+                             **dict_classes) 
+
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset)
+        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
+        log.info(f"The optimal prompt is {optimal_prompt}.")
+
+        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+
     # Validate on test set (standard)
     std_predictions = model.test_predictions(test_dataset, 
                                              standard_zsl=True)

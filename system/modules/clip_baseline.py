@@ -64,17 +64,17 @@ class ClipBaseline(object):
         # Iterate through data loader
         for img, _, _, img_path in tqdm(test_loader):
             with torch.no_grad():
-                image_features = self.model.encode_image(img)
                 logits_per_image, logits_per_text = self.model(img, text)
                 probs = logits_per_image.softmax(dim=-1)
+                idx_preds = torch.argmax(probs, dim=1)
                 if standard_zsl:
-                    idx_preds = torch.argmax(probs, dim=1)
                     predictions += [self.unseen_classes[i] for i in idx_preds]
                 else:
-                    idx_preds = torch.argmax(probs, dim=1)
                     predictions += [self.classes[i] for i in idx_preds]
 
                 images += [i for i in img_path]
+
+        accelerator.wait_for_everyone()
 
         predictions_outputs = accelerator.gather(predictions)
         image_outputs = accelerator.gather(images)
