@@ -281,7 +281,7 @@ class VPTBaseline(object):
 
         # Encode text
         text = clip.tokenize(prompts).to(self.device)
-        text_features = self.model.encode_text(text)
+        text_features = self.clip_model.encode_text(text)
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
 
         log.info(f"Start inference for test data")
