@@ -1,10 +1,14 @@
-MODEL: "coop_baseline"
+MODEL: "vpt_baseline"
 # Visual ecoder
 VIS_ENCODER: "ViT-B/32"
 # Prompt template
 PROMPT_TEMPLATE: "a photo of a "
 # Prefix size
 PREFIX_SIZE: 16
+# Prefix initialization: normal/uniform
+VIS_PREFIX_INIT: "normal"
+# Initialization of positional encoders same/zero
+POS_ENC_INIT: "same"
 # Initialization mean and variance
 MEAN_INIT: 0
 VAR_INIT: 0.02

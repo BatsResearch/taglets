@@ -20,7 +20,7 @@ accelerator = Accelerator()
 
 from .utils import Config
 from .data import CustomDataset
-from .modules import ClipBaseline, CoopBaseline
+from .modules import ClipBaseline, CoopBaseline, VPTBaseline
 
 gpu_list = os.getenv("LWLL_TA1_GPUS")
 if gpu_list is not None and gpu_list != "all":
@@ -351,7 +351,7 @@ def workflow(dataset_type, dataset_dir, api_url,
                              **dict_classes)
     elif obj_conf.MODEL == 'coop_baseline':
         log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = CoopBaseline(obj_conf, 
+        model = CoopBaseline(obj_conf, label_to_idx, 
                              device=device, 
                              **dict_classes) 
 
@@ -360,6 +360,18 @@ def workflow(dataset_type, dataset_dir, api_url,
         log.info(f"The optimal prompt is {optimal_prompt}.")
 
         model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+
+    elif obj_conf.MODEL == 'vpt_baseline':
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = VPTBaseline(obj_conf, label_to_idx, 
+                            device=device, 
+                            **dict_classes)
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset)
+        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
+        log.info(f"The optimal prompt is {optimal_prompt}.")
+
+        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+        model.model.image_pos_emb = torch.nn.Parameter(torch.tensor(optimal_prompt[1]))
 
     # Validate on test set (standard)
     std_predictions = model.test_predictions(test_dataset, 
