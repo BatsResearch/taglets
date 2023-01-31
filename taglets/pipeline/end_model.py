@@ -40,7 +40,7 @@ class EndModelMixin():
         elif self.model_type == 'bigtransfer':
             self.optimizer = torch.optim.SGD(self._params_to_update, lr=0.003, momentum=0.9)
             self.lr_scheduler = None
-            self.num_epochs = 1000
+            self.num_epochs = 2000
 
     def train(self, train_data, val_data, unlabeled_data=None):
         if len(train_data) > 200000:
