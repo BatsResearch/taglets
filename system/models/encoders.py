@@ -57,8 +57,10 @@ class CustomTextEncoder(torch.nn.Module):
 
         # Get embeddings for the prompt
         text_embedding = self.token_embedding(token_ids.to(self.device)) 
-        for idx in range(class_embeddings.size()[0]):
-            text_embedding[idx, 1:(class_embeddings[idx].size()[0]+1), :] = class_embeddings[idx]
+        # for idx in range(class_embeddings.size()[0]):
+        #     text_embedding[idx, 1:(class_embeddings[idx].size()[0]+1), :] = class_embeddings[idx]
+        
+        text_embedding[:, 1:(class_embeddings[0].size()[0]+1), :] = class_embeddings
 
         text_features = text_embedding.type(self.dtype)
         x = (

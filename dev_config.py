@@ -1,4 +1,4 @@
-dataset_type ='sample'
+dataset_type ='full'
 problem_type = 'image_classification'
 dataset_dir = '/Users/menga/Desktop/github/zsl_taglets'#'/lwll'
 api_url = 'https://api-dev.lollllz.com'

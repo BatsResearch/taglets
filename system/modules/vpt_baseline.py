@@ -174,7 +174,7 @@ class VPTBaseline(object):
         predictions = []
         images = []
         labels = []
-        for img, _, _, label, img_path in tqdm(train_loader):
+        for i, (img, _, _, label, img_path) in enumerate(tqdm(train_loader)):
             image_features = self.model(img)
             image_features = image_features / image_features.norm(dim=-1, keepdim=True)
 
@@ -195,13 +195,13 @@ class VPTBaseline(object):
             
             accelerator.wait_for_everyone()
             
-            loss = loss #/ accum_iter 
+            loss = loss / accum_iter 
             accelerator.backward(loss)
 
             # Accumulate grandient
-            #if ((i + 1) % accum_iter == 0) or (i + 1 == len(train_loader)):
-            self.optimizer.step()
-            self.model.zero_grad()
+            if ((i + 1) % accum_iter == 0) or (i + 1 == len(train_loader)):
+                self.optimizer.step()
+                self.model.zero_grad()
 
         accelerator.wait_for_everyone()
 
@@ -216,7 +216,8 @@ class VPTBaseline(object):
         self.scheduler.step()
 
         unwrapped_model = accelerator.unwrap_model(self.model)
-        epoch_parameters = [unwrapped_model.prefix.detach().cpu().numpy(), unwrapped_model.image_pos_emb.detach().cpu().numpy()]
+        epoch_parameters = [unwrapped_model.prefix.detach().cpu().numpy(), 
+                            unwrapped_model.image_pos_emb.detach().cpu().numpy()]
 
         return loss, total_loss, epoch_parameters
 
