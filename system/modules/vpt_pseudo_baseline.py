@@ -114,29 +114,37 @@ class VPTPseudoBaseline(object):
                                                  self.unseen_classes,
                                                  self.transform,
                                                  self.clip_model,
+                                                 self.label_to_idx,
                                                  self.device)
         
-        unseen_imgs = [f.split('/')[-1] for f in train_unseen_dataset.filepaths]
+        unseen_imgs = train_unseen_dataset.filepaths#[f.split('/')[-1] for f in train_unseen_dataset.filepaths]
         unseen_labs = train_unseen_dataset.labels
 
-        seen_imgs = [f.split('/')[-1] for f in train_data.filepaths]
+        # log.info(f"{self.label_to_idx}")
+        # log.info(f"{set(unseen_labs)}")
+        # log.info(f"unseen classes: {self.unseen_classes}")
+        seen_imgs = train_data.filepaths#[f.split('/')[-1] for f in train_data.filepaths]
         seen_labs = [self.label_to_idx[l] for l in train_data.labels]
+        log.info(f"unseen classes: {self.seen_classes}")
+        log.info(f"{set(seen_labs)}")
         # Declare the data pre processing for train and validation data
 
         log.info(f"Training unseen data labels: {len(unseen_labs)}")
         log.info(f"Training unseen data images: {len(unseen_imgs)}")
         log.info(f"Training seen data labels: {len(seen_labs)}")
         log.info(f"Training seen data images: {len(seen_imgs)}")
-        train_data = CustomDataset(list(unseen_imgs) + list(seen_imgs), data_folder, 
-                                   transform=None, augmentations=None, 
-                                   train=True, labels=list(unseen_labs) + list(seen_labs),
-                                   label_id=True,
-                                   label_map=self.label_to_idx)
+        train_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+        train_data.labels = list(unseen_labs) + list(seen_labs)
+        train_data.label_id = True
+        # train_data = CustomDataset(list(unseen_imgs) + list(seen_imgs), data_folder, 
+        #                            transform=None, augmentations=None, 
+        #                            train=True, labels=list(unseen_labs) + list(seen_labs),
+        #                            label_id=True,
+        #                            label_map=self.label_to_idx)
 
         train_data.transform = self.transform
         val_data.transform = self.transform
-        log.info(f"Training data size: {len(list(unseen_imgs) + list(seen_imgs))}")
-        log.info(f"Training data size: {len(train_data.filepaths)}")
+        log.info(f"Training data size: {len(list(unseen_imgs) + list(seen_imgs)) == len(train_data.filepaths)}")
 
         train_loader = torch.utils.data.DataLoader(train_data,
                                                    batch_size=self.config.BATCH_SIZE,

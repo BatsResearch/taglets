@@ -17,7 +17,7 @@ VAR_INIT: 0.02
 # Seeed to separate train and validation
 validation_seed: 0
 # Ratio validation
-ratio_train_val: 0.8
+ratio_train_val: 0.5
 # Batch size
 BATCH_SIZE: 12
 # Number of epochs

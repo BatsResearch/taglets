@@ -70,7 +70,7 @@ def prepare_data_ssl_loss(aug_1, aug_2):
 
 def pseudolabel_top_k(k, template, dataset, 
                       classnames, transform, clip_model,
-                      device):
+                      label_to_idx, device):
     filename = 'pseudolabels.pickle'
     if os.path.exists(filename):
         #print('Load pseudolabels')
@@ -89,9 +89,11 @@ def pseudolabel_top_k(k, template, dataset,
         text = clip.tokenize(prompts).to(device)
         
         #to find the top k for each class, each class has it's own "leaderboard"
-        top_k_leaderboard = {i : [] for i in range(len(classnames))} #maps class idx -> (confidence, image_path) tuple
+        top_k_leaderboard = {label_to_idx[classnames[i]] : [] 
+                             for i in range(len(classnames))} #maps class idx -> (confidence, image_path) tuple
         
         log.info(f"Compute {k} pseudo-labeles")
+        #log.info(f"{label_to_idx}")
         for i, image_path in enumerate(tqdm(dataset.filepaths)):
             img = Image.open(image_path).convert('RGB')
             img = transform(img).to(device)
@@ -99,26 +101,32 @@ def pseudolabel_top_k(k, template, dataset,
                 logits_per_image, logits_per_text = clip_model(torch.unsqueeze(img, 0).to(device), text)
                 probs = logits_per_image.softmax(dim=-1)
                 idx_preds = torch.argmax(probs, dim=1)
-                pred = idx_preds.item()
+                pred_id = idx_preds.item()
+                pred = label_to_idx[classnames[idx_preds.item()]]
+                #log.info(f"{classnames[idx_preds.item()]}")
+                #log.info(f"{pred}")
 
             """if predicted class has empty leaderboard, or if the confidence is high
             enough for predicted class leaderboard, add the new example
             """
-            prob_score = probs[0][pred]
+            prob_score = probs[0][pred_id]
             if len(top_k_leaderboard[pred]) < k:
                     top_k_leaderboard[pred].append((prob_score, image_path))
             elif top_k_leaderboard[pred][-1][0] < prob_score: #if the confidence in predicted class "qualifies" for top-k
                     # default sorting of tuples is by first element
-                    top_k_leaderboard[pred] = sorted(top_k_leaderboard[pred] + [(probs[0][pred], image_path)], reverse=True)[:k]
+                    top_k_leaderboard[pred] = sorted(top_k_leaderboard[pred] + [(probs[0][pred_id], image_path)], reverse=True)[:k]
             else:
                 #sort the other classes by confidence score
-                order_of_classes = sorted([(probs[0][j], j) for j in range(len(classnames)) if j != pred], reverse=True)
+                order_of_classes = sorted([(probs[0][j], j) for j in range(len(classnames)) if j != pred_id], reverse=True)
                 for score, index in order_of_classes:
-                    if len(top_k_leaderboard[index]) < k:
-                        top_k_leaderboard[index].append((probs[0][index], image_path))
-                    elif top_k_leaderboard[index][-1][0] < probs[0][index]:
+                    index_dict = label_to_idx[classnames[index]]
+                    #log.info(f"{classnames[index]}")
+                    #log.info(f"{index_dict}")
+                    if len(top_k_leaderboard[index_dict]) < k:
+                        top_k_leaderboard[index_dict].append((probs[0][index], image_path))
+                    elif top_k_leaderboard[index_dict][-1][0] < probs[0][index]:
                         #default sorting of tuples is by first element
-                        top_k_leaderboard[index] = sorted(top_k_leaderboard[index] + [((probs[0][index], image_path))], reverse=True)[:k]
+                        top_k_leaderboard[index_dict] = sorted(top_k_leaderboard[index_dict] + [((probs[0][index], image_path))], reverse=True)[:k]
         
         old_dataset = dataset
         new_imgs = []
