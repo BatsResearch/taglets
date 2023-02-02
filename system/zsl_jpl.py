@@ -20,7 +20,7 @@ accelerator = Accelerator()
 
 from .utils import Config
 from .data import CustomDataset
-from .modules import ClipBaseline, CoopBaseline, VPTBaseline, AdjustAndAdapt, VPTPseudoBaseline
+from .modules import ClipBaseline, CoopBaseline, TptBaseline, VPTBaseline, AdjustAndAdapt, VPTPseudoBaseline
 
 gpu_list = os.getenv("LWLL_TA1_GPUS")
 if gpu_list is not None and gpu_list != "all":
@@ -360,6 +360,44 @@ def workflow(dataset_type, dataset_dir, api_url,
         log.info(f"The optimal prompt is {optimal_prompt}.")
 
         model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+    elif obj_conf.MODEL == 'tpt_baseline':
+        # TODO
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = TptBaseline(obj_conf, 
+                             device=device, 
+                             **dict_classes) 
+
+    elif obj_conf.MODEL == 'vpt_baseline':
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = VPTBaseline(obj_conf, label_to_idx, 
+                            device=device, 
+                            **dict_classes)
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset)
+        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
+        log.info(f"The optimal prompt is {optimal_prompt}.")
+
+        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+        model.model.image_pos_emb = torch.nn.Parameter(torch.tensor(optimal_prompt[1]))
+    
+    elif obj_conf.MODEL == 'vpt_pseudo_baseline':
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = VPTPseudoBaseline(obj_conf, label_to_idx, 
+                            device=device, 
+                            **dict_classes)
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset, train_unseen_dataset,
+                                                   val_seen_dataset, data_folder)
+        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
+        log.info(f"The optimal prompt is {optimal_prompt}.")
+    
+    elif obj_conf.MODEL == 'adjust_and_adapt':
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = AdjustAndAdapt(obj_conf, label_to_idx, 
+                               device=device, 
+                               **dict_classes)
+        vpt_prompts = model.train(train_labeled_files, 
+                                  unlabeled_data, val_labeled_files,
+                                  data_folder)
+
 
     elif obj_conf.MODEL == 'vpt_baseline':
         log.info(f"The model in use is: {obj_conf.MODEL}")
@@ -458,6 +496,7 @@ def main():
 
     # Check dataset directory exists
     if not Path(dataset_dir).exists():
+        print(dataset_dir)
         raise Exception('`dataset_dir` does not exist..')
 
     log.info(f"Current working directory: {os.getcwd()}")

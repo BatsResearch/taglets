@@ -168,7 +168,7 @@ class CoopBaseline(object):
             labels += [self.classes[i.item()] for i in label]
             images += [i for i in img_path]
 
-            labs = torch.tensor([self.real_to_idx[l.item()] for l in label])
+            labs = torch.tensor([self.real_to_idx[l.item()] for l in label]).to(self.device)
             loss = self.loss_func(logits, labs)
             total_loss += loss.item()
             

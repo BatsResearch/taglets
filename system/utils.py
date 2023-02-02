@@ -17,6 +17,7 @@ def seed_worker(worker_id):
     np.random.seed(worker_seed)
     random.seed(worker_seed)
 
+
 class Config(object):
     def __init__(self, config):
         for k, v in config.items():
@@ -53,7 +54,10 @@ def composed_transform(augmentation, transform_base=None,
         transform_list = []
 
     transform_fn = [parse_transform(t, image_size) for t in transform_list]
-    transform = transforms.Compose(transform_fn + [preprocess_transform])
+    if preprocess_transform is not None:
+        transform = transforms.Compose(transform_fn + [preprocess_transform])
+    else:
+        transform = transforms.Compose(transform_fn)
     
     return transform
 
