@@ -833,10 +833,10 @@ class JPLRunner:
             candidates = np.argsort(confidences)
             self.confidence_active_learning.set_candidates(candidates)
 
-        # # update initial model
-        # if checkpoint_num == 7:
-        #     self.initial_model = end_model.model
-        #     self.initial_model.fc = torch.nn.Identity()
+        # update initial model
+        if checkpoint_num == 7:
+            self.initial_model = end_model.model
+            self.initial_model.fc = torch.nn.Identity()
 
         log.info('{} Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                checkpoint_num,
