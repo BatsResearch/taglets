@@ -1,11 +1,7 @@
 FROM nvidia/cuda:11.1.1-devel-ubuntu18.04
 ARG LWLL_SECRET
-ARG LOGGER_REPO_DEPLOY_USER
-ARG LOGGER_REPO_DEPLOY_TOKEN
 
 RUN echo ${LWLL_SECRET}
-RUN echo ${LOGGER_REPO_DEPLOY_USER}
-RUN echo ${LOGGER_REPO_DEPLOY_TOKEN}
 
 #Install other libraries from requirements.txt
 RUN apt-get update
@@ -50,8 +46,7 @@ COPY . /tmp
 
 RUN cd /tmp && pip install .
 RUN cd /tmp && ./setup.sh
-# RUN cd /tmp/ && git clone https://${LOGGER_REPO_DEPLOY_USER}:${LOGGER_REPO_DEPLOY_TOKEN}@gitlab.lollllz.com/brown/logger
-# RUN cd /tmp/logger && pip install -e .
+RUN cd /tmp && pip install torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html
 
 
 RUN useradd --create-home tagletuser
