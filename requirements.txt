@@ -95,8 +95,6 @@ tensorboardX==2.2
 thinc==7.0.8
 threadpoolctl==2.1.0
 toml==0.10.2
-torch==1.7.0
-torchvision==0.8.1
 tqdm==4.60.0
 typing-extensions==3.10.0.0
 typing-utils==0.0.3
