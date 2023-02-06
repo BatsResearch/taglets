@@ -991,15 +991,17 @@ def main():
     problem_type = variables[1]
     log.info(f"Problem type: {problem_type}")
     
-    user_path = []
-    for en, chunk in enumerate(variables[2].split('/')):
-        if en == 2:
-            user_path.append(args.username)
-        else:
-            user_path.append(chunk)
-    user_path = '/'.join(user_path)
-
-    dataset_dir = os.path.join(user_path, args.folder)
+    if args.username == 'None':
+        dataset_dir = os.path.join(variables[2], args.folder)
+    else:
+        user_path = []
+        for en, chunk in enumerate(variables[2].split('/')):
+            if en == 2:
+                user_path.append(args.username)
+            else:
+                user_path.append(chunk)
+        user_path = '/'.join(user_path)
+        dataset_dir = os.path.join(user_path, args.folder)
     log.info(f"Dataset dir: {dataset_dir}")
     api_url = variables[3]
     problem_task = variables[4]

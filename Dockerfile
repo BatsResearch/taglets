@@ -1,4 +1,4 @@
-FROM nvidia/cuda:10.1-devel-ubuntu18.04
+FROM nvidia/cuda:11.1.1-devel-ubuntu18.04
 ARG LWLL_SECRET
 ARG LOGGER_REPO_DEPLOY_USER
 ARG LOGGER_REPO_DEPLOY_TOKEN
