@@ -1,8 +1,12 @@
 from .module import Module
 from ..pipeline import ImageTaglet
 
+# from accelerate import Accelerator
+# accelerator = Accelerator()
 from accelerate import Accelerator
-accelerator = Accelerator()
+from accelerate.utils import InitProcessGroupKwargs
+from datetime import timedelta
+accelerator = Accelerator(kwargs_handlers=[InitProcessGroupKwargs(timedelta=timedelta(seconds=18000))]) # increased timeout limit from half an hour to 5 hours
 import logging
 import numpy as np
 import torch
