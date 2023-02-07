@@ -722,7 +722,7 @@ class JPLRunner:
                 self.jpl_storage.dictionary_clips.update(new_dictionary_clips)
             log.info(f'Get seeds at {checkpoint_num} checkpoints')
 
-            if checkpoint_num == 1:
+            if checkpoint_num == 2 or checkpoint_num == 3:
                 log.info('{} Skip Checkpoint: {} Elapsed Time =  {}'.format(phase,
                                                                             checkpoint_num,
                                                                             time.strftime("%H:%M:%S",
