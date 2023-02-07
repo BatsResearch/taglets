@@ -1,5 +1,6 @@
 from .clip_baseline import ClipBaseline
 from .coop_baseline import CoopBaseline, TextPrefixModel
+from .cocoop_baseline import CoCoopBaseline, ExtendedTextPrefixModel
 from .tpt_baseline import TptBaseline
 from .vpt_baseline import VPTBaseline
 from .adjust_and_adapt import AdjustAndAdapt
