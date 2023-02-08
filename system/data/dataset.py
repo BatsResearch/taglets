@@ -52,7 +52,7 @@ class CustomDataset(Dataset):
             tuple: (image, aug1, aug2, target) where target is index of the target class.
         """
     
-        img = Image.open(self.filepaths[index]).convert('RGB')
+        img = Image.open(self.filepaths[index]).convert('RGB')        
                   
         # Apply two transformations (strong and weak)
         if self.aug1_transform is not None:

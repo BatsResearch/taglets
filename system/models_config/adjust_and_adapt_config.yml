@@ -44,3 +44,5 @@ AUGMENTATION_STRONG:
   - 'RandomResizedCrop'
   - 'RandomGrayscale'
   - 'RandomColorJitter'
+# Set seeds
+OPTIM_SEED: 10

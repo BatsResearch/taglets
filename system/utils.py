@@ -75,7 +75,7 @@ def prepare_data_ssl_loss(aug_1, aug_2):
 def pseudolabel_top_k(k, template, dataset, 
                       classnames, transform, clip_model,
                       label_to_idx, device):
-    filename = 'pseudolabels.pickle'
+    filename = f'{k}_pseudolabels.pickle'
     if os.path.exists(filename):
         #print('Load pseudolabels')
         with open(filename, 'rb') as f:

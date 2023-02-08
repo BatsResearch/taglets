@@ -29,3 +29,5 @@ OPTIM: "SGD"
 LR: 0.1
 DECAY: 0.1
 STEP_SIZE: 1
+# Set seeds
+OPTIM_SEED: 10

@@ -21,7 +21,8 @@ accelerator = Accelerator()
 from .utils import Config
 from .data import CustomDataset
 from .modules import ClipBaseline, CoopBaseline, TptBaseline, VPTBaseline, \
-                     AdjustAndAdapt, VPTPseudoBaseline, CoopPseudoBaseline
+                     AdjustAndAdapt, VPTPseudoBaseline, CoopPseudoBaseline, \
+                     TeacherStudent, VPTPseudoDisambiguate
 
 gpu_list = os.getenv("LWLL_TA1_GPUS")
 if gpu_list is not None and gpu_list != "all":
@@ -305,9 +306,17 @@ def workflow(dataset_type, dataset_dir, api_url,
     label_to_idx = {c:idx for idx, c in enumerate(classes)}
     # Separate train and validation
     np.random.seed(obj_conf.validation_seed)
-    train_indices = np.random.choice(range(len(labeled_files)),
-                                      size=int(len(labeled_files)*obj_conf.ratio_train_val),
-                                      replace=False)
+    if obj_conf.MODEL == 'teacher_student':
+        num_pseudo_labels = int((len(unlabeled_data) / obj_conf.STEP_QUANTILE) / len(unseen_classes))
+        num_labels = min(num_pseudo_labels*len(seen_classes), len(labeled_files))
+        log.info(f"The number of labels for seen classes is: {num_labels} = {num_pseudo_labels} x {len(seen_classes)}")
+        train_indices = np.random.choice(range(len(labeled_files)),
+                                        size=num_labels,
+                                        replace=False)
+    else:
+        train_indices = np.random.choice(range(len(labeled_files)),
+                                        size=int(len(labeled_files)*obj_conf.ratio_train_val),
+                                        replace=False)
     val_indices = list(set(range(len(labeled_files))).difference(set(train_indices)))
     
     train_labeled_files = np.array(labeled_files)[train_indices]
@@ -400,6 +409,24 @@ def workflow(dataset_type, dataset_dir, api_url,
         log.info(f"Validation accuracy on seen classes: {val_accuracy}")
         log.info(f"The optimal prompt is {optimal_prompt}.")
     
+    elif obj_conf.MODEL == 'vpt_pseudo_disambiguate':
+        model = VPTPseudoDisambiguate(obj_conf, label_to_idx, 
+                                      device=device, 
+                                      **dict_classes)
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset, train_unseen_dataset,
+                                                   val_seen_dataset, data_folder)
+
+    elif obj_conf.MODEL == 'teacher_student':
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = TeacherStudent(obj_conf, label_to_idx, 
+                               data_folder, 
+                               device=device, 
+                               **dict_classes)
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset, train_unseen_dataset,
+                                                   val_seen_dataset)
+        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
+        log.info(f"The optimal prompt is {optimal_prompt}.")
+
     elif obj_conf.MODEL == 'adjust_and_adapt':
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = AdjustAndAdapt(obj_conf, label_to_idx, 
@@ -482,6 +509,22 @@ def main():
     with open(f'system/models_config/{args.model_config}', 'r') as file:
         config = yaml.safe_load(file)
     obj_conf = Config(config)
+
+
+    # Set random seeds
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    np.random.seed(obj_conf.OPTIM_SEED)
+    random.seed(obj_conf.OPTIM_SEED)
+    torch.manual_seed(obj_conf.OPTIM_SEED)
+    accelerator.wait_for_everyone()
+    # Seed for cuda
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(obj_conf.OPTIM_SEED)
+        torch.cuda.manual_seed_all(obj_conf.OPTIM_SEED)
+        accelerator.wait_for_everyone()
+    
+    torch.backends.cudnn.benchmark = True
+
 
     workflow(dataset_type, dataset_dir, api_url, 
              problem_task, team_secret, gov_team_secret, obj_conf)
