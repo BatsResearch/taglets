@@ -19,9 +19,9 @@ ratio_train_val: 0.8
 # Batch size
 BATCH_SIZE: 12
 # Number of epochs
-STAGE_TWO_PSEUDO_EPOCHS: 30
+STAGE_TWO_PSEUDO_EPOCHS: 15
 N_PSEUDOSHOTS: 16
-STAGE_TWO_VPT_EPOCHS: 30
+STAGE_TWO_VPT_EPOCHS: 15
 # Scheduler
 SCHEDULER: "cosine"
 # Scheduler warmup epochs
