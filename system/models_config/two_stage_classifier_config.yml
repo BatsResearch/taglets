@@ -35,4 +35,4 @@ LR: 0.1
 DECAY: 0.1
 STEP_SIZE: 1
 # Whether or not the first stage is (seen v.s. unseen) or (seen_1, seen_2, ..., unseen)
-FIRST_STAGE_TYPE: 'not_binary'
+FIRST_STAGE_TYPE: 'binary'

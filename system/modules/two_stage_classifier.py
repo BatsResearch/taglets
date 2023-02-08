@@ -64,12 +64,18 @@ class TwoStageClassifier(object):
         train_data_unseen = train_data_unseen.dataset
         val_data_unseen = val_data_unseen.dataset
 
-        seen_labels_train = train_data_seen.labels
+        if self.config.FIRST_STAGE_TYPE == "binary":
+            seen_labels_train = ["seen_class" for _ in train_data_seen.labels]
+            seen_labels_val = ["seen_class" for _ in val_data_seen.labels]
+            label_map = {"seen_class": 0, "unknown_class": 1}
+        else:
+            seen_labels_train = train_data_seen.labels
+            seen_labels_val = val_data_seen.labels
+            label_map = {**train_data_seen.label_map, **{"unknown_class": len(set(seen_labels_train))}}
+
         unseen_labels_train = ["unknown_class" for _ in train_data_unseen]
-        seen_labels_val = val_data_seen.labels
         unseen_labels_val = ["unknown_class" for _ in val_data_unseen]
-        # Add unknown class
-        label_map = {**train_data_seen.label_map, **{"unknown_class": len(set(seen_labels_train))}}
+        
         # Create new datasets
         train_labels = [str(s) for s in seen_labels_train] + [str(s) for s in unseen_labels_train]
         val_labels = [str(s) for s in seen_labels_val] + [str(s) for s in unseen_labels_val]
@@ -77,12 +83,12 @@ class TwoStageClassifier(object):
                                          "", self.transform, augmentations=None,
                                          train=True, labels=train_labels, label_id=False,
                                          label_map=label_map)
-        combined_train_dataset.filepaths = train_data_seen.filepaths
+        combined_train_dataset.filepaths = train_data_seen.filepaths + train_data_unseen.filepaths
         combined_val_dataset = CustomDataset(val_data_seen.filepaths + val_data_unseen.filepaths,
                                          "", self.transform, augmentations=None,
                                          train=True, labels=val_labels, label_id=False,
                                          label_map=label_map)
-        combined_val_dataset.filepaths = val_data_seen.filepaths
+        combined_val_dataset.filepaths = val_data_seen.filepaths + val_data_unseen.filepaths
 
         return combined_train_dataset, combined_val_dataset
 
@@ -128,12 +134,6 @@ class TwoStageClassifier(object):
     def train_first_stage(self, train_data, val_data):
         train_data.transform = self.transform
         val_data.transform = self.transform
-        # print("training data...")
-        # print(train_data.labels.count("unknown_class"))
-        # print(len(train_data.labels))
-        # print("val data...")
-        # print(val_data.labels.count("unknown_class"))
-        # print(len(val_data.labels))
         train_loader = torch.utils.data.DataLoader(train_data,
                                                    batch_size=self.config.BATCH_SIZE,
                                                    shuffle=True, worker_init_fn=seed_worker,
@@ -182,12 +182,7 @@ class TwoStageClassifier(object):
             else:
                 if predictions[idx] != train_data.label_map["unknown_class"]:
                     correct_binary += 1
-        # print("val, then train...")
-        # print(np.count_nonzero(val_labels == train_data.label_map["unknown_class"]))
-        # print(np.count_nonzero(val_labels != train_data.label_map["unknown_class"]))
-        # print(np.count_nonzero(predictions_t == train_data.label_map["unknown_class"]))
-        # print(np.count_nonzero(predictions_t != train_data.label_map["unknown_class"]))
-        # quit()
+
         accuracy_binary = correct_binary / len(val_labels) * 100.
         log.info(f"Val accuracy = {accuracy:.3f}")
         log.info(f"Val accuracy BINARY = {accuracy_binary:.3f}")
