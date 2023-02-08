@@ -78,10 +78,11 @@ class ClipBaseline(object):
 
         predictions_outputs = accelerator.gather(predictions)
         image_outputs = accelerator.gather(images)
-
-
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
-
+        if standard_zsl:
+            print("CLIP STANDARD Len: {}".format(len(df_predictions)))
+        else:
+            print("CLIP GENERAL Len: {}".format(len(df_predictions)))
         return df_predictions
         

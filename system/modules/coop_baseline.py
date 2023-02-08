@@ -39,7 +39,7 @@ class TextPrefixModel(nn.Module):
 class CoopBaseline(object):
     def __init__(self, config, label_to_idx, 
                  classes, seen_classes, unseen_classes,
-                 device):
+                 device, calibration_coefficient=None):
 
         self.config = config
         
@@ -47,6 +47,7 @@ class CoopBaseline(object):
         self.seen_classes = seen_classes
         self.unseen_classes = unseen_classes
         self.label_to_idx = label_to_idx
+        self.calibration_coefficient = calibration_coefficient
 
         seen_to_idx = {c:idx for idx, c in enumerate(self.seen_classes)}
         self.idx_to_real = {seen_to_idx[c]:self.label_to_idx[c] for c in self.seen_classes}
@@ -112,7 +113,6 @@ class CoopBaseline(object):
                                                        self.optimizer, 
                                                        train_loader,
                                                        val_loader)
-
 
         best_val_accuracy = 0
         best_prompt = None

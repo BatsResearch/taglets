@@ -106,8 +106,7 @@ class VPTPseudoBaseline(object):
         self.loss_func = torch.nn.CrossEntropyLoss()
         
     
-    def train(self, train_data, unlabeled_data, val_data, data_folder):
-
+    def train(self, train_data, unlabeled_data, val_data, data_folder, only_unlabelled=False):
         train_unseen_dataset = pseudolabel_top_k(self.config.N_PSEUDOSHOTS,
                                                  self.config.PROMPT_TEMPLATE,
                                                  unlabeled_data,
@@ -116,7 +115,6 @@ class VPTPseudoBaseline(object):
                                                  self.clip_model,
                                                  self.label_to_idx,
                                                  self.device)
-        
         unseen_imgs = train_unseen_dataset.filepaths#[f.split('/')[-1] for f in train_unseen_dataset.filepaths]
         unseen_labs = train_unseen_dataset.labels
 
@@ -168,10 +166,11 @@ class VPTPseudoBaseline(object):
             log.info(f"Run Epoch {epoch}")
             total_loss = 0
             accum_iter = self.config.ACCUMULATION_ITER  
-            
-            loss, total_loss, epoch_parameters = self._train_epoch(loss, total_loss, 
-                                                                   train_loader, 
-                                                                   accum_iter, epoch)
+
+            loss, total_loss, epoch_parameters = self._train_epoch(loss, total_loss,
+                                                                   train_loader,
+                                                                   accum_iter, epoch,
+                                                                   only_unlabelled=only_unlabelled)
             accelerator.wait_for_everyone()
             if accelerator.is_local_main_process:
                 log.info(f"Loss Epoch {epoch}: {total_loss/(len(train_loader))}")
@@ -189,10 +188,14 @@ class VPTPseudoBaseline(object):
         
         return best_val_accuracy, best_prompt
 
-    def _train_epoch(self, loss, total_loss, train_loader, accum_iter, epoch):
+    def _train_epoch(self, loss, total_loss, train_loader, accum_iter, epoch, only_unlabelled=False):
 
         # Define text queries
-        prompts = [f"{self.template}{' '.join(i.split('_'))}" \
+        if only_unlabelled:
+            prompts = [f"{self.template}{' '.join(i.split('_'))}" \
+                        for i in self.unseen_classes]
+        else:
+            prompts = [f"{self.template}{' '.join(i.split('_'))}" \
                         for i in self.classes]
         log.info(f"Number of prompts: {len(prompts)}")
         # Encode text
@@ -213,13 +216,19 @@ class VPTPseudoBaseline(object):
             logits = logit_scale * image_features @ text_features.t()
 
             idx_preds = torch.argmax(logits, dim=1)
-            real_preds = [self.classes[i.item()] for i in idx_preds]
+            if only_unlabelled:
+                real_preds = [self.unseen_classes[i.item()] for i in idx_preds]
+            else:
+                real_preds = [self.classes[i.item()] for i in idx_preds]
             
             predictions += real_preds
             labels += [self.classes[i.item()] for i in label]
             images += [i for i in img_path]
 
             labs = torch.tensor([l for l in label])
+            if only_unlabelled:
+                labs = torch.tensor([self.unseen_classes.index(self.classes[l.item()]) for l in label])
+            labs = labs.to(self.device)
             loss = self.loss_func(logits, labs)
             total_loss += loss.item()
             
@@ -239,7 +248,7 @@ class VPTPseudoBaseline(object):
         labels_outputs = accelerator.gather(labels)
         image_outputs = accelerator.gather(images)
 
-        accuracy = np.sum(np.array(predictions_outputs) == np.array(labels_outputs))/len(predictions_outputs)
+        accuracy = np.sum(np.array(predictions_outputs) == np.array(labs.cpu()))/len(predictions_outputs)
         log.info(F"Training accuracy after Epoch {epoch}: {accuracy}")
 
         current_lr = self.scheduler.get_last_lr()
