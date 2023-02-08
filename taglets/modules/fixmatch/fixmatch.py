@@ -9,7 +9,12 @@ import torchvision.models as models
 from copy import deepcopy
 from enum import Enum
 from accelerate import Accelerator
-accelerator = Accelerator()
+from accelerate.utils import InitProcessGroupKwargs
+from datetime import timedelta
+accelerator = Accelerator(kwargs_handlers=[InitProcessGroupKwargs(timeout=timedelta(seconds=18000))]) # increased timeout limit from half an hour to 5 hours
+
+# from accelerate import Accelerator
+# accelerator = Accelerator()
 
 from ..module import Module
 from ...pipeline import ImageTagletWithAuxData, Cache

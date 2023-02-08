@@ -8,7 +8,12 @@ import json
 import logging
 
 from accelerate import Accelerator
-accelerator = Accelerator()
+from accelerate.utils import InitProcessGroupKwargs
+from datetime import timedelta
+accelerator = Accelerator(kwargs_handlers=[InitProcessGroupKwargs(timeout=timedelta(seconds=18000))]) # increased timeout limit from half an hour to 5 hours
+
+# from accelerate import Accelerator
+# accelerator = Accelerator()
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

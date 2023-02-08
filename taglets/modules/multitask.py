@@ -9,7 +9,7 @@ import torch.nn as nn
 from accelerate import Accelerator
 from accelerate.utils import InitProcessGroupKwargs
 from datetime import timedelta
-accelerator = Accelerator(kwargs_handlers=[InitProcessGroupKwargs(timedelta=timedelta(seconds=18000))]) # increased timeout limit from half an hour to 5 hours
+accelerator = Accelerator(kwargs_handlers=[InitProcessGroupKwargs(timeout=timedelta(seconds=18000))]) # increased timeout limit from half an hour to 5 hours
 
 from .module import Module
 from ..pipeline import ImageTagletWithAuxData
