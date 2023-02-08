@@ -21,7 +21,7 @@ accelerator = Accelerator()
 from .utils import Config
 from .data import CustomDataset
 from .modules import ClipBaseline, CoopBaseline, TptBaseline, VPTBaseline, \
-                     AdjustAndAdapt, VPTPseudoBaseline, CoopPseudoBaseline
+                     AdjustAndAdapt, VPTPseudoBaseline, CoopPseudoBaseline, TwoStageClassifier
 
 gpu_list = os.getenv("LWLL_TA1_GPUS")
 if gpu_list is not None and gpu_list != "all":
@@ -292,6 +292,7 @@ def workflow(dataset_type, dataset_dir, api_url,
     # dataset = UCMerced_LandUse
     # dataset_type = sample
     data_folder = f"{dataset_dir}/{dataset}/{dataset}_{dataset_type}"
+    print(f"Data folder: {data_folder}")
     # Get labeled examples (seen classes)
     labeled_data = api.get_seen_labeled_data()
     # Get unlabeled examples (unseen classes)
@@ -408,6 +409,13 @@ def workflow(dataset_type, dataset_dir, api_url,
         vpt_prompts = model.train(train_labeled_files, 
                                   unlabeled_data, val_labeled_files,
                                   data_folder)
+    elif obj_conf.MODEL == 'two_stage_classifier':
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = TwoStageClassifier(obj_conf, label_to_idx, 
+                                device=device, 
+                                **dict_classes)
+
+        model.train(train_seen_dataset, train_unseen_dataset, val_seen_dataset)
 
     # Validate on test set (standard)
     std_predictions = model.test_predictions(test_dataset, 

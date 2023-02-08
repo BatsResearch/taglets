@@ -5,3 +5,4 @@ from .vpt_baseline import VPTBaseline
 from .adjust_and_adapt import AdjustAndAdapt
 from .vpt_pseudo_baseline import VPTPseudoBaseline
 from .coop_pseudo_baseline import CoopPseudoBaseline
+from .two_stage_classifier import TwoStageClassifier

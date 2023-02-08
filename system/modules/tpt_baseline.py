@@ -190,5 +190,5 @@ class TptBaseline(object):
 
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
-
+                                       
         return df_predictions

@@ -190,6 +190,7 @@ class VPTBaseline(object):
             images += [i for i in img_path]
 
             labs = torch.tensor([self.real_to_idx[l.item()] for l in label])
+            labs = labs.to(self.device)
             loss = self.loss_func(logits, labs)
             total_loss += loss.item()
             
