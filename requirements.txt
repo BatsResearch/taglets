@@ -3,8 +3,8 @@ certifi==2022.12.7
 charset-normalizer==3.0.1
 clip
 ftfy==6.1.1
-idna==3.4
-numpy==1.24.1
+idna
+numpy
 packaging==23.0
 pandas==1.5.3
 Pillow==9.4.0
