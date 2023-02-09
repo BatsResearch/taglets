@@ -19,6 +19,16 @@ class ClipBaseline(object):
     def __init__(self, config, 
                  classes, seen_classes, unseen_classes,
                  device):
+        """ This class is CLIP model.
+
+        :param config: class object with model configurations in the 
+                       file models_config/clip_baseline_config.yml
+        :param classes: list of class names
+        :param seen_classes: list on seen classes' names
+        :param unseen_classes: list on unseen classes' names
+        :param device: device in use
+        
+        """
         self.config = config
         self.classes = classes
         self.seen_classes = seen_classes
@@ -80,9 +90,6 @@ class ClipBaseline(object):
         image_outputs = accelerator.gather(images)
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
-        if standard_zsl:
-            print("CLIP STANDARD Len: {}".format(len(df_predictions)))
-        else:
-            print("CLIP GENERAL Len: {}".format(len(df_predictions)))
+
         return df_predictions
         
