@@ -85,7 +85,7 @@ class VPTPseudoDisambiguate(VPTPseudoBaseline):
         return error_unseen + error_seen
 
         
-    def _train_epoch(self, loss, total_loss, train_loader, accum_iter, epoch):
+    def _train_epoch(self, loss, total_loss, train_loader, accum_iter, epoch, only_unlabelled=False):
 
         # Define text queries
         prompts = [f"{self.template}{' '.join(i.split('_'))}" \

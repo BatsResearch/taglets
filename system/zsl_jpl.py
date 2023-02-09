@@ -307,17 +307,9 @@ def workflow(dataset_type, dataset_dir, api_url,
     label_to_idx = {c:idx for idx, c in enumerate(classes)}
     # Separate train and validation
     np.random.seed(obj_conf.validation_seed)
-    if obj_conf.MODEL == 'teacher_student':
-        num_pseudo_labels = int((len(unlabeled_data) / obj_conf.STEP_QUANTILE) / len(unseen_classes))
-        num_labels = min(num_pseudo_labels*len(seen_classes), len(labeled_files))
-        log.info(f"The number of labels for seen classes is: {num_labels} = {num_pseudo_labels} x {len(seen_classes)}")
-        train_indices = np.random.choice(range(len(labeled_files)),
-                                        size=num_labels,
-                                        replace=False)
-    else:
-        train_indices = np.random.choice(range(len(labeled_files)),
-                                        size=int(len(labeled_files)*obj_conf.ratio_train_val),
-                                        replace=False)
+    train_indices = np.random.choice(range(len(labeled_files)),
+                                    size=int(len(labeled_files)*obj_conf.ratio_train_val),
+                                    replace=False)
     val_indices = list(set(range(len(labeled_files))).difference(set(train_indices)))
     
     train_labeled_files = np.array(labeled_files)[train_indices]
