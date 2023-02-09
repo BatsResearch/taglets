@@ -1,8 +1,8 @@
 accelerate==0.15.0
 certifi==2022.12.7
 charset-normalizer==3.0.1
-clip
 ftfy==6.1.1
+git+https://github.com/openai/CLIP.git
 idna
 numpy
 packaging
