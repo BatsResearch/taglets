@@ -175,6 +175,10 @@ class CoopBaseline(object):
             else:
                 best_val_accuracy = None
                 best_prompt = epoch_parameters
+
+            if unlabeled_data:
+                # After validation on seen classes redefine the set of training classes
+                self.model.classes = self.classes
         
         return best_val_accuracy, best_prompt
 
@@ -258,6 +262,7 @@ class CoopBaseline(object):
         predictions = []
         labels = []
         for img, _, _, label, img_path in tqdm(val_loader):
+            self.model.classes = self.seen_classes
             text_features = self.model()
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
             with torch.no_grad():
