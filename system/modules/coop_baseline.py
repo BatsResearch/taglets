@@ -11,48 +11,42 @@ from accelerate import Accelerator
 accelerator = Accelerator()
 
 from ..utils import seed_worker
-from ..models import CustomTextEncoder, make_scheduler
+from ..models import CustomTextEncoder, make_scheduler, TextPrefixModel
 
 g = torch.Generator()
 g.manual_seed(0)
 
 log = logging.getLogger(__name__)
 
-class TextPrefixModel(nn.Module):
-    def __init__(self, initial_prefix, 
-                 text_encoder, classes, 
-                 temperature=0.07, device='cpu'):
-        super(TextPrefixModel, self).__init__()
-        self.device = device
-        self.initialized_prefix = initial_prefix
-        self.classes = classes
-        
-        self.prefix = nn.Parameter(initial_prefix)
-        self.text_encoder = text_encoder
-
-    def forward(self):
-        out = self.text_encoder(self.prefix, self.classes)
-        norm_out = out / out.norm(dim=-1, keepdim=True)
-
-        return out
 
 class CoopBaseline(object):
     def __init__(self, config, label_to_idx, 
                  classes, seen_classes, unseen_classes,
                  device, calibration_coefficient=None):
+        """ This class define Coop's training and evaluation.
+
+        :param config: dictionaries of prameters in models_config/coop_baseline_config.yml
+        :param label_to_idx: dictionary (key, value):(class name, id)
+        :param classes: list of class names
+        :param seen_classes: list of seen classes' names
+        :param unseen_classes: list of unseen classes' names
+        :param device: device in use
+        :param calibration_coefficient: ?
+        """
 
         self.config = config
-        
         self.classes = classes
         self.seen_classes = seen_classes
         self.unseen_classes = unseen_classes
         self.label_to_idx = label_to_idx
         self.calibration_coefficient = calibration_coefficient
 
+        # Build dictionaries to correctly label model's predictions
         seen_to_idx = {c:idx for idx, c in enumerate(self.seen_classes)}
-        self.idx_to_real = {seen_to_idx[c]:self.label_to_idx[c] for c in self.seen_classes}
-        self.real_to_idx = {self.label_to_idx[c]:seen_to_idx[c] for c in self.seen_classes}
-
+        self.idx_to_real = {seen_to_idx[c]:self.label_to_idx[c] \
+                            for c in self.seen_classes}
+        self.real_to_idx = {self.label_to_idx[c]:seen_to_idx[c] \
+                            for c in self.seen_classes}
 
         self.device = device
         self.clip_model, self.transform = clip.load(self.config.VIS_ENCODER, 
@@ -72,11 +66,23 @@ class CoopBaseline(object):
         
         # Prefix initialization
         prefix_dim = (1, config.PREFIX_SIZE, self.clip_model.token_embedding.embedding_dim)
-        initial_prefix = torch.normal(config.MEAN_INIT, config.VAR_INIT, size=prefix_dim).to(device)
+        self.initial_prefix = torch.normal(self.config.MEAN_INIT, 
+                                           self.config.VAR_INIT, 
+                                           size=prefix_dim).to(device)
 
-        self.model = TextPrefixModel(initial_prefix,
+    def initialize_model(self, classes):
+        """ This function simply initialized the model to train.
+        It defines:
+         - optimizer
+         - scheduler
+         - loss function
+
+        :param classes: list of classes to consider
+        """
+
+        self.model = TextPrefixModel(self.initial_prefix,
                                      self.text_encoder,
-                                     [' '.join(c.split('_')) for c in self.seen_classes],
+                                     [' '.join(c.split('_')) for c in classes],
                                      device=self.device).to(self.device)
 
         for i, parameter in enumerate(self.model.parameters()):
@@ -92,11 +98,36 @@ class CoopBaseline(object):
         self.scheduler = make_scheduler(self.optimizer, self.config)
         self.loss_func = torch.nn.CrossEntropyLoss()
 
-    def train(self, train_data, val_data):
+    def create_training_dataset(self, train_data, unlabeled_data=None):
+        """ This function create the dataset for training. Specifically, it
+        merges pseudo-labels for unseen data and labeled data for seen classes.
 
+        :param train_data: Dataset object - training seen classes (defined in zsl_jpl line 323)
+        :param unlabeled_data: Dataset object - dataset of unlabeled data for 
+                               unseen classes (defined in zsl_jpl line 328)
+        """
+
+        return train_data
+
+    def train(self, train_data, val_data, classes, unlabeled_data=None):
+        """ This function defines the training of self.model.
+
+        :param train_data: Dataset object - training dataset of labeled data for 
+                           seen classes (defined in zsl_jpl line 323)
+        :param val_data: Dataset object - validation dataset of labeled data for
+                         seen classes (defined in zsl_jpl line 334)
+        :param unlabeled_data: Dataset object - dataset of unlabeled data for 
+                               unseen classes (defined in zsl_jpl line 328)
+        """
+
+        self.initialize_model(classes)
+        # Define training dataset
+        train_data = self.create_training_dataset(train_data, unlabeled_data)
+        
         # Declare the data pre processing for train and validation data
         train_data.transform = self.transform
         val_data.transform = self.transform
+        log.info(f"Training data size: {len(train_data.filepaths)}")
 
         train_loader = torch.utils.data.DataLoader(train_data,
                                                    batch_size=self.config.BATCH_SIZE,
@@ -127,7 +158,8 @@ class CoopBaseline(object):
             
             loss, total_loss, epoch_parameters = self._train_epoch(loss, total_loss, 
                                                                    train_loader, 
-                                                                   accum_iter, epoch)
+                                                                   accum_iter, epoch,
+                                                                   unlabeled_data)
             accelerator.wait_for_everyone()
             if accelerator.is_local_main_process:
                 log.info(f"Loss Epoch {epoch}: {total_loss/(len(train_loader))}")
@@ -135,7 +167,8 @@ class CoopBaseline(object):
             accelerator.free_memory()
             
             if val_loader is not None:
-                val_accuracy = self._run_validation(val_loader, epoch)
+                val_accuracy = self._run_validation(val_loader)
+                log.info(f"Validation accuracy after Epoch {epoch}: {val_accuracy}")
                 if val_accuracy > best_val_accuracy:
                     best_val_accuracy = val_accuracy
                     best_prompt = epoch_parameters
@@ -145,7 +178,18 @@ class CoopBaseline(object):
         
         return best_val_accuracy, best_prompt
 
-    def _train_epoch(self, loss, total_loss, train_loader, accum_iter, epoch):
+    def _train_epoch(self, loss, total_loss, train_loader, 
+                     accum_iter, epoch, unlabeled_data):
+        """ This function defines the training epoch of self.model.
+
+        :param loss: float loss (average across batches)
+        :param total_loss: float total loss
+        :param train_loader: Dataloader object - training data defined in self.train
+        :param accum_iter: number of accumulation steps minimum 1
+        :param epoch: current epoch
+        :param unlabeled_data: boolean. If None running seen supervised coop. 
+                               Self-training coop otherwise (CoopPseudoBaseline)
+        """
 
         predictions = []
         images = []
@@ -162,13 +206,19 @@ class CoopBaseline(object):
             logits = logit_scale * image_features @ text_features.t()
 
             idx_preds = torch.argmax(logits, dim=1)
-            real_preds = [self.seen_classes[i.item()] for i in idx_preds]            
+            if unlabeled_data:
+                real_preds = [self.classes[i.item()] for i in idx_preds]
+            else:
+                real_preds = [self.seen_classes[i.item()] for i in idx_preds]
             
             predictions += real_preds
             labels += [self.classes[i.item()] for i in label]
             images += [i for i in img_path]
 
-            labs = torch.tensor([self.real_to_idx[l.item()] for l in label]).to(self.device)
+            if unlabeled_data:
+                labs = torch.tensor([l.item() for l in label]).to(self.device)
+            else:
+                labs = torch.tensor([self.real_to_idx[l.item()] for l in label]).to(self.device)
             loss = self.loss_func(logits, labs)
             total_loss += loss.item()
             
@@ -199,7 +249,11 @@ class CoopBaseline(object):
 
         return loss, total_loss, epoch_parameters
 
-    def _run_validation(self, val_loader, epoch):
+    def _run_validation(self, val_loader):
+        """ This function computes the validation accuracy on labeled seen data.
+
+        :param val_loder: Dataloader object - validation dataset
+        """
         
         predictions = []
         labels = []
@@ -226,7 +280,7 @@ class CoopBaseline(object):
         labels_outputs = accelerator.gather(labels)
 
         accuracy = np.sum(np.array(predictions_outputs) == np.array(labels_outputs))/len(predictions_outputs)
-        log.info(f"Validation accuracy after Epoch {epoch}: {accuracy}")
+        
 
         return accuracy
 

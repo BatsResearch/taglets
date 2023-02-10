@@ -358,7 +358,8 @@ def workflow(dataset_type, dataset_dir, api_url,
                              device=device, 
                              **dict_classes) 
 
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset)
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset, 
+                                                   classes=seen_classes)
         log.info(f"Validation accuracy on seen classes: {val_accuracy}")
         log.info(f"The optimal prompt is {optimal_prompt}.")
 
@@ -397,8 +398,9 @@ def workflow(dataset_type, dataset_dir, api_url,
         model = CoopPseudoBaseline(obj_conf, label_to_idx, 
                             device=device, 
                             **dict_classes)
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset, train_unseen_dataset,
-                                                   val_seen_dataset, data_folder)
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset, 
+                                                   val_seen_dataset, classes=classes, 
+                                                   unlabeled_data=train_unseen_dataset)
         log.info(f"Validation accuracy on seen classes: {val_accuracy}")
         log.info(f"The optimal prompt is {optimal_prompt}.")
     
