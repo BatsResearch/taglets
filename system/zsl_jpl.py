@@ -388,8 +388,8 @@ def workflow(dataset_type, dataset_dir, api_url,
         model = VPTPseudoBaseline(obj_conf, label_to_idx, 
                             device=device, 
                             **dict_classes)
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset, train_unseen_dataset,
-                                                   val_seen_dataset, data_folder)
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset,
+                                                   train_unseen_dataset)
         log.info(f"Validation accuracy on seen classes: {val_accuracy}")
         log.info(f"The optimal prompt is {optimal_prompt}.")
 
@@ -408,8 +408,8 @@ def workflow(dataset_type, dataset_dir, api_url,
         model = VPTPseudoDisambiguate(obj_conf, label_to_idx, 
                                       device=device, 
                                       **dict_classes)
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset, train_unseen_dataset,
-                                                   val_seen_dataset, data_folder)
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset,
+                                                   train_unseen_dataset)
 
     elif obj_conf.MODEL == 'teacher_student':
         log.info(f"The model in use is: {obj_conf.MODEL}")
@@ -417,8 +417,9 @@ def workflow(dataset_type, dataset_dir, api_url,
                                data_folder, 
                                device=device, 
                                **dict_classes)
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset, train_unseen_dataset,
-                                                   val_seen_dataset)
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset,
+                                                   val_seen_dataset,
+                                                   train_unseen_dataset)
         log.info(f"Validation accuracy on seen classes: {val_accuracy}")
         log.info(f"The optimal prompt is {optimal_prompt}.")
 
@@ -439,7 +440,7 @@ def workflow(dataset_type, dataset_dir, api_url,
         model.train(train_seen_dataset, train_unseen_dataset, val_seen_dataset)
 
     # Validate on test set (standard)
-    std_predictions = model.test_predictions(test_dataset, 
+    std_predictions = model.test_predictions(test_dataset, model.model,
                                              standard_zsl=True)
     # Submit predictions (standard)
     std_response = api.submit_standard_zsl(std_predictions.to_dict())
@@ -448,7 +449,7 @@ def workflow(dataset_type, dataset_dir, api_url,
     log.info(f"[STD] Unseen average recall per class: {std_response['Session_Status']['standard_zsl_scores']['average_per_class_recall_unseen_std']}")
     
     # Validate on test set (general)
-    gen_predictions = model.test_predictions(test_dataset, 
+    gen_predictions = model.test_predictions(test_dataset,
                                              standard_zsl=False)
     # Submit predictions (general)
     gen_response = api.submit_generalized_zsl(gen_predictions.to_dict())

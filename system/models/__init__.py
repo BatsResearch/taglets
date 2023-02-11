@@ -1,3 +1,3 @@
 from .encoders import TextEncoder, CustomTextEncoder, ImageEncoder, CustomImageEncoder
 from .schedulers import make_scheduler
-from .prompts_models import TextPrefixModel
+from .prompts_models import TextPrefixModel, ImagePrefixModel

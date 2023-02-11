@@ -290,7 +290,11 @@ class CoopBaseline(object):
         return accuracy
 
     def test_predictions(self, data, standard_zsl=False):
-        
+        """ This function computes predictions on test data.
+
+        :param data: Dataset object - test dataset
+        """
+
         # Declare the data pre processing
         data.transform = self.transform
         # Define the data loader

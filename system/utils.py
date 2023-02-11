@@ -23,6 +23,99 @@ class Config(object):
         for k, v in config.items():
             setattr(self, k, v)   
 
+def declare_model(model_name):
+
+    if model_name == 'clip_baseline':
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = ClipBaseline(obj_conf, device=device, 
+                             **dict_classes)
+    
+    elif model_name == 'coop_baseline':
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = CoopBaseline(obj_conf, label_to_idx, 
+                             device=device, 
+                             **dict_classes) 
+
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset, 
+                                                   classes=seen_classes)
+        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
+        log.info(f"The optimal prompt is {optimal_prompt}.")
+
+        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+    
+    elif model_name == 'tpt_baseline':
+        # TODO
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = TptBaseline(obj_conf, 
+                             device=device, 
+                             **dict_classes) 
+
+    elif model_name == 'vpt_baseline':
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = VPTBaseline(obj_conf, label_to_idx, 
+                            device=device, 
+                            **dict_classes)
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset)
+        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
+        log.info(f"The optimal prompt is {optimal_prompt}.")
+
+        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+        model.model.image_pos_emb = torch.nn.Parameter(torch.tensor(optimal_prompt[1]))
+    
+    elif model_name == 'vpt_pseudo_baseline':
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = VPTPseudoBaseline(obj_conf, label_to_idx, 
+                            device=device, 
+                            **dict_classes)
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset,
+                                                   train_unseen_dataset)
+        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
+        log.info(f"The optimal prompt is {optimal_prompt}.")
+
+    elif model_name == 'coop_pseudo_baseline':
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = CoopPseudoBaseline(obj_conf, label_to_idx, 
+                            device=device, 
+                            **dict_classes)
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset, 
+                                                   val_seen_dataset, classes=classes, 
+                                                   unlabeled_data=train_unseen_dataset)
+        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
+        log.info(f"The optimal prompt is {optimal_prompt}.")
+    
+    elif model_name == 'vpt_pseudo_disambiguate':
+        model = VPTPseudoDisambiguate(obj_conf, label_to_idx, 
+                                      device=device, 
+                                      **dict_classes)
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset, train_unseen_dataset,
+                                                   val_seen_dataset, data_folder)
+
+    elif model_name == 'teacher_student':
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = TeacherStudent(obj_conf, label_to_idx, 
+                               data_folder, 
+                               device=device, 
+                               **dict_classes)
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset, train_unseen_dataset,
+                                                   val_seen_dataset)
+        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
+        log.info(f"The optimal prompt is {optimal_prompt}.")
+
+    elif model_name == 'adjust_and_adapt':
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = AdjustAndAdapt(obj_conf, label_to_idx, 
+                               device=device, 
+                               **dict_classes)
+        vpt_prompts = model.train(train_labeled_files, 
+                                  unlabeled_data, val_labeled_files,
+                                  data_folder)
+    elif model_name == 'two_stage_classifier':
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = TwoStageClassifier(obj_conf, label_to_idx, 
+                                device=device, 
+                                **dict_classes)
+
+
 def parse_transform(transform, image_size=224):
     if transform == 'RandomResizedCrop':
         return transforms.RandomResizedCrop(image_size)
