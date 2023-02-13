@@ -159,7 +159,7 @@ class CoopBaseline(object):
             loss, total_loss, epoch_parameters = self._train_epoch(loss, total_loss, 
                                                                    train_loader, 
                                                                    accum_iter, epoch,
-                                                                   unlabeled_data)
+                                                                   unlabeled_data, classes)
             accelerator.wait_for_everyone()
             if accelerator.is_local_main_process:
                 log.info(f"Loss Epoch {epoch}: {total_loss/(len(train_loader))}")
@@ -198,7 +198,7 @@ class CoopBaseline(object):
         predictions = []
         labels = []
         for i, (img, _, _, label, img_path) in enumerate(tqdm(train_loader)):
-            text_features = self.model('fix')
+            text_features = self.model(self.model.classes)
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
             with torch.no_grad():
                 image_features = self.clip_model.encode_image(img)
@@ -263,7 +263,7 @@ class CoopBaseline(object):
         labels = []
         for img, _, _, label, img_path in tqdm(val_loader):
             self.model.classes = self.seen_classes
-            text_features = self.model('fix')
+            text_features = self.model(self.model.classes)
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
             with torch.no_grad():
                 image_features = self.clip_model.encode_image(img)
@@ -312,13 +312,10 @@ class CoopBaseline(object):
             self.model.classes =  self.classes
 
         accelerator.wait_for_everyone()
-
-        log.info(f"TEST MODEL CLASS: {self.model.classes}")
-        text_features = self.model.forward('fix')
-        log.info(f"TEXT FEATURES SHAPE: {text_features.size()}")
    
         # Get prompts
-        text_features = self.model('fix')
+        text_features = self.model(self.model.classes)
+
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
         log.info(f"TEXT FEATURES SHAPE: {text_features.size()}")
 
