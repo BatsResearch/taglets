@@ -236,8 +236,8 @@ class CoopBaseline(object):
 
         accelerator.wait_for_everyone()
 
-        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
-        labels = torch.tensor([self.label_to_idx[l] for l in labels]).to(self.device)
+        predictions = torch.tensor([self.label_to_idx[p] for p in predictions][:len(train_loader.filepaths)]).to(self.device)
+        labels = torch.tensor([self.label_to_idx[l] for l in labels][:len(train_loader.filepaths)]).to(self.device)
         
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
@@ -281,8 +281,8 @@ class CoopBaseline(object):
 
         accelerator.wait_for_everyone()
 
-        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
-        labels = torch.tensor([self.label_to_idx[l] for l in labels]).to(self.device)
+        predictions = torch.tensor([self.label_to_idx[p] for p in predictions][:len(val_loader.filepaths)]).to(self.device)
+        labels = torch.tensor([self.label_to_idx[l] for l in labels][:len(val_loader.filepaths)]).to(self.device)
         
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
@@ -346,12 +346,8 @@ class CoopBaseline(object):
         predictions_outputs = accelerator.gather(predictions)
         image_outputs = accelerator.gather(images)
 
-        predictions_outputs = [self.classes[p] for p in predictions_outputs]
-        log.info(f"Number of predictions: {len(predictions_outputs)}")
-        log.info(f"Number of images: {len(images)}")
-        log.info(f"Number of set images: {len(set(images))}")
-        log.info(f"Number samples in dataloader: {len(test_loader)}")
-        image_outputs = [f"img_{i}.jpg" for i in image_outputs]
+        predictions_outputs = [self.classes[p] for p in predictions_outputs][:len(test_loader.filepaths)]
+        image_outputs = [f"img_{i}.jpg" for i in image_outputs][:len(test_loader.filepaths)]
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
 
