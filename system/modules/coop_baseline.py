@@ -164,7 +164,7 @@ class CoopBaseline(object):
             if accelerator.is_local_main_process:
                 log.info(f"Loss Epoch {epoch}: {total_loss/(len(train_loader))}")
             
-            # accelerator.free_memory()
+            accelerator.free_memory()
             
             if val_loader is not None:
                 val_accuracy = self._run_validation(val_loader)
@@ -239,6 +239,9 @@ class CoopBaseline(object):
         accelerator.wait_for_everyone()
 
         predictions_outputs = accelerator.gather(predictions)
+        log.info(f"Prediction: {predictions}")
+        log.info(f"Prediction outputs: {predictions_outputs}")
+        
         labels_outputs = accelerator.gather(labels)
         image_outputs = accelerator.gather(images)
 
