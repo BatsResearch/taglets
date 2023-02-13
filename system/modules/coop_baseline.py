@@ -352,6 +352,7 @@ class CoopBaseline(object):
                                        'class': predictions_outputs})
 
         log.info(f"See predictions: {df_predictions.head(5)}")
+        log.info(f"See predictions: {df_predictions.shape}")
 
         return df_predictions
 

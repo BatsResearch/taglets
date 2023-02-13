@@ -451,7 +451,6 @@ def workflow(dataset_type, dataset_dir, api_url,
     std_predictions = model.test_predictions(test_dataset, 
                                              standard_zsl=True)
     # Submit predictions (standard)
-    
     std_response = api.submit_standard_zsl(std_predictions.to_dict())
     log.info(f'Standard ZSL results: {std_response}')
     log.info(f"[STD] Unseen accuracy: {std_response['Session_Status']['standard_zsl_scores']['accuracy_unseen_std']}")
