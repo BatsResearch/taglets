@@ -238,14 +238,10 @@ class CoopBaseline(object):
 
         predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
         labels = torch.tensor([self.label_to_idx[l] for l in labels]).to(self.device)
-        log.info(f"Prediction: {predictions}")
-        log.info(f"Labels: {labels}")
         
         predictions_outputs = accelerator.gather(torch.tensor(predictions))
         labels_outputs = accelerator.gather(labels)
-        log.info(f"Prediction outputs: {predictions_outputs}")
-        log.info(f"Labels outputs: {labels_outputs}")
-
+        
         accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
         log.info(F"Training accuracy after Epoch {epoch}: {accuracy}")
 
@@ -285,11 +281,13 @@ class CoopBaseline(object):
 
         accelerator.wait_for_everyone()
 
+        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
+        labels = torch.tensor([self.label_to_idx[l] for l in labels]).to(self.device)
+        
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
 
-        accuracy = np.sum(np.array(predictions_outputs) == np.array(labels_outputs))/len(predictions_outputs)
-        
+        accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
 
         return accuracy
 
@@ -339,10 +337,14 @@ class CoopBaseline(object):
 
         accelerator.wait_for_everyone()
 
+        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
+        images = torch.tensor([int(img.split('_')[-1].split('.')[0]) for img in images]).to(self.device)
+
         predictions_outputs = accelerator.gather(predictions)
         image_outputs = accelerator.gather(images)
 
-
+        predictions_outputs = [self.classes[p] for p in predictions_outputs]
+        image_outputs = [f"img_{i}.jpg" for i in image_outputs]
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
 
