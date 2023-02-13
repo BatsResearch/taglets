@@ -312,6 +312,7 @@ class CoopBaseline(object):
         else:
             self.model.classes =  self.classes
 
+        log.info(f"TEST MODEL CLASS: {self.model.classes}")
         # Get prompts
         text_features = self.model('print')
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
@@ -329,6 +330,7 @@ class CoopBaseline(object):
             idx_preds = torch.argmax(logits, dim=1)
 
             if standard_zsl:
+                log.info(f"Standard ZSL: {idx_preds}")
                 predictions += [self.unseen_classes[i] for i in idx_preds]
             else:
                 predictions += [self.classes[i] for i in idx_preds]
