@@ -447,7 +447,7 @@ def workflow(dataset_type, dataset_dir, api_url,
         model.train(train_seen_dataset, train_unseen_dataset, val_seen_dataset)
 
     # Validate on test set (standard)
-    std_predictions = model.test_predictions(test_dataset, model.model,
+    std_predictions = model.test_predictions(test_dataset, 
                                              standard_zsl=True)
     # Submit predictions (standard)
     std_response = api.submit_standard_zsl(std_predictions.to_dict())
