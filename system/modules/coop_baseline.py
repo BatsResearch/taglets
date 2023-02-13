@@ -238,7 +238,7 @@ class CoopBaseline(object):
 
         accelerator.wait_for_everyone()
 
-        predictions_outputs = accelerator.gather(predictions)
+        predictions_outputs = accelerator.gather(torch.tensor(predictions))
         log.info(f"Prediction: {predictions}")
         log.info(f"Prediction outputs: {predictions_outputs}")
         
