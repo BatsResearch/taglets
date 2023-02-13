@@ -352,9 +352,9 @@ class CoopBaseline(object):
                                        'class': predictions_outputs})
 
         log.info(f"See predictions: {df_predictions['id']}")
-        log.info(f"See predictions: {[(i,type(i)) for i in image_outputs]}")
+        log.info(f"See predictions: {[(i,type(i)) for i in image_outputs if type(i) != str]}")
         log.info(f"See predictions: {df_predictions.shape}")
-        log.info(f"See predictions: {[(i,type(i)) for i in predictions_outputs]}")
+        log.info(f"See predictions: {[(i,type(i)) for i in predictions_outputs if type(i) != str]}")
 
         return df_predictions
 
