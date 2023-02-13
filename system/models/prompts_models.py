@@ -1,5 +1,9 @@
+import logging
+
 import torch
 from torch import nn
+
+log = logging.getLogger(__name__)
 
 class TextPrefixModel(nn.Module):
     def __init__(self, initial_prefix, 
