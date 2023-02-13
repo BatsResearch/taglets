@@ -267,7 +267,6 @@ class VPTBaseline(object):
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
 
         predictions = []
-        images = []
         labels = []
         for i, (img, _, _, label, img_path) in enumerate(tqdm(train_loader)):
             image_features = self.training_model(img, teacher)
@@ -282,7 +281,6 @@ class VPTBaseline(object):
                 
             predictions += real_preds
             labels += [self.classes[i.item()] for i in label]
-            images += [i for i in img_path]
 
             labs = self.reindex_true_labels(label, only_unlabelled)
             labs = labs.to(self.device)
@@ -300,11 +298,13 @@ class VPTBaseline(object):
 
         accelerator.wait_for_everyone()
 
+        predictions = torch.tensor([self.label_to_idx[p] for p in predictions][:len(train_loader.dataset)]).to(self.device)
+        labels = torch.tensor([self.label_to_idx[l] for l in labels][:len(train_loader.dataset)]).to(self.device)
+
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
-        image_outputs = accelerator.gather(images)
 
-        accuracy = np.sum(np.array(predictions_outputs) == np.array(labels_outputs))/len(predictions_outputs)
+        accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
         log.info(F"Training accuracy after Epoch {epoch}: {accuracy}")
 
         self.update_scheduler(teacher)
@@ -315,7 +315,7 @@ class VPTBaseline(object):
 
         return loss, total_loss, epoch_parameters
 
-    def _run_validation(self, val_loader, only_unlabelled, teacher=False):
+    def _run_validation(self, val_loader, only_unlabelled=False, teacher=False):
         """ This function computes the validation accuracy on labeled seen data.
 
         :param val_loder: Dataloader object - validation dataset
@@ -349,12 +349,14 @@ class VPTBaseline(object):
 
         accelerator.wait_for_everyone()
 
+        predictions = torch.tensor([self.label_to_idx[p] for p in predictions][:len(val_loader.dataset)]).to(self.device)
+        labels = torch.tensor([self.label_to_idx[l] for l in labels][:len(val_loader.dataset)]).to(self.device)
+
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
 
-        accuracy = np.sum(np.array(predictions_outputs) == np.array(labels_outputs))/len(predictions_outputs)
+        accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
         
-
         return accuracy
 
 
@@ -410,10 +412,14 @@ class VPTBaseline(object):
 
         accelerator.wait_for_everyone()
 
+        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
+        images = torch.tensor([int(img.split('_')[-1].split('.')[0]) for img in images]).to(self.device)
+
         predictions_outputs = accelerator.gather(predictions)
         image_outputs = accelerator.gather(images)
 
-
+        predictions_outputs = [self.classes[p] for p in predictions_outputs][:len(test_loader.dataset)]
+        image_outputs = [f"img_{i}.jpg" for i in image_outputs][:len(test_loader.dataset)]
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
 

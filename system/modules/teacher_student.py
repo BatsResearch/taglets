@@ -177,7 +177,6 @@ class TeacherStudent(VPTPseudoBaseline):
             loss, total_loss, epoch_parameters = self._train_epoch(loss, total_loss, 
                                                                    train_loader, 
                                                                    accum_iter, epoch,
-                                                                   only_unlabelled=False,
                                                                    teacher=True)
             accelerator.wait_for_everyone()
             if accelerator.is_local_main_process:
@@ -187,7 +186,7 @@ class TeacherStudent(VPTPseudoBaseline):
             accelerator.free_memory()
             
             if val_loader is not None:
-                val_accuracy = self._run_validation(val_loader, epoch, teacher=True)
+                val_accuracy = self._run_validation(val_loader, teacher=True)
                 log.info(f"Validation accuracy after Epoch {epoch}: {val_accuracy}")
                 if val_accuracy > best_val_accuracy:
                     best_val_accuracy = val_accuracy
@@ -290,8 +289,8 @@ class TeacherStudent(VPTPseudoBaseline):
                 self.teacher_loss_func = torch.nn.CrossEntropyLoss()
             
             else:
-                self.student = ImagePrefixModel(self.teacher.prefix,
-                                            self.teacher.image_pos_emb,
+                self.student = ImagePrefixModel(self.vis_initial_prefix,#self.teacher.prefix,
+                                            self.initial_pos_emb,#self.teacher.image_pos_emb,
                                             self.image_encoder,
                                             device=self.device).to(self.device)
             
