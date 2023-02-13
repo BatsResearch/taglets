@@ -303,7 +303,8 @@ class CoopBaseline(object):
         test_loader = torch.utils.data.DataLoader(data, 
                                                   batch_size=self.config.BATCH_SIZE)
 
-        accelerator.wait_for_everyone()
+
+        self.model, test_loader = accelerator.prepare(self.model, test_loader)
 
         if standard_zsl:
             self.model.classes =  self.unseen_classes
@@ -311,11 +312,10 @@ class CoopBaseline(object):
             self.model.classes =  self.classes
 
         accelerator.wait_for_everyone()
+
         log.info(f"TEST MODEL CLASS: {self.model.classes}")
         text_features = self.model('fix')
         log.info(f"TEXT FEATURES SHAPE: {text_features.size()}")
-
-        self.model, test_loader = accelerator.prepare(self.model, test_loader)
    
         # Get prompts
         text_features = self.model('fix')
