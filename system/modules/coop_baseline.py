@@ -305,12 +305,12 @@ class CoopBaseline(object):
 
         accelerator.wait_for_everyone()
 
-        self.model, test_loader = accelerator.prepare(self.model, test_loader)
-
         if standard_zsl:
             self.model.classes =  self.unseen_classes
         else:
             self.model.classes =  self.classes
+
+        self.model, test_loader = accelerator.prepare(self.model, test_loader)
 
         log.info(f"TEST MODEL CLASS: {self.model.classes}")
         # Get prompts
