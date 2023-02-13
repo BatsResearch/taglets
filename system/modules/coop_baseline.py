@@ -314,7 +314,7 @@ class CoopBaseline(object):
         accelerator.wait_for_everyone()
 
         log.info(f"TEST MODEL CLASS: {self.model.classes}")
-        text_features = self.model('fix')
+        text_features = self.model.forward('fix')
         log.info(f"TEXT FEATURES SHAPE: {text_features.size()}")
    
         # Get prompts
