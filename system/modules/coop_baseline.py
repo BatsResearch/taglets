@@ -196,7 +196,6 @@ class CoopBaseline(object):
         """
 
         predictions = []
-        images = []
         labels = []
         for i, (img, _, _, label, img_path) in enumerate(tqdm(train_loader)):
             text_features = self.model('fix')
@@ -217,7 +216,6 @@ class CoopBaseline(object):
             
             predictions += real_preds
             labels += [self.classes[i.item()] for i in label]
-            images += [i for i in img_path]
 
             if unlabeled_data:
                 labs = torch.tensor([l.item() for l in label]).to(self.device)
@@ -238,16 +236,15 @@ class CoopBaseline(object):
 
         accelerator.wait_for_everyone()
 
-        predictions = [self.label_to_idx[p] for p in predictions]
+        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
+        labels = torch.tensor([self.label_to_idx[l] for l in labels]).to(self.device)
         log.info(f"Prediction: {predictions}")
-        labels = [self.label_to_idx[l] for l in labels]
         log.info(f"Labels: {labels}")
+        
         predictions_outputs = accelerator.gather(torch.tensor(predictions))
-        
-        log.info(f"Prediction outputs: {predictions_outputs}")
-        
         labels_outputs = accelerator.gather(labels)
-        image_outputs = accelerator.gather(images)
+        log.info(f"Prediction outputs: {predictions_outputs}")
+        log.info(f"Labels outputs: {labels_outputs}")
 
         accuracy = np.sum(np.array(predictions_outputs) == np.array(labels_outputs))/len(predictions_outputs)
         log.info(F"Training accuracy after Epoch {epoch}: {accuracy}")
