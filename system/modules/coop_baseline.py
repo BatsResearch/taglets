@@ -350,7 +350,7 @@ class CoopBaseline(object):
         log.info(f"Number of predictions: {len(predictions_outputs)}")
         log.info(f"Number of images: {len(images)}")
         log.info(f"Number of set images: {len(set(images))}")
-        leg.info(f"Number samples in dataloader: {len(test_loader)}")
+        log.info(f"Number samples in dataloader: {len(test_loader)}")
         image_outputs = [f"img_{i}.jpg" for i in image_outputs]
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
