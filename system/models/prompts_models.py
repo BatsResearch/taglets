@@ -23,7 +23,7 @@ class TextPrefixModel(nn.Module):
         self.text_encoder = text_encoder
 
     def forward(self, to_print):
-
+        log.info(f"CLASSES in FORWARD: {self.classes}")
         out = self.text_encoder(self.prefix, self.classes)
         norm_out = out / out.norm(dim=-1, keepdim=True)
 
