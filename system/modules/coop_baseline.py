@@ -241,7 +241,7 @@ class CoopBaseline(object):
         predictions = [self.label_to_idx[p] for p in predictions]
         log.info(f"Prediction: {predictions}")
         labels = [self.label_to_idx[p] for l in labels]
-        log.info(f"Labels: {}")
+        log.info(f"Labels: {labels}")
         predictions_outputs = accelerator.gather(torch.tensor(predictions))
         
         log.info(f"Prediction outputs: {predictions_outputs}")
