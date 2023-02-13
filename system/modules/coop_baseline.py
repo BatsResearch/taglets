@@ -239,7 +239,7 @@ class CoopBaseline(object):
         predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
         labels = torch.tensor([self.label_to_idx[l] for l in labels]).to(self.device)
         
-        predictions_outputs = accelerator.gather(torch.tensor(predictions))
+        predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
         
         accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
@@ -310,10 +310,11 @@ class CoopBaseline(object):
         else:
             self.model.classes =  self.classes
         log.info(f"TEST MODEL CLASS: {self.model.classes}")
+        text_features = self.model('print')
+        log.info(f"TEXT FEATURES SHAPE: {text_features.size()}")
 
         self.model, test_loader = accelerator.prepare(self.model, test_loader)
-
-        
+   
         # Get prompts
         text_features = self.model('print')
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
