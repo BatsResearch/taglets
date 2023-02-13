@@ -449,8 +449,10 @@ def workflow(dataset_type, dataset_dir, api_url,
     # Validate on test set (standard)
     std_predictions = model.test_predictions(test_dataset, 
                                              standard_zsl=True)
+    accelerator.wait_for_everyone()
     # Submit predictions (standard)
-    std_response = api.submit_standard_zsl(std_predictions.to_dict())
+    if accelerator.is_local_main_process:
+        std_response = api.submit_standard_zsl(std_predictions.to_dict())
     log.info(f'Standard ZSL results')
     log.info(f"[STD] Unseen accuracy: {std_response['Session_Status']['standard_zsl_scores']['accuracy_unseen_std']}")
     log.info(f"[STD] Unseen average recall per class: {std_response['Session_Status']['standard_zsl_scores']['average_per_class_recall_unseen_std']}")
@@ -458,8 +460,10 @@ def workflow(dataset_type, dataset_dir, api_url,
     # Validate on test set (general)
     gen_predictions = model.test_predictions(test_dataset,
                                              standard_zsl=False)
+    accelerator.wait_for_everyone()
     # Submit predictions (general)
-    gen_response = api.submit_generalized_zsl(gen_predictions.to_dict())
+    if accelerator.is_local_main_process:
+        gen_response = api.submit_generalized_zsl(gen_predictions.to_dict())
     log.info(f'Generalized ZSL results')
     log.info(f"[GEN] Accuracy all classes: {gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_all_classes']}")
     log.info(f"[GEN] Accuracy seen classes: {gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_seen']}")

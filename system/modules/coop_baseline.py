@@ -332,7 +332,6 @@ class CoopBaseline(object):
             idx_preds = torch.argmax(logits, dim=1)
 
             if standard_zsl:
-                log.info(f"Standard ZSL: {idx_preds}")
                 predictions += [self.unseen_classes[i] for i in idx_preds]
             else:
                 predictions += [self.classes[i] for i in idx_preds]
@@ -351,6 +350,8 @@ class CoopBaseline(object):
         image_outputs = [f"img_{i}.jpg" for i in image_outputs]
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
+
+        log.info(f"See predictions: {df_predictions.head(5)}")
 
         return df_predictions
 
