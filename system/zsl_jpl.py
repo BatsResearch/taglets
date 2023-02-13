@@ -192,16 +192,22 @@ class ZSL_JPL:
 
     def post_only_once(self, command, headers, posting_json):
         if accelerator.is_local_main_process:
-            response = self.session.post(self.url + "/" + command, 
-                                         json=posting_json, headers=headers).json()
+            r = self.session.post(self.url + "/" + command, json=posting_json, headers=headers)
+            with open(os.path.join(command.replace("/", "_") + "_response.json"), "w") as f:
+                json.dump(r.json(), f)
         accelerator.wait_for_everyone()
+        with open(os.path.join(command.replace("/", "_") + "_response.json"), "r") as f:
+            response = json.load(f)
         return response
     
     def get_only_once(self, command, headers):
         if accelerator.is_local_main_process:
-            response = self.session.get(self.url + "/" + command,
-                                        headers=headers).json()
+            r = self.session.get(self.url + "/" + command, headers=headers)
+            with open(os.path.join(command.replace("/", "_") + "_response.json"), "w") as f:
+                json.dump(r.json(), f)
         accelerator.wait_for_everyone()
+        with open(os.path.join(command.replace("/", "_") + "_response.json"), "r") as f:
+            response = json.load(f)
         return response
 
     def deactivate_session(self, deactivate_session):
