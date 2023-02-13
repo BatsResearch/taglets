@@ -449,7 +449,6 @@ def workflow(dataset_type, dataset_dir, api_url,
     # Validate on test set (standard)
     std_predictions = model.test_predictions(test_dataset, 
                                              standard_zsl=True)
-    accelerator.wait_for_everyone()
     # Submit predictions (standard)
     if accelerator.is_local_main_process:
         std_response = api.submit_standard_zsl(std_predictions.to_dict())
@@ -460,7 +459,6 @@ def workflow(dataset_type, dataset_dir, api_url,
     # Validate on test set (general)
     gen_predictions = model.test_predictions(test_dataset,
                                              standard_zsl=False)
-    accelerator.wait_for_everyone()
     # Submit predictions (general)
     if accelerator.is_local_main_process:
         gen_response = api.submit_generalized_zsl(gen_predictions.to_dict())
