@@ -316,6 +316,7 @@ class CoopBaseline(object):
         # Get prompts
         text_features = self.model('print')
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+        log.info(f"TEXT FEATURES SHAPE: {text_features.size()}")
 
         log.info(f"Start inference for test data")
         predictions = []
