@@ -347,9 +347,10 @@ class CoopBaseline(object):
         image_outputs = accelerator.gather(images)
 
         predictions_outputs = [self.classes[p] for p in predictions_outputs]
-        log.info(f"Number of predictions: {len(predictions_outputs)")
-        log.info(f"Number of images: {len(images)")
-        log.info(f"Number of set images: {len(set(images))")
+        log.info(f"Number of predictions: {len(predictions_outputs)}")
+        log.info(f"Number of images: {len(images)}")
+        log.info(f"Number of set images: {len(set(images))}")
+        leg.info(f"Number samples in dataloader: {len(test_loader)}")
         image_outputs = [f"img_{i}.jpg" for i in image_outputs]
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
