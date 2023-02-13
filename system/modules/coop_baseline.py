@@ -198,7 +198,7 @@ class CoopBaseline(object):
         predictions = []
         labels = []
         for i, (img, _, _, label, img_path) in enumerate(tqdm(train_loader)):
-            text_features = self.model('fix')
+            text_features = self.model()
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
             with torch.no_grad():
                 image_features = self.clip_model.encode_image(img)
@@ -263,7 +263,7 @@ class CoopBaseline(object):
         labels = []
         for img, _, _, label, img_path in tqdm(val_loader):
             self.model.classes = self.seen_classes
-            text_features = self.model('print')
+            text_features = self.model(self.model.classes)
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
             with torch.no_grad():
                 image_features = self.clip_model.encode_image(img)
@@ -310,7 +310,7 @@ class CoopBaseline(object):
         else:
             self.model.classes =  self.classes
         log.info(f"TEST MODEL CLASS: {self.model.classes}")
-        text_features = self.model('print')
+        text_features = self.model(self.model.classes)
         log.info(f"TEXT FEATURES SHAPE: {text_features.size()}")
 
         self.model, test_loader = accelerator.prepare(self.model, test_loader)
