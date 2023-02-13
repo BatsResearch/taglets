@@ -338,15 +338,18 @@ class CoopBaseline(object):
 
             images += [i for i in img_path]
 
-        accelerator.wait_for_everyone()
-
         predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
         images = torch.tensor([int(img.split('_')[-1].split('.')[0]) for img in images]).to(self.device)
+
+        accelerator.wait_for_everyone()
 
         predictions_outputs = accelerator.gather(predictions)
         image_outputs = accelerator.gather(images)
 
         predictions_outputs = [self.classes[p] for p in predictions_outputs]
+        log.info(f"Number of predictions: {len(predictions_outputs)")
+        log.info(f"Number of images: {len(images)")
+        log.info(f"Number of set images: {len(set(images))")
         image_outputs = [f"img_{i}.jpg" for i in image_outputs]
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
