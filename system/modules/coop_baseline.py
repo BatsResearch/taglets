@@ -313,7 +313,7 @@ class CoopBaseline(object):
             self.model.classes =  self.classes
 
         # Get prompts
-        text_features = self.model()
+        text_features = self.model('print')
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
 
         log.info(f"Start inference for test data")
