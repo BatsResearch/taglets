@@ -198,7 +198,7 @@ class CoopBaseline(object):
         predictions = []
         labels = []
         for i, (img, _, _, label, img_path) in enumerate(tqdm(train_loader)):
-            text_features = self.model(self.model.classes)
+            text_features = self.model(self.model.module.classes)
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
             with torch.no_grad():
                 image_features = self.clip_model.encode_image(img)
