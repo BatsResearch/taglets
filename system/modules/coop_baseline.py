@@ -246,7 +246,7 @@ class CoopBaseline(object):
         log.info(f"Prediction outputs: {predictions_outputs}")
         log.info(f"Labels outputs: {labels_outputs}")
 
-        accuracy = np.sum(np.array(predictions_outputs) == np.array(labels_outputs))/len(predictions_outputs)
+        accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
         log.info(F"Training accuracy after Epoch {epoch}: {accuracy}")
 
         current_lr = self.scheduler.get_last_lr()
