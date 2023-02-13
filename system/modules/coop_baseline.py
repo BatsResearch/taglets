@@ -159,7 +159,7 @@ class CoopBaseline(object):
             loss, total_loss, epoch_parameters = self._train_epoch(loss, total_loss, 
                                                                    train_loader, 
                                                                    accum_iter, epoch,
-                                                                   unlabeled_data, classes)
+                                                                   unlabeled_data)
             accelerator.wait_for_everyone()
             if accelerator.is_local_main_process:
                 log.info(f"Loss Epoch {epoch}: {total_loss/(len(train_loader))}")
