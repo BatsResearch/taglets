@@ -317,6 +317,7 @@ class CoopBaseline(object):
    
         # Get prompts
         text_features = self.model('print')
+        print(log.info(self.model.__dict__()))
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
         log.info(f"TEXT FEATURES SHAPE: {text_features.size()}")
 
