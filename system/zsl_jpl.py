@@ -189,6 +189,7 @@ class ZSL_JPL:
                    'govteam_secret': self.gov_team_secret,
                    'session_token': self.session_token}
         predictions_json = {'predictions': predictions}
+        log.info(f"Submit predictions...")
         return self.post_only_once('submit_predictions', headers, predictions_json)
 
     def post_only_once(self, command, headers, posting_json):
@@ -450,23 +451,22 @@ def workflow(dataset_type, dataset_dir, api_url,
     std_predictions = model.test_predictions(test_dataset, 
                                              standard_zsl=True)
     # Submit predictions (standard)
-    if accelerator.is_local_main_process:
-        std_response = api.submit_standard_zsl(std_predictions.to_dict())
-        log.info(f'Standard ZSL results')
-        log.info(f"[STD] Unseen accuracy: {std_response['Session_Status']['standard_zsl_scores']['accuracy_unseen_std']}")
-        log.info(f"[STD] Unseen average recall per class: {std_response['Session_Status']['standard_zsl_scores']['average_per_class_recall_unseen_std']}")
-        
+    
+    std_response = api.submit_standard_zsl(std_predictions.to_dict())
+    log.info(f'Standard ZSL results: {std_response}')
+    log.info(f"[STD] Unseen accuracy: {std_response['Session_Status']['standard_zsl_scores']['accuracy_unseen_std']}")
+    log.info(f"[STD] Unseen average recall per class: {std_response['Session_Status']['standard_zsl_scores']['average_per_class_recall_unseen_std']}")
+    
     # Validate on test set (general)
     gen_predictions = model.test_predictions(test_dataset,
                                              standard_zsl=False)
     # Submit predictions (general)
-    if accelerator.is_local_main_process:
-        gen_response = api.submit_generalized_zsl(gen_predictions.to_dict())
-        log.info(f'Generalized ZSL results')
-        log.info(f"[GEN] Accuracy all classes: {gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_all_classes']}")
-        log.info(f"[GEN] Accuracy seen classes: {gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_seen']}")
-        log.info(f"[GEN] Accuracy unseen classes: {gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_unseen']}")
-        
+    gen_response = api.submit_generalized_zsl(gen_predictions.to_dict())
+    log.info(f'Generalized ZSL results')
+    log.info(f"[GEN] Accuracy all classes: {gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_all_classes']}")
+    log.info(f"[GEN] Accuracy seen classes: {gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_seen']}")
+    log.info(f"[GEN] Accuracy unseen classes: {gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_unseen']}")
+    
 
 
 def main():
