@@ -61,7 +61,7 @@ class DisambiguateTeacherStudent(TeacherStudent):
         else:
             error_unseen = 0
         if seen_samples:
-            error_seen = torch.sum(logits[seen_samples][:,unseen_ids])
+            error_seen = torch.sum(logits[seen_samples][:, unseen_ids])
         else:
             error_seen = 0
         return error_unseen + error_seen
