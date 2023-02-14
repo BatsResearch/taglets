@@ -69,7 +69,7 @@ class VPTPseudoBaseline(VPTBaseline):
 
     def define_textual_prompts(self, only_unlabelled=None, validation=False):
         """ This function returns the textual prompts. You can modify the list
-        of classes of interest.
+        of classes of interest. 
 
         :param only_unlabelled: boolean. It is True if the training only involves 
                                 pseudo-labeled unseen data
