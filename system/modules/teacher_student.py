@@ -1,4 +1,5 @@
 import copy
+import math
 from tqdm import tqdm
 import logging
 import numpy as np
@@ -32,20 +33,27 @@ class TeacherStudent(VPTPseudoBaseline):
                          device) 
 
         self.data_folder = data_folder
+
         
     def train(self, train_data, val_data, unlabeled_data):
 
         # Number of total iterations to cover all unlabeled data
         num_iter = int(len(unlabeled_data) / self.config.STEP_QUANTILE)
         # Initialize the number of pseudo-labels per class
-        self.num_pseudo_labels_per_class = int(num_iter / len(self.unseen_classes))
+        n_per_class = int(num_iter / len(self.unseen_classes)) 
+        n_unseen = len(self.unseen_classes)
+        if n_per_class*n_unseen <= len(unlabeled.filepaths):
+            self.num_pseudo_labels_per_class =  n_per_class
+        else:
+            self.num_pseudo_labels_per_class =  math.floor(len(unlabeled.filepaths)/n_unseen)
+        
         log.info(f"We select {self.num_pseudo_labels_per_class} per each unseen classes.")
         # Create a safe copy of labeled/unlabeled data
         original_train_data = copy.deepcopy(train_data)
         original_unlabeled_data = copy.deepcopy(unlabeled_data)
         
         for niter in range(1, num_iter):
-            log.info(f"Start first round of training..")
+            log.info(f"Start {niter} round of training..")
             # Create labeled seen dataset to train on so that it is balanced with unseen classes
             np.random.seed(self.config.validation_seed)
             desired_labeled_data = self.num_pseudo_labels_per_class*len(self.seen_classes)
@@ -55,10 +63,10 @@ class TeacherStudent(VPTPseudoBaseline):
                                             size=num_labels,
                                             replace=False)
             # Update the training data
-            train_data.filepaths = [f for i, f in enumerate(original_train_data.filepaths) if i in train_indices]
-            train_data.labels = [l for i, l in enumerate(original_train_data.labels) if i in train_indices]
-
-            
+            train_data.filepaths = [f for i, f in enumerate(original_train_data.filepaths) \
+                                    if i in train_indices]
+            train_data.labels = [l for i, l in enumerate(original_train_data.labels) \ 
+                                 if i in train_indices]
             
             # 1. Initialize teacher
             self.define_model(teacher=True)
@@ -87,7 +95,12 @@ class TeacherStudent(VPTPseudoBaseline):
 
             # 6. Get new pseudo labels from student
             log.info(f"[STUDENT] Get student pseudo-labels for the next round of training.")
-            self.num_pseudo_labels_per_class = int((niter + 1) * (len(original_unlabeled_data) / self.config.STEP_QUANTILE) / len(self.unseen_classes))
+            n_per_class = int((niter + 1) * num_iter / n_unseen)
+            if n_per_class*n_unseen <= len(original_unlabeled_data.filepaths):
+                self.num_pseudo_labels_per_class =  n_per_class
+            else:
+                self.num_pseudo_labels_per_class =  math.floor(len(original_unlabeled_data.filepaths)/n_unseen)
+            
             unlabeled_data = self.get_pseudo_labels(original_unlabeled_data,
                                                     teacher=False)
 
@@ -228,10 +241,11 @@ class TeacherStudent(VPTPseudoBaseline):
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
 
         log.info(f"Start inference for test data")
+        # This is required for distributed training
+        test_files = [f.split('/')[-1] for f in test_loader.dataset.filepaths]
+
         predictions = []
         images = []
-        
-        
         for img, _, _, img_path in tqdm(test_loader):
             with torch.no_grad():
                 if teacher:
@@ -252,14 +266,21 @@ class TeacherStudent(VPTPseudoBaseline):
 
             images += [i for i in img_path]
 
+        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
+        images = torch.tensor([test_files.index(img) for img in images]).to(self.device)
+        
         accelerator.wait_for_everyone()
 
         predictions_outputs = accelerator.gather(predictions)
         image_outputs = accelerator.gather(images)
 
+        predictions_outputs = [self.classes[p] for p in predictions_outputs]
+        image_outputs = [test_files[i] for i in image_outputs]
+
 
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
+        df_predictions.drop_duplicates(subset=['id', 'class'], inplace=True)
 
         return df_predictions
 

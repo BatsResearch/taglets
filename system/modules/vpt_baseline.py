@@ -298,8 +298,8 @@ class VPTBaseline(object):
 
         accelerator.wait_for_everyone()
 
-        predictions = torch.tensor([self.label_to_idx[p] for p in predictions][:len(train_loader.dataset)]).to(self.device)
-        labels = torch.tensor([self.label_to_idx[l] for l in labels][:len(train_loader.dataset)]).to(self.device)
+        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
+        labels = torch.tensor([self.label_to_idx[l] for l in labels]).to(self.device)
 
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)

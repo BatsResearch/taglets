@@ -6,7 +6,7 @@ PROMPT_TEMPLATE: "a photo of a "
 # Prefix size
 PREFIX_SIZE: 16
 N_PSEUDOSHOTS: 16
-STEP_QUANTILE: 5
+STEP_QUANTILE: 10
 BALANCE_DATA: True
 # Prefix initialization: normal/uniform
 VIS_PREFIX_INIT: "normal"
@@ -20,7 +20,7 @@ validation_seed: 0
 # Ratio validation
 ratio_train_val: 0.8
 # Batch size
-BATCH_SIZE: 12
+BATCH_SIZE: 3
 # Number of epochs
 EPOCHS: 15
 # Scheduler
