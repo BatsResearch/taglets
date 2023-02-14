@@ -65,7 +65,7 @@ class VPTPseudoDisambiguate(VPTPseudoBaseline):
         return error_unseen + error_seen
 
 
-    def define_loss_function(self, logits, labs):
+    def define_loss_function(self, logits, labs, teacher=False):
         
         loss_ce = self.loss_func(logits, labs)
         loss_dis = self.loss_disambiguate(logits, labs)
