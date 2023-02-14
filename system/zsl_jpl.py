@@ -434,7 +434,7 @@ def workflow(dataset_type, dataset_dir, api_url,
 
     elif obj_conf.MODEL == 'disambiguate_teacher_student':
         log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = TeacherStudent(obj_conf, label_to_idx, 
+        model = DisambiguateTeacherStudent(obj_conf, label_to_idx, 
                                data_folder, 
                                device=device, 
                                **dict_classes)
