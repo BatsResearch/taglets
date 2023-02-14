@@ -352,7 +352,7 @@ class CoopBaseline(object):
                                        'class': predictions_outputs})
 
         compare = np.array(['hello' for c in predictions_outputs])
-        log.infot(f"COMPARE: {df_predictions['class'] == compare}")
+        log.info(f"COMPARE: {df_predictions['class'] == compare}")
 
         return df_predictions
 
