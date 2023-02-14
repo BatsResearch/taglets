@@ -480,7 +480,7 @@ def workflow(dataset_type, dataset_dir, api_url,
     log.info(f"[GEN] Accuracy unseen classes: {gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_unseen']}")
     
     # Store results
-    results_to_store = {'model':obj_conf.MODEL, 'config':obj_conf.__dict__(), 
+    results_to_store = {'model':obj_conf.MODEL, 'config':obj_conf.__dict__, 
                         'std_accuracy': std_response['Session_Status']['standard_zsl_scores']['accuracy_unseen_std'],
                         'std_recall_classes': std_response['Session_Status']['standard_zsl_scores']['average_per_class_recall_unseen_std'],
                         'gen_accuracy': gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_all_classes'],
