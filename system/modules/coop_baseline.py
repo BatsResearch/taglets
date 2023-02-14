@@ -353,7 +353,8 @@ class CoopBaseline(object):
         df_predictions['id'] = df_predictions['id'].astype(str)
         df_predictions['class'] = df_predictions['class'].astype(str)
         # compare = np.array(['hello' for c in predictions_outputs])
-        # log.info(f"COMPARE: {df_predictions['class'] == compare}")
+        df_predictions.to_csv('pred_data.csv', sep='\t')
+        log.info(f"COMPARE: {df_predictions.to_dict()}")
 
         return df_predictions
 
