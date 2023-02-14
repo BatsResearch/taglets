@@ -339,8 +339,9 @@ class CoopBaseline(object):
             images += [i for i in img_path]
 
         predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
+        log.info(f"look at a few img: {images[:10]}")
         images = torch.tensor([int(img.split('_')[-1].split('.')[0]) for img in images]).to(self.device)
-        log.info(f"look at a few img: {image[:10]}")
+        
 
         accelerator.wait_for_everyone()
 
