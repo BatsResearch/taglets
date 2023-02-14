@@ -374,7 +374,7 @@ class VPTBaseline(object):
 
         accelerator.wait_for_everyone()
 
-        self.model, test_loader = accelerator.prepare(model, test_loader)
+        self.model, test_loader = accelerator.prepare(self.model, test_loader)
 
         # Define text queries
         if standard_zsl:
