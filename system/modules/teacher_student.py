@@ -56,7 +56,7 @@ class TeacherStudent(VPTPseudoBaseline):
         for niter in range(1, num_iter):
             log.info(f"Start {niter} round of training..")
             # Create labeled seen dataset to train on so that it is balanced with unseen classes
-            np.random.seed(self.config.validation_seed)
+            np.random.seed(niter)
             desired_labeled_data = self.num_pseudo_labels_per_class*len(self.seen_classes)
             # Avoid the error of too many data to samples
             num_labels = min(desired_labeled_data, len(original_train_data.filepaths))
@@ -94,12 +94,13 @@ class TeacherStudent(VPTPseudoBaseline):
 
             # 6. Get new pseudo labels from student
             log.info(f"[STUDENT] Get student pseudo-labels for the next round of training.")
-            n_per_class = int((niter + 1) * num_samples / n_unseen)
-            if n_per_class*n_unseen <= len(original_unlabeled_data.filepaths):
-                self.num_pseudo_labels_per_class =  n_per_class
-            else:
-                self.num_pseudo_labels_per_class =  math.floor(len(original_unlabeled_data.filepaths)/n_unseen)
-            
+            if self.config.ALL_UNLABELED:
+                n_per_class = int((niter + 1) * num_samples / n_unseen)
+                if n_per_class*n_unseen <= len(original_unlabeled_data.filepaths):
+                    self.num_pseudo_labels_per_class =  n_per_class
+                else:
+                    self.num_pseudo_labels_per_class =  math.floor(len(original_unlabeled_data.filepaths)/n_unseen)
+
             unlabeled_data = self.get_pseudo_labels(original_unlabeled_data,
                                                     teacher=False)
 
