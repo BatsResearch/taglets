@@ -350,9 +350,10 @@ class CoopBaseline(object):
         image_outputs = [f"img_{i}.jpg" for i in image_outputs][:len(test_loader.dataset)]
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
-
-        compare = np.array(['hello' for c in predictions_outputs])
-        log.info(f"COMPARE: {df_predictions['class'] == compare}")
+        df_predictions['id'] = df_predictions['id'].astype(str)
+        df_predictions['class'] = df_predictions['class'].astype(str)
+        # compare = np.array(['hello' for c in predictions_outputs])
+        # log.info(f"COMPARE: {df_predictions['class'] == compare}")
 
         return df_predictions
 
