@@ -341,23 +341,23 @@ class CoopBaseline(object):
 
             images += [i for i in img_path]
 
-        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
-        images = torch.tensor([test_files.index(img) for img in images]).to(self.device)
+        predictions = torch.tensor([self.label_to_idx[p] for p in predictions][:len(test_loader.dataset)]).to(self.device)
+        images = torch.tensor([test_files.index(img) for img in images][:len(test_loader.dataset)]).to(self.device)
         
         accelerator.wait_for_everyone()
 
         predictions_outputs = accelerator.gather(predictions)
         image_outputs = accelerator.gather(images)
 
-        predictions_outputs = [self.classes[p] for p in predictions_outputs][:len(test_loader.dataset)]
-        image_outputs = [test_files[i] for i in image_outputs][:len(test_loader.dataset)]
-        log.info(f"LEN SET IDS: {set(image_outputs)}")
+        predictions_outputs = [self.classes[p] for p in predictions_outputs]
+        image_outputs = [test_files[i] for i in image_outputs]
+        log.info(f"LEN SET IDS: {len(set(image_outputs))}")
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
         # df_predictions['id'] = df_predictions['id'].astype(str)
         # df_predictions['class'] = df_predictions['class'].astype(str)
         # # compare = np.array(['hello' for c in predictions_outputs])
-        # df_predictions.to_csv('pred_data.csv', sep='\t')
+        df_predictions.to_csv('pred_data.csv', sep='\t')
         # log.info(f"COMPARE: {df_predictions.to_dict()}")
 
         return df_predictions
