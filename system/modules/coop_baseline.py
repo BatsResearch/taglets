@@ -319,7 +319,10 @@ class CoopBaseline(object):
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
         log.info(f"TEXT FEATURES SHAPE: {text_features.size()}")
 
-        log.info(f"Start inference for test data: {test_loader.dataset.filepaths}")
+        log.info(f"Start inference for test data")
+        # This is required for distributed training
+        test_files = [f.split('/')[-1] for f in test_loader.dataset.filepaths]
+        
         predictions = []
         images = []
         for img, _, _, img_path in tqdm(test_loader):
@@ -339,7 +342,7 @@ class CoopBaseline(object):
             images += [i for i in img_path]
 
         predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
-        images = torch.tensor([str(img.split('_')[-1].split('.')[0]) for img in images]).to(self.device)
+        images = torch.tensor([test_files.index(img) for img in images]).to(self.device)
         
         accelerator.wait_for_everyone()
 
@@ -347,7 +350,7 @@ class CoopBaseline(object):
         image_outputs = accelerator.gather(images)
 
         predictions_outputs = [self.classes[p] for p in predictions_outputs][:len(test_loader.dataset)]
-        image_outputs = [f"img_{i}.jpg" for i in image_outputs][:len(test_loader.dataset)]
+        image_outputs = [test_files[i] for i in image_outputs][:len(test_loader.dataset)]
         log.info(f"LEN SET IDS: {set(list(df_pred['id']))}")
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
