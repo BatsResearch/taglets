@@ -349,11 +349,20 @@ class CoopBaseline(object):
         predictions_outputs = accelerator.gather(predictions)
         image_outputs = accelerator.gather(images)
 
-        predictions_outputs = [self.classes[p] for p in predictions_outputs][:len(test_loader.dataset)]
-        image_outputs = [test_files[i] for i in image_outputs][:len(test_loader.dataset)]
-        log.info(f"LEN SET IDS: {len(set(image_outputs))}")
-        df_predictions = pd.DataFrame({'id': image_outputs, 
-                                       'class': predictions_outputs})
+        duplicates = set()
+        pred_outputs = []
+        img_outputs = []
+        for i, f in enumerate(image_outputs):
+            if f not in duplicates:
+                pred_outputs.append(self.classes[predictions_outputs[i]])
+                img_outputs.append(test_files[f])
+            duplicates.add(f)
+
+        #predictions_outputs = [self.classes[p] for p in predictions_outputs][:len(test_loader.dataset)]
+        #image_outputs = [test_files[i] for i in image_outputs][:len(test_loader.dataset)]
+        log.info(f"LEN SET IDS: {len(set(img_outputs))}")
+        df_predictions = pd.DataFrame({'id': img_outputs, 
+                                       'class': pred_outputs})
         # df_predictions['id'] = df_predictions['id'].astype(str)
         # df_predictions['class'] = df_predictions['class'].astype(str)
         # # compare = np.array(['hello' for c in predictions_outputs])
