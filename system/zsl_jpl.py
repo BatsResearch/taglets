@@ -534,8 +534,9 @@ def main():
         config = yaml.safe_load(file)
     obj_conf = Config(config)
 
-    log.info(f"WRITE TYPE OF OPTIM SEED: {type(obj_conf.OPTIM_SEED)}")
-    obj_conf.OPTIM_SEED = int(obj_conf.OPTIM_SEED)
+    optim_seed = int(os.environ["OPTIM_SEED"])
+    obj_conf.OPTIM_SEED  = optim_seed
+
     log.info(f"WRITE TYPE OF OPTIM SEED: {type(obj_conf.OPTIM_SEED)}")
     # Set random seeds
     device = "cuda" if torch.cuda.is_available() else "cpu"
