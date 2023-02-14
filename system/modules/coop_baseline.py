@@ -351,7 +351,7 @@ class CoopBaseline(object):
 
         predictions_outputs = [self.classes[p] for p in predictions_outputs][:len(test_loader.dataset)]
         image_outputs = [test_files[i] for i in image_outputs][:len(test_loader.dataset)]
-        log.info(f"LEN SET IDS: {set(list(df_pred['id']))}")
+        #log.info(f"LEN SET IDS: {set(list(df_pred['id']))}")
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
         # df_predictions['id'] = df_predictions['id'].astype(str)
