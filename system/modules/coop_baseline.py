@@ -339,10 +339,8 @@ class CoopBaseline(object):
             images += [i for i in img_path]
 
         predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
-        log.info(f"look at a few img: {images[:10]}")
         images = torch.tensor([int(img.split('_')[-1].split('.')[0]) for img in images]).to(self.device)
         
-
         accelerator.wait_for_everyone()
 
         predictions_outputs = accelerator.gather(predictions)
@@ -353,7 +351,8 @@ class CoopBaseline(object):
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
 
-        log.info(f"See predictions: {std_predictions.to_dict()}")
+        compare = np.array(['hello' for c in predictions_outputs])
+        log.infot(f"COMPARE: {df_predictions['class'] == compare}")
 
         return df_predictions
 
