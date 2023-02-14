@@ -349,27 +349,13 @@ class CoopBaseline(object):
         predictions_outputs = accelerator.gather(predictions)
         image_outputs = accelerator.gather(images)
 
-        # duplicates = set()
-        # pred_outputs = []
-        # img_outputs = []
-        # for i, f in enumerate(image_outputs):
-        #     if f not in duplicates:
-        #         pred_outputs.append(self.classes[predictions_outputs[i]])
-        #         img_outputs.append(test_files[f])
-            
-        #     duplicates.add(f)
 
-        predictions_outputs = [self.classes[p] for p in predictions_outputs]#[:len(test_loader.dataset)]
-        image_outputs = [test_files[i] for i in image_outputs]#[:len(test_loader.dataset)]
-        log.info(f"LEN SET IDS: {len(set(image_outputs))}")
+        predictions_outputs = [self.classes[p] for p in predictions_outputs]
+        image_outputs = [test_files[i] for i in image_outputs]
+        
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
         df_predictions.drop_duplicates(subset=['id', 'class'], inplace=True)
-        # df_predictions['id'] = df_predictions['id'].astype(str)
-        # df_predictions['class'] = df_predictions['class'].astype(str)
-        # # compare = np.array(['hello' for c in predictions_outputs])
-        df_predictions.to_csv('pred_data.csv', sep='\t')
-        # log.info(f"COMPARE: {df_predictions.to_dict()}")
-
+       
         return df_predictions
 

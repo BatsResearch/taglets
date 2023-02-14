@@ -384,6 +384,8 @@ class VPTBaseline(object):
             prompts = [f"{self.template}{' '.join(i.split('_'))}" \
                         for i in self.classes]
         log.info(f"Number of prompts: {len(prompts)}")
+        # This is required for distributed training
+        test_files = [f.split('/')[-1] for f in test_loader.dataset.filepaths]
 
         # Encode text
         text = clip.tokenize(prompts).to(self.device)
@@ -410,17 +412,19 @@ class VPTBaseline(object):
 
             images += [i for i in img_path]
 
-        accelerator.wait_for_everyone()
-
         predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
-        images = torch.tensor([int(img.split('_')[-1].split('.')[0]) for img in images]).to(self.device)
+        images = torch.tensor([test_files.index(img) for img in images]).to(self.device)
+        
+        accelerator.wait_for_everyone()
 
         predictions_outputs = accelerator.gather(predictions)
         image_outputs = accelerator.gather(images)
 
-        predictions_outputs = [self.classes[p] for p in predictions_outputs][:len(test_loader.dataset)]
-        image_outputs = [f"img_{i}.jpg" for i in image_outputs][:len(test_loader.dataset)]
+        predictions_outputs = [self.classes[p] for p in predictions_outputs]
+        image_outputs = [test_files[i] for i in image_outputs]
+        
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
+        df_predictions.drop_duplicates(subset=['id', 'class'], inplace=True)
 
         return df_predictions
