@@ -23,7 +23,8 @@ from .utils import Config
 from .data import CustomDataset
 from .modules import ClipBaseline, CoopBaseline, TptBaseline, VPTBaseline, \
                      AdjustAndAdapt, VPTPseudoBaseline, CoopPseudoBaseline, \
-                     TeacherStudent, VPTPseudoDisambiguate, TwoStageClassifier
+                     TeacherStudent, DisambiguateTeacherStudent, \
+                     VPTPseudoDisambiguate, TwoStageClassifier
 
 gpu_list = os.getenv("LWLL_TA1_GPUS")
 if gpu_list is not None and gpu_list != "all":
@@ -420,6 +421,18 @@ def workflow(dataset_type, dataset_dir, api_url,
                                                    train_unseen_dataset)
 
     elif obj_conf.MODEL == 'teacher_student':
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = TeacherStudent(obj_conf, label_to_idx, 
+                               data_folder, 
+                               device=device, 
+                               **dict_classes)
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset,
+                                                   val_seen_dataset,
+                                                   train_unseen_dataset)
+        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
+        log.info(f"The optimal prompt is {optimal_prompt}.")
+
+    elif obj_conf.MODEL == 'disambiguate_teacher_student':
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = TeacherStudent(obj_conf, label_to_idx, 
                                data_folder, 
