@@ -260,6 +260,36 @@ def setup_development():
     return (dev_config.dataset_type, dev_config.problem_type, dev_config.dataset_dir, dev_config.api_url,
             dev_config.problem_task, dev_config.team_secret, dev_config.gov_team_secret)
 
+def store_results(obj_conf, std_response, gen_response):
+    """ The function stores results of the model in a json.
+    
+    :param obj_config: class object that stores configurations
+    :param std_response: api response after standasrd zsl submission
+    :param gen_response: api response after generalized zsl submission
+    """
+
+    # Store results
+    if accelerator.is_local_main_process:
+        results_to_store = {'model':obj_conf.MODEL, 'config':obj_conf.__dict__, 
+                            'std_accuracy': std_response['Session_Status']['standard_zsl_scores']['accuracy_unseen_std'],
+                            'std_recall_classes': std_response['Session_Status']['standard_zsl_scores']['average_per_class_recall_unseen_std'],
+                            'gen_accuracy': gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_all_classes'],
+                            'gen_seen': gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_seen'],
+                            'gen_unseen': gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_unseen']}
+        file_name = f"results_model_{obj_conf.MODEL}.json"
+
+        # Check if the file already exists
+        if os.path.exists(file_name):
+            # If the file exists, open it in append mode
+            with open(file_name, 'a') as f:
+                # Append the res dictionary to the file
+                f.write(json.dumps(results_to_store) + '\n')
+        else:
+            # If the file doesn't exist, create a new file
+            with open(file_name, 'w') as f:
+                # Write the res dictionary to the file
+                f.write(json.dumps(results_to_store) + '\n')
+
 def workflow(dataset_type, dataset_dir, api_url, 
              problem_task, team_secret, gov_team_secret, 
              obj_conf):
@@ -479,26 +509,8 @@ def workflow(dataset_type, dataset_dir, api_url,
     log.info(f"[GEN] Accuracy seen classes: {gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_seen']}")
     log.info(f"[GEN] Accuracy unseen classes: {gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_unseen']}")
     
-    # Store results
-    results_to_store = {'model':obj_conf.MODEL, 'config':obj_conf.__dict__, 
-                        'std_accuracy': std_response['Session_Status']['standard_zsl_scores']['accuracy_unseen_std'],
-                        'std_recall_classes': std_response['Session_Status']['standard_zsl_scores']['average_per_class_recall_unseen_std'],
-                        'gen_accuracy': gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_all_classes'],
-                        'gen_seen': gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_seen'],
-                        'gen_unseen': gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_unseen']}
-    file_name = f"results_model_{obj_conf.MODEL}.json"
-
-    # Check if the file already exists
-    if os.path.exists(file_name):
-        # If the file exists, open it in append mode
-        with open(file_name, 'a') as f:
-            # Append the res dictionary to the file
-            f.write(json.dumps(results_to_store) + '\n')
-    else:
-        # If the file doesn't exist, create a new file
-        with open(file_name, 'w') as f:
-            # Write the res dictionary to the file
-            f.write(json.dumps(results_to_store) + '\n')
+    # Store model results
+    store_results(obj_conf, std_response, gen_response)
 
 def main():
     parser = argparse.ArgumentParser(description="Run JPL task")
