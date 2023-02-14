@@ -42,10 +42,10 @@ class TeacherStudent(VPTPseudoBaseline):
         # Initialize the number of pseudo-labels per class
         n_per_class = int(num_iter / len(self.unseen_classes)) 
         n_unseen = len(self.unseen_classes)
-        if n_per_class*n_unseen <= len(unlabeled.filepaths):
+        if n_per_class*n_unseen <= len(unlabeled_data.filepaths):
             self.num_pseudo_labels_per_class =  n_per_class
         else:
-            self.num_pseudo_labels_per_class =  math.floor(len(unlabeled.filepaths)/n_unseen)
+            self.num_pseudo_labels_per_class =  math.floor(len(unlabeled_data.filepaths)/n_unseen)
         
         log.info(f"We select {self.num_pseudo_labels_per_class} per each unseen classes.")
         # Create a safe copy of labeled/unlabeled data
