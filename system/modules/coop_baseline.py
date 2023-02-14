@@ -319,7 +319,7 @@ class CoopBaseline(object):
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
         log.info(f"TEXT FEATURES SHAPE: {text_features.size()}")
 
-        log.info(f"Start inference for test data")
+        log.info(f"Start inference for test data: {test_loader.dataset.filepaths}")
         predictions = []
         images = []
         for img, _, _, img_path in tqdm(test_loader):
