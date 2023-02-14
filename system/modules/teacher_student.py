@@ -28,7 +28,7 @@ class TeacherStudent(VPTPseudoBaseline):
                  classes, seen_classes, unseen_classes,
                  device):
         
-        super().__init__(config, label_to_idx, data_folder,
+        super().__init__(config, label_to_idx,
                          classes, seen_classes, unseen_classes,
                          device) 
 
