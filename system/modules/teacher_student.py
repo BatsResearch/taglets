@@ -63,10 +63,8 @@ class TeacherStudent(VPTPseudoBaseline):
                                             size=num_labels,
                                             replace=False)
             # Update the training data
-            train_data.filepaths = [f for i, f in enumerate(original_train_data.filepaths) \
-                                    if i in train_indices]
-            train_data.labels = [l for i, l in enumerate(original_train_data.labels) \ 
-                                 if i in train_indices]
+            train_data.filepaths = [f for i, f in enumerate(original_train_data.filepaths) if i in train_indices]
+            train_data.labels = [l for i, l in enumerate(original_train_data.labels) if i in train_indices]
             
             # 1. Initialize teacher
             self.define_model(teacher=True)
