@@ -397,7 +397,7 @@ class VPTBaseline(object):
         images = []
         for img, _, _, img_path in tqdm(test_loader):
             with torch.no_grad():
-                image_features = model(img)
+                image_features = self.model(img)
                 image_features = image_features / image_features.norm(dim=-1, keepdim=True)
                 # cosine similarity as logits        
             
