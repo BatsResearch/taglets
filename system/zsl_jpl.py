@@ -479,7 +479,26 @@ def workflow(dataset_type, dataset_dir, api_url,
     log.info(f"[GEN] Accuracy seen classes: {gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_seen']}")
     log.info(f"[GEN] Accuracy unseen classes: {gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_unseen']}")
     
+    # Store results
+    results_to_store = {'model':obj_conf.MODEL, 'config':obj_conf.__dict__(), 
+                        'std_accuracy': std_response['Session_Status']['standard_zsl_scores']['accuracy_unseen_std'],
+                        'std_recall_classes': std_response['Session_Status']['standard_zsl_scores']['average_per_class_recall_unseen_std'],
+                        'gen_accuracy': gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_all_classes'],
+                        'gen_seen': gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_seen'],
+                        'gen_unseen': gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_unseen']}
+    file_name = f"results_model_{obj_conf.MODEL}.json"
 
+    # Check if the file already exists
+    if os.path.exists(file_name):
+        # If the file exists, open it in append mode
+        with open(file_name, 'a') as f:
+            # Append the res dictionary to the file
+            f.write(json.dumps(results_to_store) + '\n')
+    else:
+        # If the file doesn't exist, create a new file
+        with open(file_name, 'w') as f:
+            # Write the res dictionary to the file
+            f.write(json.dumps(results_to_store) + '\n')
 
 def main():
     parser = argparse.ArgumentParser(description="Run JPL task")
@@ -537,7 +556,6 @@ def main():
     optim_seed = int(os.environ["OPTIM_SEED"])
     obj_conf.OPTIM_SEED  = optim_seed
 
-    log.info(f"WRITE TYPE OF OPTIM SEED: {type(obj_conf.OPTIM_SEED)}")
     # Set random seeds
     device = "cuda" if torch.cuda.is_available() else "cpu"
     np.random.seed(obj_conf.OPTIM_SEED)
