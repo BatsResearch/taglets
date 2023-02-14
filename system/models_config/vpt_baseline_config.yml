@@ -17,7 +17,7 @@ validation_seed: 0
 # Ratio validation
 ratio_train_val: 0.8
 # Batch size
-BATCH_SIZE: 12
+BATCH_SIZE: 3
 # Number of epochs
 EPOCHS: 15
 # Scheduler
