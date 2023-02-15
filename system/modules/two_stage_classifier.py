@@ -112,7 +112,7 @@ class TwoStageClassifier(object):
                                          label_map={})
         pseudo_vpt = VPTPseudoBaseline(self.config, self.label_to_idx, self.classes,
                                        self.seen_classes, self.unseen_classes, self.device)
-        val_accuracy, optimal_prompt = pseudo_vpt.train(dummy_dset, train_data, dummy_dset, None, only_unlabelled=True)
+        val_accuracy, optimal_prompt = pseudo_vpt.train(dummy_dset, dummy_dset, unlabeled_data=train_data, only_unlabelled=True)
         log.info("Unsupervised Pseudo-VPT val accuracy: {}".format(val_accuracy))
         return pseudo_vpt, optimal_prompt
 
