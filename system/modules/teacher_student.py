@@ -65,9 +65,9 @@ class TeacherStudent(VPTPseudoBaseline):
             # train_indices = np.random.choice(range(len(original_train_data.filepaths)),
             #                                 size=num_labels,
             #                                 replace=False)
-            # # Update the training data
-            # train_data.filepaths = [f for i, f in enumerate(original_train_data.filepaths) if i in train_indices]
-            # train_data.labels = [l for i, l in enumerate(original_train_data.labels) if i in train_indices]
+            # Update the training data
+            train_data.filepaths = [f for i, f in enumerate(original_train_data.filepaths)]
+            train_data.labels = [l for i, l in enumerate(original_train_data.labels)]
             
             # 1. Initialize teacher
             self.define_model(teacher=True)
@@ -106,7 +106,6 @@ class TeacherStudent(VPTPseudoBaseline):
             unlabeled_data = self.get_pseudo_labels(original_unlabeled_data,
                                                     teacher=False)
 
-            train_data = original_train_data
 
         return t_best_val_accuracy, t_best_prompt
 
