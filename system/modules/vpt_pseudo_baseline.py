@@ -75,10 +75,10 @@ class VPTPseudoBaseline(VPTBaseline):
         # loss_unseen = self.loss_disambiguate(logits, labs)
 
         loss_ce_seen = self.cross_entropy(logits, labs, self.seen_classes)
-        log.info(f"CE seen classes: {loss_ce_seen}")
+        #log.info(f"CE seen classes: {loss_ce_seen}")
 
         loss_ce_unseen = self.cross_entropy(logits, labs, self.unseen_classes)
-        log.info(f"CE unseen classes: {loss_ce_unseen}")
+        #log.info(f"CE unseen classes: {loss_ce_unseen}")
             
         return loss_ce_seen + self.balance_param*loss_ce_unseen
 
