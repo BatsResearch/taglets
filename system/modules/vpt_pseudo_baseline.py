@@ -101,7 +101,7 @@ class VPTPseudoBaseline(VPTBaseline):
 
         # Get logit sums on unseen samples
         if samples:
-            error = self.loss_func(logits[samples], labs[samples]) 
+            error = self.loss_func(logits[samples], labels[samples]) 
         else:
             error = 0
         
