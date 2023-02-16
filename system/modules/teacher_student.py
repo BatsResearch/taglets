@@ -56,6 +56,7 @@ class TeacherStudent(VPTPseudoBaseline):
         
         for niter in range(1, num_iter): 
             log.info(f"Start {niter} round of training..")
+            log.info(f"Training data labels: {original_train_data.labels}")
             # # Create labeled seen dataset to train on so that it is balanced with unseen classes
             # np.random.seed(niter)
             # desired_labeled_data = self.num_pseudo_labels_per_class*len(self.seen_classes)
