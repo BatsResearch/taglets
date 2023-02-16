@@ -62,12 +62,16 @@ class VPTPseudoDisambiguate(VPTPseudoBaseline):
             error_seen = torch.sum(logits[seen_samples][:,unseen_ids])
         else:
             error_seen = 0
-        return error_unseen + error_seen
+        return self.balance_param*error_unseen + error_seen
 
 
     def define_loss_function(self, logits, labs, teacher=False):
+
+        # Cross entropy loss
+        loss_ce_seen = self.cross_entropy(logits, labs, self.seen_classes)
+        loss_ce_unseen = self.cross_entropy(logits, labs, self.unseen_classes)
+        loss_ce = loss_ce_seen + self.balance_param*loss_ce_unseen
         
-        loss_ce = self.loss_func(logits, labs)
         loss_dis = self.loss_disambiguate(logits, labs)
             
         return loss_ce + loss_dis

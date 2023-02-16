@@ -403,6 +403,7 @@ def workflow(dataset_type, dataset_dir, api_url,
         log.info(f"The optimal prompt is {optimal_prompt}.")
 
         model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+    
     elif obj_conf.MODEL == 'tpt_baseline':
         # TODO
         log.info(f"The model in use is: {obj_conf.MODEL}")
