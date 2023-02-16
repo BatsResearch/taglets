@@ -355,10 +355,7 @@ class TeacherStudent(VPTPseudoBaseline):
 
         # Get logit sums on unseen samples
         if samples:
-            if teacher:
-                error = self.teacher_loss_func(logits[samples], labels[samples]) 
-            else:
-                error = self.student_loss_func(logits[samples], labels[samples]) 
+            error = self.teacher_loss_func(logits[samples], labels[samples]) 
         else:
             error = 0
         
