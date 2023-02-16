@@ -182,6 +182,10 @@ class CoopBaseline(object):
         
         return best_val_accuracy, best_prompt
 
+    def define_loss_function(self, logits, labs):
+        
+        return self.loss_func(logits, labs)
+
     def _train_epoch(self, loss, total_loss, train_loader, 
                      accum_iter, epoch, unlabeled_data):
         """ This function defines the training epoch of self.model.
@@ -221,7 +225,8 @@ class CoopBaseline(object):
                 labs = torch.tensor([l.item() for l in label]).to(self.device)
             else:
                 labs = torch.tensor([self.real_to_idx[l.item()] for l in label]).to(self.device)
-            loss = self.loss_func(logits, labs)
+             
+            loss = self.define_loss_function(logits, labs)
             total_loss += loss.item()
             
             accelerator.wait_for_everyone()
