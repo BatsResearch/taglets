@@ -51,6 +51,7 @@ class TeacherStudent(VPTPseudoBaseline):
         log.info(f"We select {self.num_pseudo_labels_per_class} per each unseen classes.")
         # Create a safe copy of labeled/unlabeled data
         original_train_data = copy.deepcopy(train_data)
+        log.info(f"Training data labels: {original_train_data.labels}")
         original_unlabeled_data = copy.deepcopy(unlabeled_data)
         
         for niter in range(1, num_iter): 
