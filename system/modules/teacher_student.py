@@ -123,7 +123,7 @@ class TeacherStudent(VPTPseudoBaseline):
 
         loss = None
         # Start teacher training
-        for epoch in range(self.config.EPOCHS):
+        for epoch in range(self.config.s_EPOCHS):
             log.info(f"Run Epoch {epoch}")
             total_loss = 0
             accum_iter = self.config.ACCUMULATION_ITER  
@@ -182,7 +182,7 @@ class TeacherStudent(VPTPseudoBaseline):
         if val_loader is not None:
             log.info(f"Size of validation data: {len(val_data.filepaths)}")
         # Start teacher training
-        for epoch in range(self.config.EPOCHS):
+        for epoch in range(self.config.t_EPOCHS):
             log.info(f"Run Epoch {epoch}")
             total_loss = 0
             accum_iter = self.config.ACCUMULATION_ITER  
