@@ -53,19 +53,19 @@ class TeacherStudent(VPTPseudoBaseline):
         original_train_data = copy.deepcopy(train_data)
         original_unlabeled_data = copy.deepcopy(unlabeled_data)
         
-        for niter in range(1, num_iter):
+        for niter in range(1, num_iter): 
             log.info(f"Start {niter} round of training..")
-            # Create labeled seen dataset to train on so that it is balanced with unseen classes
-            np.random.seed(niter)
-            desired_labeled_data = self.num_pseudo_labels_per_class*len(self.seen_classes)
-            # Avoid the error of too many data to samples
-            num_labels = min(desired_labeled_data, len(original_train_data.filepaths))
-            train_indices = np.random.choice(range(len(original_train_data.filepaths)),
-                                            size=num_labels,
-                                            replace=False)
-            # Update the training data
-            train_data.filepaths = [f for i, f in enumerate(original_train_data.filepaths) if i in train_indices]
-            train_data.labels = [l for i, l in enumerate(original_train_data.labels) if i in train_indices]
+            # # Create labeled seen dataset to train on so that it is balanced with unseen classes
+            # np.random.seed(niter)
+            # desired_labeled_data = self.num_pseudo_labels_per_class*len(self.seen_classes)
+            # # Avoid the error of too many data to samples
+            # num_labels = min(desired_labeled_data, len(original_train_data.filepaths))
+            # train_indices = np.random.choice(range(len(original_train_data.filepaths)),
+            #                                 size=num_labels,
+            #                                 replace=False)
+            # # Update the training data
+            # train_data.filepaths = [f for i, f in enumerate(original_train_data.filepaths) if i in train_indices]
+            # train_data.labels = [l for i, l in enumerate(original_train_data.labels) if i in train_indices]
             
             # 1. Initialize teacher
             self.define_model(teacher=True)
@@ -306,7 +306,7 @@ class TeacherStudent(VPTPseudoBaseline):
                                                             weight_decay=self.config.t_DECAY,
                                                             momentum=0.9)
 
-                self.teacher_scheduler = make_scheduler(self.teacher_optimizer, self.config)
+                self.teacher_scheduler = make_scheduler(self.teacher_optimizer, self.config, True, True)
                 self.teacher_loss_func = torch.nn.CrossEntropyLoss()
             
             else:
@@ -324,15 +324,45 @@ class TeacherStudent(VPTPseudoBaseline):
                                                             lr=self.config.s_LR, 
                                                             weight_decay=self.config.s_DECAY,
                                                             momentum=0.9)
-                self.student_scheduler = make_scheduler(self.student_optimizer, self.config)
+                self.student_scheduler = make_scheduler(self.student_optimizer, self.config, True, False)
                 self.student_loss_func = torch.nn.CrossEntropyLoss() 
 
     def define_loss_function(self, logits, labs, teacher=False):
         
         if teacher:
-            return self.teacher_loss_func(logits, labs)
+            loss_ce_seen = self.cross_entropy(logits, labs, self.seen_classes)
+            loss_ce_unseen = self.cross_entropy(logits, labs, self.unseen_classes)
+            return loss_ce_seen + self.balance_param*loss_ce_unseen
         else:
             return self.student_loss_func(logits, labs)
+
+    def cross_entropy(self, logits, labels, classes):
+        """ This loss computes the probability mass on the
+        opposite set of classes for each sample.
+        
+        :param logits: continuous vector
+        :param labels: class ids
+        """
+
+        ids = [self.label_to_idx[c] for c in classes]
+
+        # Get indices of unseen and seen samples in the batch
+        samples = [] 
+        
+        for idx, l in enumerate(labels):
+            if l in ids:
+                samples.append(idx)
+
+        # Get logit sums on unseen samples
+        if samples:
+            if teacher:
+                error = self.teacher_loss_func(logits[samples], labels[samples]) 
+            else:
+                error = self.student_loss_func(logits[samples], labels[samples]) 
+        else:
+            error = 0
+        
+        return error
 
     def training_model(self, img, teacher=False):
         """ This function allows to customize the model to use while trainig

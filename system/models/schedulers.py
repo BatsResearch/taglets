@@ -7,9 +7,15 @@ from torch.optim import lr_scheduler as scheduler
 
 log = logging.getLogger(__name__)
 
-def make_scheduler(optimizer, config):
+def make_scheduler(optimizer, config, double=False, teacher=False):
     warmup = config.WARMUP_EPOCHS
-    total_iters = config.EPOCHS
+    if double:
+        if teacher:
+            total_iters = config.t_EPOCHS
+        else:
+            total_iters = config.s_EPOCHS
+    else:
+         total_iters = config.EPOCHS
     if config.SCHEDULER == "cosine":
         lr_scheduler = WarmupCosineSchedule(
             optimizer,
