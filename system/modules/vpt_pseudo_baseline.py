@@ -63,9 +63,49 @@ class VPTPseudoBaseline(VPTBaseline):
         seen_imgs = train_data.filepaths
         seen_labs = [self.label_to_idx[l] for l in train_data.labels]
 
+        self.balance_param = len(seen_imgs)/len(unseen_imgs)
+
         train_data.filepaths = list(unseen_imgs) + list(seen_imgs)
         train_data.labels = list(unseen_labs) + list(seen_labs)
         train_data.label_id = True
+
+    def define_loss_function(self, logits, labs, teacher=False):
+        
+        # loss_ce_seen = self.loss_func(logits, labs)
+        # loss_unseen = self.loss_disambiguate(logits, labs)
+
+        loss_ce_seen = self.cross_entropy(logits, labs, self.seen_classes)
+        log.info(f"CE seen classes: {loss_ce_seen.item()}")
+
+        loss_ce_unseen = self.cross_entropy(logits, labs, self.unseen_classes)
+        log.info(f"CE unseen classes: {loss_ce_unseen.item()}")
+            
+        return loss_ce_seen + self.balance_param*loss_unseen
+
+    def cross_entropy(self, logits, labels, classes):
+        """ This loss computes the probability mass on the
+        opposite set of classes for each sample.
+        
+        :param logits: continuous vector
+        :param labels: class ids
+        """
+
+        ids = [self.label_to_idx[c] for c in classes]
+
+        # Get indices of unseen and seen samples in the batch
+        samples = [] 
+        
+        for idx, l in enumerate(labels):
+            if l in ids:
+                samples.append(idx)
+
+        # Get logit sums on unseen samples
+        if samples:
+            error = self.loss_func(ogits[samples], labs[samples]) 
+        else:
+            error = 0
+        
+        return error
 
     def define_textual_prompts(self, only_unlabelled=None, validation=False):
         """ This function returns the textual prompts. You can modify the list
