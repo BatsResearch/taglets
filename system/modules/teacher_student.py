@@ -75,7 +75,7 @@ class TeacherStudent(VPTPseudoBaseline):
 
             # 2. Train teacher with labeled seen and pseudo-labeled unseen
             log.info(f"[TEACHER] Start model training..")
-            t_best_val_accuracy, t_best_prompt = self.train_teacher(original_train_data,
+            t_best_val_accuracy, t_best_prompt = self.train_teacher(train_data,
                                                                     val_data,
                                                                     unlabeled_data)
             log.info(f"[TEACHER] Training completed.")
@@ -105,6 +105,8 @@ class TeacherStudent(VPTPseudoBaseline):
 
             unlabeled_data = self.get_pseudo_labels(original_unlabeled_data,
                                                     teacher=False)
+
+            train_data = original_train_data
 
         return t_best_val_accuracy, t_best_prompt
 
