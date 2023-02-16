@@ -80,7 +80,7 @@ class VPTPseudoBaseline(VPTBaseline):
         loss_ce_unseen = self.cross_entropy(logits, labs, self.unseen_classes)
         log.info(f"CE unseen classes: {loss_ce_unseen.item()}")
             
-        return loss_ce_seen + self.balance_param*loss_unseen
+        return loss_ce_seen + self.balance_param*loss_ce_unseen
 
     def cross_entropy(self, logits, labels, classes):
         """ This loss computes the probability mass on the
