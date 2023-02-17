@@ -44,4 +44,4 @@ STEP_SIZE: 1
 # Set seeds
 OPTIM_SEED: "$OPTIM_SEED"
 # Teacher pseudolabeleing
-ALL_UNLABELED: False
+ALL_UNLABELED: True
