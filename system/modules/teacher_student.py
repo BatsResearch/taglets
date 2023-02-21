@@ -105,6 +105,7 @@ class TeacherStudent(VPTPseudoBaseline):
 
             unlabeled_data = self.get_pseudo_labels(original_unlabeled_data,
                                                     teacher=False)
+            # Sample values for train and validation
 
 
         return t_best_val_accuracy, t_best_prompt
@@ -124,7 +125,6 @@ class TeacherStudent(VPTPseudoBaseline):
         train_data.filepaths = list(unseen_imgs) + list(seen_imgs)
         train_data.labels = list(unseen_labs) + list(seen_labs)
         train_data.label_id = True
-
 
     def train_student(self, train_data):
 
@@ -148,7 +148,7 @@ class TeacherStudent(VPTPseudoBaseline):
             total_loss = 0
             accum_iter = self.config.ACCUMULATION_ITER  
             
-            loss, total_loss, accuracy = self._train_epoch(loss, total_loss, 
+            loss, total_loss, epoch_param = self._train_epoch(loss, total_loss, 
                                                            train_loader, 
                                                            accum_iter, epoch,
                                                            only_unlabelled=True,
@@ -156,11 +156,8 @@ class TeacherStudent(VPTPseudoBaseline):
             accelerator.wait_for_everyone()
             if accelerator.is_local_main_process:
                 log.info(f"Loss Epoch {epoch}: {total_loss/(len(train_loader))}")
-                log.info(F"Training accuracy after Epoch {epoch}: {accuracy}")
             
             accelerator.free_memory()
-
-
 
     def train_teacher(self, train_data, val_data):
         """ This function defines the training of self.model.
