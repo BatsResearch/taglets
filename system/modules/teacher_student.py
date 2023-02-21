@@ -44,29 +44,29 @@ class TeacherStudent(VPTPseudoBaseline):
         n_per_class = int(num_samples / len(self.unseen_classes)) 
         n_unseen = len(self.unseen_classes)
         if n_per_class*n_unseen <= len(unlabeled_data.filepaths):
-            self.num_pseudo_labels_per_class =  n_per_class
+            # self.num_pseudo_labels_per_class =  n_per_class
+            self.config.N_PSEUDOSHOTS = n_per_class
         else:
-            self.num_pseudo_labels_per_class =  math.floor(len(unlabeled_data.filepaths)/n_unseen)
+            # self.num_pseudo_labels_per_class =  math.floor(len(unlabeled_data.filepaths)/n_unseen)
+            self.config.N_PSEUDOSHOTS = math.floor(len(unlabeled_data.filepaths)/n_unseen)
         
-        log.info(f"We select {self.num_pseudo_labels_per_class} per each unseen classes.")
+        log.info(f"We select {self.config.N_PSEUDOSHOTS} per each unseen classes.")
         # Create a safe copy of labeled/unlabeled data
         original_train_data = copy.deepcopy(train_data)
-        log.info(f"Training data labels: {original_train_data.labels}")
+        #log.info(f"Training data labels: {original_train_data.labels}")
         original_unlabeled_data = copy.deepcopy(unlabeled_data)
         
+        # Initialize here first batch of pseudo labels
+        # Define training dataset
+        self.create_training_dataset(train_data, unlabeled_data)
+
         for niter in range(1, num_iter): 
             log.info(f"Start {niter} round of training..")
-            # # Create labeled seen dataset to train on so that it is balanced with unseen classes
-            # np.random.seed(niter)
-            # desired_labeled_data = self.num_pseudo_labels_per_class*len(self.seen_classes)
-            # # Avoid the error of too many data to samples
-            # num_labels = min(desired_labeled_data, len(original_train_data.filepaths))
-            # train_indices = np.random.choice(range(len(original_train_data.filepaths)),
-            #                                 size=num_labels,
-            #                                 replace=False)
+
             # Update the training data
             train_data.filepaths = [f for i, f in enumerate(original_train_data.filepaths)]
             train_data.labels = [l for i, l in enumerate(original_train_data.labels)]
+            self.update_training_set(train_data, unlabeled_data)
             
             # 1. Initialize teacher
             self.define_model(teacher=True)
@@ -75,8 +75,7 @@ class TeacherStudent(VPTPseudoBaseline):
             # 2. Train teacher with labeled seen and pseudo-labeled unseen
             log.info(f"[TEACHER] Start model training..")
             t_best_val_accuracy, t_best_prompt = self.train_teacher(train_data,
-                                                                    val_data,
-                                                                    unlabeled_data)
+                                                                    val_data)
             log.info(f"[TEACHER] Training completed.")
 
             # 3. Get teacher pseudo-labels
@@ -98,15 +97,34 @@ class TeacherStudent(VPTPseudoBaseline):
             if self.config.ALL_UNLABELED:
                 n_per_class = int((niter + 1) * num_samples / n_unseen)
                 if n_per_class*n_unseen <= len(original_unlabeled_data.filepaths):
-                    self.num_pseudo_labels_per_class =  n_per_class
+                    #self.num_pseudo_labels_per_class =  n_per_class
+                    self.config.N_PSEUDOSHOTS =  n_per_class
                 else:
-                    self.num_pseudo_labels_per_class =  math.floor(len(original_unlabeled_data.filepaths)/n_unseen)
+                    # self.num_pseudo_labels_per_class =  math.floor(len(original_unlabeled_data.filepaths)/n_unseen)
+                    self.config.N_PSEUDOSHOTS =  math.floor(len(original_unlabeled_data.filepaths)/n_unseen)
 
             unlabeled_data = self.get_pseudo_labels(original_unlabeled_data,
                                                     teacher=False)
 
 
         return t_best_val_accuracy, t_best_prompt
+
+    def update_training_set(self, train_data, unlabeled_data):
+        # Get pseudo-labels for unlabeled data from unseen classes
+        train_unseen_dataset = unlabeled_data
+        # Define the lists of traiing data from seen and unseen classes
+        unseen_imgs = train_unseen_dataset.filepaths
+        unseen_labs = train_unseen_dataset.labels
+
+        seen_imgs = train_data.filepaths
+        seen_labs = [self.label_to_idx[l] for l in train_data.labels]
+
+        self.balance_param = len(seen_imgs)/len(unseen_imgs)
+
+        train_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+        train_data.labels = list(unseen_labs) + list(seen_labs)
+        train_data.label_id = True
+
 
     def train_student(self, train_data):
 
@@ -141,20 +159,18 @@ class TeacherStudent(VPTPseudoBaseline):
                 log.info(F"Training accuracy after Epoch {epoch}: {accuracy}")
             
             accelerator.free_memory()
-     
-    def train_teacher(self, train_data, val_data, unlabeled_data):
+
+
+
+    def train_teacher(self, train_data, val_data):
         """ This function defines the training of self.model.
 
         :param train_data: Dataset object - training dataset of labeled data for 
                            seen classes (defined in zsl_jpl line 323)
-        :param unlabeled_data: Dataset object - dataset of unlabeled data for 
-                               unseen classes (defined in zsl_jpl line 328)
         :param val_data: Dataset object - validation dataset of labeled data for
                          seen classes (defined in zsl_jpl line 334)
         """
 
-        # Define training dataset
-        self.create_training_dataset(train_data, unlabeled_data)
         
         # Declare the data pre processing for train and validation data
         train_data.transform = self.transform
@@ -414,7 +430,7 @@ class TeacherStudent(VPTPseudoBaseline):
                                                train=True, labels=None,
                                                label_map=self.label_to_idx)
 
-        pseudo_labels = self.assign_pseudo_labels(self.num_pseudo_labels_per_class, 
+        pseudo_labels = self.assign_pseudo_labels(self.config.N_PSEUDOSHOTS, 
                                                   pseudo_unseen_examples)
 
         return pseudo_labels
