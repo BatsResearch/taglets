@@ -10,4 +10,4 @@ ratio_train_val: 0.8
 # Batch size
 BATCH_SIZE: 8
 # Set seeds
-OPTIM_SEED: 10
+OPTIM_SEED: "$OPTIM_SEED"
