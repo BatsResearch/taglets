@@ -200,8 +200,8 @@ def workflow(dataset_dir,
         log.info(f"Validation accuracy on seen classes: {val_accuracy}")
         log.info(f"The optimal prompt is {optimal_prompt}.")
 
-        # model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
-        # model.model.image_pos_emb = torch.nn.Parameter(torch.tensor(optimal_prompt[1]))
+        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+        model.model.image_pos_emb = torch.nn.Parameter(torch.tensor(optimal_prompt[1]))
     
     elif obj_conf.MODEL == 'vpt_pseudo_baseline':
         log.info(f"The model in use is: {obj_conf.MODEL}")
