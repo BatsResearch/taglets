@@ -91,11 +91,11 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
         image_data['label'] = image_data['label'].apply(lambda x: correction_dict[x] if x in correction_dict else x)
         image_data['seen'] = image_data['label'].apply(lambda x: 1 if x in seen_classes else 0)
         
-        labeled_files = list(image_data[(image_data['seen'] == 1) and (image_data['file_names'] != 'broken')]['file_names'])
-        labels_files = list(image_data[(image_data['seen'] == 1) and (image_data['file_names'] != 'broken')]['label'])
+        labeled_files = list(image_data[(image_data['seen'] == 1) & (image_data['file_names'] != 'broken')]['file_names'])
+        labels_files = list(image_data[(image_data['seen'] == 1) & (image_data['file_names'] != 'broken')]['label'])
                
-        unlabeled_lab_files = list(image_data[(image_data['seen'] == 0) and (image_data['file_names'] != 'broken')]['file_names'])
-        unlabeled_labs = list(image_data[(image_data['seen'] == 0) and (image_data['file_names'] != 'broken')]['label'])
+        unlabeled_lab_files = list(image_data[(image_data['seen'] == 0) & (image_data['file_names'] != 'broken')]['file_names'])
+        unlabeled_labs = list(image_data[(image_data['seen'] == 0) & (image_data['file_names'] != 'broken')]['label'])
 
 
         # Split labeled and unlabeled data into test

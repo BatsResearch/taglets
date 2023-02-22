@@ -333,7 +333,7 @@ def main():
         raise Exception('`dataset_dir` does not exist..')
 
     log.info(f"Current working directory: {os.getcwd()}")
-    log.info(f"Input data folder: {variables[2]}")
+    
     with open(f'system/models_config/{args.model_config}', 'r') as file:
         config = yaml.safe_load(file)
     obj_conf = Config(config)
