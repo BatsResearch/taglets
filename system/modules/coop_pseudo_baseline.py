@@ -47,7 +47,8 @@ class CoopPseudoBaseline(CoopBaseline):
         """
         
         # Get pseudo-labels for unlabeled data from unseen classes
-        train_unseen_dataset = pseudolabel_top_k(self.config.N_PSEUDOSHOTS,
+        train_unseen_dataset = pseudolabel_top_k(self.config.DATASET_NAME,
+                                                self.config.N_PSEUDOSHOTS,
                                                 self.config.PROMPT_TEMPLATE,
                                                 unlabeled_data,
                                                 self.unseen_classes,
