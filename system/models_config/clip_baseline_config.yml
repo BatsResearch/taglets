@@ -1,3 +1,6 @@
+# Dataset name
+DATASET_NAME: "aPY"
+# Model
 MODEL: "clip_baseline"
 # Visual ecoder
 VIS_ENCODER: "ViT-B/32"

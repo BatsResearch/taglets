@@ -86,12 +86,12 @@ def dataset_object(dataset_name):
 
     return DataObject
 
-def workflow(dataset_dir, dataset_name, 
+def workflow(dataset_dir, 
              obj_conf):
     
     # Get dataset name
     # We get the dataset name from the dev_config.py
-    dataset = dataset_name
+    dataset = obj_conf.DATASET_NAME
     # Get class names of target task
     # define function for each dataset
     classes, seen_classes, unseen_classes = get_class_names(dataset, 
@@ -346,9 +346,6 @@ def store_results(obj_conf, std_response, unseen_accuracy, seen_accuracy, harmon
 
 def main():
     parser = argparse.ArgumentParser(description="Run JPL task")
-    parser.add_argument("--dataset",
-                        type=str,
-                        help="Name dataset")
     parser.add_argument("--model_config",
                         type=str,
                         default="model_config.yml",
@@ -359,7 +356,6 @@ def main():
 
     variables = setup_development()
 
-    dataset_name = args.dataset
     dataset_dir = variables
     log.info(f"Dataset dir: {dataset_dir}")
     
@@ -392,7 +388,7 @@ def main():
     torch.backends.cudnn.benchmark = True
 
 
-    workflow(dataset_dir, dataset_name, 
+    workflow(dataset_dir,
              obj_conf)
 
 if __name__ == "__main__":

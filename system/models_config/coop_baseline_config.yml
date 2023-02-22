@@ -1,3 +1,6 @@
+# Dataset name
+DATASET_NAME: "aPY"
+# Model
 MODEL: "coop_baseline"
 # Visual ecoder
 VIS_ENCODER: "ViT-B/32"
