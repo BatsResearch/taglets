@@ -312,7 +312,7 @@ def evaluate_predictions(df_predictions, labels,
         seen_predictions = df_predictions[df_predictions['class'].isin(seen_classes)]
         seen_accuracy = np.sum(seen_predictions['class'] == seen_predictions['true']) / seen_predictions.shape[0]
 
-        harmonic_mean = st.hmean(unseen_accuracy, seen_accuracy)
+        harmonic_mean = st.hmean([unseen_accuracy, seen_accuracy])
 
         return unseen_accuracy, seen_accuracy, harmonic_mean
 
