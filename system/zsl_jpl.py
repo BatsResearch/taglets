@@ -136,7 +136,7 @@ def workflow(dataset_dir,
     val_labeled_files = np.array(labeled_files)[val_indices]
     val_labeles = np.array(labeles)[val_indices]
 
-    DatasetObject = dataset_object(dataset_name)
+    DatasetObject = dataset_object(obj_conf.DATASET_NAME)
     # Training set (labeled seen): note that here tranform and augmentations are None.
     # These are attributes that everyone can set in the modules.
     train_seen_dataset = DatasetObject(train_labeled_files, data_folder, 
