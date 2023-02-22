@@ -73,7 +73,7 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
     """
     if dataset == 'aPY':
         labels_file = '/'.join(data_folder.split('/')[:-1])
-        df_labels = pd.read_csv(f"{labels_file}/image_data.csv", sep=',')
+        image_data = pd.read_csv(f"{labels_file}/image_data.csv", sep=',')
         
         list_images = []
         for i, row in image_data.iterrows():
