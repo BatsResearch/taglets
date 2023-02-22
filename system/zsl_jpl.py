@@ -182,7 +182,7 @@ def workflow(dataset_dir,
         log.info(f"Validation accuracy on seen classes: {val_accuracy}")
         log.info(f"The optimal prompt is {optimal_prompt}.")
 
-        # model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
     
     elif obj_conf.MODEL == 'tpt_baseline':
         # TODO
@@ -275,7 +275,7 @@ def workflow(dataset_dir,
     std_predictions = model.test_predictions(test_dataset, 
                                              standard_zsl=True)
     # Submit predictions (standard)
-    std_response = evaluate_predictions(std_predictions, test_labeles, 
+    std_response = evaluate_predictions(std_predictions, test_labeled_files, test_labeles, 
                                         unseen_classes, standard_zsl=True)
     log.info(f"ZSL accuracy: {std_response}")
     
@@ -283,7 +283,8 @@ def workflow(dataset_dir,
     gen_predictions = model.test_predictions(test_dataset, 
                                              standard_zsl=False)
     # Submit predictions (general)
-    unseen_accuracy, seen_accuracy, harmonic_mean = evaluate_predictions(gen_predictions, test_labeles, 
+    unseen_accuracy, seen_accuracy, harmonic_mean = evaluate_predictions(gen_predictions, 
+                                                                         test_labeled_files, test_labeles, 
                                                                          unseen_classes, seen_classes, 
                                                                          standard_zsl=False)
     log.info(f'Generalized ZSL results')
@@ -294,18 +295,21 @@ def workflow(dataset_dir,
     # Store model results
     store_results(obj_conf, std_response, unseen_accuracy, seen_accuracy, harmonic_mean)
 
-def evaluate_predictions(df_predictions, labels, 
+def evaluate_predictions(df_predictions, test_labeled_files, labels, 
                          unseen_classes, seen_classes=None, standard_zsl=False):
-    
+    df_test = pd.DataFrame({'id': test_labeled_files,
+                            'true': labels})
+    df_predictions = pd.merge(df_predictions, df_test, on='id')
+
     if standard_zsl:
-        df_predictions['true'] = labels
+        #df_predictions['true'] = labels
         df_predictions = df_predictions[df_predictions['true'].isin(unseen_classes)]
         accuracy = np.sum(df_predictions['class'] == df_predictions['true']) / df_predictions.shape[0]
 
         return accuracy
         
     else:
-        df_predictions['true'] = labels
+        #df_predictions['true'] = labels
         unseen_predictions = df_predictions[df_predictions['true'].isin(unseen_classes)]
         unseen_accuracy = np.sum(unseen_predictions['class'] == unseen_predictions['true']) / unseen_predictions.shape[0]
 

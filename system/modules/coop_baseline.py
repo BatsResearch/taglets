@@ -318,7 +318,12 @@ class CoopBaseline(object):
 
         accelerator.wait_for_everyone()
    
-        
+        # Get prompts
+        text_features = self.model(self.model.classes)
+
+        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+        log.info(f"TEXT FEATURES SHAPE: {text_features.size()}")
+
         log.info(f"Start inference for test data")
         # This is required for distributed training
         test_files = [f.split('/')[-1] for f in test_loader.dataset.filepaths]
@@ -326,11 +331,6 @@ class CoopBaseline(object):
         predictions = []
         images = []
         for img, _, _, img_path in tqdm(test_loader):
-            # Get prompts
-            text_features = self.model(self.model.classes)
-
-            text_features = text_features / text_features.norm(dim=-1, keepdim=True)
-            log.info(f"TEXT FEATURES SHAPE: {text_features.size()}")
             with torch.no_grad():
                 image_features = self.clip_model.encode_image(img)
                 image_features = image_features / image_features.norm(dim=-1, keepdim=True)
