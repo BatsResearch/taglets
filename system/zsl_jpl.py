@@ -292,7 +292,7 @@ def workflow(dataset_dir, dataset_name,
     log.info(f"Harmonic mean: {harmonic_mean}")
     
     # Store model results
-    store_results(obj_conf, std_response, gen_response)
+    store_results(obj_conf, std_response, unseen_accuracy, seen_accuracy, harmonic_mean)
 
 def evaluate_predictions(df_predictions, labels, 
                          unseen_classes, seen_classes=None, standard_zsl=False):
@@ -315,6 +315,34 @@ def evaluate_predictions(df_predictions, labels,
         harmonic_mean = st.hmean([unseen_accuracy, seen_accuracy])
 
         return unseen_accuracy, seen_accuracy, harmonic_mean
+
+def store_results(obj_conf, std_response, unseen_accuracy, seen_accuracy, harmonic_mean):
+    """ The function stores results of the model in a json.
+    
+    :param obj_config: class object that stores configurations
+
+    """
+
+    # Store results
+    if accelerator.is_local_main_process:
+        results_to_store = {'model':obj_conf.MODEL, 'config':obj_conf.__dict__, 
+                            'std_accuracy': std_response,
+                            'gen_accuracy': harmonic_mean,
+                            'gen_seen': seen_accuracy,
+                            'gen_unseen': unseen_accuracy}
+        file_name = f"results_model_{obj_conf.MODEL}.json"
+
+        # Check if the file already exists
+        if os.path.exists(file_name):
+            # If the file exists, open it in append mode
+            with open(file_name, 'a') as f:
+                # Append the res dictionary to the file
+                f.write(json.dumps(results_to_store) + '\n')
+        else:
+            # If the file doesn't exist, create a new file
+            with open(file_name, 'w') as f:
+                # Write the res dictionary to the file
+                f.write(json.dumps(results_to_store) + '\n')
 
 def main():
     parser = argparse.ArgumentParser(description="Run JPL task")
