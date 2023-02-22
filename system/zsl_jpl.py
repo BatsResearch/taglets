@@ -299,17 +299,17 @@ def evaluate_predictions(df_predictions, labels,
     
     if standard_zsl:
         df_predictions['true'] = labels
-        df_predictions = df_predictions[df_predictions['class'].isin(unseen_classes)]
+        df_predictions = df_predictions[df_predictions['true'].isin(unseen_classes)]
         accuracy = np.sum(df_predictions['class'] == df_predictions['true']) / df_predictions.shape[0]
 
         return accuracy
         
     else:
         df_predictions['true'] = labels
-        unseen_predictions = df_predictions[df_predictions['class'].isin(unseen_classes)]
+        unseen_predictions = df_predictions[df_predictions['true'].isin(unseen_classes)]
         unseen_accuracy = np.sum(unseen_predictions['class'] == unseen_predictions['true']) / unseen_predictions.shape[0]
 
-        seen_predictions = df_predictions[df_predictions['class'].isin(seen_classes)]
+        seen_predictions = df_predictions[df_predictions['true'].isin(seen_classes)]
         seen_accuracy = np.sum(seen_predictions['class'] == seen_predictions['true']) / seen_predictions.shape[0]
 
         harmonic_mean = st.hmean([unseen_accuracy, seen_accuracy])
