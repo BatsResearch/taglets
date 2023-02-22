@@ -340,7 +340,7 @@ def compute_pseudo_labels(k, template, dataset,
 def pseudolabel_top_k(data_name, k, template, dataset, 
                       classnames, transform, clip_model,
                       label_to_idx, device):
-    filename = f'{data_name}_{k}_pseudolabels.pickle'
+    filename = f'pseudolabels/{data_name}_{k}_pseudolabels.pickle'
     if os.path.exists(filename):
         #print('Load pseudolabels')
         with open(filename, 'rb') as f:
