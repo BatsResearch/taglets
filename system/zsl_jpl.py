@@ -77,7 +77,7 @@ def setup_development():
     # not sure this is very elegant. Let me know :)
     import dev_config
 
-    return (dev_config.dataset_dir, dev_config.dataset_name)
+    return (dev_config.dataset_dir)
 
 def workflow(dataset_dir, dataset_name, 
              obj_conf):
