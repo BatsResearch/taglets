@@ -6,8 +6,6 @@ import pandas as pd
 import clip
 import torch
 from PIL import Image
-from accelerate import Accelerator
-accelerator = Accelerator()
 
 
 g = torch.Generator()
@@ -53,9 +51,6 @@ class ClipBaseline(object):
         test_loader = torch.utils.data.DataLoader(data, 
                                                   batch_size=self.config.BATCH_SIZE)
 
-        accelerator.wait_for_everyone()
-
-        self.model, test_loader = accelerator.prepare(self.model, test_loader)
 
         # Define text queries
         if standard_zsl:
@@ -87,16 +82,9 @@ class ClipBaseline(object):
 
                 images += [i for i in img_path]
 
-        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
-        images = torch.tensor([test_files.index(img) for img in images]).to(self.device)
-        
-        accelerator.wait_for_everyone()
-
-        predictions_outputs = accelerator.gather(predictions)
-        image_outputs = accelerator.gather(images)
-
-        predictions_outputs = [self.classes[p] for p in predictions_outputs]
-        image_outputs = [test_files[i] for i in image_outputs]
+        predictions_outputs = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
+        image_outputs = torch.tensor([test_files.index(img) for img in images]).to(self.device)
+ 
 
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
