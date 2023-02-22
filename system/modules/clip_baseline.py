@@ -72,7 +72,7 @@ class ClipBaseline(object):
         # Iterate through data loader
         for img, _, _, img_path in tqdm(test_loader):
             with torch.no_grad():
-                logits_per_image, logits_per_text = self.model(img, text)
+                logits_per_image, logits_per_text = self.model(img.to(self.device), text.to(self.device))
                 probs = logits_per_image.softmax(dim=-1)
                 idx_preds = torch.argmax(probs, dim=1)
                 if standard_zsl:
@@ -82,12 +82,8 @@ class ClipBaseline(object):
 
                 images += [i for i in img_path]
 
-        predictions_outputs = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
-        image_outputs = torch.tensor([test_files.index(img) for img in images]).to(self.device)
- 
-
-        df_predictions = pd.DataFrame({'id': image_outputs, 
-                                       'class': predictions_outputs})
+        df_predictions = pd.DataFrame({'id': images, 
+                                       'class': predictions})
 
         return df_predictions
         
