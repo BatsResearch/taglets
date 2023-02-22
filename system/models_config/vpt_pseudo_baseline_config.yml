@@ -1,3 +1,5 @@
+DATASET_NAME: "aPY"
+# Model
 MODEL: "vpt_pseudo_baseline"
 # Visual ecoder
 VIS_ENCODER: "ViT-B/32"

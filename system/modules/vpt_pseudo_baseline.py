@@ -10,7 +10,6 @@ from PIL import Image
 from accelerate import Accelerator
 accelerator = Accelerator()
 
-from ..data import CustomDataset
 from ..utils import seed_worker, pseudolabel_top_k
 from ..models import CustomImageEncoder, make_scheduler
 from ..modules import VPTBaseline
