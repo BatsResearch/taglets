@@ -16,7 +16,7 @@ g.manual_seed(0)
 log = logging.getLogger(__name__)
 
 class ClipBaseline(object):
-    def __init__(self, config, 
+    def __init__(self, config, label_to_idx, 
                  classes, seen_classes, unseen_classes,
                  device):
         """ This class is CLIP model.
@@ -33,6 +33,7 @@ class ClipBaseline(object):
         self.classes = classes
         self.seen_classes = seen_classes
         self.unseen_classes = unseen_classes
+        self.label_to_idx = label_to_idx
 
         self.device = device
         self.model, self.transform = clip.load(self.config.VIS_ENCODER, 
@@ -69,6 +70,8 @@ class ClipBaseline(object):
         text_features = self.model.encode_text(text)
 
         log.info(f"Start inference for test data")
+        test_files = [f.split('/')[-1] for f in test_loader.dataset.filepaths]
+
         predictions = []
         images = []
         # Iterate through data loader
@@ -84,10 +87,17 @@ class ClipBaseline(object):
 
                 images += [i for i in img_path]
 
+        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
+        images = torch.tensor([test_files.index(img) for img in images]).to(self.device)
+        
         accelerator.wait_for_everyone()
 
         predictions_outputs = accelerator.gather(predictions)
         image_outputs = accelerator.gather(images)
+
+        predictions_outputs = [self.classes[p] for p in predictions_outputs]
+        image_outputs = [test_files[i] for i in image_outputs]
+
         df_predictions = pd.DataFrame({'id': image_outputs, 
                                        'class': predictions_outputs})
 

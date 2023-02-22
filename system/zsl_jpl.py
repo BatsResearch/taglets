@@ -161,7 +161,7 @@ def workflow(dataset_dir, dataset_name,
     
     if obj_conf.MODEL == 'clip_baseline':
         log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = ClipBaseline(obj_conf, device=device, 
+        model = ClipBaseline(obj_conf, label_to_idx, device=device, 
                              **dict_classes)
     elif obj_conf.MODEL == 'coop_baseline':
         log.info(f"The model in use is: {obj_conf.MODEL}")
