@@ -49,11 +49,11 @@ def get_class_names(dataset, dataset_dir):
                            'jetski': 'jet ski',
                            'pottedplant': 'potted plant'}
         for c in seen_classes:
-            if c, correct in correction_dict.items():
-                seen_classes[seen_classes.index(c)] = correct
+            if c in correction_dict:
+                seen_classes[seen_classes.index(c)] = correction_dict[c]
         for c in unseen_classes:
-            if c, correct in correction_dict.items():
-                unseen_classes[unseen_classes.index(c)] = correct
+            if c in correction_dict:
+                unseen_classes[unseen_classes.index(c)] = correction_dict[c]
 
         classes = seen_classes + unseen_classes
 
