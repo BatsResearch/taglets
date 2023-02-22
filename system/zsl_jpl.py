@@ -294,7 +294,7 @@ def workflow(dataset_dir, dataset_name,
     # Store model results
     store_results(obj_conf, std_response, gen_response)
 
-def evaluate_predictions(preds, labels, 
+def evaluate_predictions(df_predictions, labels, 
                          unseen_classes, seen_classes=None, standard_zsl=False):
     
     if standard_zsl:
