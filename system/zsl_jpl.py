@@ -79,6 +79,13 @@ def setup_development():
 
     return dev_config.dataset_dir
 
+def dataset_object(dataset_name):
+
+    if dataset_name == 'aPY':
+        from .data import aPY as DataObject
+
+    return DataObject
+
 def workflow(dataset_dir, dataset_name, 
              obj_conf):
     
@@ -129,25 +136,26 @@ def workflow(dataset_dir, dataset_name,
     val_labeled_files = np.array(labeled_files)[val_indices]
     val_labeles = np.array(labeles)[val_indices]
 
+    DatasetObject = dataset_object(dataset_name)
     # Training set (labeled seen): note that here tranform and augmentations are None.
     # These are attributes that everyone can set in the modules.
-    train_seen_dataset = CustomDataset(train_labeled_files, data_folder, 
+    train_seen_dataset = DatasetObject(train_labeled_files, data_folder, 
                                  transform=None, augmentations=None, 
                                  train=True, labels=train_labeles,
                                  label_map=label_to_idx)
     # Training set (unlabeled unseen)
-    train_unseen_dataset = CustomDataset(unseen_labeled_files, data_folder, 
+    train_unseen_dataset = DatasetObject(unseen_labeled_files, data_folder, 
                                  transform=None, augmentations=None, 
                                  train=True, labels=None,
                                  label_map=label_to_idx)
     
     # Validation set (labeled seen)
-    val_seen_dataset = CustomDataset(val_labeled_files, data_folder, 
+    val_seen_dataset = DatasetObject(val_labeled_files, data_folder, 
                                  transform=None, augmentations=None, 
                                  train=True, labels=val_labeles,
                                  label_map=label_to_idx)
     # Test set (test seen and unseen)
-    test_dataset = CustomDataset(test_labeled_files, data_folder, 
+    test_dataset = DatasetObject(test_labeled_files, data_folder, 
                                  transform=None, augmentations=None, 
                                  train=False, labels=None,
                                  label_map=label_to_idx)
