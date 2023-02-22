@@ -77,7 +77,7 @@ def setup_development():
     # not sure this is very elegant. Let me know :)
     import dev_config
 
-    return (dev_config.dataset_dir)
+    return dev_config.dataset_dir
 
 def workflow(dataset_dir, dataset_name, 
              obj_conf):
@@ -324,7 +324,7 @@ def main():
     variables = setup_development()
 
     dataset_name = args.dataset
-    dataset_dir = variables[2]
+    dataset_dir = variables
     log.info(f"Dataset dir: {dataset_dir}")
     
     # Check dataset directory exists
