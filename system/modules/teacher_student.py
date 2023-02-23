@@ -55,6 +55,8 @@ class TeacherStudent(VPTPseudoBaseline):
         original_train_data = copy.deepcopy(train_data)
         #log.info(f"Training data labels: {original_train_data.labels}")
         original_unlabeled_data = copy.deepcopy(unlabeled_data)
+        # Original val
+        original_val_data = copy.deepcopy(val_data)
         
         # Initialize here first batch of pseudo labels
         # Define training dataset
@@ -72,6 +74,20 @@ class TeacherStudent(VPTPseudoBaseline):
             # 1. Initialize teacher
             self.define_model(teacher=True)
             log.info(f"[TEACHER] Initialization..")
+
+
+            # At this time the validation is composed only of seen classes. We can
+            # try to expand it with pseudo-labels.
+            if self.val_unseen_files is not None:
+                seen_imgs = original_val_data.filepaths
+                seen_labs = [self.label_to_idx[l] for l in original_val_data.labels]
+
+                unseen_imgs = list(self.val_unseen_files)
+                unseen_labs = list(self.val_unseen_labs)
+
+                val_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+                val_data.labels = list(unseen_labs) + list(seen_labs)
+                val_data.label_id = True
 
             # 2. Train teacher with labeled seen and pseudo-labeled unseen
             log.info(f"[TEACHER] Start model training..")
@@ -190,7 +206,6 @@ class TeacherStudent(VPTPseudoBaseline):
                          seen classes (defined in zsl_jpl line 334)
         """
 
-        
         # Declare the data pre processing for train and validation data
         train_data.transform = self.transform
         val_data.transform = self.transform
@@ -199,18 +214,7 @@ class TeacherStudent(VPTPseudoBaseline):
                                                    batch_size=self.config.BATCH_SIZE,
                                                    shuffle=True, worker_init_fn=seed_worker,
                                                    generator=g)
-        # At this time the validation is composed only of seen classes. We can
-        # try to expand it with pseudo-labels.
-        if self.val_unseen_files is not None:
-            seen_imgs = val_data.filepaths
-            seen_labs = [self.label_to_idx[l] for l in val_data.labels]
-
-            unseen_imgs = list(self.val_unseen_files)
-            unseen_labs = list(self.val_unseen_labs)
-
-            val_data.filepaths = list(unseen_imgs) + list(seen_imgs)
-            val_data.labels = list(unseen_labs) + list(seen_labs)
-            val_data.label_id = True
+        
 
         val_loader = torch.utils.data.DataLoader(val_data,
                                                  batch_size=self.config.BATCH_SIZE)
