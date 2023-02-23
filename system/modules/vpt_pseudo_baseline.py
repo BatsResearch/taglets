@@ -79,6 +79,10 @@ class VPTPseudoBaseline(VPTBaseline):
 
         loss_ce_unseen = self.cross_entropy(logits, labs, self.unseen_classes)
         #log.info(f"CE unseen classes: {loss_ce_unseen}")
+
+        log.info(f"Seen CE: {loss_ce_seen}")
+        log.info(f"Unseen CE: {loss_ce_unseen}")
+        log.info(f"Parameter balance: {self.balance_param}")
             
         return loss_ce_seen + self.balance_param*loss_ce_unseen
 
@@ -99,7 +103,6 @@ class VPTPseudoBaseline(VPTBaseline):
             if l in ids:
                 samples.append(idx)
 
-        # Get logit sums on unseen samples
         if samples:
             error = self.loss_func(logits[samples], labels[samples]) 
         else:

@@ -89,7 +89,7 @@ def get_class_names(dataset, dataset_dir):
                            'siamese+cat': 'siamese cat',
                            'spider+monkey': 'spider monkey',
                            'humpback+whale': 'humpback whale',
-                           'giant+panda'; 'giant panda',
+                           'giant+panda': 'giant panda',
                             'polar+bear': 'polar bear'}
         
         for c in seen_classes:
