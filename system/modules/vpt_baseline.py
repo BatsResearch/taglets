@@ -308,14 +308,14 @@ class VPTBaseline(object):
         # Get harmonic mean
         idx_seen = [self.label_to_idx[c] for c in self.seen_classes] 
         seen_true = [i for i, c in enumerate(labels_outputs) if c in idx_seen]
-        seen_preds = np.array(predictions_outputs)[seen_true]
-        seen_labs = np.array(labels_outputs)[seen_true]
+        seen_preds = predictions_outputs[seen_true]
+        seen_labs = labels_outputs[seen_true]
         seen_accuracy = torch.sum(seen_preds == seen_labs)/len(seen_true)
         
         idx_unseen = [self.label_to_idx[c] for c in self.unseen_classes] 
         unseen_true = [i for i, c in enumerate(labels_outputs) if c in idx_unseen]
-        unseen_preds = np.array(predictions_outputs)[unseen_true]
-        unseen_labs = np.array(labels_outputs)[unseen_true]
+        unseen_preds = predictions_outputs[unseen_true]
+        unseen_labs = labels_outputs[unseen_true]
         unseen_accuracy = torch.sum(unseen_preds == unseen_labs)/len(unseen_true)
         
         accuracy = st.hmean([unseen_accuracy, seen_accuracy])
@@ -376,14 +376,14 @@ class VPTBaseline(object):
         # Get harmonic mean
         idx_seen = [self.label_to_idx[c] for c in self.seen_classes] 
         seen_true = [i for i, c in enumerate(labels_outputs) if c in idx_seen]
-        seen_preds = np.array(predictions_outputs)[seen_true]
-        seen_labs = np.array(labels_outputs)[seen_true]
+        seen_preds = predictions_outputs[seen_true]
+        seen_labs = labels_outputs[seen_true]
         seen_accuracy = torch.sum(seen_preds == seen_labs)/len(seen_true)
         
         idx_unseen = [self.label_to_idx[c] for c in self.unseen_classes] 
         unseen_true = [i for i, c in enumerate(labels_outputs) if c in idx_unseen]
-        unseen_preds = np.array(predictions_outputs)[unseen_true]
-        unseen_labs = np.array(labels_outputs)[unseen_true]
+        unseen_preds = predictions_outputs[unseen_true]
+        unseen_labs = labels_outputs[unseen_true]
         unseen_accuracy = torch.sum(unseen_preds == unseen_labs)/len(unseen_true)
         
         accuracy = st.hmean([unseen_accuracy, seen_accuracy])
