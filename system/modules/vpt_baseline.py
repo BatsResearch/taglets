@@ -410,9 +410,9 @@ class VPTBaseline(object):
             
             accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
 
-            log.info(F"Training SEEN accuracy after Epoch {epoch}: {seen_accuracy}")
-            log.info(F"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
-            log.info(F"Training HARMONIC accuracy after Epoch {epoch}: {accuracy}")
+            log.info(F"Validation SEEN accuracy after Epoch: {seen_accuracy}")
+            log.info(F"Validation UNSEEN accuracy after Epoch: {unseen_accuracy}")
+            log.info(F"Validation HARMONIC accuracy after Epoch: {accuracy}")
 
         
         return accuracy
