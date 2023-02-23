@@ -1,5 +1,5 @@
 # Dataset name
-DATASET_NAME: "aPY"
+DATASET_NAME: "Animals_with_Attributes2"
 # Model
 MODEL: "clip_baseline"
 # Visual ecoder
