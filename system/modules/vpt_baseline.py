@@ -305,8 +305,25 @@ class VPTBaseline(object):
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
 
-        accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
-        log.info(F"Training accuracy after Epoch {epoch}: {accuracy}")
+        # Get harmonic mean
+        idx_seen = [self.label_to_idx[c] for c in self.seen_classes] 
+        seen_true = [i for i, c in enumerate(labels_outputs) if c in idx_seen]
+        seen_preds = np.array(predictions_outputs)[seen_true]
+        seen_labs = np.array(labels_outputs)[seen_true]
+        seen_accuracy = torch.sum(seen_preds == seen_labs)/len(seen_true)
+        
+        idx_unseen = [self.label_to_idx[c] for c in self.unseen_classes] 
+        unseen_true = [i for i, c in enumerate(labels_outputs) if c in idx_unseen]
+        unseen_preds = np.array(predictions_outputs)[unseen_true]
+        unseen_labs = np.array(labels_outputs)[unseen_true]
+        unseen_accuracy = torch.sum(unseen_preds == unseen_labs)/len(unseen_true)
+        
+        accuracy = st.hmean([unseen_accuracy, seen_accuracy])
+
+        #accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
+        log.info(F"Training SEEN accuracy after Epoch {epoch}: {seen_accuracy}")
+        log.info(F"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
+        log.info(F"Training HARMONIC accuracy after Epoch {epoch}: {accuracy}")
 
         self.update_scheduler(teacher)
 
@@ -370,6 +387,11 @@ class VPTBaseline(object):
         unseen_accuracy = torch.sum(unseen_preds == unseen_labs)/len(unseen_true)
         
         accuracy = st.hmean([unseen_accuracy, seen_accuracy])
+
+        log.info(F"Training SEEN accuracy after Epoch {epoch}: {seen_accuracy}")
+        log.info(F"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
+        log.info(F"Training HARMONIC accuracy after Epoch {epoch}: {accuracy}")
+
         
         return accuracy
 
