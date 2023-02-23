@@ -300,8 +300,11 @@ class VPTBaseline(object):
 
             count_seen = len([l for l in labs if l in idx_seen])
             count_unseen = len([l for l in labs if l in idx_unseen])
-            self.balance_param = count_seen/count_unseen
-
+            
+            try:
+                self.balance_param = count_seen/count_unseen
+            except ZeroDivisionError:
+                self.balance_param = 1
             labs = labs.to(self.device)
             loss = self.define_loss_function(logits, labs, teacher)
             total_loss += loss.item()
