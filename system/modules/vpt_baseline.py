@@ -375,7 +375,10 @@ class VPTBaseline(object):
             logits = logit_scale * image_features @ text_features.t()
 
             idx_preds = torch.argmax(logits, dim=1)
-            real_preds = [self.seen_classes[i.item()] for i in idx_preds]
+            if self.val_unseen_files is not None:
+                real_preds = [self.classes[i.item()] for i in idx_preds]
+            else:
+                real_preds = [self.seen_classes[i.item()] for i in idx_preds]
             
             predictions += real_preds
             labels += [self.classes[i.item()] for i in label]
