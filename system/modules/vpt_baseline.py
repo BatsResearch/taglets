@@ -318,7 +318,7 @@ class VPTBaseline(object):
         unseen_labs = labels_outputs[unseen_true]
         unseen_accuracy = torch.sum(unseen_preds == unseen_labs)/len(unseen_true)
         
-        accuracy = st.hmean([unseen_accuracy, seen_accuracy])
+        accuracy = st.hmean([unseen_accuracy.item(), seen_accuracy.item()])
 
         #accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
         log.info(F"Training SEEN accuracy after Epoch {epoch}: {seen_accuracy}")
