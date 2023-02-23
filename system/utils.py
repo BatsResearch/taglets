@@ -136,9 +136,12 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
         
         labeled_files = list(image_data[(image_data['seen'] == 1) & (image_data['file_names'] != 'broken')]['file_names'])
         labels_files = list(image_data[(image_data['seen'] == 1) & (image_data['file_names'] != 'broken')]['label'])
-               
+        log.info(f"NUMBER OF UNIQUE SEEN CLASSES: {len(set(labels_files))}")
+
+
         unlabeled_lab_files = list(image_data[(image_data['seen'] == 0) & (image_data['file_names'] != 'broken')]['file_names'])
         unlabeled_labs = list(image_data[(image_data['seen'] == 0) & (image_data['file_names'] != 'broken')]['label'])
+        log.info(f"NUMBER OF UNIQUE UNSEEN CLASSES: {len(set(unlabeled_labs))}")
 
     elif dataset == 'Animals_with_Attributes2':
         labeled_files = []
