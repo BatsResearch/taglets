@@ -68,11 +68,13 @@ class VPTPseudoBaseline(VPTBaseline):
                                     replace=False)
             val_indices = list(set(range(len(unseen_imgs))).difference(set(train_indices)))
 
+            self.val_unseen_files = np.array(unseen_imgs)[val_indices]
+            self.val_unseen_labs = np.array(unseen_labs)[val_indices]
+            
             unseen_imgs = list(np.array(unseen_imgs)[train_indices])
             unseen_labs = list(np.array(unseen_labs)[train_indices])
 
-            self.val_unseen_files = np.array(unseen_imgs)[val_indices]
-            self.val_unseen_labs = np.array(unseen_labs)[val_indices]
+            
         else:
             self.val_unseen_files = None
             self.val_unseen_labs = None
