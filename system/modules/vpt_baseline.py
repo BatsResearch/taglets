@@ -138,7 +138,7 @@ class VPTBaseline(object):
                                                    batch_size=self.config.BATCH_SIZE,
                                                    shuffle=True, worker_init_fn=seed_worker,
                                                    generator=g)
-        if self.val_unseen_files:
+        if self.val_unseen_files is not None:
             seen_imgs = val_data.filepaths
             seen_labs = [self.label_to_idx[l] for l in val_data.labels]
 
@@ -351,11 +351,11 @@ class VPTBaseline(object):
         """
 
         # Define text queries
-        if self.val_unseen_files:
+        if self.val_unseen_files is not None:
             val = False
         else:
             val = True
-            
+
         prompts = self.define_textual_prompts(only_unlabelled, validation=val)
         log.info(f"Number of prompts: {len(prompts)}")
         
