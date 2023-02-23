@@ -1,3 +1,5 @@
+DATASET_NAME: "aPY"
+# Model
 MODEL: "vpt_pseudo_disambiguate"
 # Visual ecoder
 VIS_ENCODER: "ViT-B/32"
@@ -19,7 +21,7 @@ validation_seed: 0
 # Ratio validation
 ratio_train_val: 0.8
 # Batch size
-BATCH_SIZE: 3
+BATCH_SIZE: 12
 # Number of epochs
 EPOCHS: 100
 # Scheduler
