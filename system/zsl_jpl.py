@@ -102,7 +102,7 @@ def workflow(dataset_dir,
     # Path for images
     # dataset_dir = /users/cmenghin/data/bats/datasets/
     # dataset = aPY
-    data_folder = f"{dataset_dir}/{dataset}/gbu"
+    data_folder = f"{dataset_dir}/{dataset}"
     print(f"Data folder: {data_folder}")
     # Get labeled examples (seen classes)
     # Get unlabeled examples (unseen classes)
@@ -341,7 +341,7 @@ def store_results(obj_conf, std_response, unseen_accuracy, seen_accuracy, harmon
             with open(file_name, 'w') as f:
                 # Write the res dictionary to the file
                 f.write(json.dumps(results_to_store) + '\n')
-
+ 
 def main():
     parser = argparse.ArgumentParser(description="Run JPL task")
     parser.add_argument("--model_config",

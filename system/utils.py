@@ -15,6 +15,8 @@ def dataset_object(dataset_name):
 
     if dataset_name == 'aPY':
         from .data import aPY as DataObject
+    elif dataset_name == 'Animals_with_Attributes2':
+        from .data import AwA2 as DataObject
 
     return DataObject
 
@@ -64,6 +66,41 @@ def get_class_names(dataset, dataset_dir):
 
         classes = seen_classes + unseen_classes
 
+    elif dataset == 'Animals_with_Attributes2':
+        path = f"{dataset_dir}/{dataset}"
+
+        seen_classes = []
+        unseen_classes = []
+        df = pd.read_csv(f"{path}/trainvalclasses.txt")
+        with open(f"{path}/trainvalclasses.txt", 'r') as f:
+            for l in f:
+                seen_classes.append(l.strip())
+        
+        with open(f"{path}/testclasses.txt", 'r') as f:
+            for l in f:
+                unseen_classes.append(l.strip())
+
+        # Adjust class names
+        correction_dict = {'grizzly+bear': 'grizzly bear',
+                           'killer+whale': 'killer whale',
+                           'persian+cat': 'persian cat',
+                           'german+shepherd': 'german shepherd',
+                           'blue+whale': 'blue whale',
+                           'siamese+cat': 'siamese cat',
+                           'spider+monkey': 'spider monkey',
+                           'humpback+whale': 'humpback whale',
+                           'giant+panda'; 'giant panda',
+                            'polar+bear': 'polar bear'}
+        
+        for c in seen_classes:
+            if c in correction_dict:
+                seen_classes[seen_classes.index(c)] = correction_dict[c]
+        for c in unseen_classes:
+            if c in correction_dict:
+                unseen_classes[unseen_classes.index(c)] = correction_dict[c]
+
+        classes = seen_classes + unseen_classes
+
     return classes, seen_classes, unseen_classes
 
 def get_labeled_and_unlabeled_data(dataset, data_folder, 
@@ -79,8 +116,7 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
     :param unseen_classes: list of unseen classes' names
     """
     if dataset == 'aPY':
-        labels_file = '/'.join(data_folder.split('/')[:-1])
-        image_data = pd.read_csv(f"{labels_file}/image_data.csv", sep=',')
+        image_data = pd.read_csv(f"{data_folder}/image_data.csv", sep=',')
         
         list_images = []
         for i, row in image_data.iterrows():
@@ -104,20 +140,34 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
         unlabeled_lab_files = list(image_data[(image_data['seen'] == 0) & (image_data['file_names'] != 'broken')]['file_names'])
         unlabeled_labs = list(image_data[(image_data['seen'] == 0) & (image_data['file_names'] != 'broken')]['label'])
 
+    elif dataset == 'Animals_with_Attributes2':
+        labeled_files = []
+        labels_files = []
+        for c in seen_classes:
+            files = os.listdir(f"{data_folder}/JPEGImages/{c.replace(' ', '+')}")
+            labeled_files += files
+            labels_files += [c]*len(files)
 
-        # Split labeled and unlabeled data into test
-        train_labeled_files, train_labeles, test_seen_files, test_seen_labs = split_data(0.8, labeled_files, labels_files)
-        labeled_data = list(zip(train_labeled_files, train_labeles))
-
-        train_unlabeled_files, train_un_labeles, test_unseen_files, test_unseen_labs = split_data(0.8, unlabeled_lab_files, unlabeled_labs)
-        unlabeled_data = list(zip(train_unlabeled_files, train_un_labeles))
-
-        test_seen = list(zip(test_seen_files, test_seen_labs))
-        test_unseen = list(zip(test_unseen_files, test_unseen_labs))
+        unlabeled_lab_files = []
+        unlabeled_labs = []
+        for c in unseen_classes:
+            files = os.listdir(f"{data_folder}/JPEGImages/{c.replace(' ', '+')}")
+            unlabeled_lab_files += files
+            unlabeled_labs += [c]*len(files)
         
-        test_data = test_seen + test_unseen
+    # Split labeled and unlabeled data into test
+    train_labeled_files, train_labeles, test_seen_files, test_seen_labs = split_data(0.8, labeled_files, labels_files)
+    labeled_data = list(zip(train_labeled_files, train_labeles))
 
-        return labeled_data, unlabeled_data, test_data
+    train_unlabeled_files, train_un_labeles, test_unseen_files, test_unseen_labs = split_data(0.8, unlabeled_lab_files, unlabeled_labs)
+    unlabeled_data = list(zip(train_unlabeled_files, train_un_labeles))
+
+    test_seen = list(zip(test_seen_files, test_seen_labs))
+    test_unseen = list(zip(test_unseen_files, test_unseen_labs))
+    
+    test_data = test_seen + test_unseen
+
+    return labeled_data, unlabeled_data, test_data
 
 
 def split_data(ratio, files, labels):
@@ -134,99 +184,6 @@ def split_data(ratio, files, labels):
     val_labeles = np.array(labels)[val_indices]
 
     return train_labeled_files, train_labeles, val_labeled_files, val_labeles
-
-
-def declare_model(model_name):
-
-    if model_name == 'clip_baseline':
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = ClipBaseline(obj_conf, device=device, 
-                             **dict_classes)
-    
-    elif model_name == 'coop_baseline':
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = CoopBaseline(obj_conf, label_to_idx, 
-                             device=device, 
-                             **dict_classes) 
-
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset, 
-                                                   classes=seen_classes)
-        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
-        log.info(f"The optimal prompt is {optimal_prompt}.")
-
-        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
-    
-    elif model_name == 'tpt_baseline':
-        # TODO
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = TptBaseline(obj_conf, 
-                             device=device, 
-                             **dict_classes) 
-
-    elif model_name == 'vpt_baseline':
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = VPTBaseline(obj_conf, label_to_idx, 
-                            device=device, 
-                            **dict_classes)
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset)
-        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
-        log.info(f"The optimal prompt is {optimal_prompt}.")
-
-        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
-        model.model.image_pos_emb = torch.nn.Parameter(torch.tensor(optimal_prompt[1]))
-    
-    elif model_name == 'vpt_pseudo_baseline':
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = VPTPseudoBaseline(obj_conf, label_to_idx, 
-                            device=device, 
-                            **dict_classes)
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset,
-                                                   train_unseen_dataset)
-        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
-        log.info(f"The optimal prompt is {optimal_prompt}.")
-
-    elif model_name == 'coop_pseudo_baseline':
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = CoopPseudoBaseline(obj_conf, label_to_idx, 
-                            device=device, 
-                            **dict_classes)
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset, 
-                                                   val_seen_dataset, classes=classes, 
-                                                   unlabeled_data=train_unseen_dataset)
-        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
-        log.info(f"The optimal prompt is {optimal_prompt}.")
-    
-    elif model_name == 'vpt_pseudo_disambiguate':
-        model = VPTPseudoDisambiguate(obj_conf, label_to_idx, 
-                                      device=device, 
-                                      **dict_classes)
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset, train_unseen_dataset,
-                                                   val_seen_dataset, data_folder)
-
-    elif model_name == 'teacher_student':
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = TeacherStudent(obj_conf, label_to_idx, 
-                               data_folder, 
-                               device=device, 
-                               **dict_classes)
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset, train_unseen_dataset,
-                                                   val_seen_dataset)
-        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
-        log.info(f"The optimal prompt is {optimal_prompt}.")
-
-    elif model_name == 'adjust_and_adapt':
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = AdjustAndAdapt(obj_conf, label_to_idx, 
-                               device=device, 
-                               **dict_classes)
-        vpt_prompts = model.train(train_labeled_files, 
-                                  unlabeled_data, val_labeled_files,
-                                  data_folder)
-    elif model_name == 'two_stage_classifier':
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = TwoStageClassifier(obj_conf, label_to_idx, 
-                                device=device, 
-                                **dict_classes)
 
 
 def parse_transform(transform, image_size=224):
