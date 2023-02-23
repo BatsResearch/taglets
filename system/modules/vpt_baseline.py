@@ -295,16 +295,6 @@ class VPTBaseline(object):
             labels += [self.classes[i.item()] for i in label]
 
             labs = self.reindex_true_labels(label, only_unlabelled)
-            idx_seen = [self.classes.index(c) for c in self.seen_classes]
-            idx_unseen = [self.classes.index(c) for c in self.unseen_classes]
-
-            count_seen = len([l for l in labs if l in idx_seen])
-            count_unseen = len([l for l in labs if l in idx_unseen])
-            
-            try:
-                self.balance_param = count_seen/count_unseen
-            except ZeroDivisionError:
-                self.balance_param = 1
             labs = labs.to(self.device)
             loss = self.define_loss_function(logits, labs, teacher)
             total_loss += loss.item()
