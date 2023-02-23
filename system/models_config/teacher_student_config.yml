@@ -24,8 +24,8 @@ ratio_train_val: 0.8
 # Batch size
 BATCH_SIZE: 3
 # Number of epochs
-t_EPOCHS: 100
-s_EPOCHS: 20
+t_EPOCHS: 1
+s_EPOCHS: 1
 # Scheduler
 SCHEDULER: "cosine"
 # Scheduler warmup epochs

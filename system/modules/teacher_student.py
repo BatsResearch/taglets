@@ -63,10 +63,11 @@ class TeacherStudent(VPTPseudoBaseline):
         for niter in range(1, num_iter): 
             log.info(f"Start {niter} round of training..")
 
-            # Update the training data
-            train_data.filepaths = [f for i, f in enumerate(original_train_data.filepaths)]
-            train_data.labels = [l for i, l in enumerate(original_train_data.labels)]
-            self.update_training_set(train_data, unlabeled_data)
+            if niter > 1:
+                # Update the training data
+                train_data.filepaths = [f for i, f in enumerate(original_train_data.filepaths)]
+                train_data.labels = [l for i, l in enumerate(original_train_data.labels)]
+                self.update_training_set(train_data, unlabeled_data)
             
             # 1. Initialize teacher
             self.define_model(teacher=True)
@@ -116,6 +117,25 @@ class TeacherStudent(VPTPseudoBaseline):
         # Define the lists of traiing data from seen and unseen classes
         unseen_imgs = train_unseen_dataset.filepaths
         unseen_labs = train_unseen_dataset.labels
+
+        # Use a portion of the pseudo-labeled data to build a validation set
+        if self.config.N_PSEUDOSHOTS >= 10:
+            np.random.seed(self.config.validation_seed)
+            train_indices = np.random.choice(range(len(unseen_imgs)),
+                                    size=int(len(unseen_imgs)*self.config.ratio_train_val),
+                                    replace=False)
+            val_indices = list(set(range(len(unseen_imgs))).difference(set(train_indices)))
+
+            self.val_unseen_files = np.array(unseen_imgs)[val_indices]
+            self.val_unseen_labs = np.array(unseen_labs)[val_indices]
+
+            unseen_imgs = list(np.array(unseen_imgs)[train_indices])
+            unseen_labs = list(np.array(unseen_labs)[train_indices])
+
+            
+        else:
+            self.val_unseen_files = None
+            self.val_unseen_labs = None
 
         seen_imgs = train_data.filepaths
         seen_labs = [self.label_to_idx[l] for l in train_data.labels]
