@@ -84,6 +84,8 @@ class TeacherStudent(VPTPseudoBaseline):
             pseudo_labels = self.get_pseudo_labels(original_unlabeled_data,
                                                    teacher=True)
 
+            # self.val_unseen_files = None
+            # self.val_unseen_labs = None
             # 4. Initialize student model
             log.info(f"[STUDENT] Initialization..")
             self.define_model(teacher=False)
@@ -209,7 +211,7 @@ class TeacherStudent(VPTPseudoBaseline):
             val_data.filepaths = list(unseen_imgs) + list(seen_imgs)
             val_data.labels = list(unseen_labs) + list(seen_labs)
             val_data.label_id = True
-            
+
         val_loader = torch.utils.data.DataLoader(val_data,
                                                  batch_size=self.config.BATCH_SIZE)
         log.info(f"[TEACHER] The size of training data: {len(train_data)}")

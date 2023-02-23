@@ -329,12 +329,16 @@ class VPTBaseline(object):
         unseen_labs = labels_outputs[unseen_true]
         unseen_accuracy = torch.sum(unseen_preds == unseen_labs)/len(unseen_true)
         
-        accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
+        if only_unlabelled:
+            accuracy = unseen_accuracy
+            log.info(F"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
+        else:
+            accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
 
-        #accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
-        log.info(F"Training SEEN accuracy after Epoch {epoch}: {seen_accuracy}")
-        log.info(F"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
-        log.info(F"Training HARMONIC accuracy after Epoch {epoch}: {accuracy}")
+            #accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
+            log.info(F"Training SEEN accuracy after Epoch {epoch}: {seen_accuracy}")
+            log.info(F"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
+            log.info(F"Training HARMONIC accuracy after Epoch {epoch}: {accuracy}")
 
         self.update_scheduler(teacher)
 
