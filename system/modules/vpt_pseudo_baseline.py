@@ -60,6 +60,8 @@ class VPTPseudoBaseline(VPTBaseline):
         unseen_imgs = train_unseen_dataset.filepaths
         unseen_labs = train_unseen_dataset.labels
 
+        # Use a portion of the pseudo-labeled data to build a validation set
+
         seen_imgs = train_data.filepaths
         seen_labs = [self.label_to_idx[l] for l in train_data.labels]
 

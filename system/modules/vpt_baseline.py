@@ -2,6 +2,7 @@ from tqdm import tqdm
 import logging
 import numpy as np
 import pandas as pd
+import scipy.stats as st
 
 import clip
 import torch
@@ -349,13 +350,26 @@ class VPTBaseline(object):
 
         accelerator.wait_for_everyone()
 
-        predictions = torch.tensor([self.label_to_idx[p] for p in predictions][:len(val_loader.dataset)]).to(self.device)
-        labels = torch.tensor([self.label_to_idx[l] for l in labels][:len(val_loader.dataset)]).to(self.device)
+        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
+        labels = torch.tensor([self.label_to_idx[l] for l in labels]).to(self.device)
 
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
 
-        accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
+        # Get harmonic mean
+        idx_seen = [self.label_to_idx[c] for c in self.seen_classes] 
+        seen_true = [i for i, c in enumerate(labels_outputs) if c in idx_seen]
+        seen_preds = np.array(predictions_outputs)[seen_true]
+        seen_labs = np.array(labels_outputs)[seen_true]
+        seen_accuracy = torch.sum(seen_preds == seen_labs)/len(seen_true)
+        
+        idx_unseen = [self.label_to_idx[c] for c in self.unseen_classes] 
+        unseen_true = [i for i, c in enumerate(labels_outputs) if c in idx_unseen]
+        unseen_preds = np.array(predictions_outputs)[unseen_true]
+        unseen_labs = np.array(labels_outputs)[unseen_true]
+        unseen_accuracy = torch.sum(unseen_preds == unseen_labs)/len(unseen_true)
+        
+        accuracy = st.hmean([unseen_accuracy, seen_accuracy])
         
         return accuracy
 
