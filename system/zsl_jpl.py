@@ -20,7 +20,8 @@ from torch import nn
 from accelerate import Accelerator
 accelerator = Accelerator()
 
-from .utils import Config, get_class_names, get_labeled_and_unlabeled_data
+from .utils import Config, get_class_names, get_labeled_and_unlabeled_data, \
+                   dataset_object
 from .data import CustomDataset
 from .modules import ClipBaseline, CoopBaseline, TptBaseline, VPTBaseline, \
                      AdjustAndAdapt, VPTPseudoBaseline, CoopPseudoBaseline, \
@@ -78,13 +79,6 @@ def setup_development():
     import dev_config
 
     return dev_config.dataset_dir
-
-def dataset_object(dataset_name):
-
-    if dataset_name == 'aPY':
-        from .data import aPY as DataObject
-
-    return DataObject
 
 def workflow(dataset_dir, 
              obj_conf):

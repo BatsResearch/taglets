@@ -1,3 +1,5 @@
+DATASET_NAME: "aPY"
+# Model
 MODEL: "teacher_student"
 # Visual ecoder
 VIS_ENCODER: "ViT-B/32"

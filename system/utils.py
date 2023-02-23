@@ -11,6 +11,13 @@ import torchvision.transforms as transforms
 import clip
 from PIL import Image
 
+def dataset_object(dataset_name):
+
+    if dataset_name == 'aPY':
+        from .data import aPY as DataObject
+
+    return DataObject
+
 log = logging.getLogger(__name__)
 
 def seed_worker(worker_id):

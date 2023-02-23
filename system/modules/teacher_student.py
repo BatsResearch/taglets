@@ -13,7 +13,7 @@ from accelerate import Accelerator
 accelerator = Accelerator()
 
 from ..data import CustomDataset
-from ..utils import seed_worker, pseudolabel_top_k
+from ..utils import seed_worker, dataset_object
 from ..models import CustomImageEncoder, make_scheduler, ImagePrefixModel
 from ..modules import VPTPseudoBaseline
 
@@ -419,8 +419,9 @@ class TeacherStudent(VPTPseudoBaseline):
                                           standard_zsl=True,
                                           teacher=teacher)
         
+        DatasetObject = dataset_object(self.config.DATASET_NAME)
         # 4. Take top-16 pseudo-labels to finetune the student
-        pseudo_unseen_examples = CustomDataset(std_preds['id'], 
+        pseudo_unseen_examples = DatasetObject(std_preds['id'], 
                                                self.data_folder, 
                                                transform=self.transform, 
                                                augmentations=None, 
