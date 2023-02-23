@@ -126,10 +126,10 @@ class VPTBaseline(object):
                                 pseudo-labeled unseen data
         """
 
-        self.define_model()
         # Define training dataset
         self.create_training_dataset(train_data, unlabeled_data)
-
+        
+        self.define_model()
         # Declare the data pre processing for train and validation data
         train_data.transform = self.transform
         val_data.transform = self.transform

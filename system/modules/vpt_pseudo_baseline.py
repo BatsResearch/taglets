@@ -70,7 +70,7 @@ class VPTPseudoBaseline(VPTBaseline):
 
             self.val_unseen_files = np.array(unseen_imgs)[val_indices]
             self.val_unseen_labs = np.array(unseen_labs)[val_indices]
-            
+
             unseen_imgs = list(np.array(unseen_imgs)[train_indices])
             unseen_labs = list(np.array(unseen_labs)[train_indices])
 
@@ -91,20 +91,16 @@ class VPTPseudoBaseline(VPTBaseline):
 
     def define_loss_function(self, logits, labs, teacher=False):
         
-        # loss_ce_seen = self.loss_func(logits, labs)
-        # loss_unseen = self.loss_disambiguate(logits, labs)
+        # loss_ce_seen = self.cross_entropy(logits, labs, self.seen_classes)
+        # loss_ce_unseen = self.cross_entropy(logits, labs, self.unseen_classes)
 
-        loss_ce_seen = self.cross_entropy(logits, labs, self.seen_classes)
-        #log.info(f"CE seen classes: {loss_ce_seen}")
-
-        loss_ce_unseen = self.cross_entropy(logits, labs, self.unseen_classes)
-        #log.info(f"CE unseen classes: {loss_ce_unseen}")
-
-        log.info(f"Seen CE: {loss_ce_seen}")
-        log.info(f"Unseen CE: {loss_ce_unseen}")
-        log.info(f"Parameter balance: {self.balance_param}")
+        # log.info(f"Seen CE: {loss_ce_seen}")
+        # log.info(f"Unseen CE: {loss_ce_unseen}")
+        # log.info(f"Parameter balance: {self.balance_param}")
             
-        return loss_ce_seen + self.balance_param*loss_ce_unseen
+        # return loss_ce_seen + self.balance_param*loss_ce_unseen
+
+        return self.cross_entropy(logits, labs, self.classes)
 
     def cross_entropy(self, logits, labels, classes):
         """ This loss computes the probability mass on the
