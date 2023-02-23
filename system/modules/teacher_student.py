@@ -199,6 +199,17 @@ class TeacherStudent(VPTPseudoBaseline):
                                                    generator=g)
         # At this time the validation is composed only of seen classes. We can
         # try to expand it with pseudo-labels.
+        if self.val_unseen_files is not None:
+            seen_imgs = val_data.filepaths
+            seen_labs = [self.label_to_idx[l] for l in val_data.labels]
+
+            unseen_imgs = list(self.val_unseen_files)
+            unseen_labs = list(self.val_unseen_labs)
+
+            val_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+            val_data.labels = list(unseen_labs) + list(seen_labs)
+            val_data.label_id = True
+            
         val_loader = torch.utils.data.DataLoader(val_data,
                                                  batch_size=self.config.BATCH_SIZE)
         log.info(f"[TEACHER] The size of training data: {len(train_data)}")
