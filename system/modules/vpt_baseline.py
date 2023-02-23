@@ -138,6 +138,17 @@ class VPTBaseline(object):
                                                    batch_size=self.config.BATCH_SIZE,
                                                    shuffle=True, worker_init_fn=seed_worker,
                                                    generator=g)
+        if self.val_unseen_files:
+            seen_imgs = val_data.filepaths
+            seen_labs = [self.label_to_idx[l] for l in val_data.labels]
+
+            unseen_imgs = list(self.val_unseen_files)
+            unseen_labs = list(self.val_unseen_labs)
+
+            val_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+            val_data.labels = list(unseen_labs) + list(seen_labs)
+            val_data.label_id = True
+
         val_loader = torch.utils.data.DataLoader(val_data,
                                                  batch_size=self.config.BATCH_SIZE)
 
@@ -340,7 +351,12 @@ class VPTBaseline(object):
         """
 
         # Define text queries
-        prompts = self.define_textual_prompts(only_unlabelled, validation=True)
+        if self.val_unseen_files:
+            val = False
+        else:
+            val = True
+            
+        prompts = self.define_textual_prompts(only_unlabelled, validation=val)
         log.info(f"Number of prompts: {len(prompts)}")
         
         # Encode text
