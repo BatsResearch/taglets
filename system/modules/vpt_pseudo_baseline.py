@@ -91,16 +91,16 @@ class VPTPseudoBaseline(VPTBaseline):
 
     def define_loss_function(self, logits, labs, teacher=False):
         
-        # loss_ce_seen = self.cross_entropy(logits, labs, self.seen_classes)
-        # loss_ce_unseen = self.cross_entropy(logits, labs, self.unseen_classes)
+        loss_ce_seen = self.cross_entropy(logits, labs, self.seen_classes)
+        loss_ce_unseen = self.cross_entropy(logits, labs, self.unseen_classes)
 
-        # log.info(f"Seen CE: {loss_ce_seen}")
-        # log.info(f"Unseen CE: {loss_ce_unseen}")
-        # log.info(f"Parameter balance: {self.balance_param}")
+        log.info(f"Seen CE: {loss_ce_seen}")
+        log.info(f"Unseen CE: {loss_ce_unseen}")
+        log.info(f"Parameter balance: {self.balance_param}")
             
-        # return loss_ce_seen + self.balance_param*loss_ce_unseen
+        return loss_ce_seen + self.balance_param*loss_ce_unseen
 
-        return self.cross_entropy(logits, labs, self.classes)
+        #return self.cross_entropy(logits, labs, self.classes)
 
     def cross_entropy(self, logits, labels, classes):
         """ This loss computes the probability mass on the
