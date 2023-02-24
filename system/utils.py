@@ -228,14 +228,14 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
         labeled_files = []
         labels_files = []
         for c in seen_classes:
-            files = os.listdir(f"{data_folder}/{c}")
+            files = os.listdir(f"{data_folder}/image/{c}")
             labeled_files += files
             labels_files += [c]*len(files)
 
         unlabeled_lab_files = []
         unlabeled_labs = []
         for c in unseen_classes:
-            files = os.listdir(f"{data_folder}/{c}")
+            files = os.listdir(f"{data_folder}/images/{c}")
             unlabeled_lab_files += files
             unlabeled_labs += [c]*len(files)
         
