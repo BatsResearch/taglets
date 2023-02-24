@@ -37,6 +37,32 @@ class Config(object):
         for k, v in config.items():
             setattr(self, k, v)   
 
+def evaluate_predictions(df_predictions, test_labeled_files, labels, 
+                         unseen_classes, seen_classes=None, standard_zsl=False):
+    df_test = pd.DataFrame({'id': test_labeled_files,
+                            'true': labels})
+    df_predictions = pd.merge(df_predictions, df_test, on='id')
+
+    if standard_zsl:
+        #df_predictions['true'] = labels
+        df_predictions = df_predictions[df_predictions['true'].isin(unseen_classes)]
+        accuracy = np.sum(df_predictions['class'] == df_predictions['true']) / df_predictions.shape[0]
+
+        return accuracy
+        
+    else:
+        #df_predictions['true'] = labels
+        unseen_predictions = df_predictions[df_predictions['true'].isin(unseen_classes)]
+        unseen_accuracy = np.sum(unseen_predictions['class'] == unseen_predictions['true']) / unseen_predictions.shape[0]
+
+        seen_predictions = df_predictions[df_predictions['true'].isin(seen_classes)]
+        seen_accuracy = np.sum(seen_predictions['class'] == seen_predictions['true']) / seen_predictions.shape[0]
+
+        harmonic_mean = st.hmean([unseen_accuracy, seen_accuracy])
+
+        return unseen_accuracy, seen_accuracy, harmonic_mean
+
+
 def get_class_names(dataset, dataset_dir):
     """ Returns the lists of the names of all classes, seen classes,
     and unseen classes.
@@ -198,16 +224,16 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
 
     elif dataset == 'EuroSAT':
 
-        correction_dict = {'Annual Crop Land': 'AnnualCrop',
-                           'Herbaceous Vegetation Land': 'HerbaceousVegetation',
-                           'Highway or Road': 'Highway',
-                           'Industrial Buildings': 'Industrial',
-                           'Pasture Land': 'Pasture',
-                           'Permanent Crop Land': 'PermanentCrop',
-                           'Residential Buildings': 'Residential',
-                           'Sea or Lake': 'SeaLake',
-                           'River': 'River',
-                           'Forest': 'Forest'}
+        correction_dict = {'annual crop land': 'AnnualCrop',
+                           'brushland or shrubland': 'HerbaceousVegetation',
+                           'highway or road': 'Highway',
+                           'industrial buildings or commercial buildings': 'Industrial',
+                           'pasture land': 'Pasture',
+                           'permanent crop land': 'PermanentCrop',
+                           'residential buildings or homes or apartments': 'Residential',
+                           'lake or sea': 'SeaLake',
+                           'river': 'River',
+                           'forest': 'Forest'}
         
         labeled_files = []
         labels_files = []

@@ -12,7 +12,7 @@ from PIL import Image
 from accelerate import Accelerator
 accelerator = Accelerator()
 
-from ..data import CustomDataset
+from ..data import CustomDataset, evaluate_predictions
 from ..utils import seed_worker, dataset_object
 from ..models import CustomImageEncoder, make_scheduler, ImagePrefixModel
 from ..modules import VPTPseudoBaseline
@@ -35,7 +35,8 @@ class TeacherStudent(VPTPseudoBaseline):
         self.data_folder = data_folder
 
         
-    def train(self, train_data, val_data, unlabeled_data):
+    def train(self, train_data, val_data, unlabeled_data, test_data,
+              test_labeled_files, test_labeles):
 
         # Number of total iterations to cover all unlabeled data
         num_iter = self.config.STEP_QUANTILE
@@ -61,15 +62,17 @@ class TeacherStudent(VPTPseudoBaseline):
         # Initialize here first batch of pseudo labels
         # Define training dataset
         self.create_training_dataset(train_data, unlabeled_data)
+        log.info(f"Labels unlabeled data: {unlabeled_data.labels}")
 
         for niter in range(1, num_iter): 
             log.info(f"Start {niter} round of training..")
 
-            if niter > 1:
-                # Update the training data
-                train_data.filepaths = [f for i, f in enumerate(original_train_data.filepaths)]
-                train_data.labels = [l for i, l in enumerate(original_train_data.labels)]
-                self.update_training_set(train_data, unlabeled_data)
+            #if niter > 1:
+            # Update the training data
+            train_data.filepaths = [f for i, f in enumerate(original_train_data.filepaths)]
+            train_data.labels = [l for i, l in enumerate(original_train_data.labels)]
+            self.update_training_set(train_data, unlabeled_data)
+
             
             # 1. Initialize teacher
             self.define_model(teacher=True)
@@ -100,8 +103,6 @@ class TeacherStudent(VPTPseudoBaseline):
             pseudo_labels = self.get_pseudo_labels(original_unlabeled_data,
                                                    teacher=True)
 
-            # self.val_unseen_files = None
-            # self.val_unseen_labs = None
             # 4. Initialize student model
             log.info(f"[STUDENT] Initialization..")
             self.define_model(teacher=False)
@@ -124,7 +125,28 @@ class TeacherStudent(VPTPseudoBaseline):
 
             unlabeled_data = self.get_pseudo_labels(original_unlabeled_data,
                                                     teacher=False)
-            # Sample values for train and validation
+            # Evaluate model at this point in time
+            std_predictions = self.test_predictions(test_dataset, 
+                                                    standard_zsl=True)
+
+            # Submit predictions (standard)
+            std_response = evaluate_predictions(std_predictions, test_labeled_files, test_labeles, 
+                                                self.unseen_classes, standard_zsl=True)
+            log.info(f"ZSL accuracy: {std_response}")
+            
+            # Validate on test set (general)
+            gen_predictions = self.test_predictions(test_dataset, 
+                                                     standard_zsl=False)
+            # Submit predictions (general)
+            unseen_accuracy, seen_accuracy, harmonic_mean = evaluate_predictions(gen_predictions, 
+                                                                                test_labeled_files, test_labeles, 
+                                                                                self.unseen_classes, self.seen_classes, 
+                                                                                standard_zsl=False)
+            log.info(f'Generalized ZSL results')
+            log.info(f"Accuracy seen classes: {seen_accuracy}")
+            log.info(f"Accuracy unseen classes: {unseen_accuracy}")
+            log.info(f"Harmonic mean: {harmonic_mean}")
+
 
 
         return t_best_val_accuracy, t_best_prompt
@@ -148,9 +170,7 @@ class TeacherStudent(VPTPseudoBaseline):
             self.val_unseen_labs = np.array(unseen_labs)[val_indices]
 
             unseen_imgs = list(np.array(unseen_imgs)[train_indices])
-            unseen_labs = list(np.array(unseen_labs)[train_indices])
-
-            
+            unseen_labs = list(np.array(unseen_labs)[train_indices])   
         else:
             self.val_unseen_files = None
             self.val_unseen_labs = None
@@ -163,6 +183,9 @@ class TeacherStudent(VPTPseudoBaseline):
         train_data.filepaths = list(unseen_imgs) + list(seen_imgs)
         train_data.labels = list(unseen_labs) + list(seen_labs)
         train_data.label_id = True
+        log.info(f"UPDATE DATASET: size = {len(train_data.filepaths)}")
+        log.info(f"UPDATE UNSEEN DATASET: size = {len(unseen_imgs)}")
+        log.info(f"UPDATE SEEN DATASET: size = {len(seen_imgs)}")
 
     def train_student(self, train_data):
 

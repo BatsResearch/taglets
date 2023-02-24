@@ -1,5 +1,6 @@
 # Dataset name
-DATASET_NAME: "Animals_with_Attributes2"
+DATASET_NAME: "EuroSAT"
+DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification'
 # Model
 MODEL: "clip_baseline"
 # Visual ecoder

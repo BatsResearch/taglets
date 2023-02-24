@@ -70,16 +70,6 @@ class TimeoutHTTPAdapter(HTTPAdapter):
             kwargs["timeout"] = self.timeout
         return super().send(request, **kwargs)
 
-def setup_development():
-    """
-    This function returns the variables needed to launch the system in development.
-    """
-
-    # not sure this is very elegant. Let me know :)
-    import dev_config
-
-    return dev_config.dataset_dir
-
 def workflow(dataset_dir, 
              obj_conf):
     
@@ -233,7 +223,8 @@ def workflow(dataset_dir,
                                **dict_classes)
         val_accuracy, optimal_prompt = model.train(train_seen_dataset,
                                                    val_seen_dataset,
-                                                   train_unseen_dataset)
+                                                   train_unseen_dataset,
+                                                   test_dataset, test_labeled_files, test_labeles)
         log.info(f"Validation accuracy on seen classes: {val_accuracy}")
         log.info(f"The optimal prompt is {optimal_prompt}.")
 
@@ -351,17 +342,6 @@ def main():
  
     args = parser.parse_args()
 
-
-    variables = setup_development()
-
-    dataset_dir = variables
-    log.info(f"Dataset dir: {dataset_dir}")
-    
-    # Check dataset directory exists
-    if not Path(dataset_dir).exists():
-        print(dataset_dir)
-        raise Exception('`dataset_dir` does not exist..')
-
     log.info(f"Current working directory: {os.getcwd()}")
     
     with open(f'system/models_config/{args.model_config}', 'r') as file:
@@ -370,6 +350,14 @@ def main():
 
     optim_seed = int(os.environ["OPTIM_SEED"])
     obj_conf.OPTIM_SEED  = optim_seed
+    
+    dataset_dir = obj_conf.DATASET_DIR
+    log.info(f"Dataset dir: {dataset_dir}")
+    
+    # Check dataset directory exists
+    if not Path(dataset_dir).exists():
+        print(dataset_dir)
+        raise Exception('`dataset_dir` does not exist..')
 
     # Set random seeds
     device = "cuda" if torch.cuda.is_available() else "cpu"
