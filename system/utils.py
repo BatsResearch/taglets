@@ -223,7 +223,7 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
             unlabeled_lab_files += files
             unlabeled_labs += [c]*len(files)
 
-     elif dataset == 'DTD':
+    elif dataset == 'DTD':
         
         labeled_files = []
         labels_files = []
