@@ -4,6 +4,7 @@ from tqdm import tqdm
 import logging
 import numpy as np
 import pandas as pd
+import scipy.stats as st
 
 import clip
 import torch
@@ -67,6 +68,8 @@ class TeacherStudent(VPTPseudoBaseline):
 
         for niter in range(1, num_iter): 
             log.info(f"Start {niter} round of training..")
+            self.t_EPOCHS = niter*10 + self.t_EPOCHS
+            self.s_EPOCHS = niter*5 + self.s_EPOCHS
 
             #if niter > 1:
             # Update the training data
