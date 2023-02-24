@@ -12,8 +12,8 @@ from PIL import Image
 from accelerate import Accelerator
 accelerator = Accelerator()
 
-from ..data import CustomDataset, evaluate_predictions
-from ..utils import seed_worker, dataset_object
+from ..data import CustomDataset
+from ..utils import seed_worker, dataset_object, evaluate_predictions
 from ..models import CustomImageEncoder, make_scheduler, ImagePrefixModel
 from ..modules import VPTPseudoBaseline
 
