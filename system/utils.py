@@ -19,6 +19,8 @@ def dataset_object(dataset_name):
         from .data import AwA2 as DataObject
     elif dataset_name == 'EuroSAT':
         from .data import EuroSAT as DataObject
+    elif dataset_name == 'DTD':
+        from .data import EuroSAT as DataObject
 
     return DataObject
 
@@ -120,6 +122,23 @@ def get_class_names(dataset, dataset_dir):
         seen_classes = list(np.array(classes)[seen_indices])
         unseen_classes = list(np.array(classes)[unseen_indices])
 
+    elif dataset == 'DTD':
+        path = f"{dataset_dir}/{dataset}"
+
+        classes = []
+        with open(f"{path}/class_names.txt", 'r') as f:
+            for l in f:
+                classes.append(l.strip())
+        
+        np.random.seed(500)
+        seen_indices = np.random.choice(range(len(classes)),
+                                size=int(len(classes)*0.62),
+                                replace=False)
+        unseen_indices = list(set(range(len(classes))).difference(set(seen_indices)))
+
+        seen_classes = list(np.array(classes)[seen_indices])
+        unseen_classes = list(np.array(classes)[unseen_indices])
+
     return classes, seen_classes, unseen_classes
 
 def get_labeled_and_unlabeled_data(dataset, data_folder, 
@@ -201,6 +220,22 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
         unlabeled_labs = []
         for c in unseen_classes:
             files = os.listdir(f"{data_folder}/{correction_dict[c]}")
+            unlabeled_lab_files += files
+            unlabeled_labs += [c]*len(files)
+
+     elif dataset == 'DTD':
+        
+        labeled_files = []
+        labels_files = []
+        for c in seen_classes:
+            files = os.listdir(f"{data_folder}/{c}")
+            labeled_files += files
+            labels_files += [c]*len(files)
+
+        unlabeled_lab_files = []
+        unlabeled_labs = []
+        for c in unseen_classes:
+            files = os.listdir(f"{data_folder}/{c}")
             unlabeled_lab_files += files
             unlabeled_labs += [c]*len(files)
         

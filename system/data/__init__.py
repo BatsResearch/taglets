@@ -1,1 +1,1 @@
-from .dataset import CustomDataset, aPY, AwA2, EuroSAT
+from .dataset import CustomDataset, aPY, AwA2, EuroSAT, DTD
