@@ -188,7 +188,7 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
                            'Residential Buildings': 'Residential',
                            'Sea or Lake': 'SeaLake',
                            'River': 'River',
-                           'Forest', 'Forest'}
+                           'Forest': 'Forest'}
         
         labeled_files = []
         labels_files = []
