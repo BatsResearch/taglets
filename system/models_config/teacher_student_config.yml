@@ -1,3 +1,4 @@
+DATASET_DIR: '/users/cmenghin/data/bats/datasets'
 DATASET_NAME: "aPY"
 # Model
 MODEL: "teacher_student"
