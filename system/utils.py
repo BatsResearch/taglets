@@ -20,7 +20,7 @@ def dataset_object(dataset_name):
     elif dataset_name == 'EuroSAT':
         from .data import EuroSAT as DataObject
     elif dataset_name == 'DTD':
-        from .data import EuroSAT as DataObject
+        from .data import DTD as DataObject
 
     return DataObject
 
