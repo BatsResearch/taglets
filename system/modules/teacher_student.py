@@ -127,7 +127,7 @@ class TeacherStudent(VPTPseudoBaseline):
             unlabeled_data = self.get_pseudo_labels(original_unlabeled_data,
                                                     teacher=False)
             # Evaluate model at this point in time
-            std_predictions = self.test_predictions(test_dataset, 
+            std_predictions = self.test_predictions(test_data, 
                                                     standard_zsl=True)
 
             # Submit predictions (standard)
@@ -136,7 +136,7 @@ class TeacherStudent(VPTPseudoBaseline):
             log.info(f"[ITERATION] ZSL accuracy: {std_response}")
             
             # Validate on test set (general)
-            gen_predictions = self.test_predictions(test_dataset, 
+            gen_predictions = self.test_predictions(test_data, 
                                                      standard_zsl=False)
             # Submit predictions (general)
             unseen_accuracy, seen_accuracy, harmonic_mean = evaluate_predictions(gen_predictions, 
