@@ -17,6 +17,8 @@ def dataset_object(dataset_name):
         from .data import aPY as DataObject
     elif dataset_name == 'Animals_with_Attributes2':
         from .data import AwA2 as DataObject
+    elif dataset_name == 'EuroSAT':
+        from .data import EuroSAT as DataObject
 
     return DataObject
 
@@ -101,6 +103,23 @@ def get_class_names(dataset, dataset_dir):
 
         classes = seen_classes + unseen_classes
 
+    elif dataset == 'EuroSAT':
+        path = f"{dataset_dir}/{dataset}"
+
+        classes = []
+        with open(f"{path}/class_names.txt", 'r') as f:
+            for l in f:
+                classes.append(l.strip())
+        
+        np.random.seed(500)
+        seen_indices = np.random.choice(range(len(classes)),
+                                size=int(len(classes)*0.62),
+                                replace=False)
+        unseen_indices = list(set(range(len(classes))).difference(set(seen_indices)))
+
+        seen_classes = list(np.array(classes)[seen_indices])
+        unseen_classes = list(np.array(classes)[unseen_indices])
+
     return classes, seen_classes, unseen_classes
 
 def get_labeled_and_unlabeled_data(dataset, data_folder, 
@@ -155,6 +174,31 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
         unlabeled_labs = []
         for c in unseen_classes:
             files = os.listdir(f"{data_folder}/JPEGImages/{c.replace(' ', '+')}")
+            unlabeled_lab_files += files
+            unlabeled_labs += [c]*len(files)
+
+    elif dataset == 'EuroSAT':
+
+        correction_dict = {'Annual Crop Land': 'AnnualCrop',
+                           'Herbaceous Vegetation Land': 'HerbaceousVegetation',
+                           'Highway or Road': 'Highway',
+                           'Industrial Buildings': 'Industrial',
+                           'Pasture Land': 'Pasture',
+                           'Permanent Crop Land': 'PermanentCrop',
+                           'Residential Buildings': 'Residential',
+                           'Sea or Lake': 'SeaLake'}
+        
+        labeled_files = []
+        labels_files = []
+        for c in seen_classes:
+            files = os.listdir(f"{data_folder}/{correction_dict[c]}")
+            labeled_files += files
+            labels_files += [c]*len(files)
+
+        unlabeled_lab_files = []
+        unlabeled_labs = []
+        for c in unseen_classes:
+            files = os.listdir(f"{data_folder}/{correction_dict[c]}")
             unlabeled_lab_files += files
             unlabeled_labs += [c]*len(files)
         
