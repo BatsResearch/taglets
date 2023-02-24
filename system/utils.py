@@ -254,7 +254,7 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
 
         test_files = []
         test_labs = []
-        with open(f"{path}/test.txt", 'r') as f:
+        with open(f"{data_folder}/test.txt", 'r') as f:
             for l in f:
                 line = l.split(' ')
                 test_files.append(line[0].split('@')[-1])
