@@ -98,7 +98,8 @@ def workflow(dataset_dir,
     # Get unlabeled examples (unseen classes)
     # Get test data (both seen and unseen classes)
     labeled_data, unlabeled_data, test_data = get_labeled_and_unlabeled_data(dataset, data_folder, 
-                                                                             seen_classes, unseen_classes)
+                                                                             seen_classes, unseen_classes,
+                                                                             classes)
 
 
     # Create datasets

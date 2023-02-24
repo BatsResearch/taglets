@@ -168,7 +168,7 @@ def get_class_names(dataset, dataset_dir):
     return classes, seen_classes, unseen_classes
 
 def get_labeled_and_unlabeled_data(dataset, data_folder, 
-                                   seen_classes, unseen_classes):
+                                   seen_classes, unseen_classes, classes=None):
     """ This function returns the list of
     - labeled_data: each item is (image name, class name)
     - unlabeled_data: each item is (image name, class name)
@@ -248,6 +248,20 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
             files = os.listdir(f"{data_folder}/{correction_dict[c]}")
             unlabeled_lab_files += files
             unlabeled_labs += [c]*len(files)
+        
+        labeled_data = list(zip(labeled_files, labels_files))
+        unlabeled_data = list(zip(unlabeled_lab_files, unlabeled_labs))
+
+        test_files = []
+        test_labs = []
+        with open(f"{path}/test.txt", 'r') as f:
+            for l in f:
+                line = l.split(' ')
+                test_files.append(line[0].split('@')[-1])
+                test_labs.append(classes[int(line[1])])
+        test_data = list(zip(test_files, test_labs))
+
+        return labeled_data, unlabeled_data, test_data
 
     elif dataset == 'DTD':
         
