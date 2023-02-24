@@ -61,6 +61,7 @@ class TeacherStudent(VPTPseudoBaseline):
         
         # Initialize here first batch of pseudo labels
         # Define training dataset
+        log.info(f"BEFORE: {unlabeled_data.labels}")
         self.create_training_dataset(train_data, unlabeled_data)
         log.info(f"Labels unlabeled data: {unlabeled_data.labels}")
 
@@ -132,7 +133,7 @@ class TeacherStudent(VPTPseudoBaseline):
             # Submit predictions (standard)
             std_response = evaluate_predictions(std_predictions, test_labeled_files, test_labeles, 
                                                 self.unseen_classes, standard_zsl=True)
-            log.info(f"ZSL accuracy: {std_response}")
+            log.info(f"[ITERATION] ZSL accuracy: {std_response}")
             
             # Validate on test set (general)
             gen_predictions = self.test_predictions(test_dataset, 
@@ -142,10 +143,10 @@ class TeacherStudent(VPTPseudoBaseline):
                                                                                 test_labeled_files, test_labeles, 
                                                                                 self.unseen_classes, self.seen_classes, 
                                                                                 standard_zsl=False)
-            log.info(f'Generalized ZSL results')
-            log.info(f"Accuracy seen classes: {seen_accuracy}")
-            log.info(f"Accuracy unseen classes: {unseen_accuracy}")
-            log.info(f"Harmonic mean: {harmonic_mean}")
+            log.info(f'[ITERATION] Generalized ZSL results')
+            log.info(f"[ITERATION] Accuracy seen classes: {seen_accuracy}")
+            log.info(f"[ITERATION] Accuracy unseen classes: {unseen_accuracy}")
+            log.info(f"[ITERATION] Harmonic mean: {harmonic_mean}")
 
 
 
