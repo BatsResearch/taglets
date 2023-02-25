@@ -6,6 +6,7 @@ import logging
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+import scipy.stats as st
 import torchvision.transforms as transforms
 
 import clip
