@@ -142,6 +142,7 @@ class EuroSAT(CustomDataset):
                          transform, augmentations, train,
                          labels, label_id, label_map) 
         # Adjust filepaths
+        log.info(f"Example: {filepaths[0]}")
         self.filepaths = [f"{root}/{f.split('_')[0]}/{f}" for f in filepaths]
 
 class DTD(CustomDataset):
