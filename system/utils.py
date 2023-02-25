@@ -258,8 +258,8 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
             for l in f:
                 log.info(f"SHOW SPLIT: {l.split(' ')}")
                 line = l.split(' ')
-                test_files.append(line[0].split('@')[-1])
-                test_labs.append(classes[int(line[1])])
+                test_files.append(line[0].split('@')[-1].strip())
+                test_labs.append(classes[int(line[1].strip())])
         test_data = list(zip(test_files, test_labs))
 
         return labeled_data, unlabeled_data, test_data
