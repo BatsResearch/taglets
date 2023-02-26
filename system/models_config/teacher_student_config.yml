@@ -1,5 +1,5 @@
-DATASET_DIR: '/users/cmenghin/data/bats/datasets'
-DATASET_NAME: "aPY"
+DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification'
+DATASET_NAME: "EuroSAT"
 # Model
 MODEL: "teacher_student"
 # Visual ecoder
@@ -26,7 +26,7 @@ ratio_train_val: 0.8
 BATCH_SIZE: 3
 # Number of epochs
 t_EPOCHS: 10
-s_EPOCHS: 15
+s_EPOCHS: 10
 # Scheduler
 SCHEDULER: "cosine"
 # Scheduler warmup epochs

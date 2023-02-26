@@ -1,5 +1,6 @@
 # Dataset name
-DATASET_NAME: "aPY"
+DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification'
+DATASET_NAME: "EuroSAT"
 # Model
 MODEL: "vpt_baseline"
 # Visual ecoder
