@@ -113,7 +113,7 @@ class VPTBaseline(object):
         self.val_unseen_files = None
         return train_data
             
-    def train(self, train_data, val_data, unlabeled_data=None, only_unlabelled=False):
+    def train(self, train_data, val_data, unlabeled_data=None, only_unlabelled=False, only_seen=False):
         """ This function defines the training of self.model.
 
         :param train_data: Dataset object - training dataset of labeled data for 
@@ -176,7 +176,8 @@ class VPTBaseline(object):
             loss, total_loss, epoch_parameters = self._train_epoch(loss, total_loss, 
                                                                    train_loader, 
                                                                    accum_iter, epoch,
-                                                                   only_unlabelled=only_unlabelled)
+                                                                   only_unlabelled=only_unlabelled,
+                                                                   only_seen=only_seen)
             accelerator.wait_for_everyone()
             if accelerator.is_local_main_process:
                 log.info(f"Loss Epoch {epoch}: {total_loss/(len(train_loader))}")
@@ -255,7 +256,8 @@ class VPTBaseline(object):
     def _train_epoch(self, loss, total_loss, train_loader, 
                      accum_iter, epoch, 
                      only_unlabelled=False,
-                     teacher=False):
+                     teacher=False.
+                     only_seen=False):
         """ This function defines the training epoch of self.model.
 
         :param loss: float loss (average across batches)
@@ -333,12 +335,16 @@ class VPTBaseline(object):
             accuracy = unseen_accuracy
             log.info(F"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
         else:
-            accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
+            if only_seen:
+                accuracy = seen_accuracy
+                log.info(F"Training SEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
+            else:
+                accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
 
-            #accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
-            log.info(F"Training SEEN accuracy after Epoch {epoch}: {seen_accuracy}")
-            log.info(F"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
-            log.info(F"Training HARMONIC accuracy after Epoch {epoch}: {accuracy}")
+                #accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
+                log.info(F"Training SEEN accuracy after Epoch {epoch}: {seen_accuracy}")
+                log.info(F"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
+                log.info(F"Training HARMONIC accuracy after Epoch {epoch}: {accuracy}")
 
         self.update_scheduler(teacher)
 
@@ -348,7 +354,7 @@ class VPTBaseline(object):
 
         return loss, total_loss, epoch_parameters
 
-    def _run_validation(self, val_loader, only_unlabelled=False, teacher=False):
+    def _run_validation(self, val_loader, only_unlabelled=False, teacher=False, only_seen=False):
         """ This function computes the validation accuracy on labeled seen data.
 
         :param val_loder: Dataloader object - validation dataset
@@ -412,11 +418,15 @@ class VPTBaseline(object):
             unseen_labs = labels_outputs[unseen_true]
             unseen_accuracy = torch.sum(unseen_preds == unseen_labs)/len(unseen_true)
             
-            accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
-
-            log.info(F"Validation SEEN accuracy after Epoch: {seen_accuracy}")
-            log.info(F"Validation UNSEEN accuracy after Epoch: {unseen_accuracy}")
-            log.info(F"Validation HARMONIC accuracy after Epoch: {accuracy}")
+            if only_seen:
+                accuracy = seen_accuracy
+                log.info(F"Validation SEEN accuracy after Epoch: {seen_accuracy}")
+            
+            else:
+                accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
+                log.info(F"Validation SEEN accuracy after Epoch: {seen_accuracy}")
+                log.info(F"Validation UNSEEN accuracy after Epoch: {unseen_accuracy}")
+                log.info(F"Validation HARMONIC accuracy after Epoch: {accuracy}")
 
         
         return accuracy

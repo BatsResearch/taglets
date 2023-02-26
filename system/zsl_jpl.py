@@ -181,7 +181,8 @@ def workflow(dataset_dir,
         model = VPTBaseline(obj_conf, label_to_idx, 
                             device=device, 
                             **dict_classes)
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset)
+        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset,
+                                                   only_seen=True)
         log.info(f"Validation accuracy on seen classes: {val_accuracy}")
         log.info(f"The optimal prompt is {optimal_prompt}.")
 
