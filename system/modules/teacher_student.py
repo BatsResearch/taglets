@@ -68,8 +68,8 @@ class TeacherStudent(VPTPseudoBaseline):
 
         for niter in range(1, num_iter): 
             log.info(f"Start {niter} round of training..")
-            self.config.t_EPOCHS = niter*10 + self.config.t_EPOCHS
-            self.config.s_EPOCHS = niter*5 + self.config.s_EPOCHS
+            # self.config.t_EPOCHS = 10 + self.config.t_EPOCHS
+            # self.config.s_EPOCHS = 5 + self.config.s_EPOCHS
 
             #if niter > 1:
             # Update the training data
