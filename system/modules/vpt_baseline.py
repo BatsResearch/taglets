@@ -110,7 +110,7 @@ class VPTBaseline(object):
         :param unlabeled_data: Dataset object - dataset of unlabeled data for 
                                unseen classes (defined in zsl_jpl line 328)
         """
-
+        self.val_unseen_files = None
         return train_data
             
     def train(self, train_data, val_data, unlabeled_data=None, only_unlabelled=False):
