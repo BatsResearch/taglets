@@ -22,6 +22,10 @@ def dataset_object(dataset_name):
         from .data import EuroSAT as DataObject
     elif dataset_name == 'DTD':
         from .data import DTD as DataObject
+    elif dataset_name == 'sun397':
+        from .data import SUN397 as DataObject
+    elif dataset_name == 'CUB':
+        from .data import CUB as DataObject
 
     return DataObject
 
@@ -152,7 +156,6 @@ def get_class_names(dataset, dataset_dir):
     elif dataset == 'DTD':
         path = f"{dataset_dir}/{dataset}"
 
-        classes = []
         with open(f"{path}/class_names.txt", 'r') as f:
             for l in f:
                 classes.append(l.strip())
@@ -165,6 +168,21 @@ def get_class_names(dataset, dataset_dir):
 
         seen_classes = list(np.array(classes)[seen_indices])
         unseen_classes = list(np.array(classes)[unseen_indices])
+
+    elif dataset == 'CUB':
+        path = f"{dataset_dir}/{dataset}"
+
+        seen_classes = []
+        unseen_classes = []
+        with open(f"{path}/trainvalclasses.txt", 'r') as f:
+            for l in f:
+                seen_classes.append(l.strip().split('.')[-1].strip().replace('_', ' ').lower())
+        
+        with open(f"{path}/testclasses.txt", 'r') as f:
+            for l in f:
+                unseen_classes.append(l.strip().split('.')[-1].strip().replace('_', ' ').lower())
+
+        classes = seen_classes + unseen_classes
 
     return classes, seen_classes, unseen_classes
 
@@ -268,17 +286,73 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
         
         labeled_files = []
         labels_files = []
-        for c in seen_classes:
-            files = os.listdir(f"{data_folder}/images/{c}")
-            labeled_files += files
-            labels_files += [c]*len(files)
 
         unlabeled_lab_files = []
         unlabeled_labs = []
-        for c in unseen_classes:
-            files = os.listdir(f"{data_folder}/images/{c}")
-            unlabeled_lab_files += files
-            unlabeled_labs += [c]*len(files)
+
+        for split in ['train', 'val']
+        with open(f"{data_folder}/{split}.txt", 'r') as f:
+            for l in f:
+                line = l.split(' ')
+                cl = classes[int(line[1].strip())]
+                if cl in seen_classes:
+                    labeled_files.append(f"{split}/{line[0].strip().split('@')[-1]}")
+                    labels_files.append(cl)
+                elif cl in unseen_classes:
+                    unlabeled_lab_files.append(f"{split}/{line[0].strip().split('@')[-1]}")
+                    unlabeled_labs.append(cl)
+                else:
+                    raise Exception(f"The extracted class is not among the seen or unseen classes.")
+
+        labeled_data = list(zip(labeled_files, labels_files))
+        unlabeled_data = list(zip(unlabeled_lab_files, unlabeled_labs))
+
+        test_files = []
+        test_labs = []
+        
+        with open(f"{data_folder}/test.txt", 'r') as f:
+            for l in f:
+                line = l.split(' ')
+                test_files.append(f"test/{line[0].strip().split('@')[-1]}")
+                test_labs.append(classes[int(line[1].strip())])
+        test_data = list(zip(test_files, test_labs))
+
+        return labeled_data, unlabeled_data, test_data
+
+    elif dataset == 'CUB':
+        labeled_files = []
+        labels_files = []
+
+        unlabeled_lab_files = []
+        unlabeled_labs = []
+
+        with open(f"{data_folder}/train.txt", 'r') as f:
+            for l in f:
+                line = l.strip()
+                cl = line.split('/')[0].split('.')[-1].strip().replace('_', ' ').lower()
+                if cl in seen_classes:
+                    labeled_files.append(f"CUB_200_2011/images/{line}")
+                    labels_files.append(cl)
+                elif cl in unseen_classes:
+                    unlabeled_lab_files.append(f"CUB_200_2011/images/{line}")
+                    unlabeled_labs.append(cl)
+                else:
+                    raise Exception(f"The extracted class is not among the seen or unseen classes.")
+
+        labeled_data = list(zip(labeled_files, labels_files))
+        unlabeled_data = list(zip(unlabeled_lab_files, unlabeled_labs))
+
+        test_files = []
+        test_labs = []
+
+        with open(f"{data_folder}/test.txt", 'r') as f:
+            for l in f:
+                line = l.strip()
+                test_files.append(f"CUB_200_2011/images/{line}")
+                test_labs.append(line.split('/')[0].split('.')[-1].strip().replace('_', ' ').lower())
+        test_data = list(zip(test_files, test_labs))
+
+        return labeled_data, unlabeled_data, test_data
         
     # Split labeled and unlabeled data into test
     train_labeled_files, train_labeles, test_seen_files, test_seen_labs = split_data(0.8, labeled_files, labels_files)
