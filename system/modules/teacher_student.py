@@ -38,7 +38,7 @@ class TeacherStudent(VPTPseudoBaseline):
     def train(self, train_data, val_data, unlabeled_data):
 
         # Number of total iterations to cover all unlabeled data
-        num_iter = self.config.STEP_QUANTILE
+        num_iter = int(100/self.config.STEP_QUANTILE)
         num_samples = int(len(unlabeled_data) / num_iter)
         # Initialize the number of pseudo-labels per class
         n_per_class = int(num_samples / len(self.unseen_classes)) 
@@ -55,6 +55,8 @@ class TeacherStudent(VPTPseudoBaseline):
         original_train_data = copy.deepcopy(train_data)
         #log.info(f"Training data labels: {original_train_data.labels}")
         original_unlabeled_data = copy.deepcopy(unlabeled_data)
+        # Original val
+        original_val_data = copy.deepcopy(val_data)
         
         # Initialize here first batch of pseudo labels
         # Define training dataset
@@ -72,6 +74,18 @@ class TeacherStudent(VPTPseudoBaseline):
             self.define_model(teacher=True)
             log.info(f"[TEACHER] Initialization..")
 
+            # Expand it with pseudo-labels.
+            if self.val_unseen_files is not None:
+                seen_imgs = original_val_data.filepaths
+                seen_labs = [self.label_to_idx[l] for l in original_val_data.labels]
+
+                unseen_imgs = list(self.val_unseen_files)
+                unseen_labs = list(self.val_unseen_labs)
+
+                val_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+                val_data.labels = list(unseen_labs) + list(seen_labs)
+                val_data.label_id = True
+
             # 2. Train teacher with labeled seen and pseudo-labeled unseen
             log.info(f"[TEACHER] Start model training..")
             t_best_val_accuracy, t_best_prompt = self.train_teacher(train_data,
@@ -81,7 +95,7 @@ class TeacherStudent(VPTPseudoBaseline):
             # 3. Get teacher pseudo-labels
             log.info(f"[TEACHER] Collecting teacher pseudo-labels on unlabeled data..")
             pseudo_labels = self.get_pseudo_labels(original_unlabeled_data,
-                                                   teacher=True)
+                                                   teacher=True, val=True)
 
             # 4. Initialize student model
             log.info(f"[STUDENT] Initialization..")
@@ -89,7 +103,18 @@ class TeacherStudent(VPTPseudoBaseline):
 
             # 5. Train student 
             log.info(f"[STUDENT] Start model training..")
-            self.train_student(pseudo_labels)
+            if self.pseudo_val_unseen_files is not None:
+                s_val_data = CustomDataset(self.pseudo_val_unseen_files, data_folder, 
+                                        transform=None, augmentations=None, 
+                                        train=True, labels=self.pseudo_val_unseen_labs,
+                                        label_map=label_to_idx, label_id=True)
+            else:
+                s_val_data =  None
+            s_best_val_accuracy, s_best_prompt = self.train_student(pseudo_labels,
+                                                                    s_val_data)
+
+            # model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+            # model.model.image_pos_emb = torch.nn.Parameter(torch.tensor(optimal_prompt[1]))    
             log.info(f"[STUDENT] Training completed.")
 
             # 6. Get new pseudo labels from student
@@ -105,8 +130,6 @@ class TeacherStudent(VPTPseudoBaseline):
 
             unlabeled_data = self.get_pseudo_labels(original_unlabeled_data,
                                                     teacher=False)
-            # Sample values for train and validation
-
 
         return t_best_val_accuracy, t_best_prompt
 
@@ -117,6 +140,23 @@ class TeacherStudent(VPTPseudoBaseline):
         unseen_imgs = train_unseen_dataset.filepaths
         unseen_labs = train_unseen_dataset.labels
 
+        # Use a portion of the pseudo-labeled data to build a validation set
+        if self.config.N_PSEUDOSHOTS >= 10:
+            np.random.seed(self.config.validation_seed)
+            train_indices = np.random.choice(range(len(unseen_imgs)),
+                                    size=int(len(unseen_imgs)*self.config.ratio_train_val),
+                                    replace=False)
+            val_indices = list(set(range(len(unseen_imgs))).difference(set(train_indices)))
+
+            self.val_unseen_files = np.array(unseen_imgs)[val_indices]
+            self.val_unseen_labs = np.array(unseen_labs)[val_indices]
+
+            unseen_imgs = list(np.array(unseen_imgs)[train_indices])
+            unseen_labs = list(np.array(unseen_labs)[train_indices])   
+        else:
+            self.val_unseen_files = None
+            self.val_unseen_labs = None
+
         seen_imgs = train_data.filepaths
         seen_labs = [self.label_to_idx[l] for l in train_data.labels]
 
@@ -126,38 +166,62 @@ class TeacherStudent(VPTPseudoBaseline):
         train_data.labels = list(unseen_labs) + list(seen_labs)
         train_data.label_id = True
 
-    def train_student(self, train_data):
+    def train_student(self, train_data, val_data=None):
 
         train_loader = torch.utils.data.DataLoader(train_data,
                                                    batch_size=self.config.BATCH_SIZE,
                                                    shuffle=True, worker_init_fn=seed_worker,
                                                    generator=g)
+        if val_data is not None:
+            val_loader = torch.utils.data.DataLoader(val_data,
+                                                    batch_size=self.config.BATCH_SIZE)
+
         log.info(f"[STUDENT] The size of training data is {len(train_data)}")
         accelerator.wait_for_everyone()
         
         # Load data on accelerate
         self.student, self.student_optimizer, \
-        train_loader = accelerator.prepare(self.student, 
-                                           self.student_optimizer, 
-                                           train_loader)
+        train_loader, val_loader = accelerator.prepare(self.student, 
+                                                       self.student_optimizer, 
+                                                       train_loader, 
+                                                       val_data)
 
+        best_val_accuracy = 0
+        best_prompt = None
         loss = None
-        # Start teacher training
+
+        if val_loader is not None:
+            log.info(f"Size of validation data: {len(val_data.filepaths)}")
+
+        # Start student training
         for epoch in range(self.config.s_EPOCHS):
             log.info(f"Run Epoch {epoch}")
             total_loss = 0
             accum_iter = self.config.ACCUMULATION_ITER  
             
             loss, total_loss, epoch_param = self._train_epoch(loss, total_loss, 
-                                                           train_loader, 
-                                                           accum_iter, epoch,
-                                                           only_unlabelled=True,
-                                                           teacher=False)
+                                                              train_loader, 
+                                                              accum_iter, epoch,
+                                                              only_unlabelled=True,
+                                                              teacher=False)
             accelerator.wait_for_everyone()
             if accelerator.is_local_main_process:
                 log.info(f"Loss Epoch {epoch}: {total_loss/(len(train_loader))}")
             
             accelerator.free_memory()
+            
+            if val_loader is not None:
+                val_accuracy = self._run_validation(val_loader, only_unlabelled=True,
+                                                    teacher=False)
+                log.info(f"Validation accuracy after Epoch {epoch}: {val_accuracy}")
+                if val_accuracy > best_val_accuracy:
+                    best_val_accuracy = val_accuracy
+                    best_prompt = epoch_parameters
+            else:
+                best_val_accuracy = None
+                best_prompt = epoch_parameters
+
+        return best_val_accuracy, best_prompt
 
     def train_teacher(self, train_data, val_data):
         """ This function defines the training of self.model.
@@ -209,7 +273,6 @@ class TeacherStudent(VPTPseudoBaseline):
             accelerator.wait_for_everyone()
             if accelerator.is_local_main_process:
                 log.info(f"Loss Epoch {epoch}: {total_loss/(len(train_loader))}")
-                #log.info(F"Training accuracy after Epoch {epoch}: {accuracy}")
             
             accelerator.free_memory()
             
@@ -411,7 +474,7 @@ class TeacherStudent(VPTPseudoBaseline):
         else:
             return accelerator.unwrap_model(self.student)      
 
-    def get_pseudo_labels(self, unlabeled_examples, teacher=True):
+    def get_pseudo_labels(self, unlabeled_examples, teacher=True, val=False):
 
         log.info(f"Num unlabeled data: {len(unlabeled_examples)}")
         # Get prediction of teacher on unlabeled data
@@ -428,11 +491,12 @@ class TeacherStudent(VPTPseudoBaseline):
                                                label_map=self.label_to_idx)
 
         pseudo_labels = self.assign_pseudo_labels(self.config.N_PSEUDOSHOTS, 
-                                                  pseudo_unseen_examples)
+                                                  pseudo_unseen_examples,
+                                                  val)
 
         return pseudo_labels
 
-    def assign_pseudo_labels(self, k, unlabeled_data, teacher=True):
+    def assign_pseudo_labels(self, k, unlabeled_data, teacher=True, val=False):
 
         # Define text queries
         prompts = [f"{self.template}{' '.join(i.split('_'))}" \
@@ -494,9 +558,29 @@ class TeacherStudent(VPTPseudoBaseline):
         for index, leaderboard in top_k_leaderboard.items():
             new_imgs += [tup[1] for tup in leaderboard]
             new_labels += [index for _ in leaderboard]
+
+        if val:
+            np.random.seed(self.config.validation_seed)
+            train_indices = np.random.choice(range(len(new_imgs)),
+                                    size=int(len(new_imgs)*0.8),
+                                    replace=False)
+            val_indices = list(set(range(len(new_imgs))).difference(set(train_indices)))
+
+            self.pseudo_val_unseen_files = np.array(new_imgs)[val_indices]
+            self.pseudo_val_unseen_labs = np.array(new_labels)[val_indices]
+
+            new_filepaths = list(np.array(new_imgs)[train_indices])
+            new_labels = list(np.array(new_labels)[train_indices])
+
+            unlabeled_data.filepaths = new_filepaths
+            unlabeled_data.labels = new_labels
+            unlabeled_data.label_id = True
+
+        else:
+            unlabeled_data.filepaths = new_imgs
+            unlabeled_data.labels = new_labels
+            unlabeled_data.label_id = True
+
         
-        unlabeled_data.filepaths = new_imgs
-        unlabeled_data.labels = new_labels
-        unlabeled_data.label_id = True
 
         return unlabeled_data

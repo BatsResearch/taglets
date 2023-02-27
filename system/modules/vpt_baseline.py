@@ -110,6 +110,8 @@ class VPTBaseline(object):
                                unseen classes (defined in zsl_jpl line 328)
         """
 
+        self.val_unseen_files = None
+        
         return train_data
             
     def train(self, train_data, val_data, unlabeled_data=None, only_unlabelled=False):
@@ -137,6 +139,18 @@ class VPTBaseline(object):
                                                    batch_size=self.config.BATCH_SIZE,
                                                    shuffle=True, worker_init_fn=seed_worker,
                                                    generator=g)
+        
+        if self.val_unseen_files is not None:
+            seen_imgs = val_data.filepaths
+            seen_labs = [self.label_to_idx[l] for l in val_data.labels]
+
+            unseen_imgs = list(self.val_unseen_files)
+            unseen_labs = list(self.val_unseen_labs)
+
+            val_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+            val_data.labels = list(unseen_labs) + list(seen_labs)
+            val_data.label_id = True
+
         val_loader = torch.utils.data.DataLoader(val_data,
                                                  batch_size=self.config.BATCH_SIZE)
 
@@ -304,8 +318,33 @@ class VPTBaseline(object):
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
 
-        accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
-        log.info(F"Training accuracy after Epoch {epoch}: {accuracy}")
+        # Get harmonic mean
+        idx_seen = [self.label_to_idx[c] for c in self.seen_classes] 
+        seen_true = [i for i, c in enumerate(labels_outputs) if c in idx_seen]
+        seen_preds = predictions_outputs[seen_true]
+        seen_labs = labels_outputs[seen_true]
+        seen_accuracy = torch.sum(seen_preds == seen_labs)/len(seen_true)
+        
+        idx_unseen = [self.label_to_idx[c] for c in self.unseen_classes] 
+        unseen_true = [i for i, c in enumerate(labels_outputs) if c in idx_unseen]
+        unseen_preds = predictions_outputs[unseen_true]
+        unseen_labs = labels_outputs[unseen_true]
+        unseen_accuracy = torch.sum(unseen_preds == unseen_labs)/len(unseen_true)
+        
+        if only_unlabelled:
+            accuracy = unseen_accuracy
+            log.info(F"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
+        else:
+            if only_seen:
+                accuracy = seen_accuracy
+                log.info(F"Training SEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
+            else:
+                accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
+
+                #accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
+                log.info(F"Training SEEN accuracy after Epoch {epoch}: {seen_accuracy}")
+                log.info(F"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
+                log.info(F"Training HARMONIC accuracy after Epoch {epoch}: {accuracy}")
 
         self.update_scheduler(teacher)
 
@@ -320,9 +359,13 @@ class VPTBaseline(object):
 
         :param val_loder: Dataloader object - validation dataset
         """
-
         # Define text queries
-        prompts = self.define_textual_prompts(only_unlabelled, validation=True)
+        if self.val_unseen_files is not None:
+            val = False
+        else:
+            val = True
+        
+        prompts = self.define_textual_prompts(only_unlabelled, validation=val)
         log.info(f"Number of prompts: {len(prompts)}")
         
         # Encode text
@@ -341,7 +384,16 @@ class VPTBaseline(object):
             logits = logit_scale * image_features @ text_features.t()
 
             idx_preds = torch.argmax(logits, dim=1)
-            real_preds = [self.seen_classes[i.item()] for i in idx_preds]
+            if self.val_unseen_files is not None:
+                if only_unlabelled:
+                    real_preds = [self.unseen_classes[i.item()] for i in idx_preds]
+                else:
+                    real_preds = [self.classes[i.item()] for i in idx_preds]
+            else:
+                if only_unlabelled:
+                    real_preds = [self.unseen_classes[i.item()] for i in idx_preds]
+                else:
+                    real_preds = [self.seen_classes[i.item()] for i in idx_preds]
             
             predictions += real_preds
             labels += [self.classes[i.item()] for i in label]
@@ -355,8 +407,33 @@ class VPTBaseline(object):
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
 
-        accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
-        
+        if len(prompts) < len(self.classes):
+            accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
+            log.info(F"Validation accuracy after Epoch: {accuracy}")
+        else:
+            # Get harmonic mean
+            idx_seen = [self.label_to_idx[c] for c in self.seen_classes] 
+            seen_true = [i for i, c in enumerate(labels_outputs) if c in idx_seen]
+            seen_preds = predictions_outputs[seen_true]
+            seen_labs = labels_outputs[seen_true]
+            seen_accuracy = torch.sum(seen_preds == seen_labs)/len(seen_true)
+            
+            idx_unseen = [self.label_to_idx[c] for c in self.unseen_classes] 
+            unseen_true = [i for i, c in enumerate(labels_outputs) if c in idx_unseen]
+            unseen_preds = predictions_outputs[unseen_true]
+            unseen_labs = labels_outputs[unseen_true]
+            unseen_accuracy = torch.sum(unseen_preds == unseen_labs)/len(unseen_true)
+            
+            if only_seen:
+                accuracy = seen_accuracy
+                log.info(F"Validation SEEN accuracy after Epoch: {seen_accuracy}")
+            
+            else:
+                accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
+                log.info(F"Validation SEEN accuracy after Epoch: {seen_accuracy}")
+                log.info(F"Validation UNSEEN accuracy after Epoch: {unseen_accuracy}")
+                log.info(F"Validation HARMONIC accuracy after Epoch: {accuracy}")
+
         return accuracy
 
 

@@ -9,8 +9,7 @@ RUN apt-get update
 RUN apt-get install -y -q
 RUN apt-get install -y build-essential
 RUN apt-get install -y --no-install-recommends apt-utils
-RUN apt update
-RUN apt-get install --fix-missing
+RUN apt update && apt-get install --fix-missing
 RUN apt-get install -y wget
 RUN apt-get install -y vim
 RUN apt-get -y install build-essential nghttp2 libnghttp2-dev libssl-dev
@@ -39,18 +38,15 @@ RUN curl -s https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 
 #-------------------------------------------------
 
+# Create appuser
+RUN useradd --create-home tagletuser && chmod -R 777 /home/tagletuser/
+
 #Copy all files in ~/taglets to /tmp/
 COPY . /tmp
 
-RUN cd /tmp && pip install .
-RUN cd /tmp && pip install --upgrade pip
-RUN cd /tmp && pip install torch==1.9.1+cu111 torchvision==0.10.1+cu111 torchaudio==0.9.1 -f https://download.pytorch.org/whl/torch_stable.html
-RUN cd /tmp && ./setup.sh
+RUN cd /tmp && pip install . && ./setup.sh \
+    && pip install torch==1.9.1+cu111 torchvision==0.10.1+cu111 torchaudio==0.9.1 -f https://download.pytorch.org/whl/torch_stable.html
 
-
-RUN useradd --create-home tagletuser
-RUN chmod -R 777 /tmp
-RUN chmod -R 777 /home/tagletuser/
 USER 65534:65534
 ENV TORCH_HOME=/tmp
 

@@ -224,7 +224,7 @@ class ZSL_JPL:
                               headers=headers_active_session)
 
 
-def setup_production(simple_run):
+def setup_production():
     """
     This function returns the variables needed to launch the system in production.
     """
@@ -239,12 +239,10 @@ def setup_production(simple_run):
     team_secret = os.environ.get('LWLL_TA1_TEAM_SECRET')
     gov_team_secret = os.environ.get('LWLL_TA1_GOVTEAM_SECRET')
 
-    if simple_run:
-        log.info(f"Running production in simple mode, not all GPUs required")
-    else:   
-        # check gpus are all
-        if gpu_list != 'all':
-            raise Exception(f'all gpus are required')
+   
+    # check gpus are all
+    if gpu_list != 'all':
+        raise Exception(f'all gpus are required')
         
     return dataset_type, problem_type, dataset_dir, api_url, problem_task, team_secret, gov_team_secret
 
@@ -260,35 +258,6 @@ def setup_development():
     return (dev_config.dataset_type, dev_config.problem_type, dev_config.dataset_dir, dev_config.api_url,
             dev_config.problem_task, dev_config.team_secret, dev_config.gov_team_secret)
 
-def store_results(obj_conf, std_response, gen_response):
-    """ The function stores results of the model in a json.
-    
-    :param obj_config: class object that stores configurations
-    :param std_response: api response after standasrd zsl submission
-    :param gen_response: api response after generalized zsl submission
-    """
-
-    # Store results
-    if accelerator.is_local_main_process:
-        results_to_store = {'model':obj_conf.MODEL, 'config':obj_conf.__dict__, 
-                            'std_accuracy': std_response['Session_Status']['standard_zsl_scores']['accuracy_unseen_std'],
-                            'std_recall_classes': std_response['Session_Status']['standard_zsl_scores']['average_per_class_recall_unseen_std'],
-                            'gen_accuracy': gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_all_classes'],
-                            'gen_seen': gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_seen'],
-                            'gen_unseen': gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_unseen']}
-        file_name = f"results_model_{obj_conf.MODEL}.json"
-
-        # Check if the file already exists
-        if os.path.exists(file_name):
-            # If the file exists, open it in append mode
-            with open(file_name, 'a') as f:
-                # Append the res dictionary to the file
-                f.write(json.dumps(results_to_store) + '\n')
-        else:
-            # If the file doesn't exist, create a new file
-            with open(file_name, 'w') as f:
-                # Write the res dictionary to the file
-                f.write(json.dumps(results_to_store) + '\n')
 
 def workflow(dataset_type, dataset_dir, api_url, 
              problem_task, team_secret, gov_team_secret, 
@@ -313,26 +282,15 @@ def workflow(dataset_type, dataset_dir, api_url,
     dict_classes = {'classes': classes,
                     'seen_classes': seen_classes,
                     'unseen_classes': unseen_classes}
+    
     # Log number of classes
     log.info(f"Number of classes: {len(classes)}")
     log.info(f"Number of seen classes: {len(seen_classes)}")
     log.info(f"Number of unseen classes: {len(unseen_classes)}")
-    # Get class descriptions
-    zsl_descriptions = session_status["current_dataset"]["zsl_description"]
-    unseen_descriptions = {}
-    seen_descriptions = {}
-    for k, desc in zsl_descriptions.items():
-        if k in unseen_classes:
-            unseen_descriptions[k] = desc
-        elif k in seen_classes:
-            seen_descriptions[k] = desc 
 
     # Path for images
-    # dataset_dir = /users/cmenghin/data/bats/datasets/lwll/development/
-    # dataset = UCMerced_LandUse
-    # dataset_type = sample
     data_folder = f"{dataset_dir}/{dataset}/{dataset}_{dataset_type}"
-    print(f"Data folder: {data_folder}")
+    log.info(f"Data folder: {data_folder}")
     # Get labeled examples (seen classes)
     labeled_data = api.get_seen_labeled_data()
     # Get unlabeled examples (unseen classes)
@@ -380,116 +338,26 @@ def workflow(dataset_type, dataset_dir, api_url,
                                  train=False, labels=None,
                                  label_map=label_to_idx)
     # Log info data
-    log.info(f"Len training seen data: {len(train_seen_dataset.filepaths)}")
-    log.info(f"Len training unseen data: {len(train_unseen_dataset.filepaths)}")
-    log.info(f"Len validation seen data: {len(val_seen_dataset.filepaths)}")
-    log.info(f"Len test data: {len(test_dataset.filepaths)}")
+    log.info(f"Number of labeled data for training: {len(train_seen_dataset.filepaths)}")
+    log.info(f"Number of unlabeled data for training and validation: {len(train_unseen_dataset.filepaths)}")
+    log.info(f"Number of labeled data for validation: {len(val_seen_dataset.filepaths)}")
+    log.info(f"Number of unlabeled data (seen and unseen classes) for testing: {len(test_dataset.filepaths)}")
+    
     # Define model
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
-    if obj_conf.MODEL == 'clip_baseline':
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = ClipBaseline(obj_conf, device=device, 
-                             **dict_classes)
-    elif obj_conf.MODEL == 'coop_baseline':
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = CoopBaseline(obj_conf, label_to_idx, 
-                             device=device, 
-                             **dict_classes) 
-
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset, 
-                                                   classes=seen_classes)
-        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
-        log.info(f"The optimal prompt is {optimal_prompt}.")
-
-        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
-    
-    elif obj_conf.MODEL == 'tpt_baseline':
-        # TODO
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = TptBaseline(obj_conf, 
-                             device=device, 
-                             **dict_classes) 
-
-    elif obj_conf.MODEL == 'vpt_baseline':
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = VPTBaseline(obj_conf, label_to_idx, 
+    log.info(f"The model in use is: {obj_conf.MODEL}")
+    model = TeacherStudent(obj_conf, label_to_idx, 
+                            data_folder, 
                             device=device, 
                             **dict_classes)
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset)
-        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
-        log.info(f"The optimal prompt is {optimal_prompt}.")
-
-        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
-        model.model.image_pos_emb = torch.nn.Parameter(torch.tensor(optimal_prompt[1]))
-    
-    elif obj_conf.MODEL == 'vpt_pseudo_baseline':
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = VPTPseudoBaseline(obj_conf, label_to_idx, 
-                            device=device, 
-                            **dict_classes)
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset,
-                                                   train_unseen_dataset)
-        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
-        log.info(f"The optimal prompt is {optimal_prompt}.")
-
-    elif obj_conf.MODEL == 'coop_pseudo_baseline':
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = CoopPseudoBaseline(obj_conf, label_to_idx, 
-                            device=device, 
-                            **dict_classes)
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset, 
-                                                   val_seen_dataset, classes=classes, 
-                                                   unlabeled_data=train_unseen_dataset)
-        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
-        log.info(f"The optimal prompt is {optimal_prompt}.")
-    
-    elif obj_conf.MODEL == 'vpt_pseudo_disambiguate':
-        model = VPTPseudoDisambiguate(obj_conf, label_to_idx, 
-                                      device=device, 
-                                      **dict_classes)
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset, val_seen_dataset,
-                                                   train_unseen_dataset)
-
-    elif obj_conf.MODEL == 'teacher_student':
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = TeacherStudent(obj_conf, label_to_idx, 
-                               data_folder, 
-                               device=device, 
-                               **dict_classes)
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset,
-                                                   val_seen_dataset,
-                                                   train_unseen_dataset)
-        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
-        log.info(f"The optimal prompt is {optimal_prompt}.")
-
-    elif obj_conf.MODEL == 'disambiguate_teacher_student':
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = DisambiguateTeacherStudent(obj_conf, label_to_idx, 
-                               data_folder, 
-                               device=device, 
-                               **dict_classes)
-        val_accuracy, optimal_prompt = model.train(train_seen_dataset,
-                                                   val_seen_dataset,
-                                                   train_unseen_dataset)
-        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
-        log.info(f"The optimal prompt is {optimal_prompt}.")
-
-    elif obj_conf.MODEL == 'adjust_and_adapt':
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = AdjustAndAdapt(obj_conf, label_to_idx, 
-                               device=device, 
-                               **dict_classes)
-        vpt_prompts = model.train(train_labeled_files, 
-                                  unlabeled_data, val_labeled_files,
-                                  data_folder)
-    elif obj_conf.MODEL == 'two_stage_classifier':
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = TwoStageClassifier(obj_conf, label_to_idx, 
-                                device=device, 
-                                **dict_classes)
-
-        model.train(train_seen_dataset, train_unseen_dataset, val_seen_dataset)
+    val_accuracy, optimal_prompt = model.train(train_seen_dataset,
+                                               val_seen_dataset,
+                                               train_unseen_dataset)
+    # model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+    # model.model.image_pos_emb = torch.nn.Parameter(torch.tensor(optimal_prompt[1]))    
+    log.info(f"Selected model: Validation accuracy on seen classes: {val_accuracy}")
+    log.info(f"The optimal prompt is {optimal_prompt}.")
 
     # Validate on test set (standard)
     std_predictions = model.test_predictions(test_dataset, 
@@ -510,8 +378,6 @@ def workflow(dataset_type, dataset_dir, api_url,
     log.info(f"[GEN] Accuracy seen classes: {gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_seen']}")
     log.info(f"[GEN] Accuracy unseen classes: {gen_response['Session_Status']['checkpoint_scores'][0]['accuracy_unseen']}")
     
-    # Store model results
-    store_results(obj_conf, std_response, gen_response)
 
 def main():
     parser = argparse.ArgumentParser(description="Run JPL task")
@@ -531,7 +397,7 @@ def main():
     args = parser.parse_args()
 
     if args.mode == 'prod':
-        variables = setup_production(simple_run)
+        variables = setup_production()
     else:
         variables = setup_development()
     mode = args.mode
@@ -562,12 +428,39 @@ def main():
 
     log.info(f"Current working directory: {os.getcwd()}")
     log.info(f"Input daata folder: {variables[2]}")
-    with open(f'system/models_config/{args.model_config}', 'r') as file:
-        config = yaml.safe_load(file)
-    obj_conf = Config(config)
 
-    optim_seed = int(os.environ["OPTIM_SEED"])
-    obj_conf.OPTIM_SEED  = optim_seed
+    config = {'MODEL': "teacher_student",
+              'VIS_ENCODER': "ViT-B/32",
+              'PROMPT_TEMPLATE': "a photo of a ",
+              'PREFIX_SIZE': 16,
+              'N_PSEUDOSHOTS': 16,
+              'STEP_QUANTILE': 10,
+              'BALANCE_DATA': True,
+              'VIS_PREFIX_INIT': "normal",
+              'POS_ENC_INIT': "same",
+              'MEAN_INIT': 0,
+              'VAR_INIT': 0.02,
+              'validation_seed': 0,
+              'ratio_train_val': 0.8,
+              'BATCH_SIZE': 16,
+              't_EPOCHS': 2,
+              's_EPOCHS': 2,
+              'SCHEDULER': "cosine",
+              'WARMUP_EPOCHS': 5,
+              'WARMUP_LR': 0.0001,
+              'ACCUMULATION_ITER': 1,
+              't_OPTIM': "SGD",
+              't_LR': 0.1,
+              't_DECAY': 0.1,
+              'STEP_SIZE': 1,
+              's_OPTIM': "SGD",
+              's_LR': 0.1,
+              's_DECAY': 0.1,
+              'STEP_SIZE': 1,
+              'OPTIM_SEED': 10,
+              'ALL_UNLABELED': True}
+
+    obj_conf = Config(config)
 
     # Set random seeds
     device = "cuda" if torch.cuda.is_available() else "cpu"
