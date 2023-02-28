@@ -11,7 +11,7 @@ class CustomDataset(Dataset):
     def __init__(self, filepaths, root, 
                 transform, augmentations=None, 
                 train=True, labels=None, label_id=False, 
-                label_map=None):
+                label_map=None, base=True):
         """
         :param filepaths: list of images
         :param root: path to images
@@ -25,9 +25,15 @@ class CustomDataset(Dataset):
         # Adjust filepaths
         self.train = train
         if self.train:
-            self.filepaths = [f"{root}/train/{f}" for f in filepaths]
+            if base:
+                self.filepaths = [f"{root}/train/{f}" for f in filepaths]
+            else:
+                self.filepaths = [f"{f}" for f in filepaths]
         else:
-            self.filepaths = [f"{root}/test/{f}" for f in filepaths]
+            if base:
+                self.filepaths = [f"{root}/test/{f}" for f in filepaths]
+            else:
+                self.filepaths = [f"{f}" for f in filepaths]
         
         self.transform = transform
         if augmentations:

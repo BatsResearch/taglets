@@ -109,7 +109,7 @@ class TeacherStudent(VPTPseudoBaseline):
                 s_val_data = CustomDataset(self.pseudo_val_unseen_files, '', 
                                         transform=None, augmentations=None, 
                                         train=True, labels=self.pseudo_val_unseen_labs,
-                                        label_map=self.label_to_idx, label_id=True)
+                                        label_map=self.label_to_idx, label_id=True, base=False)
             else:
                 s_val_data =  None
             s_best_val_accuracy, s_best_prompt = self.train_student(pseudo_labels,
