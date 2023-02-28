@@ -257,7 +257,7 @@ class VPTBaseline(object):
     def _train_epoch(self, loss, total_loss, train_loader, 
                      accum_iter, epoch, 
                      only_unlabelled=False,
-                     teacher=False):
+                     teacher=False, only_seen=False):
         """ This function defines the training epoch of self.model.
 
         :param loss: float loss (average across batches)
