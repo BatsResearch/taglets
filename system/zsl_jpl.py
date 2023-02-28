@@ -389,10 +389,7 @@ def main():
                         type=str,
                         default="evaluation",# development
                         help="Option to choose the data folder")
-    parser.add_argument("--model_config",
-                        type=str,
-                        default="model_config.yml",
-                        help="Name of model config file")
+
  
     args = parser.parse_args()
 
