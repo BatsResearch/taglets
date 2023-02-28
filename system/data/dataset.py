@@ -75,8 +75,6 @@ class CustomDataset(Dataset):
         
         if self.transform is not None:            
             img = self.transform(img)  
-        
-        log.info(f"SHAPE IMAGE: {img.size()}")  
 
         # Get image label
         if self.labels is not None:
