@@ -7,8 +7,10 @@ import clip
 import torch
 from torch import nn
 from PIL import Image
+import scipy.stats as st
 from accelerate import Accelerator
 accelerator = Accelerator()
+
 
 from ..utils import seed_worker
 from ..models import CustomImageEncoder, make_scheduler, ImagePrefixModel
