@@ -61,6 +61,7 @@ class VPTPseudoBaseline(VPTBaseline):
         unseen_labs = train_unseen_dataset.labels
 
         # Use a portion of the pseudo-labeled data to build a validation set
+        log.info(f"NUMBER OF PSEUDOSHOTS: {self.config.N_PSEUDOSHOTS}")
         if self.config.N_PSEUDOSHOTS >= 10:
             np.random.seed(self.config.validation_seed)
             train_indices = np.random.choice(range(len(unseen_imgs)),
