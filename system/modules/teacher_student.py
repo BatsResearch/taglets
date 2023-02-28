@@ -494,7 +494,7 @@ class TeacherStudent(VPTPseudoBaseline):
 
         pseudo_labels = self.assign_pseudo_labels(self.config.N_PSEUDOSHOTS, 
                                                   pseudo_unseen_examples,
-                                                  val)
+                                                  val=val)
 
         return pseudo_labels
 
