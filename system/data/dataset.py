@@ -58,7 +58,8 @@ class CustomDataset(Dataset):
             tuple: (image, aug1, aug2, target) where target is index of the target class.
         """
     
-        img = Image.open(self.filepaths[index]).convert('RGB')        
+        img = Image.open(self.filepaths[index]).convert('RGB')      
+        
                   
         # Apply two transformations (strong and weak)
         if self.aug1_transform is not None:
@@ -75,6 +76,8 @@ class CustomDataset(Dataset):
         if self.transform is not None:            
             img = self.transform(img)  
         
+        log.info(f"SHAPE IMAGE: {img.size()}")  
+
         # Get image label
         if self.labels is not None:
             if self.label_id:
