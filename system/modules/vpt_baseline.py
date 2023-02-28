@@ -274,7 +274,7 @@ class VPTBaseline(object):
 
         # Define text queries
         prompts = self.define_textual_prompts(only_unlabelled)
-        log.info(f"Number of prompts: {len(prompts)}")
+        log.info(f"[TRAIN] Number of prompts: {len(prompts)}")
         
         # Encode text
         with torch.no_grad():
@@ -368,7 +368,7 @@ class VPTBaseline(object):
             val = True
         
         prompts = self.define_textual_prompts(only_unlabelled, validation=val)
-        log.info(f"Number of prompts: {len(prompts)}")
+        log.info(f"[VAL] Number of prompts: {len(prompts)}, val: {val}")
         
         # Encode text
         with torch.no_grad():
