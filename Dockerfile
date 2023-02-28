@@ -44,8 +44,7 @@ RUN useradd --create-home tagletuser && chmod -R 777 /home/tagletuser/
 #Copy all files in ~/taglets to /tmp/
 COPY . /tmp
 
-RUN cd /tmp && pip install . && ./setup.sh \
-    && pip install torch==1.9.1+cu111 torchvision==0.10.1+cu111 torchaudio==0.9.1 -f https://download.pytorch.org/whl/torch_stable.html
+RUN cd /tmp && pip install . && ./setup.sh 
 
 USER 65534:65534
 ENV TORCH_HOME=/tmp
