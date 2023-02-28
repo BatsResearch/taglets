@@ -83,7 +83,7 @@ class ZSL_JPL:
         self.url = api_url 
         self.session_token = ''
         self.data_type = dataset_type
-        #self.saved_api_response_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saved_api_response')
+        self.saved_api_response_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saved_api_response')
         
         retry_strategy = Retry(
             total=10,
@@ -196,20 +196,22 @@ class ZSL_JPL:
     def post_only_once(self, command, headers, posting_json):
         if accelerator.is_local_main_process:
             r = self.session.post(self.url + "/" + command, json=posting_json, headers=headers)
-            with open(os.path.join(command.replace("/", "_") + "_response.json"), "w") as f:
+            #with open(os.path.join(command.replace("/", "_") + "_response.json"), "w") as f:
+            with open(os.path.join(self.saved_api_response_dir, command.replace("/", "_") + "_response.json"), "w") as f:
                 json.dump(r.json(), f)
         accelerator.wait_for_everyone()
-        with open(os.path.join(command.replace("/", "_") + "_response.json"), "r") as f:
+        #with open(os.path.join(command.replace("/", "_") + "_response.json"), "r") as f:
+        with open(os.path.join(self.saved_api_response_dir, command.replace("/", "_") + "_response.json"), "r") as f:
             response = json.load(f)
         return response
     
     def get_only_once(self, command, headers):
         if accelerator.is_local_main_process:
             r = self.session.get(self.url + "/" + command, headers=headers)
-            with open(os.path.join(command.replace("/", "_") + "_response.json"), "w") as f:
+            with open(os.path.join(self.saved_api_response_dir, command.replace("/", "_") + "_response.json"), "w") as f:
                 json.dump(r.json(), f)
         accelerator.wait_for_everyone()
-        with open(os.path.join(command.replace("/", "_") + "_response.json"), "r") as f:
+        with open(os.path.join(self.saved_api_response_dir, command.replace("/", "_") + "_response.json"), "r") as f:
             response = json.load(f)
         return response
 
