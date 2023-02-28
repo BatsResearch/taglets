@@ -81,6 +81,8 @@ class ZSL_JPL:
         self.session_token = ''
         self.data_type = dataset_type
         self.saved_api_response_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saved_api_response')
+        if not os.path.exists(self.saved_api_response_dir):
+            os.makedirs(self.saved_api_response_dir)
         
         retry_strategy = Retry(
             total=10,
