@@ -179,12 +179,19 @@ class TeacherStudent(VPTPseudoBaseline):
         log.info(f"[STUDENT] The size of training data is {len(train_data)}")
         accelerator.wait_for_everyone()
         
-        # Load data on accelerate
-        self.student, self.student_optimizer, \
-        train_loader, val_loader = accelerator.prepare(self.student, 
-                                                       self.student_optimizer, 
-                                                       train_loader, 
-                                                       val_loader)
+        if val_data is not None:
+            # Load data on accelerate
+            self.student, self.student_optimizer, \
+            train_loader, val_loader = accelerator.prepare(self.student, 
+                                                        self.student_optimizer, 
+                                                        train_loader, 
+                                                        val_loader)
+        else:
+            # Load data on accelerate
+            self.student, self.student_optimizer, \
+            train_loader = accelerator.prepare(self.student, 
+                                                        self.student_optimizer, 
+                                                        train_loader)
 
         best_val_accuracy = 0
         best_prompt = None
