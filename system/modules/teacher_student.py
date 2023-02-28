@@ -86,8 +86,6 @@ class TeacherStudent(VPTPseudoBaseline):
                 val_data.labels = list(unseen_labs) + list(seen_labs)
                 val_data.label_id = True
 
-            log.info(f"VALIDATION FOR UNSEEN: {self.val_unseen_files}")
-
             # 2. Train teacher with labeled seen and pseudo-labeled unseen
             log.info(f"[TEACHER] Start model training..")
             t_best_val_accuracy, t_best_prompt = self.train_teacher(train_data,

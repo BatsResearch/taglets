@@ -356,7 +356,7 @@ class VPTBaseline(object):
 
         return loss, total_loss, epoch_parameters
 
-    def _run_validation(self, val_loader, only_unlabelled=False, teacher=False):
+    def _run_validation(self, val_loader, only_unlabelled=False, teacher=False, only_seen=False):
         """ This function computes the validation accuracy on labeled seen data.
 
         :param val_loder: Dataloader object - validation dataset
