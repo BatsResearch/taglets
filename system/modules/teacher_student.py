@@ -224,7 +224,7 @@ class TeacherStudent(VPTPseudoBaseline):
                 log.info(f"Validation accuracy after Epoch {epoch}: {val_accuracy}")
                 if val_accuracy > best_val_accuracy:
                     best_val_accuracy = val_accuracy
-                    best_prompt = epoch_parameters
+                    best_prompt = epoch_param
             else:
                 best_val_accuracy = None
                 best_prompt = epoch_param
