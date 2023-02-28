@@ -107,7 +107,7 @@ class TeacherStudent(VPTPseudoBaseline):
             log.info(f"[STUDENT] Start model training..")
             if self.pseudo_val_unseen_files is not None:
                 s_val_data = CustomDataset(self.pseudo_val_unseen_files, '', 
-                                        transform=None, augmentations=None, 
+                                        transform=self.transform, augmentations=None, 
                                         train=True, labels=self.pseudo_val_unseen_labs,
                                         label_map=self.label_to_idx, label_id=True, base=False)
             else:
