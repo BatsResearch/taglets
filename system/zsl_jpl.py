@@ -21,10 +21,7 @@ accelerator = Accelerator()
 
 from .utils import Config
 from .data import CustomDataset
-from .modules import ClipBaseline, CoopBaseline, TptBaseline, VPTBaseline, \
-                     AdjustAndAdapt, VPTPseudoBaseline, CoopPseudoBaseline, \
-                     TeacherStudent, DisambiguateTeacherStudent, \
-                     VPTPseudoDisambiguate, TwoStageClassifier
+from .modules import TeacherStudent
 
 gpu_list = os.getenv("LWLL_TA1_GPUS")
 if gpu_list is not None and gpu_list != "all":
