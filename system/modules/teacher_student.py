@@ -579,6 +579,8 @@ class TeacherStudent(VPTPseudoBaseline):
             unlabeled_data.label_id = True
 
         else:
+            self.pseudo_val_unseen_files = None
+            self.pseudo_val_unseen_labs = None
             unlabeled_data.filepaths = new_imgs
             unlabeled_data.labels = new_labels
             unlabeled_data.label_id = True
