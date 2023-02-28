@@ -379,10 +379,7 @@ class VPTBaseline(object):
         predictions = []
         labels = []
         for img, _, _, label, img_path in tqdm(val_loader):
-            if len(img.size()) < 4:
-                img = img.unsqueeze(0)
-                label = torch.tensor(label)
-            log.info(f"IMAGE SHAPE: {img.size()}")
+
             image_features = self.training_model(img, teacher)
             image_features = image_features / image_features.norm(dim=-1, keepdim=True)
 

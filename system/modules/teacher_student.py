@@ -561,7 +561,7 @@ class TeacherStudent(VPTPseudoBaseline):
             new_imgs += [tup[1] for tup in leaderboard]
             new_labels += [index for _ in leaderboard]
 
-        if val:
+        if val and self.N_PSEUDOSHOTS >= 10:
             np.random.seed(self.config.validation_seed)
             train_indices = np.random.choice(range(len(new_imgs)),
                                     size=int(len(new_imgs)*0.8),
