@@ -192,6 +192,7 @@ class TeacherStudent(VPTPseudoBaseline):
             train_loader = accelerator.prepare(self.student, 
                                                         self.student_optimizer, 
                                                         train_loader)
+            val_loader = None
 
         best_val_accuracy = 0
         best_prompt = None
