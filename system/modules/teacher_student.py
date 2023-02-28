@@ -221,7 +221,7 @@ class TeacherStudent(VPTPseudoBaseline):
                     best_prompt = epoch_parameters
             else:
                 best_val_accuracy = None
-                best_prompt = epoch_parameters
+                best_prompt = epoch_param
 
         return best_val_accuracy, best_prompt
 
