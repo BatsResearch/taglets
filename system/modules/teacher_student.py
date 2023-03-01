@@ -199,11 +199,11 @@ class TeacherStudent(VPTPseudoBaseline):
         loss = None
 
         if val_loader is not None:
-            log.info(f"Size of validation data: {len(val_data.filepaths)}")
+            log.info(f"[STUDENT] Size of validation data: {len(val_data.filepaths)}")
 
         # Start student training
         for epoch in range(self.config.s_EPOCHS):
-            log.info(f"Run Epoch {epoch}")
+            log.info(f"[STUDENT] Run Epoch {epoch}")
             total_loss = 0
             accum_iter = self.config.ACCUMULATION_ITER  
             
@@ -214,14 +214,14 @@ class TeacherStudent(VPTPseudoBaseline):
                                                               teacher=False)
             accelerator.wait_for_everyone()
             if accelerator.is_local_main_process:
-                log.info(f"Loss Epoch {epoch}: {total_loss/(len(train_loader))}")
+                log.info(f"[STUDENT] Loss Epoch {epoch}: {total_loss/(len(train_loader))}")
             
             accelerator.free_memory()
             
             if val_loader is not None:
                 val_accuracy = self._run_validation(val_loader, only_unlabelled=True,
                                                     teacher=False)
-                log.info(f"Validation accuracy after Epoch {epoch}: {val_accuracy}")
+                log.info(f"[STUDENT] Validation accuracy after Epoch {epoch}: {val_accuracy}")
                 if val_accuracy > best_val_accuracy:
                     best_val_accuracy = val_accuracy
                     best_prompt = epoch_param
@@ -267,10 +267,10 @@ class TeacherStudent(VPTPseudoBaseline):
         loss = None
 
         if val_loader is not None:
-            log.info(f"Size of validation data: {len(val_data.filepaths)}")
+            log.info(f"[TEACHER] Size of validation data: {len(val_data.filepaths)}")
         # Start teacher training
         for epoch in range(self.config.t_EPOCHS):
-            log.info(f"Run Epoch {epoch}")
+            log.info(f"[TEACHER] Run Epoch {epoch}")
             total_loss = 0
             accum_iter = self.config.ACCUMULATION_ITER  
             
@@ -280,13 +280,13 @@ class TeacherStudent(VPTPseudoBaseline):
                                                                    teacher=True)
             accelerator.wait_for_everyone()
             if accelerator.is_local_main_process:
-                log.info(f"Loss Epoch {epoch}: {total_loss/(len(train_loader))}")
+                log.info(f"[TEACHER] Loss Epoch {epoch}: {total_loss/(len(train_loader))}")
             
             accelerator.free_memory()
             
             if val_loader is not None:
                 val_accuracy = self._run_validation(val_loader, teacher=True)
-                log.info(f"Validation accuracy after Epoch {epoch}: {val_accuracy}")
+                log.info(f"[TEACHER] Validation accuracy after Epoch {epoch}: {val_accuracy}")
                 if val_accuracy > best_val_accuracy:
                     best_val_accuracy = val_accuracy
                     best_prompt = epoch_parameters
@@ -483,8 +483,11 @@ class TeacherStudent(VPTPseudoBaseline):
             return accelerator.unwrap_model(self.student)      
 
     def get_pseudo_labels(self, unlabeled_examples, teacher=True, val=False):
-
-        log.info(f"Num unlabeled data: {len(unlabeled_examples)}")
+        
+        if teacher:
+            log.info(f"[TEACHER PSEUDO] Num unlabeled data: {len(unlabeled_examples)}")
+        else:
+            log.info(f"[STUDENT PSEUDO] Num unlabeled data: {len(unlabeled_examples)}")
         # Get prediction of teacher on unlabeled data
         std_preds = self.test_predictions(unlabeled_examples, 
                                           standard_zsl=True,
@@ -509,7 +512,7 @@ class TeacherStudent(VPTPseudoBaseline):
         # Define text queries
         prompts = [f"{self.template}{' '.join(i.split('_'))}" \
                     for i in self.unseen_classes]
-        log.info(f"Number of prompts: {len(prompts)}")
+        log.info(f"[ASSIGNING PSEUDO] Number of prompts: {len(prompts)}")
 
         # Encode text
         text = clip.tokenize(prompts).to(self.device)

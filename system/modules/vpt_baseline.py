@@ -412,7 +412,6 @@ class VPTBaseline(object):
 
         if len(prompts) < len(self.classes):
             accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
-            log.info(F"Validation accuracy after Epoch: {accuracy}")
         else:
             # Get harmonic mean
             idx_seen = [self.label_to_idx[c] for c in self.seen_classes] 
@@ -463,7 +462,7 @@ class VPTBaseline(object):
         else:
             prompts = [f"{self.template}{' '.join(i.split('_'))}" \
                         for i in self.classes]
-        log.info(f"Number of prompts: {len(prompts)}")
+        log.info(f"[TEST] Number of prompts: {len(prompts)}")
         # This is required for distributed training
         test_files = [f.split('/')[-1] for f in test_loader.dataset.filepaths]
 
