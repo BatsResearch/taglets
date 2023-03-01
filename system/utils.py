@@ -156,6 +156,7 @@ def get_class_names(dataset, dataset_dir):
     elif dataset == 'DTD':
         path = f"{dataset_dir}/{dataset}"
 
+        classes = []
         with open(f"{path}/class_names.txt", 'r') as f:
             for l in f:
                 classes.append(l.strip())
