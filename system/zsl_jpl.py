@@ -284,7 +284,7 @@ def workflow(dataset_dir,
 
 def evaluate_predictions(df_predictions, test_labeled_files, labels, 
                          unseen_classes, seen_classes=None, standard_zsl=False):
-    df_test = pd.DataFrame({'id': test_labeled_files,
+    df_test = pd.DataFrame({'id': [f.split('/')[-1] for f in test_labeled_files],
                             'true': labels})
     log.info(f"DF TEST: {df_test.head(5)}")
     log.info(f"DF PREDICTIONS: {df_predictions.head(5)}")
