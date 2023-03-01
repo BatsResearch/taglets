@@ -337,7 +337,7 @@ class VPTBaseline(object):
         else:
             if only_seen:
                 accuracy = seen_accuracy
-                log.info(F"Training SEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
+                log.info(F"Training SEEN accuracy after Epoch {epoch}: {accuracy}")
             else:
                 accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
 

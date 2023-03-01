@@ -104,6 +104,7 @@ class TeacherStudent(VPTPseudoBaseline):
 
             # 3. Get teacher pseudo-labels
             log.info(f"[TEACHER] Collecting teacher pseudo-labels on unlabeled data..")
+            log.info(f"ORIGINAL UNLABELED DATA {original_unlabeled_data.filepaths}")
             pseudo_labels = self.get_pseudo_labels(original_unlabeled_data,
                                                    teacher=True)
 
@@ -150,8 +151,6 @@ class TeacherStudent(VPTPseudoBaseline):
             log.info(f"[ITERATION] Accuracy seen classes: {seen_accuracy}")
             log.info(f"[ITERATION] Accuracy unseen classes: {unseen_accuracy}")
             log.info(f"[ITERATION] Harmonic mean: {harmonic_mean}")
-
-
 
         return t_best_val_accuracy, t_best_prompt
 
