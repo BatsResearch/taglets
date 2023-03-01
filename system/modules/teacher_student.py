@@ -63,16 +63,13 @@ class TeacherStudent(VPTPseudoBaseline):
         # Initialize here first batch of pseudo labels
         # Define training dataset
         log.info(f"BEFORE: {unlabeled_data.labels}")
+        log.info(f"BEFORE: {unlabeled_data.filepaths}")
         self.create_training_dataset(train_data, unlabeled_data)
         log.info(f"Labels unlabeled data: {unlabeled_data.labels}")
 
         for niter in range(1, num_iter): 
             log.info(f"Start {niter} round of training..")
-            # self.config.t_EPOCHS = 10 + self.config.t_EPOCHS
-            # self.config.s_EPOCHS = 5 + self.config.s_EPOCHS
 
-            #if niter > 1:
-            # Update the training data
             train_data.filepaths = [f for i, f in enumerate(original_train_data.filepaths)]
             train_data.labels = [l for i, l in enumerate(original_train_data.labels)]
             self.update_training_set(train_data, unlabeled_data)
@@ -513,6 +510,7 @@ class TeacherStudent(VPTPseudoBaseline):
                             for i in range(len(self.unseen_classes))} #maps class idx -> (confidence, image_path) tuple
     
         for img_path in tqdm(unlabeled_data.filepaths):
+            log.info(f"IMAGEPATH: {img_path}")
             img = Image.open(img_path).convert('RGB')
             img = torch.unsqueeze(self.transform(img), 0).to(self.device)
             with torch.no_grad():
