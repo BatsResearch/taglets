@@ -288,6 +288,9 @@ def evaluate_predictions(df_predictions, test_labeled_files, labels,
                             'true': labels})
     df_predictions = pd.merge(df_predictions, df_test, on='id')
 
+    log.info(f"DF TEST: {df_test.head(5)}")
+    log.info(f"DF PREDICTIONS: {df_predictions.head(5)}")
+
     if standard_zsl:
         #df_predictions['true'] = labels
         df_predictions = df_predictions[df_predictions['true'].isin(unseen_classes)]
