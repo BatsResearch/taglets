@@ -290,19 +290,19 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
         unlabeled_lab_files = []
         unlabeled_labs = []
 
-        for split in ['train', 'val']
-        with open(f"{data_folder}/{split}.txt", 'r') as f:
-            for l in f:
-                line = l.split(' ')
-                cl = classes[int(line[1].strip())]
-                if cl in seen_classes:
-                    labeled_files.append(f"{split}/{line[0].strip().split('@')[-1]}")
-                    labels_files.append(cl)
-                elif cl in unseen_classes:
-                    unlabeled_lab_files.append(f"{split}/{line[0].strip().split('@')[-1]}")
-                    unlabeled_labs.append(cl)
-                else:
-                    raise Exception(f"The extracted class is not among the seen or unseen classes.")
+        for split in ['train', 'val']:
+            with open(f"{data_folder}/{split}.txt", 'r') as f:
+                for l in f:
+                    line = l.split(' ')
+                    cl = classes[int(line[1].strip())]
+                    if cl in seen_classes:
+                        labeled_files.append(f"{split}/{line[0].strip().split('@')[-1]}")
+                        labels_files.append(cl)
+                    elif cl in unseen_classes:
+                        unlabeled_lab_files.append(f"{split}/{line[0].strip().split('@')[-1]}")
+                        unlabeled_labs.append(cl)
+                    else:
+                        raise Exception(f"The extracted class is not among the seen or unseen classes.")
 
         labeled_data = list(zip(labeled_files, labels_files))
         unlabeled_data = list(zip(unlabeled_lab_files, unlabeled_labs))

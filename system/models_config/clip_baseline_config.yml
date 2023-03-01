@@ -1,5 +1,5 @@
 # Dataset name
-DATASET_NAME: "EuroSAT"
+DATASET_NAME: "DTD"
 DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification'
 # Model
 MODEL: "clip_baseline"
