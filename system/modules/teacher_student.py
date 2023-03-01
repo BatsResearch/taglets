@@ -481,6 +481,7 @@ class TeacherStudent(VPTPseudoBaseline):
         
         DatasetObject = dataset_object(self.config.DATASET_NAME)
         # 4. Take top-16 pseudo-labels to finetune the student
+        log.info(f"DATA FOLDER: {self.data_folder}")
         pseudo_unseen_examples = DatasetObject(std_preds['id'], 
                                                self.data_folder, 
                                                transform=self.transform, 
