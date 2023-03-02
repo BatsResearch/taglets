@@ -422,10 +422,10 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
                     img = l.split('@')[-1]
                     cl = img.split('/')[0].strip()
 
-                    if cl in seen:
+                    if cl in seen_classes:
                         labeled_files.append(f"{split}/{img}")
                         labels_files.append(cl)
-                    elif cl in unseen:
+                    elif cl in unseen_classes:
                         unlabeled_lab_files.append(f"{split}/{img}")
                         unlabeled_labs.append(cl)
                     else:
