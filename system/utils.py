@@ -198,6 +198,8 @@ def get_class_names(dataset, dataset_dir):
 
     elif dataset == 'FGVCAircraft':
         path = f"{dataset_dir}/{dataset}"
+        
+        classes = []
         with open(f"{path}/labels.txt", 'r') as f:
             for l in f:
                 classes.append(l.strip())
