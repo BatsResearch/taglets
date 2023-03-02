@@ -46,6 +46,8 @@ def evaluate_predictions(df_predictions, test_labeled_files, labels,
                          unseen_classes, seen_classes=None, standard_zsl=False):
     df_test = pd.DataFrame({'id': test_labeled_files,
                             'true': labels})
+    log.info(f"DF TEST: {df_test.head(5)}")
+    log.info(f"DF PREDS: {df_predictions.head(5)}")
     df_predictions = pd.merge(df_predictions, df_test, on='id')
 
     if standard_zsl:
