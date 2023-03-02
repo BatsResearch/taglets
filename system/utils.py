@@ -419,7 +419,7 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
         for split in ['train', 'val']:
             with open(f"{data_folder}/{split}.txt", 'r') as f:
                 for l in f:
-                    img = l.split('@')[-1]
+                    img = l.split(' ')[0].split('@')[-1].strip()
                     cl = img.split('/')[0].strip()
 
                     if cl in seen_classes:
@@ -439,7 +439,7 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
 
         with open(f"{data_folder}/test.txt", 'r') as f:
             for l in f:
-                img = l.split('@')[-1]
+                img = l.split(' ')[0].split('@')[-1].strip()
                 cl = img.split('/')[0].strip()
 
                 test_files.append(f"{split}/{img}")
