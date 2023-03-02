@@ -429,6 +429,7 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
                         unlabeled_lab_files.append(f"{split}/{img}")
                         unlabeled_labs.append(cl)
                     else:
+                        log.info(f"CLASS NOT IN SET: {cl}")
                         raise Exception(f"The extracted class is not among the seen or unseen classes.")
 
         labeled_data = list(zip(labeled_files, labels_files))
