@@ -63,7 +63,7 @@ class TeacherStudent(VPTPseudoBaseline):
         # Initialize here first batch of pseudo labels
         # Define training dataset
         log.info(f"BEFORE: {unlabeled_data.labels}")
-        log.info(f"BEFORE: {unlabeled_data.filepaths}")
+        #log.info(f"BEFORE: {unlabeled_data.filepaths}")
         self.create_training_dataset(train_data, unlabeled_data)
         log.info(f"Labels unlabeled data: {unlabeled_data.labels}")
 
@@ -101,7 +101,7 @@ class TeacherStudent(VPTPseudoBaseline):
 
             # 3. Get teacher pseudo-labels
             log.info(f"[TEACHER] Collecting teacher pseudo-labels on unlabeled data..")
-            log.info(f"ORIGINAL UNLABELED DATA {original_unlabeled_data.filepaths}")
+            #log.info(f"ORIGINAL UNLABELED DATA {original_unlabeled_data.filepaths}")
             pseudo_labels = self.get_pseudo_labels(original_unlabeled_data,
                                                    teacher=True)
 
@@ -481,7 +481,6 @@ class TeacherStudent(VPTPseudoBaseline):
         
         DatasetObject = dataset_object(self.config.DATASET_NAME)
         # 4. Take top-16 pseudo-labels to finetune the student
-        log.info(f"DATA FOLDER: {self.data_folder}")
         pseudo_unseen_examples = DatasetObject(std_preds['id'], 
                                                self.data_folder, 
                                                transform=self.transform, 
