@@ -511,7 +511,7 @@ class TeacherStudent(VPTPseudoBaseline):
                             for i in range(len(self.unseen_classes))} #maps class idx -> (confidence, image_path) tuple
     
         for img_path in tqdm(unlabeled_data.filepaths):
-            log.info(f"IMAGEPATH: {img_path}")
+            #log.info(f"IMAGEPATH: {img_path}")
             img = Image.open(img_path).convert('RGB')
             img = torch.unsqueeze(self.transform(img), 0).to(self.device)
             with torch.no_grad():
