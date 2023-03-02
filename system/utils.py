@@ -443,7 +443,7 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
                 img = ' '.join(l.split(' ')[:-1]).split('@')[-1].strip()
                 cl = img.split('/')[0].strip()
 
-                test_files.append(f"{split}/{img}")
+                test_files.append(f"test/{img}")
                 test_labs.append(cl)
         
         test_data = list(zip(test_files, test_labs))
