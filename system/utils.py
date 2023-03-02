@@ -31,6 +31,8 @@ def dataset_object(dataset_name):
         from .data import RESICS45 as DataObject
     elif dataset_name == 'FGVCAircraft':
         from .data import FGVCAircraft as DataObject
+    elif dataset_name == 'MNIST':
+        from .data import MNIST as DataObject
 
     return DataObject
 
@@ -212,6 +214,24 @@ def get_class_names(dataset, dataset_dir):
 
         seen_classes = list(np.array(classes)[seen_indices])
         unseen_classes = list(np.array(classes)[unseen_indices])
+
+    elif dataset == 'MNIST':
+        path = f"{dataset_dir}/{dataset}"
+        
+        classes = []
+        with open(f"{path}/labels.txt", 'r') as f:
+            for l in f:
+                classes.append(l.strip())
+
+        np.random.seed(500)
+        seen_indices = np.random.choice(range(len(classes)),
+                                size=int(len(classes)*0.62),
+                                replace=False)
+        unseen_indices = list(set(range(len(classes))).difference(set(seen_indices)))
+
+        seen_classes = list(np.array(classes)[seen_indices])
+        unseen_classes = list(np.array(classes)[unseen_indices])
+
 
     elif dataset == 'CUB':
         path = f"{dataset_dir}/{dataset}"

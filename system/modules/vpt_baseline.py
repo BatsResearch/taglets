@@ -203,8 +203,11 @@ class VPTBaseline(object):
         :param only_unlabelled: boolean. It is True if the training only involves 
                                 pseudo-labeled unseen data
         """
-        return [f"{self.template}{' '.join(i.split('_'))}" \
-                            for i in self.seen_classes]
+        # return [f"{self.template}{' '.join(i.split('_'))}" \
+        #                     for i in self.seen_classes]
+
+        return [self.template.format(' '.join(i.split('_'))) \
+                        for i in self.seen_classes]
 
     def reindex_predicted_labels(self, idx_preds, only_unlabelled=False):
         """ This function returns the correct index of predictions to compute
@@ -450,11 +453,16 @@ class VPTBaseline(object):
 
         # Define text queries
         if standard_zsl:
-            prompts = [f"{self.template}{' '.join(i.split('_'))}" \
+            # prompts = [f"{self.template}{' '.join(i.split('_'))}" \
+            #             for i in self.unseen_classes]
+            prompts = [self.template.format(' '.join(i.split('_'))) \
                         for i in self.unseen_classes]
         else:
-            prompts = [f"{self.template}{' '.join(i.split('_'))}" \
+            # prompts = [f"{self.template}{' '.join(i.split('_'))}" \
+            #             for i in self.classes]
+            prompts = [self.template.format(' '.join(i.split('_'))) \
                         for i in self.classes]
+
         log.info(f"Number of prompts: {len(prompts)}")
         # This is required for distributed training
         test_files = [f.split('/')[-1] for f in test_loader.dataset.filepaths]
