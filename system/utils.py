@@ -1,5 +1,6 @@
 import os
 import torch
+import json
 import random
 import pickle
 import logging
@@ -26,6 +27,8 @@ def dataset_object(dataset_name):
         from .data import SUN397 as DataObject
     elif dataset_name == 'CUB':
         from .data import CUB as DataObject
+    elif dataset_name == 'RESICS45':
+        from .data import RESICS45 as DataObject
 
     return DataObject
 
@@ -164,6 +167,24 @@ def get_class_names(dataset, dataset_dir):
             for l in f:
                 classes.append(l.strip())
         
+        np.random.seed(500)
+        seen_indices = np.random.choice(range(len(classes)),
+                                size=int(len(classes)*0.62),
+                                replace=False)
+        unseen_indices = list(set(range(len(classes))).difference(set(seen_indices)))
+
+        seen_classes = list(np.array(classes)[seen_indices])
+        unseen_classes = list(np.array(classes)[unseen_indices])
+
+    elif dataset == 'RESICS45':
+        path = f"{dataset_dir}/{dataset}"
+
+        classes = []
+        with open(f"{path}/train.json", 'r') as f:
+            data = json.load(f)
+            for d in data['categories']:
+                classes.append(d['name'].replace('_', ' '))
+
         np.random.seed(500)
         seen_indices = np.random.choice(range(len(classes)),
                                 size=int(len(classes)*0.62),
@@ -322,6 +343,55 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
         test_data = list(zip(test_files, test_labs))
 
         return labeled_data, unlabeled_data, test_data
+
+    elif dataset == 'RESICS45':
+        labeled_files = []
+        labels_files = []
+
+        unlabeled_lab_files = []
+        unlabeled_labs = []
+
+
+        for split in ['train', 'val']:
+            with open(f"{data_folder}/{split}.json", 'r') as f:
+                data = json.load(f)
+                for d in data['images']:
+                    file_name = d["file_name"].split('@')[-1]
+                    cl = file_name.split('/')[0].replace('_', ' ')
+                    img = file_name.split('/')[-1]
+                    
+                    if cl in seen_classes:
+                        labeled_files.append(img)
+                        labels_files.append(cl)
+                    elif cl in unseen_classes:
+                        unlabeled_lab_files.append(img)
+                        unlabeled_labs.append(cl)
+                    else:
+                        raise Exception(f"The extracted class is not among the seen or unseen classes.")
+
+
+        labeled_data = list(zip(labeled_files, labels_files))
+        unlabeled_data = list(zip(unlabeled_lab_files, unlabeled_labs))
+
+        test_files = []
+        test_labs = []
+        
+        with open(f"{data_folder}/test.json", 'r') as f:
+            data = json.load(f)
+            for d in data['images']:
+                file_name = d["file_name"].split('@')[-1]
+                cl = file_name.split('/')[0].replace('_', ' ')
+                img = file_name.split('/')[-1]
+                
+                test_files.append(img)
+                test_labs.append(cl)
+        
+        test_data = list(zip(test_files, test_labs))
+
+        return labeled_data, unlabeled_data, test_data
+                    
+
+
 
     elif dataset == 'CUB':
         labeled_files = []
