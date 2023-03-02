@@ -487,7 +487,8 @@ class TeacherStudent(VPTPseudoBaseline):
                                                transform=self.transform, 
                                                augmentations=None, 
                                                train=True, labels=None,
-                                               label_map=self.label_to_idx)
+                                               label_map=self.label_to_idx,
+                                               class_folder=True)
 
         pseudo_labels = self.assign_pseudo_labels(self.config.N_PSEUDOSHOTS, 
                                                   pseudo_unseen_examples)

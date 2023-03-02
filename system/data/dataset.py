@@ -1,3 +1,4 @@
+import os
 import logging
 
 from PIL import Image
@@ -84,7 +85,7 @@ class aPY(CustomDataset):
     def __init__(self, filepaths, root, 
                 transform, augmentations=None, 
                 train=True, labels=None, label_id=False, 
-                label_map=None):
+                label_map=None, class_folder=False):
         """
         :param filepaths: list of images
         :param root: path to images
@@ -106,7 +107,7 @@ class AwA2(CustomDataset):
     def __init__(self, filepaths, root, 
                 transform, augmentations=None, 
                 train=True, labels=None, label_id=False, 
-                label_map=None):
+                label_map=None, class_folder=False):
         """
         :param filepaths: list of images
         :param root: path to images
@@ -127,7 +128,7 @@ class EuroSAT(CustomDataset):
     def __init__(self, filepaths, root, 
                 transform, augmentations=None, 
                 train=True, labels=None, label_id=False, 
-                label_map=None):
+                label_map=None, class_folder=False):
         """
         :param filepaths: list of images
         :param root: path to images
@@ -148,7 +149,7 @@ class DTD(CustomDataset):
     def __init__(self, filepaths, root, 
                 transform, augmentations=None, 
                 train=True, labels=None, label_id=False, 
-                label_map=None):
+                label_map=None, class_folder=False):
         """
         :param filepaths: list of images
         :param root: path to images
@@ -163,8 +164,21 @@ class DTD(CustomDataset):
                          transform, augmentations, train,
                          labels, label_id, label_map) 
         # Adjust filepaths
-        
-        self.filepaths = [f"{root}/{f}" for f in filepaths]
+        if class_folder:
+            paths = []
+            for f in filepaths:
+                cl = f.split('_')[0]
+                tr_files = os.listdir(f"{root}/train/{cl}")
+                val_files = os.listdir(f"{root}/val/{cl}")
+                if f in tr_files:
+                    paths.append(f"{root}/train/{cl}/{f}")
+                elif f in val_files:
+                    paths.append(f"{root}/val/{cl}/{f}")
+
+            self.filepaths = paths
+
+        else:
+            self.filepaths = [f"{root}/{f}" for f in filepaths]
         
 class SUN397(CustomDataset):
     def __init__(self, filepaths, root, 
@@ -189,7 +203,7 @@ class CUB(CustomDataset):
     def __init__(self, filepaths, root, 
                 transform, augmentations=None, 
                 train=True, labels=None, label_id=False, 
-                label_map=None):
+                label_map=None, class_folder=False):
         """
         :param filepaths: list of images
         :param root: path to images
