@@ -54,11 +54,16 @@ class ClipBaseline(object):
 
         # Define text queries
         if standard_zsl:
-            prompts = [f"{self.template}{' '.join(i.split('_'))}" \
+            # prompts = [f"{self.template}{' '.join(i.split('_'))}" \
+            #             for i in self.unseen_classes]
+            prompts = [self.template.format(' '.join(i.split('_'))) \
                         for i in self.unseen_classes]
         else:
-            prompts = [f"{self.template}{' '.join(i.split('_'))}" \
+            # prompts = [f"{self.template}{' '.join(i.split('_'))}" \
+            #             for i in self.classes]
+            prompts = [self.template.format(' '.join(i.split('_'))) \
                         for i in self.classes]
+        
         log.info(f"Number of prompts: {len(prompts)}")
         # Encode text
         text = clip.tokenize(prompts).to(self.device)
