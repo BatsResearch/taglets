@@ -33,6 +33,8 @@ def dataset_object(dataset_name):
         from .data import FGVCAircraft as DataObject
     elif dataset_name == 'MNIST':
         from .data import MNIST as DataObject
+    elif dataset_name == 'Flowers102':
+        from .data import Flowers102 as DataObject
 
     return DataObject
 
@@ -232,6 +234,22 @@ def get_class_names(dataset, dataset_dir):
         seen_classes = list(np.array(classes)[seen_indices])
         unseen_classes = list(np.array(classes)[unseen_indices])
 
+    elif dataset == 'Flowers102':
+        path = f"{dataset_dir}/{dataset}"
+        
+        classes = []
+        with open(f"{path}/class_names.txt", 'r') as f:
+            for l in f:
+                classes.append(l.strip())
+
+        np.random.seed(500)
+        seen_indices = np.random.choice(range(len(classes)),
+                                size=int(len(classes)*0.62),
+                                replace=False)
+        unseen_indices = list(set(range(len(classes))).difference(set(seen_indices)))
+
+        seen_classes = list(np.array(classes)[seen_indices])
+        unseen_classes = list(np.array(classes)[unseen_indices])
 
     elif dataset == 'CUB':
         path = f"{dataset_dir}/{dataset}"
@@ -512,6 +530,48 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
 
         return labeled_data, unlabeled_data, test_data
 
+    elif dataset == 'Flowers102':
+        labeled_files = []
+        labels_files = []
+
+        unlabeled_lab_files = []
+        unlabeled_labs = []
+
+        for split in ['train', 'val']:
+            with open(f"{data_folder}/{split}.txt", 'r') as f:
+                for l in f:
+                    line = l.split(' ')
+                    img = line[0].split('@')[-1].strip()
+                    cl = classes[line[1].strip()]
+
+                    if cl in seen_classes:
+                        labeled_files.append(f"{split}/{img}")
+                        labels_files.append(cl)
+                    elif cl in unseen_classes:
+                        unlabeled_lab_files.append(f"{split}/{img}")
+                        unlabeled_labs.append(cl)
+                    else:
+                        log.info(f"CLASS NOT IN SET: {cl}")
+                        raise Exception(f"The extracted class is not among the seen or unseen classes.")
+
+        labeled_data = list(zip(labeled_files, labels_files))
+        unlabeled_data = list(zip(unlabeled_lab_files, unlabeled_labs))
+
+        test_files = []
+        test_labs = []
+
+        with open(f"{data_folder}/test.txt", 'r') as f:
+            for l in f:
+                line = l.split(' ')
+                img = line[0].split('@')[-1].strip()
+                cl = classes(line[1].strip())
+
+                test_files.append(f"test/{img}")
+                test_labs.append(cl)
+        
+        test_data = list(zip(test_files, test_labs))
+
+        return labeled_data, unlabeled_data, test_data
 
 
     elif dataset == 'CUB':

@@ -285,3 +285,24 @@ class MNIST(CustomDataset):
                          labels, label_id, label_map) 
         # Adjust filepaths
         self.filepaths = [f"{root}/{f}" for f in filepaths]
+
+class Flowers102(CustomDataset):
+    def __init__(self, filepaths, root, 
+                transform, augmentations=None, 
+                train=True, labels=None, label_id=False, 
+                label_map=None, class_folder=False):
+        """
+        :param filepaths: list of images
+        :param root: path to images
+        :param transform: standard transform
+        :param augmentations: None or tuple
+        :param train: indicates in the data is in train or test folder
+        :param labels: list of label
+        :param label_id: true if labeles are passed as int
+        :param label_map: dict mpping string labels to int
+        """
+        super().__init__(filepaths, root,
+                         transform, augmentations, train,
+                         labels, label_id, label_map) 
+        # Adjust filepaths
+        self.filepaths = [f"{root}/{f}" for f in filepaths]
