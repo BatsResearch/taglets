@@ -471,6 +471,48 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
         return labeled_data, unlabeled_data, test_data
 
 
+    elif dataset == 'MNIST':
+        labeled_files = []
+        labels_files = []
+
+        unlabeled_lab_files = []
+        unlabeled_labs = []
+
+        split = 'train'
+        with open(f"{data_folder}/{split}.txt", 'r') as f:
+            for l in f:
+                img = l.split(' ')[0].split('@')[-1].strip()
+                cl = img.split('/')[0].strip()
+
+                if cl in seen_classes:
+                    labeled_files.append(f"{split}/{img}")
+                    labels_files.append(cl)
+                elif cl in unseen_classes:
+                    unlabeled_lab_files.append(f"{split}/{img}")
+                    unlabeled_labs.append(cl)
+                else:
+                    log.info(f"CLASS NOT IN SET: {cl}")
+                    raise Exception(f"The extracted class is not among the seen or unseen classes.")
+
+        labeled_data = list(zip(labeled_files, labels_files))
+        unlabeled_data = list(zip(unlabeled_lab_files, unlabeled_labs))
+
+        test_files = []
+        test_labs = []
+
+        with open(f"{data_folder}/test.txt", 'r') as f:
+            for l in f:
+                img = l.split(' ')[0].split('@')[-1].strip()
+                cl = img.split('/')[0].strip()
+
+                test_files.append(f"test/{img}")
+                test_labs.append(cl)
+        
+        test_data = list(zip(test_files, test_labs))
+
+        return labeled_data, unlabeled_data, test_data
+
+
 
     elif dataset == 'CUB':
         labeled_files = []

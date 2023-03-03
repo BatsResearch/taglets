@@ -1,12 +1,12 @@
 # Dataset name
-DATASET_NAME: "FGVCAircraft"
+DATASET_NAME: "MNIST"
 DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification'
 # Model
 MODEL: "clip_baseline"
 # Visual ecoder
 VIS_ENCODER: "ViT-B/32"
 # Prompt template
-PROMPT_TEMPLATE: "a photo of a {}, a type of aircraft"
+PROMPT_TEMPLATE: 'a photo of the number: "{}"'
 # Seeed to separate train and validation
 validation_seed: 0
 # Ratio validation
