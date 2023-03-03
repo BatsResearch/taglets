@@ -542,7 +542,7 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
                 for l in f:
                     line = l.split(' ')
                     img = line[0].split('@')[-1].strip()
-                    cl = classes[line[1].strip()]
+                    cl = classes[int(line[1].strip())]
 
                     if cl in seen_classes:
                         labeled_files.append(f"{split}/{img}")
@@ -564,7 +564,7 @@ def get_labeled_and_unlabeled_data(dataset, data_folder,
             for l in f:
                 line = l.split(' ')
                 img = line[0].split('@')[-1].strip()
-                cl = classes(line[1].strip())
+                cl = classes[int(line[1].strip())]
 
                 test_files.append(f"test/{img}")
                 test_labs.append(cl)
