@@ -276,6 +276,7 @@ class MNIST(CustomDataset):
             filepaths = list(filepaths)
             new_paths = []
             for f in original_filepaths:
+                img = f.split('/')[-1]
                 if img in filepaths:
                     new_paths.append(f"{f}")
 
@@ -308,6 +309,7 @@ class Flowers102(CustomDataset):
             filepaths = list(filepaths)
             new_paths = []
             for f in original_filepaths:
+                img = f.split('/')[-1]
                 if img in filepaths:
                     new_paths.append(f"{f}")
 
