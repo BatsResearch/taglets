@@ -296,18 +296,14 @@ class Flowers102(CustomDataset):
                          labels, label_id, label_map) 
         # Adjust filepaths
         if class_folder:
-            img_names = []
-            paths = []
             for f in original_filepaths:
                 spl = f.split('/')
                 path = '/'.join(spl[:-1])
                 img = spl[-1]
-                img_names.append(img)
-                paths.append(path)
 
                 log.info(f"PAAAATH: {path}")
                 log.info(f"IMAGEEE: {img}")
-            for f in filepaths:
-                self.filepaths.append(f'{root}/{paths[img_names.index(f)]}/{f}')
+                if img in filepaths:
+                    self.filepaths.append(f"{spl}/{f}")
         else:
             self.filepaths = [f"{root}/{f}" for f in filepaths]
