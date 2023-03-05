@@ -272,8 +272,17 @@ class MNIST(CustomDataset):
         super().__init__(filepaths, root,
                          transform, augmentations, train,
                          labels, label_id, label_map) 
-        # Adjust filepaths
-        self.filepaths = [f"{root}/{f}" for f in filepaths]
+        if class_folder:
+            filepaths = list(filepaths)
+            new_paths = []
+            for f in original_filepaths:
+                if img in filepaths:
+                    new_paths.append(f"{f}")
+
+            self.filepaths = new_paths
+        else:
+            # Adjust filepaths
+            self.filepaths = [f"{root}/{f}" for f in filepaths]
 
 class Flowers102(CustomDataset):
     def __init__(self, filepaths, root, 
@@ -297,22 +306,12 @@ class Flowers102(CustomDataset):
         # Adjust filepaths
         if class_folder:
             filepaths = list(filepaths)
-            log.info(f"FILEPATHS HEAD: {filepaths[:10]}")
             new_paths = []
             for f in original_filepaths:
-                log.info(f"{f}")
-                spl = f.split('/')
-                path = '/'.join(spl[:-1])
-                img = spl[-1]
-                log.info(f"IMAAGE: {img}")
-                log.info(f"PAAATH: {path}")
-
                 if img in filepaths:
-                    log.info(f"SPL: {f}")
-                    # log.info(f"IMAGEEE: {img}")
                     new_paths.append(f"{f}")
 
             self.filepaths = new_paths
-            
+
         else:
             self.filepaths = [f"{root}/{f}" for f in filepaths]
