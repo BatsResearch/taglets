@@ -23,16 +23,10 @@ accelerator = Accelerator()
 from .utils import Config, get_class_names, get_labeled_and_unlabeled_data, \
                    dataset_object
 from .data import CustomDataset
-from .modules import ClipBaseline, CoopBaseline, TptBaseline, VPTBaseline, \
-                     AdjustAndAdapt, VPTPseudoBaseline, CoopPseudoBaseline, \
-                     TeacherStudent, DisambiguateTeacherStudent, \
-                     VPTPseudoDisambiguate, TwoStageClassifier
+from .modules import ClipBaseline, CoopBaseline, VPTBaseline, \
+                     VPTPseudoBaseline, CoopPseudoBaseline, \
+                     TeacherStudent
 
-gpu_list = os.getenv("LWLL_TA1_GPUS")
-if gpu_list is not None and gpu_list != "all":
-    gpu_list = [x for x in gpu_list.split(" ")]
-    print(gpu_list)
-    os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(gpu_list)
 
 logger_ = logging.getLogger()
 logger_.level = logging.INFO
@@ -46,29 +40,12 @@ class AccelerateHandler(StreamHandler):
         if accelerator.is_local_main_process:
             super().emit(record)
 
-
 stream_handler = AccelerateHandler(sys.stdout)
 stream_handler.setLevel(logging.INFO)
 stream_handler.setFormatter(formatter)
 logger_.addHandler(stream_handler)
 
-DEFAULT_TIMEOUT = 10 # seconds
-
 log = logging.getLogger(__name__)
-
-class TimeoutHTTPAdapter(HTTPAdapter):
-    def __init__(self, *args, **kwargs):
-        self.timeout = DEFAULT_TIMEOUT
-        if "timeout" in kwargs:
-            self.timeout = kwargs["timeout"]
-            del kwargs["timeout"]
-        super().__init__(*args, **kwargs)
-
-    def send(self, request, **kwargs):
-        timeout = kwargs.get("timeout")
-        if timeout is None:
-            kwargs["timeout"] = self.timeout
-        return super().send(request, **kwargs)
 
 def workflow(dataset_dir, 
              obj_conf):
