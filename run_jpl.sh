@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-
-accelerate launch --config_file ./accelerate_config.yml ./run_jpl.py --mode dev --folder development --model_config clip_baseline_config.yml
