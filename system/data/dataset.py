@@ -298,6 +298,7 @@ class Flowers102(CustomDataset):
         if class_folder:
             filepaths = list(filepaths)
             log.info(f"FILEPATHS HEAD: {filepaths[:10]}")
+            new_paths = []
             for f in original_filepaths:
                 log.info(f"{f}")
                 spl = f.split('/')
@@ -307,8 +308,11 @@ class Flowers102(CustomDataset):
                 log.info(f"PAAATH: {path}")
 
                 if img in filepaths:
-                    log.info(f"SPL: {spl}")
+                    log.info(f"SPL: {f}")
                     # log.info(f"IMAGEEE: {img}")
-                    self.filepaths.append(f"{f}")
+                    new_paths.append(f"{f}")
+
+            self.filepaths = new_paths
+            
         else:
             self.filepaths = [f"{root}/{f}" for f in filepaths]
