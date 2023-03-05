@@ -296,6 +296,7 @@ class Flowers102(CustomDataset):
                          labels, label_id, label_map) 
         # Adjust filepaths
         if class_folder:
+            filepaths = list(filepaths)
             log.info(f"FILEPATHS HEAD: {filepaths[:10]}")
             for f in original_filepaths:
                 log.info(f"{f}")
