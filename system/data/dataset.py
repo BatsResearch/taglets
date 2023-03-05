@@ -301,9 +301,9 @@ class Flowers102(CustomDataset):
                 path = '/'.join(spl[:-1])
                 img = spl[-1]
 
-                log.info(f"PAAAATH: {path}")
-                log.info(f"IMAGEEE: {img}")
                 if img in filepaths:
+                    log.info(f"SPL: {spl}")
+                    # log.info(f"IMAGEEE: {img}")
                     self.filepaths.append(f"{spl}/{f}")
         else:
             self.filepaths = [f"{root}/{f}" for f in filepaths]
