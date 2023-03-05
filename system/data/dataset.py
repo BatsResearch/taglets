@@ -250,8 +250,18 @@ class FGVCAircraft(CustomDataset):
         super().__init__(filepaths, root,
                          transform, augmentations, train,
                          labels, label_id, label_map) 
-        # Adjust filepaths
-        self.filepaths = [f"{root}/{f}" for f in filepaths]
+        if class_folder:
+            filepaths = list(filepaths)
+            new_paths = []
+            for f in original_filepaths:
+                img = f.split('/')[-1]
+                if img in filepaths:
+                    new_paths.append(f"{f}")
+
+            self.filepaths = new_paths
+        else:
+            # Adjust filepaths
+            self.filepaths = [f"{root}/{f}" for f in filepaths]
 
 class MNIST(CustomDataset):
     def __init__(self, filepaths, root, 
