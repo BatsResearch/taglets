@@ -306,6 +306,7 @@ class Flowers102(CustomDataset):
                 paths.append(path)
 
                 log.info(f"PAAAATH: {path}")
+                log.info(f"IMAGEEE: {img}")
             for f in filepaths:
                 self.filepaths.append(f'{root}/{paths[img_names.index(f)]}/{f}')
         else:
