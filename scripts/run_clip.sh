@@ -13,7 +13,6 @@ module load cuda/11.1.1
 pwd
 source ../../zsl/bin/activate
 
-cd taglets
 sleep $[ ( $RANDOM % 30 )  + 1 ]s
 
 sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12072/'  accelerate_config.yml
