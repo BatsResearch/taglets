@@ -1,4 +1,4 @@
-# Proof of concept code
+# Set up environment
 
 In this branch we gather the code used for the proof of concept of the paper.
 
