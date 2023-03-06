@@ -7,7 +7,6 @@ import torch
 from accelerate import Accelerator
 from PIL import Image
 from torch import nn
-from tqdm import tqdm
 
 accelerator = Accelerator()
 
@@ -73,7 +72,7 @@ class CoopBaseline(object):
                 self.clip_model, self.device, torch.half
             ).to(self.device)
 
-        log.info(f"Freeze text encoder.")
+        # log.info(f"Freeze text encoder.")
         for param in self.text_encoder.parameters():
             param.requires_grad = False
 
@@ -148,7 +147,7 @@ class CoopBaseline(object):
         # Declare the data pre processing for train and validation data
         train_data.transform = self.transform
         val_data.transform = self.transform
-        log.info(f"Training data size: {len(train_data.filepaths)}")
+        log.info(f"Training data size after possible update: {len(train_data.filepaths)}")
 
         train_loader = torch.utils.data.DataLoader(
             train_data,
@@ -222,7 +221,7 @@ class CoopBaseline(object):
 
         predictions = []
         labels = []
-        for i, (img, _, _, label, img_path) in enumerate(tqdm(train_loader)):
+        for i, (img, _, _, label, img_path) in enumerate(train_loader):
             text_features = self.model(self.model.module.classes)
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
             with torch.no_grad():
@@ -297,7 +296,7 @@ class CoopBaseline(object):
 
         predictions = []
         labels = []
-        for img, _, _, label, img_path in tqdm(val_loader):
+        for img, _, _, label, img_path in val_loader:
             self.model.classes = self.seen_classes
             text_features = self.model(self.model.classes)
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
@@ -368,7 +367,7 @@ class CoopBaseline(object):
 
         predictions = []
         images = []
-        for img, _, _, img_path in tqdm(test_loader):
+        for img, _, _, img_path in test_loader:
             with torch.no_grad():
                 image_features = self.clip_model.encode_image(img)
                 image_features = image_features / image_features.norm(

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -88,3 +89,13 @@ def store_results(
                 # Write the res dictionary to the file
                 f.write(json.dumps(results_to_store) + "\n")
 
+def save_parameters(obj, config):
+    """ Save in a pickle the parameters used for 
+    evaluation.
+
+    :param obj: object to save
+    :param config: object with method configurations
+    """
+    file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
+    with open(file_name, 'wb') as f:
+        pickle.dump(obj, f)

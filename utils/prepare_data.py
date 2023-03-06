@@ -256,7 +256,6 @@ def get_labeled_and_unlabeled_data(
                 (image_data["seen"] == 1) & (image_data["file_names"] != "broken")
             ]["label"]
         )
-        log.info(f"NUMBER OF UNIQUE SEEN CLASSES: {len(set(labels_files))}")
 
         unlabeled_lab_files = list(
             image_data[
@@ -268,7 +267,6 @@ def get_labeled_and_unlabeled_data(
                 (image_data["seen"] == 0) & (image_data["file_names"] != "broken")
             ]["label"]
         )
-        log.info(f"NUMBER OF UNIQUE UNSEEN CLASSES: {len(set(unlabeled_labs))}")
 
     elif dataset == "Animals_with_Attributes2":
         labeled_files = []
@@ -435,9 +433,8 @@ def get_labeled_and_unlabeled_data(
                         unlabeled_lab_files.append(f"{split}/{img}")
                         unlabeled_labs.append(cl)
                     else:
-                        log.info(f"CLASS NOT IN SET: {cl}")
                         raise Exception(
-                            f"The extracted class is not among the seen or unseen classes."
+                            f"The extracted class {cl} is not among the seen or unseen classes."
                         )
 
         labeled_data = list(zip(labeled_files, labels_files))
@@ -478,9 +475,8 @@ def get_labeled_and_unlabeled_data(
                     unlabeled_lab_files.append(f"{split}/{img}")
                     unlabeled_labs.append(cl)
                 else:
-                    log.info(f"CLASS NOT IN SET: {cl}")
                     raise Exception(
-                        f"The extracted class is not among the seen or unseen classes."
+                        f"The extracted class {cl} is not among the seen or unseen classes."
                     )
 
         labeled_data = list(zip(labeled_files, labels_files))
@@ -522,9 +518,8 @@ def get_labeled_and_unlabeled_data(
                         unlabeled_lab_files.append(f"{split}/{img}")
                         unlabeled_labs.append(cl)
                     else:
-                        log.info(f"CLASS NOT IN SET: {cl}")
                         raise Exception(
-                            f"The extracted class is not among the seen or unseen classes."
+                            f"The extracted class {cl} is not among the seen or unseen classes."
                         )
 
         labeled_data = list(zip(labeled_files, labels_files))

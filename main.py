@@ -36,6 +36,7 @@ from utils import (
     evaluate_predictions,
     get_class_names,
     get_labeled_and_unlabeled_data,
+    save_parameters,
     store_results,
 )
 
@@ -77,19 +78,17 @@ def workflow(dataset_dir, obj_conf):
         "unseen_classes": unseen_classes,
     }
     # Log number of classes
+    log.info(f"\n----------------------DATA INFO-----------------------\n")
     log.info(f"Number of classes split {obj_conf.SPLIT_SEED}: {len(classes)}")
     log.info(f"Number of seen classes split {obj_conf.SPLIT_SEED}: {len(seen_classes)}")
-    log.info(f"List of seen classes split {obj_conf.SPLIT_SEED}: {seen_classes}\n")
     log.info(f"Number of unseen classes split {obj_conf.SPLIT_SEED}: {len(unseen_classes)}")
-    log.info(f"List of unseen classes split {obj_conf.SPLIT_SEED}: {unseen_classes}\n")
-
     # Path for images
-    # dataset_dir = /users/cmenghin/data/bats/datasets/
-    # dataset = aPY
     data_folder = f"{dataset_dir}/{dataset}"
-    print(f"Data folder: {data_folder}")
-    # Get labeled examples (seen classes)
-    # Get unlabeled examples (unseen classes)
+    log.info(f"Data folder: {data_folder}")
+    log.info(f"\n-------------------------------------------------------------\n")
+    
+    # Get labeled data (seen classes)
+    # Get unlabeled data (unseen classes)
     # Get test data (both seen and unseen classes)
     labeled_data, unlabeled_data, test_data = get_labeled_and_unlabeled_data(
         dataset, data_folder, seen_classes, unseen_classes, classes
@@ -160,16 +159,21 @@ def workflow(dataset_dir, obj_conf):
         label_map=label_to_idx,
     )
     # Log info data
+    log.info(f"\n----------------------TRAINING DATA INFO-----------------------\n")
     log.info(f"Len training seen data: {len(train_seen_dataset.filepaths)}")
+    log.info(f"Average number of labeled images per seen class:{len(train_seen_dataset.filepaths)/len(seen_classes)} ")
     log.info(f"Len training unseen data: {len(train_unseen_dataset.filepaths)}")
     log.info(f"Len validation seen data: {len(val_seen_dataset.filepaths)}")
     log.info(f"Len test data: {len(test_dataset.filepaths)}")
+    log.info(f"\n-------------------------------------------------------------\n")
     # Define model
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
+    log.info(f"\n----------------------MODEL INFO-----------------------\n")
     if obj_conf.MODEL == "clip_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = ClipBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
+    
     elif obj_conf.MODEL == "coop_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = CoopBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
@@ -177,15 +181,11 @@ def workflow(dataset_dir, obj_conf):
         val_accuracy, optimal_prompt = model.train(
             train_seen_dataset, val_seen_dataset, classes=seen_classes
         )
-        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
-        log.info(f"The optimal prompt is {optimal_prompt}.")
 
+        # Save prompt
+        save_parameters(optimal_prompt, obj_conf)
+        
         model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
-
-    elif obj_conf.MODEL == "tpt_baseline":
-        # TODO
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = TptBaseline(obj_conf, device=device, **dict_classes)
 
     elif obj_conf.MODEL == "vpt_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
