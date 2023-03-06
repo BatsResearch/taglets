@@ -19,7 +19,7 @@ sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12072/'  accelerate_config.yml
 for dataset_name in EuroSAT; do
 for optim_seed in 10; do
 for split_seed in 500 0 200; do
-for vis_encoder in 'ViT-B/32'; do # 'ViT-B/16' 'ViT-L/14'; do 
+for vis_encoder in 'ViT-B/32' 'ViT-B/16' 'ViT-L/14'; do 
     export OPTIM_SEED="$optim_seed"
     export VIS_ENCODER="$vis_encoder"
     export DATASET_NAME="$dataset_name"
