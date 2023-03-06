@@ -12,8 +12,8 @@ from tqdm import tqdm
 
 accelerator = Accelerator()
 
-from ..models import CustomImageEncoder, ImagePrefixModel, make_scheduler
-from ..utils import seed_worker
+from .models import CustomImageEncoder, ImagePrefixModel, make_scheduler
+from .utils import seed_worker
 
 
 g = torch.Generator()
