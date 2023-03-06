@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=E-clip
-#SBATCH --output=logs/EuroSAT_clip.out
+#SBATCH --output=logs/all_clip.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
@@ -16,7 +16,7 @@ source ../../zsl/bin/activate
 sleep $[ ( $RANDOM % 30 )  + 1 ]s
 
 sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12072/'  accelerate_config.yml
-for dataset_name in EuroSAT; do
+for dataset_name in EuroSAT DTD RESICS45 FGVCAircraft MNIST Flowers102; do
 for optim_seed in 10; do
 for split_seed in 500 0 200; do
 for vis_encoder in 'ViT-B/32' 'ViT-B/16' 'ViT-L/14'; do 
