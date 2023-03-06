@@ -315,7 +315,7 @@ def main():
 
     log.info(f"Current working directory: {os.getcwd()}")
 
-    with open(f"system/models_config/{args.model_config}", "r") as file:
+    with open(f"models_config/{args.model_config}", "r") as file:
         config = yaml.safe_load(file)
 
     # Transform configs to object
