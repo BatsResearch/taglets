@@ -1,5 +1,5 @@
-from .clip_pseudolabels import compute_pseudo_labels
+from .clip_pseudolabels import pseudolabel_top_k
 from .compute_metrics import evaluate_predictions
 from .prepare_data import get_class_names, get_labeled_and_unlabeled_data
 from .schedulers import make_scheduler
-from .utils import Config, dataset_object
+from .utils import Config, dataset_object, seed_worker

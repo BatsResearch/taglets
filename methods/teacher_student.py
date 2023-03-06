@@ -16,7 +16,7 @@ accelerator = Accelerator()
 
 from ..data import CustomDataset
 from ..models import CustomImageEncoder, ImagePrefixModel, make_scheduler
-from ..modules import VPTPseudoBaseline
+from ..methods import VPTPseudoBaseline
 from ..utils import dataset_object, evaluate_predictions, seed_worker
 
 g = torch.Generator()

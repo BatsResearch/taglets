@@ -22,7 +22,7 @@ from urllib3.util import Retry
 accelerator = Accelerator()
 
 from .data import CustomDataset
-from .modules import (
+from .methods import (
     ClipBaseline,
     CoopBaseline,
     CoopPseudoBaseline,

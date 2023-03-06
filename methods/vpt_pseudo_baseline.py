@@ -12,7 +12,7 @@ from tqdm import tqdm
 accelerator = Accelerator()
 
 from ..models import CustomImageEncoder, make_scheduler
-from ..modules import VPTBaseline
+from ..methods import VPTBaseline
 from ..utils import pseudolabel_top_k, seed_worker
 
 

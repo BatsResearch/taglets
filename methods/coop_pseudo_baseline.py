@@ -12,7 +12,7 @@ from tqdm import tqdm
 accelerator = Accelerator()
 
 from ..models import CustomTextEncoder, TextPrefixModel, make_scheduler
-from ..modules import CoopBaseline
+from ..methods import CoopBaseline
 from ..utils import pseudolabel_top_k, seed_worker
 
 
