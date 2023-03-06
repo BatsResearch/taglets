@@ -21,8 +21,8 @@ from urllib3.util import Retry
 
 accelerator = Accelerator()
 
-from .data import CustomDataset
-from .methods import (
+from data import CustomDataset
+from methods import (
     ClipBaseline,
     CoopBaseline,
     CoopPseudoBaseline,
@@ -30,7 +30,7 @@ from .methods import (
     VPTBaseline,
     VPTPseudoBaseline,
 )
-from .utils import (
+from utils import (
     Config,
     dataset_object,
     dataset_custom_prompts,
