@@ -10,25 +10,25 @@ log = logging.getLogger(__name__)
 
 def dataset_object(dataset_name):
     if dataset_name == "aPY":
-        from .data import aPY as DataObject
+        from data import aPY as DataObject
     elif dataset_name == "Animals_with_Attributes2":
-        from .data import AwA2 as DataObject
+        from data import AwA2 as DataObject
     elif dataset_name == "EuroSAT":
-        from .data import EuroSAT as DataObject
+        from data import EuroSAT as DataObject
     elif dataset_name == "DTD":
-        from .data import DTD as DataObject
+        from data import DTD as DataObject
     elif dataset_name == "sun397":
-        from .data import SUN397 as DataObject
+        from data import SUN397 as DataObject
     elif dataset_name == "CUB":
-        from .data import CUB as DataObject
+        from data import CUB as DataObject
     elif dataset_name == "RESICS45":
-        from .data import RESICS45 as DataObject
+        from data import RESICS45 as DataObject
     elif dataset_name == "FGVCAircraft":
-        from .data import FGVCAircraft as DataObject
+        from data import FGVCAircraft as DataObject
     elif dataset_name == "MNIST":
-        from .data import MNIST as DataObject
+        from data import MNIST as DataObject
     elif dataset_name == "Flowers102":
-        from .data import Flowers102 as DataObject
+        from data import Flowers102 as DataObject
 
     return DataObject
 
