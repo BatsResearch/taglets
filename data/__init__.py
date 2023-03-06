@@ -8,3 +8,4 @@ from .dataset import (
     FGVCAircraft,
     Flowers102,
 )
+from .dataset_prompts import dataset_custom_prompts

@@ -9,7 +9,7 @@ import pandas as pd
 log = logging.getLogger(__name__)
 
 
-def get_class_names(dataset, dataset_dir):
+def get_class_names(dataset, dataset_dir, seed=500):
     """Returns the lists of the names of all classes, seen classes,
     and unseen classes.
 
@@ -89,7 +89,7 @@ def get_class_names(dataset, dataset_dir):
             for l in f:
                 classes.append(l.strip())
 
-        np.random.seed(500)
+        np.random.seed(seed)
         seen_indices = np.random.choice(
             range(len(classes)), size=int(len(classes) * 0.62), replace=False
         )
@@ -106,7 +106,7 @@ def get_class_names(dataset, dataset_dir):
             for l in f:
                 classes.append(l.strip())
 
-        np.random.seed(500)
+        np.random.seed(seed)
         seen_indices = np.random.choice(
             range(len(classes)), size=int(len(classes) * 0.62), replace=False
         )
@@ -124,7 +124,7 @@ def get_class_names(dataset, dataset_dir):
             for d in data["categories"]:
                 classes.append(d["name"].replace("_", " "))
 
-        np.random.seed(500)
+        np.random.seed(seed)
         seen_indices = np.random.choice(
             range(len(classes)), size=int(len(classes) * 0.62), replace=False
         )
@@ -141,7 +141,7 @@ def get_class_names(dataset, dataset_dir):
             for l in f:
                 classes.append(l.strip())
 
-        np.random.seed(500)
+        np.random.seed(seed)
         seen_indices = np.random.choice(
             range(len(classes)), size=int(len(classes) * 0.62), replace=False
         )
@@ -158,7 +158,7 @@ def get_class_names(dataset, dataset_dir):
             for l in f:
                 classes.append(l.strip())
 
-        np.random.seed(500)
+        np.random.seed(seed)
         seen_indices = np.random.choice(
             range(len(classes)), size=int(len(classes) * 0.62), replace=False
         )
@@ -175,7 +175,7 @@ def get_class_names(dataset, dataset_dir):
             for l in f:
                 classes.append(l.strip())
 
-        np.random.seed(500)
+        np.random.seed(seed)
         seen_indices = np.random.choice(
             range(len(classes)), size=int(len(classes) * 0.62), replace=False
         )

@@ -33,6 +33,7 @@ from .methods import (
 from .utils import (
     Config,
     dataset_object,
+    dataset_custom_prompts,
     evaluate_predictions,
     get_class_names,
     get_labeled_and_unlabeled_data,
@@ -68,7 +69,7 @@ def workflow(dataset_dir, obj_conf):
     dataset = obj_conf.DATASET_NAME
     # Get class names of target task
     # define function for each dataset
-    classes, seen_classes, unseen_classes = get_class_names(dataset, dataset_dir)
+    classes, seen_classes, unseen_classes = get_class_names(dataset, dataset_dir, obj_conf.SPLIT_SEED)
     # Create dict classes to pass as variable
     dict_classes = {
         "classes": classes,
@@ -76,9 +77,11 @@ def workflow(dataset_dir, obj_conf):
         "unseen_classes": unseen_classes,
     }
     # Log number of classes
-    log.info(f"Number of classes: {len(classes)}")
-    log.info(f"Number of seen classes: {len(seen_classes)}")
-    log.info(f"Number of unseen classes: {len(unseen_classes)}")
+    log.info(f"Number of classes split {obj_conf.SPLIT_SEED}: {len(classes)}")
+    log.info(f"Number of seen classes split {obj_conf.SPLIT_SEED}: {len(seen_classes)}")
+    log.info(f"List of seen classes split {obj_conf.SPLIT_SEED}: {seen_classes}\n")
+    log.info(f"Number of unseen classes split {obj_conf.SPLIT_SEED}: {len(unseen_classes)}")
+    log.info(f"List of unseen classes split {obj_conf.SPLIT_SEED}: {unseen_classes}\n")
 
     # Path for images
     # dataset_dir = /users/cmenghin/data/bats/datasets/
@@ -315,11 +318,22 @@ def main():
 
     with open(f"system/models_config/{args.model_config}", "r") as file:
         config = yaml.safe_load(file)
+
+    # Transform configs to object
     obj_conf = Config(config)
 
+    # Declare seed
     optim_seed = int(os.environ["OPTIM_SEED"])
     obj_conf.OPTIM_SEED = optim_seed
-
+    # Define backbone
+    obj_conf.VIS_ENCODER = os.environ["VIS_ENCODER"]
+    # Define dataset name
+    obj_conf.DATASET_NAME = os.environ["DATASET_NAME"]
+    # Define split seed
+    obj_conf.SPLIT_SEED = int(os.environ["SPLIT_SEED"])
+    # Define dataset's template for textual prompts
+    obj_conf.PROMPT_TEMPLATE = dataset_custom_prompts[obj_conf.DATASET_NAME]
+    # Define data dir
     dataset_dir = obj_conf.DATASET_DIR
     log.info(f"Dataset dir: {dataset_dir}")
 

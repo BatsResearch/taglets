@@ -1,12 +1,12 @@
 # Dataset name
-DATASET_NAME: "Flowers102"
+DATASET_NAME: "$DATASET_NAME"
 DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification'
 # Model
 MODEL: "clip_baseline"
 # Visual ecoder
-VIS_ENCODER: "ViT-B/32"
+VIS_ENCODER: "$VIS_ENCODER"
 # Prompt template
-PROMPT_TEMPLATE: 'a photo of a {}, a type of flower'
+PROMPT_TEMPLATE: 'imported in main.py'
 # Seeed to separate train and validation
 validation_seed: 0
 # Ratio validation
@@ -15,3 +15,7 @@ ratio_train_val: 0.8
 BATCH_SIZE: 8
 # Set seeds
 OPTIM_SEED: "$OPTIM_SEED"
+# Classes split
+CLASSES_SPLIT: SPLIT_SEED
+# Seed split
+SPLIT_SEED: "$SPLIT_SEED"
