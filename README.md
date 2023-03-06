@@ -39,4 +39,5 @@ At this point, you should be ready to launch jobs!
 Place yourself in the repository's folder and execute scripts in the `scripts/` folder using sbatch. Note that before launching any script you should double-check that 
 1. The path to your environment and files is correct.
 2. The port for accelerate is different for each job you run simultaneously
+3. Check the configuration file and change the `DATASET_DIR` accordingly
 
