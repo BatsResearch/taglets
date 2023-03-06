@@ -11,8 +11,8 @@ from tqdm import tqdm
 
 accelerator = Accelerator()
 
-from models import CustomTextEncoder, TextPrefixModel, make_scheduler
-from utils import seed_worker
+from models import CustomTextEncoder, TextPrefixModel
+from utils import make_scheduler, seed_worker
 
 g = torch.Generator()
 g.manual_seed(0)

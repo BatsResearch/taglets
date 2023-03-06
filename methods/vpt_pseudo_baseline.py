@@ -11,9 +11,9 @@ from tqdm import tqdm
 
 accelerator = Accelerator()
 
-from .models import CustomImageEncoder, make_scheduler
-from .methods import VPTBaseline
-from .utils import pseudolabel_top_k, seed_worker
+from models import CustomImageEncoder
+from methods import VPTBaseline
+from utils import make_scheduler, pseudolabel_top_k, seed_worker
 
 
 g = torch.Generator()

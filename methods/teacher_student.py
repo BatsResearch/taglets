@@ -14,10 +14,10 @@ from tqdm import tqdm
 
 accelerator = Accelerator()
 
-from .data import CustomDataset
-from .models import CustomImageEncoder, ImagePrefixModel, make_scheduler
-from .methods import VPTPseudoBaseline
-from .utils import dataset_object, evaluate_predictions, seed_worker
+from data import CustomDataset
+from models import CustomImageEncoder, ImagePrefixModel
+from methods import VPTPseudoBaseline
+from utils import dataset_object, evaluate_predictions, make_scheduler, seed_worker
 
 g = torch.Generator()
 g.manual_seed(0)
