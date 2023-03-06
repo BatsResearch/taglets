@@ -15,7 +15,7 @@ source ../../zsl/bin/activate
 
 sleep $[ ( $RANDOM % 30 )  + 1 ]s
 
-sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12072/'  accelerate_config.yml
+sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12075/'  accelerate_config.yml
 for vis_encoder in 'ViT-B/32' 'RN50' 'ViT-L/14' 'RN101' ; do 
 for dataset_name in DTD; do
 for split_seed in 500 0 200; do
