@@ -222,14 +222,6 @@ def workflow(dataset_dir, obj_conf):
         log.info(f"Validation accuracy on seen classes: {val_accuracy}")
         log.info(f"The optimal prompt is {optimal_prompt}.")
 
-    elif obj_conf.MODEL == "vpt_pseudo_disambiguate":
-        model = VPTPseudoDisambiguate(
-            obj_conf, label_to_idx, device=device, **dict_classes
-        )
-        val_accuracy, optimal_prompt = model.train(
-            train_seen_dataset, val_seen_dataset, train_unseen_dataset
-        )
-
     elif obj_conf.MODEL == "teacher_student":
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = TeacherStudent(
@@ -245,31 +237,6 @@ def workflow(dataset_dir, obj_conf):
         )
         log.info(f"Validation accuracy on seen classes: {val_accuracy}")
         log.info(f"The optimal prompt is {optimal_prompt}.")
-
-    elif obj_conf.MODEL == "disambiguate_teacher_student":
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = DisambiguateTeacherStudent(
-            obj_conf, label_to_idx, data_folder, device=device, **dict_classes
-        )
-        val_accuracy, optimal_prompt = model.train(
-            train_seen_dataset, val_seen_dataset, train_unseen_dataset
-        )
-        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
-        log.info(f"The optimal prompt is {optimal_prompt}.")
-
-    elif obj_conf.MODEL == "adjust_and_adapt":
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = AdjustAndAdapt(obj_conf, label_to_idx, device=device, **dict_classes)
-        vpt_prompts = model.train(
-            train_labeled_files, unlabeled_data, val_labeled_files, data_folder
-        )
-    elif obj_conf.MODEL == "two_stage_classifier":
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = TwoStageClassifier(
-            obj_conf, label_to_idx, device=device, **dict_classes
-        )
-
-        model.train(train_seen_dataset, train_unseen_dataset, val_seen_dataset)
 
     # Validate on test set (standard)
     std_predictions = model.test_predictions(test_dataset, standard_zsl=True)
