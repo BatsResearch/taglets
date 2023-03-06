@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=E-clip
-#SBATCH --output=EuroSAT_clip.out
+#SBATCH --output=logs/EuroSAT_clip.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
@@ -26,7 +26,7 @@ for vis_encoder in 'ViT-B/32'; do # 'ViT-B/16' 'ViT-L/14'; do
     export DATASET_NAME="$dataset_name"
     export SPLIT_SEED="$split_seed"
     
-    accelerate launch --config_file ./accelerate_config.yml ./run_jpl.py \
+    accelerate launch --config_file ./accelerate_config.yml ./run_main.py \
                     --model_config clip_baseline_config.yml
 done
 done
