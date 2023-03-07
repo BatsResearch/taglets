@@ -19,7 +19,7 @@ sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12076/'  accelerate_config.yml
 for vis_encoder in 'ViT-B/32'; do # 'RN50' 'ViT-L/14' 'RN101'
 for split_seed in 500; do #  0 200
 for dataset_name in DTD; do
-for model in teacher_student 
+for model in teacher_student ; do
 for optim_seed in 10 100 50 400 250; do
 
     export OPTIM_SEED="$optim_seed"
@@ -30,6 +30,7 @@ for optim_seed in 10 100 50 400 250; do
     
     accelerate launch --config_file ./accelerate_config.yml ./run_main.py \
                     --model_config ${model}_config.yml
+done
 done
 done
 done
