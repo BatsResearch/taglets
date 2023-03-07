@@ -2,7 +2,7 @@
 DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification'
 DATASET_NAME: "$DATASET_NAME"
 # Model
-MODEL: "coop_pseudo_baseline"
+MODEL: "$MODEL"
 # Visual ecoder
 VIS_ENCODER: "$VIS_ENCODER"
 # Prompt template

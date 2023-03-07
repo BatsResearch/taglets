@@ -75,10 +75,7 @@ class IterativePseudoCoop(CoopPseudoBaseline):
 
         # Initialize here first batch of pseudo labels
         # Define training dataset
-        log.info(f"BEFORE: {unlabeled_data.labels}")
-        # log.info(f"BEFORE: {unlabeled_data.filepaths}")
         self.create_training_dataset(train_data, unlabeled_data)
-        log.info(f"Labels unlabeled data: {unlabeled_data.labels}")
 
         for niter in range(1, num_iter + 1):
             log.info(f"Start {niter} round of training..")
@@ -91,7 +88,6 @@ class IterativePseudoCoop(CoopPseudoBaseline):
 
             # 1. Initialize teacher
             self.define_model(teacher=True)
-            log.info(f"[TEACHER] Initialization..")
 
             # At this time the validation is composed only of seen classes. We can
             # try to expand it with pseudo-labels.
@@ -107,32 +103,10 @@ class IterativePseudoCoop(CoopPseudoBaseline):
                 val_data.label_id = True
 
             # 2. Train teacher with labeled seen and pseudo-labeled unseen
-            log.info(f"[TEACHER] Start model training..")
             t_best_val_accuracy, t_best_prompt = self.train_teacher(
                 train_data, val_data
             )
-            log.info(f"[TEACHER] Training completed.")
 
-            # 3. Get teacher pseudo-labels
-            log.info(f"[TEACHER] Collecting teacher pseudo-labels on unlabeled data..")
-            # log.info(f"ORIGINAL UNLABELED DATA {original_unlabeled_data.filepaths}")
-            pseudo_labels = self.get_pseudo_labels(
-                original_unlabeled_data, teacher=True
-            )
-
-            # 4. Initialize student model
-            log.info(f"[STUDENT] Initialization..")
-            self.define_model(teacher=False)
-
-            # 5. Train student
-            log.info(f"[STUDENT] Start model training..")
-            self.train_student(pseudo_labels)
-            log.info(f"[STUDENT] Training completed.")
-
-            # 6. Get new pseudo labels from student
-            log.info(
-                f"[STUDENT] Get student pseudo-labels for the next round of training."
-            )
             if self.config.ALL_UNLABELED:
                 n_per_class = int((niter + 1) * num_samples / n_unseen)
                 if n_per_class * n_unseen <= len(original_unlabeled_data.filepaths):
@@ -144,9 +118,13 @@ class IterativePseudoCoop(CoopPseudoBaseline):
                         len(original_unlabeled_data.filepaths) / n_unseen
                     )
 
+            # 3. Get teacher pseudo-labels
+            log.info(f"Collecting pseudo-labels on unlabeled data..")
+            # log.info(f"ORIGINAL UNLABELED DATA {original_unlabeled_data.filepaths}")
             unlabeled_data = self.get_pseudo_labels(
-                original_unlabeled_data, teacher=False
+                original_unlabeled_data, teacher=True
             )
+
             # Evaluate model at this point in time
             std_predictions = self.test_predictions(test_data, standard_zsl=True)
 

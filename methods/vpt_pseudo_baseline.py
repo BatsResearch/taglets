@@ -141,24 +141,17 @@ class VPTPseudoBaseline(VPTBaseline):
         """
 
         if only_unlabelled:
-            # Training only on pseudo unseen
-            # return [f"{self.template}{' '.join(i.split('_'))}" \
-            #                 for i in self.unseen_classes]
             return [
                 self.template.format(" ".join(i.split("_")))
                 for i in self.unseen_classes
             ]
         else:
             if validation:
-                # return [f"{self.template}{' '.join(i.split('_'))}" \
-                #                 for i in self.seen_classes]
                 return [
                     self.template.format(" ".join(i.split("_")))
                     for i in self.seen_classes
                 ]
             else:
-                # return [f"{self.template}{' '.join(i.split('_'))}" \
-                #                 for i in self.classes]
                 return [
                     self.template.format(" ".join(i.split("_"))) for i in self.classes
                 ]

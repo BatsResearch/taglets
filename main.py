@@ -181,9 +181,6 @@ def workflow(dataset_dir, obj_conf):
         val_accuracy, optimal_prompt = model.train(
             train_seen_dataset, val_seen_dataset, classes=seen_classes
         )
-
-        # Save prompt
-        save_parameters(optimal_prompt, obj_conf)
         
         model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
@@ -193,8 +190,6 @@ def workflow(dataset_dir, obj_conf):
         val_accuracy, optimal_prompt = model.train(
             train_seen_dataset, val_seen_dataset, only_seen=True
         )
-        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
-        log.info(f"The optimal prompt is {optimal_prompt}.")
 
         model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
         model.model.image_pos_emb = torch.nn.Parameter(torch.tensor(optimal_prompt[1]))
@@ -205,8 +200,6 @@ def workflow(dataset_dir, obj_conf):
         val_accuracy, optimal_prompt = model.train(
             train_seen_dataset, val_seen_dataset, train_unseen_dataset
         )
-        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
-        log.info(f"The optimal prompt is {optimal_prompt}.")
 
     elif obj_conf.MODEL == "coop_pseudo_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
@@ -219,10 +212,6 @@ def workflow(dataset_dir, obj_conf):
             classes=classes,
             unlabeled_data=train_unseen_dataset,
         )
-
-        # Save prompt
-        save_parameters(optimal_prompt, obj_conf)
-
 
     elif obj_conf.MODEL == "teacher_student":
         log.info(f"The model in use is: {obj_conf.MODEL}")
@@ -237,11 +226,9 @@ def workflow(dataset_dir, obj_conf):
             test_labeled_files,
             test_labeles,
         )
-        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
-        log.info(f"The optimal prompt is {optimal_prompt}.")
     
     # Save prompt
-    # save_parameters(optimal_prompt, obj_conf)
+    save_parameters(optimal_prompt, obj_conf)
     # Validate on test set (standard)
     std_predictions = model.test_predictions(test_dataset, standard_zsl=True)
     # Submit predictions (standard)
@@ -300,6 +287,8 @@ def main():
     obj_conf.VIS_ENCODER = os.environ["VIS_ENCODER"]
     # Define dataset name
     obj_conf.DATASET_NAME = os.environ["DATASET_NAME"]
+    # Define model name
+    obj_conf.DATASET_NAME = os.environ["MODEL"]
     # Define split seed
     obj_conf.SPLIT_SEED = int(os.environ["SPLIT_SEED"])
     # Define dataset's template for textual prompts
