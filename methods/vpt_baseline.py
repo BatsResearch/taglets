@@ -8,7 +8,6 @@ import torch
 from accelerate import Accelerator
 from PIL import Image
 from torch import nn
-from tqdm import tqdm
 
 accelerator = Accelerator()
 
@@ -306,7 +305,7 @@ class VPTBaseline(object):
 
         predictions = []
         labels = []
-        for i, (img, _, _, label, img_path) in enumerate(tqdm(train_loader)):
+        for i, (img, _, _, label, img_path) in enumerate(train_loader):
             image_features = self.training_model(img, teacher)
             image_features = image_features / image_features.norm(dim=-1, keepdim=True)
 
@@ -409,7 +408,7 @@ class VPTBaseline(object):
 
         predictions = []
         labels = []
-        for img, _, _, label, img_path in tqdm(val_loader):
+        for img, _, _, label, img_path in val_loader:
             image_features = self.training_model(img, teacher)
             image_features = image_features / image_features.norm(dim=-1, keepdim=True)
 
@@ -509,7 +508,7 @@ class VPTBaseline(object):
         log.info(f"Start inference for test data")
         predictions = []
         images = []
-        for img, _, _, img_path in tqdm(test_loader):
+        for img, _, _, img_path in test_loader:
             with torch.no_grad():
                 image_features = self.model(img)
                 image_features = image_features / image_features.norm(

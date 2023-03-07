@@ -10,7 +10,6 @@ import torch
 from accelerate import Accelerator
 from PIL import Image
 from torch import nn
-from tqdm import tqdm
 
 accelerator = Accelerator()
 
@@ -369,7 +368,7 @@ class TeacherStudent(VPTPseudoBaseline):
 
         predictions = []
         images = []
-        for img, _, _, img_path in tqdm(test_loader):
+        for img, _, _, img_path in test_loader:
             with torch.no_grad():
                 if teacher:
                     image_features = self.teacher(img)
@@ -578,7 +577,7 @@ class TeacherStudent(VPTPseudoBaseline):
             for i in range(len(self.unseen_classes))
         }  # maps class idx -> (confidence, image_path) tuple
 
-        for img_path in tqdm(unlabeled_data.filepaths):
+        for img_path in unlabeled_data.filepaths:
             # log.info(f"IMAGEPATH: {img_path}")
             img = Image.open(img_path).convert("RGB")
             img = torch.unsqueeze(self.transform(img), 0).to(self.device)

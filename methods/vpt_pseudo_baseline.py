@@ -7,7 +7,6 @@ import torch
 from accelerate import Accelerator
 from PIL import Image
 from torch import nn
-from tqdm import tqdm
 
 accelerator = Accelerator()
 
