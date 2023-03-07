@@ -17,7 +17,7 @@ sleep $[ ( $RANDOM % 30 )  + 1 ]s
 
 sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12073/'  accelerate_config.yml
 for vis_encoder in 'ViT-B/32'; do # 'ViT-B/32' 'RN50' 'ViT-L/14' 'RN101'
-for split_seed in 500 0 200; do
+for split_seed in 500; do #  0 200
 for dataset_name in Flowers102; do
 for model in coop_pseudo_baseline vpt_pseudo_baseline 
 for optim_seed in 10 100 50 400 250; do
