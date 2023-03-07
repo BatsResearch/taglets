@@ -288,7 +288,7 @@ def main():
     # Define dataset name
     obj_conf.DATASET_NAME = os.environ["DATASET_NAME"]
     # Define model name
-    obj_conf.DATASET_NAME = os.environ["MODEL"]
+    obj_conf.MODEL = os.environ["MODEL"]
     # Define split seed
     obj_conf.SPLIT_SEED = int(os.environ["SPLIT_SEED"])
     # Define dataset's template for textual prompts
