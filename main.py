@@ -219,8 +219,10 @@ def workflow(dataset_dir, obj_conf):
             classes=classes,
             unlabeled_data=train_unseen_dataset,
         )
-        log.info(f"Validation accuracy on seen classes: {val_accuracy}")
-        log.info(f"The optimal prompt is {optimal_prompt}.")
+
+        # Save prompt
+        save_parameters(optimal_prompt, obj_conf)
+
 
     elif obj_conf.MODEL == "teacher_student":
         log.info(f"The model in use is: {obj_conf.MODEL}")

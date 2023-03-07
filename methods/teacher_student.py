@@ -52,7 +52,7 @@ class TeacherStudent(VPTPseudoBaseline):
         test_labeles,
     ):
         # Number of total iterations to cover all unlabeled data
-        num_iter = self.config.STEP_QUANTILE
+        num_iter = int(100/self.config.STEP_QUANTILE)
         num_samples = int(len(unlabeled_data) / num_iter)
         # Initialize the number of pseudo-labels per class
         n_per_class = int(num_samples / len(self.unseen_classes))
@@ -81,7 +81,7 @@ class TeacherStudent(VPTPseudoBaseline):
         self.create_training_dataset(train_data, unlabeled_data)
         log.info(f"Labels unlabeled data: {unlabeled_data.labels}")
 
-        for niter in range(1, num_iter):
+        for niter in range(1, num_iter + 1):
             log.info(f"Start {niter} round of training..")
 
             train_data.filepaths = [
