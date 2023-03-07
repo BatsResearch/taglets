@@ -239,7 +239,9 @@ def workflow(dataset_dir, obj_conf):
         )
         log.info(f"Validation accuracy on seen classes: {val_accuracy}")
         log.info(f"The optimal prompt is {optimal_prompt}.")
-
+    
+    # Save prompt
+    # save_parameters(optimal_prompt, obj_conf)
     # Validate on test set (standard)
     std_predictions = model.test_predictions(test_dataset, standard_zsl=True)
     # Submit predictions (standard)
