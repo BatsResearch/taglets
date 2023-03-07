@@ -96,6 +96,6 @@ def save_parameters(obj, config):
     :param obj: object to save
     :param config: object with method configurations
     """
-    file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
+    file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
     with open(file_name, 'wb') as f:
         pickle.dump(obj, f)
