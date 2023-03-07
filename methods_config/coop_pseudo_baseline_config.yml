@@ -1,11 +1,12 @@
+# Dataset name
 DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification'
-DATASET_NAME: "EuroSAT"
+DATASET_NAME: "$DATASET_NAME"
 # Model
 MODEL: "coop_pseudo_baseline"
 # Visual ecoder
-VIS_ENCODER: "ViT-B/32"
+VIS_ENCODER: "$VIS_ENCODER"
 # Prompt template
-PROMPT_TEMPLATE: "a photo of a "
+PROMPT_TEMPLATE: "imported in main.py"
 # Prefix size
 PREFIX_SIZE: 16
 N_PSEUDOSHOTS: 16
@@ -19,7 +20,7 @@ ratio_train_val: 0.8
 # Batch size
 BATCH_SIZE: 16
 # Number of epochs
-EPOCHS: 50
+EPOCHS: 100
 # Scheduler
 SCHEDULER: "cosine"
 # Scheduler warmup epochs
@@ -33,4 +34,8 @@ LR: 0.1
 DECAY: 0.1
 STEP_SIZE: 1
 # Set seeds
-OPTIM_SEED: "$OPTIM_SEED"
+OPTIM_SEED: "$OPTIM_SEED" 
+# Classes split
+CLASSES_SPLIT: SPLIT_SEED
+# Seed split
+SPLIT_SEED: "$SPLIT_SEED"
