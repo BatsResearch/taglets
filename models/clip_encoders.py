@@ -125,12 +125,12 @@ class CustomVisionTransformer(nn.Module):
         pos_emb=True,
     ):
         x = self.conv1(x)  # shape = [*, width, grid, grid]
-        log.info(f"SHAPE AFTER CONV: {x.shape}")
+        #log.info(f"SHAPE AFTER CONV: {x.shape}")
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
-        log.info(f"SHAPE AFTER RESHAPE: {x.shape}")
+        #log.info(f"SHAPE AFTER RESHAPE: {x.shape}")
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
-        log.info(f"SHAPE AFTER PERMUTE: {x.shape}")
-        log.info(f"SHAPE CLASS: {self.class_embedding.to(x.dtype).to(x.device).size()}")
+        #log.info(f"SHAPE AFTER PERMUTE: {x.shape}")
+        #log.info(f"SHAPE CLASS: {self.class_embedding.to(x.dtype).to(x.device).size()}")
 
         x = torch.cat(
             [
@@ -148,7 +148,9 @@ class CustomVisionTransformer(nn.Module):
         x = x + self.positional_embedding.to(x.device) if pos_emb else x
         x = self.ln_pre(x)
 
-        image_prefix = image_prefix.to(x.dtype).to(x.device) + torch.zeros(x.shape[0], image_prefix.size()[0], x.shape[-1], dtype=x.dtype, device=x.device)
+        image_prefix = image_prefix.expand(x.shape[0], -1, -1)
+        log.info(f"SHAPE prefix: {image_prefix.shape}")
+        #image_prefix = image_prefix.to(x.dtype).to(x.device) + torch.zeros(x.shape[0], image_prefix.size()[0], x.shape[-1], dtype=x.dtype, device=x.device)
         # Here we concat the prefix to the flattened patches
         x = torch.cat([
             image_prefix, 
