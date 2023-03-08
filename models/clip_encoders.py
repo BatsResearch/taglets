@@ -130,10 +130,6 @@ class CustomVisionTransformer(nn.Module):
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
         x = torch.cat(
             [
-                image_prefix.to(x.dtype).to(x.device)
-                + torch.zeros(
-                    x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device
-                ),
                 self.class_embedding.to(x.dtype).to(x.device)
                 + torch.zeros(
                     x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device
@@ -143,13 +139,11 @@ class CustomVisionTransformer(nn.Module):
             dim=1,
         )  # shape = [*, grid ** 2 + 1, width]
         ##
-        # print(f"POS embeddings SIZE: {self.positional_embedding.size()}")
-        # print(f"IMAGE size: {image_pos_emb.to(self.positional_embedding.dtype).size()}")
-        positional_embedding = torch.cat(
-            [image_pos_emb.to(x.device), self.positional_embedding.to(x.device)], dim=0
-        ).to(x.dtype)
-        x = x + positional_embedding if pos_emb else x
+        
+        x = x + self.positional_embedding.to(x.device) if pos_emb else x
         x = self.ln_pre(x)
+
+        # Here we concat the prefix to the flattened patches
 
         x = x.permute(1, 0, 2)  # NLD -> LND
         x = self.transformer(x)
