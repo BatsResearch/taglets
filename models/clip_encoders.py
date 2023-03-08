@@ -148,17 +148,17 @@ class CustomVisionTransformer(nn.Module):
         x = x + self.positional_embedding.to(x.device) if pos_emb else x
         x = self.ln_pre(x)
 
-        image_prefix = image_prefix + torch.zeros(x.shape[0], image_prefix.size()[0], x.shape[-1], dtype=x.dtype, device=x.device)
+        image_prefix = image_prefix.to(x.dtype).to(x.device) + torch.zeros(x.shape[0], image_prefix.size()[0], x.shape[-1], dtype=x.dtype, device=x.device)
         # Here we concat the prefix to the flattened patches
         x = torch.cat([
-            image_prefix.to(x.dtype).to(x.device), 
+            image_prefix, 
             x,
         ],
         dim=1,)
         log.info(f"SHAPE after concat: {image_prefix.size()}")
 
         x = x.permute(1, 0, 2)  # NLD -> LND
-        x = self.transformer(x.float())
+        x = self.transformer(x)
         x = x.permute(1, 0, 2)  # LND -> NLD
 
         x = self.ln_post(x[:, 0, :])
