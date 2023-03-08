@@ -149,10 +149,11 @@ class CustomVisionTransformer(nn.Module):
 
         log.info(f"SHAPE flatten patches: {x.shape}")
         log.info(f"SHAPE prefix to concat: {image_prefix.size()}")
-
+        log.info(f"SHAPE prefix to concat: {image_prefix.unsqueeze(0)}")
+        
         # Here we concat the prefix to the flattened patches
         x = torch.cat([
-            image_prefix.unsqueeze(0), 
+            image_prefix, 
             x,
         ],
         dim=1,)
