@@ -15,6 +15,9 @@ from models import CustomImageEncoder, ImagePrefixModel
 from utils import make_scheduler, seed_worker
 
 
+g = torch.Generator()
+g.manual_seed(0)
+
 log = logging.getLogger(__name__)
 
 
