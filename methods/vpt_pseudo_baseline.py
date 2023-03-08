@@ -12,11 +12,8 @@ accelerator = Accelerator()
 
 from models import CustomImageEncoder
 from methods import VPTBaseline
-from utils import make_scheduler, pseudolabel_top_k, seed_worker
+from utils import make_scheduler, pseudolabel_top_k
 
-
-g = torch.Generator()
-g.manual_seed(0)
 
 log = logging.getLogger(__name__)
 
