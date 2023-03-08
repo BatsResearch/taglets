@@ -130,7 +130,7 @@ class CustomVisionTransformer(nn.Module):
         log.info(f"SHAPE AFTER RESHAPE: {x.shape}")
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
         log.info(f"SHAPE AFTER PERMUTE: {x.shape}")
-        log.info(f"SHAPE CLASS: {class_embedding.to(x.dtype).to(x.device).size()}")
+        log.info(f"SHAPE CLASS: {self.class_embedding.to(x.dtype).to(x.device).size()}")
 
         x = torch.cat(
             [
