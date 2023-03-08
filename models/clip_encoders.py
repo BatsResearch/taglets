@@ -125,8 +125,11 @@ class CustomVisionTransformer(nn.Module):
         pos_emb=True,
     ):
         x = self.conv1(x)  # shape = [*, width, grid, grid]
+        log.info(f"SHAPE AFTER CONV: {x.shape}")
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
+        log.info(f"SHAPE AFTER RESHAPE: {x.shape}")
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
+        log.info(f"SHAPE AFTER PERMUTE: {x.shape}")
         x = torch.cat(
             [
                 self.class_embedding.to(x.dtype).to(x.device)
@@ -138,8 +141,10 @@ class CustomVisionTransformer(nn.Module):
             dim=1,
         )  # shape = [*, grid ** 2 + 1, width]
         ##
+        log.info(f"SHAPE BEFORE SUM WITH POS: {x.shape}")
         
         x = x + self.positional_embedding.to(x.device) if pos_emb else x
+        log.info(f"SHAPE AFTER SUM WITH POS: {x.shape}")
         x = self.ln_pre(x)
 
         log.info(f"SHAPE flatten patches: {x.shape}")
