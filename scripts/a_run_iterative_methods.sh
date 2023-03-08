@@ -28,6 +28,7 @@ for optim_seed in 10 100 50 400 250; do
     export SPLIT_SEED="$split_seed"
     export MODEL="$model"
     
+    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12073/'  accelerate_config.yml
     accelerate launch --config_file ./accelerate_config.yml ./run_main.py \
                     --model_config ${model}_config.yml
 done

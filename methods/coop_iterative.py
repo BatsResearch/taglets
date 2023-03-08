@@ -155,3 +155,60 @@ class IterativePseudoCoop(CoopPseudoBaseline):
             log.info(f"[ITERATION] Harmonic mean: {harmonic_mean}")
 
         return t_best_val_accuracy, t_best_prompt
+
+
+    def create_training_dataset(self, train_data, unlabeled_data=None):
+        """This function creates the dataset for training. Specifically, it
+        merges pseudo-labels for unseen data and labeled data for seen classes.
+
+        :param train_data: Dataset object - training seen classes (defined in zsl_jpl line 323)
+        :param unlabeled_data: Dataset object - dataset of unlabeled data for
+                               unseen classes (defined in zsl_jpl line 328)
+        """
+
+        # Get pseudo-labels for unlabeled data from unseen classes
+        train_unseen_dataset = pseudolabel_top_k(
+            self.config.DATASET_NAME,
+            self.config.N_PSEUDOSHOTS,
+            self.config.PROMPT_TEMPLATE,
+            unlabeled_data,
+            self.unseen_classes,
+            self.transform,
+            self.clip_model,
+            self.label_to_idx,
+            self.device,
+        )
+        # Define the lists of traiing data from seen and unseen classes
+        unseen_imgs = train_unseen_dataset.filepaths
+        unseen_labs = train_unseen_dataset.labels
+
+        # Use a portion of the pseudo-labeled data to build a validation set
+        if self.config.N_PSEUDOSHOTS >= 10:
+            np.random.seed(self.config.validation_seed)
+            train_indices = np.random.choice(
+                range(len(unseen_imgs)),
+                size=int(len(unseen_imgs) * self.config.ratio_train_val),
+                replace=False,
+            )
+            val_indices = list(
+                set(range(len(unseen_imgs))).difference(set(train_indices))
+            )
+
+            self.val_unseen_files = np.array(unseen_imgs)[val_indices]
+            self.val_unseen_labs = np.array(unseen_labs)[val_indices]
+
+            unseen_imgs = list(np.array(unseen_imgs)[train_indices])
+            unseen_labs = list(np.array(unseen_labs)[train_indices])
+
+        else:
+            self.val_unseen_files = None
+            self.val_unseen_labs = None
+
+        seen_imgs = train_data.filepaths
+        seen_labs = [self.label_to_idx[l] for l in train_data.labels]
+
+        self.balance_param = len(seen_imgs) / len(unseen_imgs)
+
+        train_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+        train_data.labels = list(unseen_labs) + list(seen_labs)
+        train_data.label_id = True
