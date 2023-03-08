@@ -53,10 +53,7 @@ class VPTBaseline(object):
         for param in self.image_encoder.parameters():
             param.requires_grad = False
 
-        (
-            self.vis_initial_prefix,
-            self.initial_pos_emb,
-        ) = self.initialize_model_parameters(visual_transformer)
+        self.vis_initial_prefix = self.initialize_model_parameters(visual_transformer)
 
     def define_model(self, teacher=False):
         """This function allows to define the model and its
@@ -66,7 +63,6 @@ class VPTBaseline(object):
         # Define model
         self.model = ImagePrefixModel(
             self.vis_initial_prefix,
-            self.initial_pos_emb,
             self.image_encoder,
             device=self.device,
         ).to(self.device)
@@ -94,21 +90,13 @@ class VPTBaseline(object):
         scale = width**-0.5
         if self.config.VIS_PREFIX_INIT == "normal":
             vis_initial_prefix = scale * torch.randn(self.config.PREFIX_SIZE, width)
-            if self.config.POS_ENC_INIT == "same":
-                initial_pos_emb = scale * torch.randn(self.config.PREFIX_SIZE, width)
-            else:
-                initial_pos_emb = torch.zeros(self.config.PREFIX_SIZE, width)
+
         elif self.config.VIS_PREFIX_INIT == "uniform":
             val = math.sqrt(6.0 / float(3 * reduce(mul, (16, 16), 1) + width))  # noqa
             vis_initial_prefix = torch.zeros(self.config.PREFIX_SIZE, width)
             vis_initial_prefix = scale * nn.init.uniform_(vis_initial_prefix, -val, val)
-            if self.config.POS_ENC_INIT == "same":
-                initial_pos_emb = torch.zeros(self.config.PREFIX_SIZE, width)
-                initial_pos_emb = scale * nn.init.uniform_(initial_pos_emb, -val, val)
-            else:
-                initial_pos_emb = torch.zeros(self.config.PREFIX_SIZE, width)
 
-        return vis_initial_prefix, initial_pos_emb
+        return vis_initial_prefix
 
     def create_training_dataset(self, train_data, unlabeled_data=None):
         """This function create the dataset for training. Specifically, it
@@ -378,7 +366,6 @@ class VPTBaseline(object):
         unwrapped_model = self.unwrap_model(teacher)
         epoch_parameters = [
             unwrapped_model.prefix.detach().cpu().numpy(),
-            unwrapped_model.image_pos_emb.detach().cpu().numpy(),
         ]
 
         return loss, total_loss, epoch_parameters

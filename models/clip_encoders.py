@@ -122,7 +122,6 @@ class CustomVisionTransformer(nn.Module):
         self,
         x: torch.Tensor,
         image_prefix: torch.Tensor,
-        image_pos_emb: torch.Tensor,
         pos_emb=True,
     ):
         x = self.conv1(x)  # shape = [*, width, grid, grid]
