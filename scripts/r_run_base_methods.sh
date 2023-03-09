@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=R-base_meth
-#SBATCH --output=logs/recsis45_vitL_base_methods.out
+#SBATCH --output=logs/recsis45_vpt_vitL_base_methods.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
 #SBATCH -t 48:00:00
 #SBATCH -p gpu --gres=gpu:4
-##SBATCH --exclude=gpu[717-718,1201-1204,1209,1403]
+#SBATCH --exclude=gpu[717-718,1201-1204,1209,1403]
 
 module load cuda/11.1.1
 
@@ -19,7 +19,7 @@ sleep $[ ( $RANDOM % 30 )  + 1 ]s
 for vis_encoder in 'ViT-L/14'; do # 'ViT-B/32'  'RN50' 'ViT-L/14' 'RN101'
 for split_seed in 500; do #  0 200
 for dataset_name in RESICS45; do
-for model in coop_baseline vpt_baseline; do 
+for model in vpt_baseline; do # coop_baseline
 for optim_seed in 1 2 3 4 5; do #10 100 50 400 250; do
 
     export OPTIM_SEED="$optim_seed"
