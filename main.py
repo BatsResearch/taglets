@@ -192,9 +192,15 @@ def workflow(dataset_dir, obj_conf):
         )
 
         model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
-        model.model.image_pos_emb = torch.nn.Parameter(torch.tensor(optimal_prompt[1]))
 
     elif obj_conf.MODEL == "vpt_pseudo_baseline":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = VPTPseudoBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
+        val_accuracy, optimal_prompt = model.train(
+            train_seen_dataset, val_seen_dataset, train_unseen_dataset
+        )
+
+    elif obj_conf.MODEL == "all_vpt_pseudo_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = VPTPseudoBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
         val_accuracy, optimal_prompt = model.train(

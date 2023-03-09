@@ -122,18 +122,15 @@ class CustomVisionTransformer(nn.Module):
         self,
         x: torch.Tensor,
         image_prefix: torch.Tensor,
-        image_pos_emb: torch.Tensor,
         pos_emb=True,
     ):
+
         x = self.conv1(x)  # shape = [*, width, grid, grid]
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
+        
         x = torch.cat(
             [
-                image_prefix.to(x.dtype).to(x.device)
-                + torch.zeros(
-                    x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device
-                ),
                 self.class_embedding.to(x.dtype).to(x.device)
                 + torch.zeros(
                     x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device
@@ -142,14 +139,18 @@ class CustomVisionTransformer(nn.Module):
             ],
             dim=1,
         )  # shape = [*, grid ** 2 + 1, width]
-        ##
-        # print(f"POS embeddings SIZE: {self.positional_embedding.size()}")
-        # print(f"IMAGE size: {image_pos_emb.to(self.positional_embedding.dtype).size()}")
-        positional_embedding = torch.cat(
-            [image_pos_emb.to(x.device), self.positional_embedding.to(x.device)], dim=0
-        ).to(x.dtype)
-        x = x + positional_embedding if pos_emb else x
+        
+        x = x + self.positional_embedding.to(x.dtype) if pos_emb else x
         x = self.ln_pre(x)
+
+        image_prefix = image_prefix.expand(x.shape[0], -1, -1)
+        # Here we concat the prefix to the flattened patches
+        x = torch.cat([
+            x[:,:1,:],
+            image_prefix, 
+            x[:,1:,:],
+        ],
+        dim=1,)
 
         x = x.permute(1, 0, 2)  # NLD -> LND
         x = self.transformer(x)
@@ -171,6 +172,6 @@ class CustomImageEncoder(nn.Module):
         self.visual = CustomVisionTransformer(visual)
         self.dtype = self.visual.conv1.weight.dtype
 
-    def forward(self, image, prefix, pos_emb):
-        encoded_image = self.visual(image.type(self.dtype), prefix, pos_emb)
+    def forward(self, image, prefix):
+        encoded_image = self.visual(image.type(self.dtype), prefix.type(self.dtype))
         return encoded_image
