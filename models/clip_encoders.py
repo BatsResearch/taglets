@@ -152,10 +152,17 @@ class CustomVisionTransformer(nn.Module):
         # log.info(f"prefix dtype: {image_prefix.dtype}")
         #image_prefix = image_prefix.to(x.dtype).to(x.device) + torch.zeros(x.shape[0], image_prefix.size()[0], x.shape[-1], dtype=x.dtype, device=x.device)
         # Here we concat the prefix to the flattened patches
+        
+        # x = torch.cat([
+        #     x[:,:1,:],
+        #     image_prefix, 
+        #     x[:,1:,:],
+        # ],
+        # dim=1,)
+
         x = torch.cat([
-            x[:,:1,:],
             image_prefix, 
-            x[:,1:,:],
+            x,
         ],
         dim=1,)
         
