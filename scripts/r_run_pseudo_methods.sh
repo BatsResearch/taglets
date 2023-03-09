@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=R-pseudo_meth
-#SBATCH --output=logs/resiscs45_pseudo_methods.out
+#SBATCH --output=logs/resiscs45_vitL_pseudo_methods.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
@@ -16,7 +16,7 @@ source ../../zsl/bin/activate
 sleep $[ ( $RANDOM % 30 )  + 1 ]s
 
 
-for vis_encoder in 'ViT-B/32'; do # 'ViT-B/32' 'RN50' 'ViT-L/14' 'RN101'
+for vis_encoder in 'ViT-L/14'; do # 'ViT-B/32' 'RN50' 'ViT-L/14' 'RN101'
 for split_seed in 500; do #  0 200
 for dataset_name in RESICS45; do
 for model in coop_pseudo_baseline vpt_pseudo_baseline; do # all_vpt_pseudo_baseline; do 
