@@ -125,42 +125,11 @@ class CustomVisionTransformer(nn.Module):
         pos_emb=True,
     ):
         x = self.conv1(x)  # shape = [*, width, grid, grid]
-        #log.info(f"SHAPE AFTER CONV: {x.shape}")
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
-        #log.info(f"SHAPE AFTER RESHAPE: {x.shape}")
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
-        #log.info(f"SHAPE AFTER PERMUTE: {x.shape}")
-        #log.info(f"SHAPE CLASS: {self.class_embedding.to(x.dtype).to(x.device).size()}")
-
-        x = torch.cat(
-            [
-                self.class_embedding.to(x.dtype).to(x.device)
-                + torch.zeros(
-                    x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device
-                ),
-                x,
-            ],
-            dim=1,
-        )  # shape = [*, grid ** 2 + 1, width]
-        ##
-
-        x = x + self.positional_embedding.to(x.device) if pos_emb else x
+        x = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
+        x = x + self.positional_embedding.to(x.dtype)
         x = self.ln_pre(x)
-        log.info(f"X dtype: {x.dtype}")
-        image_prefix = image_prefix.expand(x.shape[0], -1, -1).float()
-        log.info(f"prefix dtype: {image_prefix.dtype}")
-        #image_prefix = image_prefix.to(x.dtype).to(x.device) + torch.zeros(x.shape[0], image_prefix.size()[0], x.shape[-1], dtype=x.dtype, device=x.device)
-        # Here we concat the prefix to the flattened patches
-        x = torch.cat([
-            x[:,:1,:],
-            image_prefix, 
-            x[:,1:,:],
-        ],
-        dim=1,)
-        if torch.cuda.is_available():
-            log.info(f"CUDAAA")
-        log.info(f"after concat prefix dtype: {x.dtype}")
-        log.info(f"after concat prefix shape: {x.shape}")
 
         x = x.permute(1, 0, 2)  # NLD -> LND
         x = self.transformer(x)
@@ -170,6 +139,52 @@ class CustomVisionTransformer(nn.Module):
 
         if self.proj is not None:
             x = x @ self.proj
+        # x = self.conv1(x)  # shape = [*, width, grid, grid]
+        # #log.info(f"SHAPE AFTER CONV: {x.shape}")
+        # x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
+        # #log.info(f"SHAPE AFTER RESHAPE: {x.shape}")
+        # x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
+        # #log.info(f"SHAPE AFTER PERMUTE: {x.shape}")
+        # #log.info(f"SHAPE CLASS: {self.class_embedding.to(x.dtype).to(x.device).size()}")
+
+        # x = torch.cat(
+        #     [
+        #         self.class_embedding.to(x.dtype).to(x.device)
+        #         + torch.zeros(
+        #             x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device
+        #         ),
+        #         x,
+        #     ],
+        #     dim=1,
+        # )  # shape = [*, grid ** 2 + 1, width]
+        # ##
+
+        # x = x + self.positional_embedding.to(x.device) if pos_emb else x
+        # x = self.ln_pre(x)
+        # log.info(f"X dtype: {x.dtype}")
+        # image_prefix = image_prefix.expand(x.shape[0], -1, -1).float()
+        # log.info(f"prefix dtype: {image_prefix.dtype}")
+        # #image_prefix = image_prefix.to(x.dtype).to(x.device) + torch.zeros(x.shape[0], image_prefix.size()[0], x.shape[-1], dtype=x.dtype, device=x.device)
+        # # Here we concat the prefix to the flattened patches
+        # x = torch.cat([
+        #     x[:,:1,:],
+        #     image_prefix, 
+        #     x[:,1:,:],
+        # ],
+        # dim=1,)
+        # if torch.cuda.is_available():
+        #     log.info(f"CUDAAA")
+        # log.info(f"after concat prefix dtype: {x.dtype}")
+        # log.info(f"after concat prefix shape: {x.shape}")
+
+        # x = x.permute(1, 0, 2)  # NLD -> LND
+        # x = self.transformer(x)
+        # x = x.permute(1, 0, 2)  # LND -> NLD
+
+        # x = self.ln_post(x[:, 0, :])
+
+        # if self.proj is not None:
+        #     x = x @ self.proj
 
         return x
 
