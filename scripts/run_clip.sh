@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=E-clip
+#SBATCH --job-name=clip
 #SBATCH --output=logs/all_clip.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
@@ -19,15 +19,18 @@ sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12072/'  accelerate_config.yml
 for vis_encoder in 'ViT-B/32' 'ViT-L/14'; do # 'RN50' 'RN101' 
 for split_seed in 500 0 200; do
 for optim_seed in 10; do
+for model in clip_baseline; do 
 for dataset_name in EuroSAT DTD RESICS45 FGVCAircraft MNIST Flowers102; do
 
     export OPTIM_SEED="$optim_seed"
     export VIS_ENCODER="$vis_encoder"
     export DATASET_NAME="$dataset_name"
     export SPLIT_SEED="$split_seed"
+    export MODEL="$model"
     
     accelerate launch --config_file ./accelerate_config.yml ./run_main.py \
-                    --model_config clip_baseline_config.yml
+                    --model_config ${model}_config.yml
+done
 done
 done
 done

@@ -2,7 +2,7 @@
 DATASET_NAME: "$DATASET_NAME"
 DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification'
 # Model
-MODEL: "clip_baseline"
+MODEL: "$MODEL"
 # Visual ecoder
 VIS_ENCODER: "$VIS_ENCODER"
 # Prompt template
