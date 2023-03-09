@@ -66,6 +66,7 @@ class CoopPseudoBaseline(CoopBaseline):
             self.clip_model,
             self.label_to_idx,
             self.device,
+            self.config.VIS_ENCODER,
         )
 
         # Define the lists of traiing data from seen and unseen classes

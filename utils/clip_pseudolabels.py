@@ -127,8 +127,9 @@ def pseudolabel_top_k(
     clip_model,
     label_to_idx,
     device,
+    vis_encoder,
 ):
-    filename = f"pseudolabels/{data_name}_{k}_pseudolabels.pickle"
+    filename = f"pseudolabels/{data_name}_{vis_encoder.replace('/', '')}_{k}_pseudolabels.pickle"
     if os.path.exists(filename):
         # print('Load pseudolabels')
         with open(filename, "rb") as f:
