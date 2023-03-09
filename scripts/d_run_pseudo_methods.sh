@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=D-pseudo_meth
-#SBATCH --output=logs/dtd_pseudo_methods.out
+#SBATCH --output=logs/dtd_vitL_pseudo_methods.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G

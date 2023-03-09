@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=R-base_meth
-#SBATCH --output=logs/recsis45_base_methods.out
+#SBATCH --output=logs/recsis45_vitL_base_methods.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
