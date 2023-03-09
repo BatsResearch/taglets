@@ -16,7 +16,7 @@ source ../../zsl/bin/activate
 sleep $[ ( $RANDOM % 30 )  + 1 ]s
 
 sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12072/'  accelerate_config.yml
-for vis_encoder in 'RN50' 'RN101' 'ViT-B/32' 'ViT-L/14'; do 
+for vis_encoder in 'ViT-B/32' 'ViT-L/14'; do # 'RN50' 'RN101' 
 for split_seed in 500 0 200; do
 for optim_seed in 10; do
 for dataset_name in EuroSAT DTD RESICS45 FGVCAircraft MNIST Flowers102; do
