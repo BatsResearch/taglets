@@ -144,7 +144,6 @@ class CustomVisionTransformer(nn.Module):
         )  # shape = [*, grid ** 2 + 1, width]
         ##
 
-        
         x = x + self.positional_embedding.to(x.device) if pos_emb else x
         x = self.ln_pre(x)
         log.info(f"X dtype: {x.dtype}")
@@ -160,6 +159,7 @@ class CustomVisionTransformer(nn.Module):
         if torch.cuda.is_available():
             log.info(f"CUDAAA")
         log.info(f"after concat prefix dtype: {x.dtype}")
+        log.info(f"after concat prefix shape: {x.shape}")
 
         x = x.permute(1, 0, 2)  # NLD -> LND
         x = self.transformer(x)
@@ -182,5 +182,5 @@ class CustomImageEncoder(nn.Module):
         self.dtype = self.visual.conv1.weight.dtype
 
     def forward(self, image, prefix):
-        encoded_image = self.visual(image.type(self.dtype), prefix)
+        encoded_image = self.visual(image.type(self.dtype), prefix.float())
         return encoded_image
