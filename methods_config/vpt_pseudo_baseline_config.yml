@@ -24,7 +24,7 @@ ratio_train_val: 0.8
 # Batch size
 BATCH_SIZE: 16
 # Number of epochs
-EPOCHS: 100
+EPOCHS: 150
 # Scheduler
 SCHEDULER: "cosine"
 # Scheduler warmup epochs
@@ -43,3 +43,4 @@ OPTIM_SEED: "$OPTIM_SEED"
 CLASSES_SPLIT: SPLIT_SEED
 # Seed split
 SPLIT_SEED: "$SPLIT_SEED"
+
