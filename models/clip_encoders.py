@@ -157,6 +157,8 @@ class CustomVisionTransformer(nn.Module):
             x,
         ],
         dim=1,)
+        if torch.cuda.is_available():
+            log.info(f"CUDAAA")
         log.info(f"after concat prefix dtype: {x.dtype}")
 
         x = x.permute(1, 0, 2)  # NLD -> LND
