@@ -11,6 +11,7 @@ from accelerate import Accelerator
 from PIL import Image
 from torch import nn
 
+
 accelerator = Accelerator()
 
 from data import CustomDataset
