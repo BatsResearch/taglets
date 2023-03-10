@@ -89,13 +89,33 @@ def store_results(
                 # Write the res dictionary to the file
                 f.write(json.dumps(results_to_store) + "\n")
 
-def save_parameters(obj, config):
+def save_parameters(obj, config, teacher=None, iteration=None):
     """ Save in a pickle the parameters used for 
     evaluation.
 
     :param obj: object to save
     :param config: object with method configurations
     """
-    file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
+
+    if teacher is None:
+        file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
+    else:
+        if teacher:
+            file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_teacher_iter_{iteration}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
+        else:
+            file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_student_iter_{iteration}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
+
     with open(file_name, 'wb') as f:
         pickle.dump(obj, f)
+
+
+def save_pseudo_labels(imgs, labs, config, iteration, teacher=False):
+
+    if teacher:
+        filename = f"pseudolabels/{config.DATASET_NAME}_{config.VIS_ENCODER.replace('/', '')}_teacher_iter_{iteration}_pseudolabels.pickle"
+    else:
+        filename = f"pseudolabels/{config.DATASET_NAME}_{config.VIS_ENCODER.replace('/', '')}_student_iter_{iteration}_pseudolabels.pickle"
+
+    with open(filename, "wb") as f:
+        pickle.dump({"filepaths": imgs, "labels": labs}, f)
+

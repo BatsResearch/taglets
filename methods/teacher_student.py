@@ -17,7 +17,14 @@ accelerator = Accelerator()
 from data import CustomDataset
 from models import CustomImageEncoder, ImagePrefixModel
 from methods import VPTPseudoBaseline
-from utils import dataset_object, evaluate_predictions, make_scheduler, seed_worker
+from utils import (
+    dataset_object, 
+    evaluate_predictions, 
+    make_scheduler, 
+    seed_worker, 
+    save_parameters,
+    save_pseudo_labels,
+)
 
 g = torch.Generator()
 g.manual_seed(0)
@@ -66,7 +73,9 @@ class TeacherStudent(VPTPseudoBaseline):
                 len(unlabeled_data.filepaths) / n_unseen
             )
 
-        log.info(f"We select {self.config.N_PSEUDOSHOTS} per each unseen classes.")
+        log.info(f"We select {self.config.N_PSEUDOSHOTS} pseudolabel per each unseen classes.")
+        log.info(f"The number of unseen classes is: {len(self.unseen_classes)}.")
+        log.info(f"Thus we expect an initial number of pseudo labeles equal to {len(self.unseen_classes) * self.config.N_PSEUDOSHOTS}.")
         # Create a safe copy of labeled/unlabeled data
         original_train_data = copy.deepcopy(train_data)
         # log.info(f"Training data labels: {original_train_data.labels}")
@@ -75,11 +84,9 @@ class TeacherStudent(VPTPseudoBaseline):
         original_val_data = copy.deepcopy(val_data)
 
         # Initialize here first batch of pseudo labels
-        # Define training dataset
-        log.info(f"BEFORE: {unlabeled_data.labels}")
-        # log.info(f"BEFORE: {unlabeled_data.filepaths}")
         self.create_training_dataset(train_data, unlabeled_data)
-        log.info(f"Labels unlabeled data: {unlabeled_data.labels}")
+        log.info(f"The original train data has size: {len(original_train_data.filepaths)}.")
+        log.info(f"Plus: {len(unlabeled_data.filepaths)}.")
 
         for niter in range(1, num_iter + 1):
             log.info(f"Start {niter} round of training..")
@@ -88,6 +95,17 @@ class TeacherStudent(VPTPseudoBaseline):
                 f for i, f in enumerate(original_train_data.filepaths)
             ]
             train_data.labels = [l for i, l in enumerate(original_train_data.labels)]
+
+            # Save pseudolabels
+            log.info(f"Saving pseudo-labels for iteration {niter}")
+            save_pseudo_labels(
+                unlabeled_data.filepaths, 
+                unlabeled_data.labels, 
+                self.config, 
+                niter,
+                teacher=False,
+            )
+            
             self.update_training_set(train_data, unlabeled_data)
 
             # 1. Initialize teacher
@@ -121,26 +139,35 @@ class TeacherStudent(VPTPseudoBaseline):
                 original_unlabeled_data, teacher=True
             )
 
+            save_pseudo_labels(
+                pseudo_labels.filepaths, 
+                pseudo_labels.labels, 
+                self.config, 
+                niter,
+                teacher=True,
+            )
+
             # 4. Initialize student model
             log.info(f"[STUDENT] Initialization..")
             self.define_model(teacher=False)
 
             # 5. Train student
             log.info(f"[STUDENT] Start model training..")
-            self.train_student(pseudo_labels)
+            s_prompt = self.train_student(pseudo_labels)
             log.info(f"[STUDENT] Training completed.")
 
             # 6. Get new pseudo labels from student
             log.info(
                 f"[STUDENT] Get student pseudo-labels for the next round of training."
             )
+            
+            # Exploit all the available unlabeled data
             if self.config.ALL_UNLABELED:
                 n_per_class = int((niter + 1) * num_samples / n_unseen)
                 if n_per_class * n_unseen <= len(original_unlabeled_data.filepaths):
-                    # self.num_pseudo_labels_per_class =  n_per_class
                     self.config.N_PSEUDOSHOTS = n_per_class
                 else:
-                    # self.num_pseudo_labels_per_class =  math.floor(len(original_unlabeled_data.filepaths)/n_unseen)
+                    # We are making a stong assumption about the distribution of unlabeled data
                     self.config.N_PSEUDOSHOTS = math.floor(
                         len(original_unlabeled_data.filepaths) / n_unseen
                     )
@@ -148,38 +175,14 @@ class TeacherStudent(VPTPseudoBaseline):
             unlabeled_data = self.get_pseudo_labels(
                 original_unlabeled_data, teacher=False
             )
-            # Evaluate model at this point in time
-            std_predictions = self.test_predictions(test_data, standard_zsl=True)
 
-            # Submit predictions (standard)
-            std_response = evaluate_predictions(
-                std_predictions,
-                test_labeled_files,
-                test_labeles,
-                self.unseen_classes,
-                standard_zsl=True,
-            )
-            log.info(f"[ITERATION] ZSL accuracy: {std_response}")
-
-            # Validate on test set (general)
-            gen_predictions = self.test_predictions(test_data, standard_zsl=False)
-            # Submit predictions (general)
-            unseen_accuracy, seen_accuracy, harmonic_mean = evaluate_predictions(
-                gen_predictions,
-                test_labeled_files,
-                test_labeles,
-                self.unseen_classes,
-                self.seen_classes,
-                standard_zsl=False,
-            )
-            log.info(f"[ITERATION] Generalized ZSL results")
-            log.info(f"[ITERATION] Accuracy seen classes: {seen_accuracy}")
-            log.info(f"[ITERATION] Accuracy unseen classes: {unseen_accuracy}")
-            log.info(f"[ITERATION] Harmonic mean: {harmonic_mean}")
+            save_parameters(t_best_prompt, self.config, teacher=True, iteration=niter)
+            save_parameters(s_prompt, self.config, teacher=False, iteration=niter)
 
         return t_best_val_accuracy, t_best_prompt
 
     def update_training_set(self, train_data, unlabeled_data):
+        
         # Get pseudo-labels for unlabeled data from unseen classes
         train_unseen_dataset = unlabeled_data
         # Define the lists of traiing data from seen and unseen classes
@@ -207,9 +210,11 @@ class TeacherStudent(VPTPseudoBaseline):
             self.val_unseen_files = None
             self.val_unseen_labs = None
 
+        # Specify train labeled data
         seen_imgs = train_data.filepaths
         seen_labs = [self.label_to_idx[l] for l in train_data.labels]
 
+        # Weigth the classes representativeness
         self.balance_param = len(seen_imgs) / len(unseen_imgs)
 
         train_data.filepaths = list(unseen_imgs) + list(seen_imgs)
@@ -256,6 +261,8 @@ class TeacherStudent(VPTPseudoBaseline):
                 log.info(f"Loss Epoch {epoch}: {total_loss/(len(train_loader))}")
 
             accelerator.free_memory()
+
+        return epoch_param
 
     def train_teacher(self, train_data, val_data):
         """This function defines the training of self.model.
@@ -421,7 +428,6 @@ class TeacherStudent(VPTPseudoBaseline):
         if teacher:
             self.teacher = ImagePrefixModel(
                 self.vis_initial_prefix,
-                self.initial_pos_emb,
                 self.image_encoder,
                 device=self.device,
             ).to(self.device)
@@ -444,8 +450,7 @@ class TeacherStudent(VPTPseudoBaseline):
 
         else:
             self.student = ImagePrefixModel(
-                self.vis_initial_prefix,  # self.teacher.prefix,
-                self.initial_pos_emb,  # self.teacher.image_pos_emb,
+                self.vis_initial_prefix, 
                 self.image_encoder,
                 device=self.device,
             ).to(self.device)

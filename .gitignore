@@ -171,4 +171,5 @@ api.ipynb
 Look_dataset.ipynb
 pseudolabels/
 results/
+trained_prompts/
 #Process_results_file.ipynb
