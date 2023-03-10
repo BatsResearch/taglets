@@ -26,6 +26,7 @@ from methods import (
     ClipBaseline,
     CoopBaseline,
     CoopPseudoBaseline,
+    CoopTeacherStudent,
     TeacherStudent,
     VPTBaseline,
     VPTPseudoBaseline,
@@ -179,7 +180,7 @@ def workflow(dataset_dir, obj_conf):
         model = CoopBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
 
         val_accuracy, optimal_prompt = model.train(
-            train_seen_dataset, val_seen_dataset, classes=seen_classes
+            train_seen_dataset, val_seen_dataset, classes=seen_classes, only_seen=True
         )
         
         model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
@@ -222,6 +223,20 @@ def workflow(dataset_dir, obj_conf):
     elif obj_conf.MODEL == "teacher_student":
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = TeacherStudent(
+            obj_conf, label_to_idx, data_folder, device=device, **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.train(
+            train_seen_dataset,
+            val_seen_dataset,
+            train_unseen_dataset,
+            test_dataset,
+            test_labeled_files,
+            test_labeles,
+        )
+
+    elif obj_conf.MODEL == "coop_teacher_student":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = CoopTeacherStudent(
             obj_conf, label_to_idx, data_folder, device=device, **dict_classes
         )
         val_accuracy, optimal_prompt = model.train(
