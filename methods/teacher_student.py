@@ -112,8 +112,7 @@ class TeacherStudent(VPTPseudoBaseline):
             self.define_model(teacher=True)
             log.info(f"[TEACHER] Initialization..")
 
-            # At this time the validation is composed only of seen classes. We can
-            # try to expand it with pseudo-labels.
+            # Validation with seen and unseen.
             if self.val_unseen_files is not None:
                 seen_imgs = original_val_data.filepaths
                 seen_labs = [self.label_to_idx[l] for l in original_val_data.labels]
