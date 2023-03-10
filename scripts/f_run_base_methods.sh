@@ -16,7 +16,7 @@ source ../../zsl/bin/activate
 sleep $[ ( $RANDOM % 30 )  + 1 ]s
 
 
-for vis_encoder in 'ViT-B/32'; do #  'RN50' 'ViT-L/14' 'RN101'
+for vis_encoder in 'ViT-L/14'; do # ViT-B/32 'RN50' 'ViT-L/14' 'RN101'
 for split_seed in 500; do #  0 200
 for dataset_name in Flowers102; do
 for model in coop_baseline vpt_baseline; do 
