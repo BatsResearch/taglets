@@ -3,11 +3,10 @@ import logging
 import clip
 import numpy as np
 import pandas as pd
-import scipy.stats as st
 import torch
 from accelerate import Accelerator
 from PIL import Image
-from torch import nn 
+from torch import nn
 
 accelerator = Accelerator()
 
@@ -128,18 +127,9 @@ class CoopBaseline(object):
                                unseen classes (defined in zsl_jpl line 328)
         """
 
-        self.val_unseen_files = None
         return train_data
 
-    def train(
-        self, 
-        train_data, 
-        val_data, 
-        classes, 
-        unlabeled_data=None,
-        only_unlabelled=False,
-        only_seen=False,
-    ):
+    def train(self, train_data, val_data, classes, unlabeled_data=None):
         """This function defines the training of self.model.
 
         :param train_data: Dataset object - training dataset of labeled data for
@@ -166,18 +156,6 @@ class CoopBaseline(object):
             worker_init_fn=seed_worker,
             generator=g,
         )
-
-        if self.val_unseen_files is not None:
-            seen_imgs = val_data.filepaths
-            seen_labs = [self.label_to_idx[l] for l in val_data.labels]
-
-            unseen_imgs = list(self.val_unseen_files)
-            unseen_labs = list(self.val_unseen_labs)
-
-            val_data.filepaths = list(unseen_imgs) + list(seen_imgs)
-            val_data.labels = list(unseen_labs) + list(seen_labs)
-            val_data.label_id = True
-
         val_loader = torch.utils.data.DataLoader(
             val_data, batch_size=self.config.BATCH_SIZE
         )
@@ -200,13 +178,7 @@ class CoopBaseline(object):
             accum_iter = self.config.ACCUMULATION_ITER
 
             loss, total_loss, epoch_parameters = self._train_epoch(
-                loss, 
-                total_loss, 
-                train_loader, 
-                accum_iter, 
-                epoch, 
-                only_unlabelled=only_unlabelled,
-                only_seen=only_seen,
+                loss, total_loss, train_loader, accum_iter, epoch, unlabeled_data
             )
             accelerator.wait_for_everyone()
             if accelerator.is_local_main_process:
@@ -215,7 +187,7 @@ class CoopBaseline(object):
             accelerator.free_memory()
 
             if val_loader is not None:
-                val_accuracy = self._run_validation(val_loader, only_unlabelled)
+                val_accuracy = self._run_validation(val_loader)
                 log.info(f"Validation accuracy after Epoch {epoch}: {val_accuracy}")
                 if val_accuracy > best_val_accuracy:
                     best_val_accuracy = val_accuracy
@@ -230,62 +202,11 @@ class CoopBaseline(object):
 
         return best_val_accuracy, best_prompt
 
-    def define_loss_function(self, logits, labs, teacher=False):
+    def define_loss_function(self, logits, labs):
         return self.loss_func(logits, labs)
 
-    def reindex_predicted_labels(self, idx_preds, only_unlabelled=False):
-        """This function returns the correct index of predictions to compute
-        model's accuracy.
-
-        :param idx_pred: list of predictions ids
-        :param only_unlabelled: boolean. It is True if the training only involves
-                                pseudo-labeled unseen data
-        """
-
-        return [self.seen_classes[i.item()] for i in idx_preds]
-        
-            
-    def reindex_true_labels(self, label, only_unlabelled=False):
-        """This function returns the correct index of true labels.
-
-        :param label: list of labels from data loader
-        :param only_unlabelled: boolean. It is True if the training only involves
-                                pseudo-labeled unseen data
-        """
-
-        return torch.tensor(
-            [self.seen_classes.index(self.classes[l.item()]) for l in label]
-        )
-
-    def backpropagate(self, teacher=False):
-        self.optimizer.step()
-        self.model.zero_grad()
-
-    def update_scheduler(self, teacher=False):
-        current_lr = self.scheduler.get_last_lr()
-        self.scheduler.step()
-
-    def training_model(self, teacher=False):
-        """This function allows to customize the model to use while trainig
-
-        :param img: Tensor of images form Dataloader
-        """
-
-        return self.model(self.model.module.classes)
-
-    def unwrap_model(self, teacher=False):
-        return accelerator.unwrap_model(self.model)
-
     def _train_epoch(
-        self, 
-        loss,
-        total_loss, 
-        train_loader, 
-        accum_iter, 
-        epoch, 
-        only_unlabelled=False, 
-        teacher=False,
-        only_seen=False,
+        self, loss, total_loss, train_loader, accum_iter, epoch, unlabeled_data
     ):
         """This function defines the training epoch of self.model.
 
@@ -294,15 +215,14 @@ class CoopBaseline(object):
         :param train_loader: Dataloader object - training data defined in self.train
         :param accum_iter: number of accumulation steps minimum 1
         :param epoch: current epoch
-        :param only_unlabelled: boolean. If None running seen supervised coop.
+        :param unlabeled_data: boolean. If None running seen supervised coop.
                                Self-training coop otherwise (CoopPseudoBaseline)
         """
 
         predictions = []
         labels = []
         for i, (img, _, _, label, img_path) in enumerate(train_loader):
-            text_features = self.training_model(teacher)
-            # text_features = self.model(self.model.module.classes)
+            text_features = self.model(self.model.module.classes)
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
             with torch.no_grad():
                 image_features = self.clip_model.encode_image(img)
@@ -315,15 +235,22 @@ class CoopBaseline(object):
             logits = logit_scale * image_features @ text_features.t()
 
             idx_preds = torch.argmax(logits, dim=1)
-            
-            real_preds = self.reindex_predicted_labels(idx_preds, only_unlabelled)
+            if unlabeled_data:
+                real_preds = [self.classes[i.item()] for i in idx_preds]
+            else:
+                real_preds = [self.seen_classes[i.item()] for i in idx_preds]
 
             predictions += real_preds
             labels += [self.classes[i.item()] for i in label]
 
-            labs = self.reindex_true_labels(label, only_unlabelled)
-            labs = labs.to(self.device)
-            loss = self.define_loss_function(logits, labs, teacher)
+            if unlabeled_data:
+                labs = torch.tensor([l.item() for l in label]).to(self.device)
+            else:
+                labs = torch.tensor([self.real_to_idx[l.item()] for l in label]).to(
+                    self.device
+                )
+
+            loss = self.define_loss_function(logits, labs)
             total_loss += loss.item()
 
             accelerator.wait_for_everyone()
@@ -333,84 +260,45 @@ class CoopBaseline(object):
 
             # Accumulate grandient
             if ((i + 1) % accum_iter == 0) or (i + 1 == len(train_loader)):
-                self.backpropagate(teacher)
-        
-        log.info(f"Number of prompts: {text_features.size()}")
+                self.optimizer.step()
+                self.model.zero_grad()
+
         accelerator.wait_for_everyone()
 
         predictions = torch.tensor(
-            [self.label_to_idx[p] for p in predictions]
+            [self.label_to_idx[p] for p in predictions][: len(train_loader.dataset)]
         ).to(self.device)
         labels = torch.tensor(
-            [self.label_to_idx[l] for l in labels]
+            [self.label_to_idx[l] for l in labels][: len(train_loader.dataset)]
         ).to(self.device)
 
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
 
-        # Get harmonic mean
-        idx_seen = [self.label_to_idx[c] for c in self.seen_classes]
-        seen_true = [i for i, c in enumerate(labels_outputs) if c in idx_seen]
-        seen_preds = predictions_outputs[seen_true]
-        seen_labs = labels_outputs[seen_true]
-        seen_accuracy = torch.sum(seen_preds == seen_labs) / len(seen_true)
+        accuracy = torch.sum(predictions_outputs == labels_outputs) / len(
+            predictions_outputs
+        )
+        log.info(f"Training accuracy after Epoch {epoch}: {accuracy}")
 
-        idx_unseen = [self.label_to_idx[c] for c in self.unseen_classes]
-        unseen_true = [i for i, c in enumerate(labels_outputs) if c in idx_unseen]
-        unseen_preds = predictions_outputs[unseen_true]
-        unseen_labs = labels_outputs[unseen_true]
-        unseen_accuracy = torch.sum(unseen_preds == unseen_labs) / len(unseen_true)
+        current_lr = self.scheduler.get_last_lr()
+        self.scheduler.step()
 
-        if only_unlabelled:
-            accuracy = unseen_accuracy
-            log.info(f"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
-        else:
-            if only_seen:
-                accuracy = seen_accuracy
-                log.info(f"Training SEEN accuracy after Epoch {epoch}: {accuracy}")
-            else:
-                accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
-
-                # accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
-                log.info(f"Training SEEN accuracy after Epoch {epoch}: {seen_accuracy}")
-                log.info(
-                    f"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}"
-                )
-                log.info(f"Training HARMONIC accuracy after Epoch {epoch}: {accuracy}")
-
-        self.update_scheduler(teacher)
-
-        unwrapped_model = self.unwrap_model(teacher)
+        unwrapped_model = accelerator.unwrap_model(self.model)
         epoch_parameters = [unwrapped_model.prefix.detach().cpu().numpy()]
 
         return loss, total_loss, epoch_parameters
 
-    def _run_validation(
-        self, 
-        val_loader, 
-        only_unlabelled=False, 
-        teacher=False, 
-        only_seen=False,
-    ):
+    def _run_validation(self, val_loader):
         """This function computes the validation accuracy on labeled seen data.
 
         :param val_loder: Dataloader object - validation dataset
         """
 
-        if self.val_unseen_files is not None:
-            val = False
-        else:
-            val = True
-
         predictions = []
         labels = []
         for img, _, _, label, img_path in val_loader:
-            # self.model.classes = self.seen_classes
-            #text_features = self.model(self.model.classes)
-
-            # Here if validation of unseen is empty I have to specify that I look into the seen classes only
-            text_features = self.training_model(teacher)
-            log.info(f"Number of prompts: {text_features.size()}")
+            self.model.classes = self.seen_classes
+            text_features = self.model(self.model.classes)
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
             with torch.no_grad():
                 image_features = self.clip_model.encode_image(img)
@@ -422,54 +310,26 @@ class CoopBaseline(object):
             logits = logit_scale * image_features @ text_features.t()
 
             idx_preds = torch.argmax(logits, dim=1)
-            if self.val_unseen_files is not None:
-                real_preds = [self.classes[i.item()] for i in idx_preds]
-            else:
-                real_preds = [self.seen_classes[i.item()] for i in idx_preds]
+            real_preds = [self.seen_classes[i.item()] for i in idx_preds]
 
             predictions += real_preds
             labels += [self.classes[i.item()] for i in label]
 
         accelerator.wait_for_everyone()
 
-        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(self.device)
-        labels = torch.tensor([self.label_to_idx[l] for l in labels]).to(self.device)
+        predictions = torch.tensor(
+            [self.label_to_idx[p] for p in predictions][: len(val_loader.dataset)]
+        ).to(self.device)
+        labels = torch.tensor(
+            [self.label_to_idx[l] for l in labels][: len(val_loader.dataset)]
+        ).to(self.device)
 
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
 
-        if text_features.size()[0] < len(self.classes):
-            accuracy = torch.sum(predictions_outputs == labels_outputs) / len(
-                predictions_outputs
-            )
-        else:
-            # Get harmonic mean
-            idx_seen = [self.label_to_idx[c] for c in self.seen_classes]
-            seen_true = [i for i, c in enumerate(labels_outputs) if c in idx_seen]
-            seen_preds = predictions_outputs[seen_true]
-            seen_labs = labels_outputs[seen_true]
-            seen_accuracy = torch.sum(seen_preds == seen_labs) / len(seen_true)
-
-            idx_unseen = [self.label_to_idx[c] for c in self.unseen_classes]
-            unseen_true = [i for i, c in enumerate(labels_outputs) if c in idx_unseen]
-            unseen_preds = predictions_outputs[unseen_true]
-            unseen_labs = labels_outputs[unseen_true]
-            unseen_accuracy = torch.sum(unseen_preds == unseen_labs) / len(unseen_true)
-
-            if only_seen:
-                accuracy = seen_accuracy
-                log.info(f"Validation SEEN accuracy after Epoch: {seen_accuracy}")
-
-            else:
-                accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
-                log.info(f"Validation SEEN accuracy after Epoch: {seen_accuracy}")
-                log.info(f"Validation UNSEEN accuracy after Epoch: {unseen_accuracy}")
-                log.info(f"Validation HARMONIC accuracy after Epoch: {accuracy}")
-
-
-        # accuracy = torch.sum(predictions_outputs == labels_outputs) / len(
-        #     predictions_outputs
-        # )
+        accuracy = torch.sum(predictions_outputs == labels_outputs) / len(
+            predictions_outputs
+        )
 
         return accuracy
 

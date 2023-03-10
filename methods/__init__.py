@@ -4,4 +4,3 @@ from .coop_pseudo_baseline import CoopPseudoBaseline
 from .vpt_baseline import VPTBaseline
 from .vpt_pseudo_baseline import VPTPseudoBaseline
 from .teacher_student import TeacherStudent
-from .coop_teacher_student import CoopTeacherStudent

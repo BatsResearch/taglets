@@ -73,28 +73,6 @@ class CoopPseudoBaseline(CoopBaseline):
         unseen_imgs = train_unseen_dataset.filepaths
         unseen_labs = train_unseen_dataset.labels
 
-        # Use a portion of the pseudo-labeled data to build a validation set
-        if self.config.N_PSEUDOSHOTS >= 10:
-            np.random.seed(self.config.validation_seed)
-            train_indices = np.random.choice(
-                range(len(unseen_imgs)),
-                size=int(len(unseen_imgs) * self.config.ratio_train_val),
-                replace=False,
-            )
-            val_indices = list(
-                set(range(len(unseen_imgs))).difference(set(train_indices))
-            )
-
-            self.val_unseen_files = np.array(unseen_imgs)[val_indices]
-            self.val_unseen_labs = np.array(unseen_labs)[val_indices]
-
-            unseen_imgs = list(np.array(unseen_imgs)[train_indices])
-            unseen_labs = list(np.array(unseen_labs)[train_indices])
-
-        else:
-            self.val_unseen_files = None
-            self.val_unseen_labs = None
-
         seen_imgs = train_data.filepaths
         seen_labs = [self.label_to_idx[l] for l in train_data.labels]
 
@@ -142,32 +120,3 @@ class CoopPseudoBaseline(CoopBaseline):
             error = 0
 
         return error
-
-    def reindex_predicted_labels(self, idx_preds, only_unlabelled=False):
-        """This function returns the correct index of predictions to compute
-        model's accuracy.
-
-        :param idx_pred: list of predictions ids
-        :param only_unlabelled: boolean. It is True if the training only involves
-                                pseudo-labeled unseen data
-        """
-
-        if only_unlabelled:
-            return [self.unseen_classes[i.item()] for i in idx_preds]
-        else:
-            return [self.classes[i.item()] for i in idx_preds]
-
-    def reindex_true_labels(self, label, only_unlabelled=False):
-        """This function returns the correct index of true labels.
-
-        :param label: list of labels from data loader
-        :param only_unlabelled: boolean. It is True if the training only involves
-                                pseudo-labeled unseen data
-        """
-
-        if only_unlabelled:
-            return torch.tensor(
-                [self.unseen_classes.index(self.classes[l.item()]) for l in label]
-            )
-        else:
-            return torch.tensor([l for l in label])
