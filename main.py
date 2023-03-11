@@ -303,7 +303,7 @@ def main():
     # Define data dir
     dataset_dir = obj_conf.DATASET_DIR
     # Int prefix
-    obj_conf.PREFIX_SIZE = int(obj_conf.PREFIX_SIZE)
+    obj_conf.PREFIX_SIZE = int(os.environ["PREFIX_SIZE"])
     log.info(f"Dataset dir: {dataset_dir}")
 
     # Check dataset directory exists
