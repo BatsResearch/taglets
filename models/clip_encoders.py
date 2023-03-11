@@ -173,19 +173,6 @@ class CustomVisionTransformer(nn.Module):
 
 
         elif self.type == 'after_norm_prefix':
-            x = torch.cat(
-                [
-                    self.class_embedding.to(x.dtype).to(x.device)
-                    + torch.zeros(
-                        x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device
-                    ),
-                    x,
-                ],
-                dim=1,
-            )  # shape = [*, grid ** 2 + 1, width]
-            
-            x = x + self.positional_embedding.to(x.dtype) if pos_emb else x
-            log.info(f"SHAPE x: {x.shape}")
             
             x = self.ln_pre(x)
 
@@ -200,27 +187,8 @@ class CustomVisionTransformer(nn.Module):
 
             log.info(f"SHAPE X: {x.shape}")
 
-            x = x.permute(1, 0, 2)  # NLD -> LND
-            x = self.transformer(x)
-            x = x.permute(1, 0, 2)  # LND -> NLD
-
-            x = self.ln_post(x[:, 0, :])
-
-        
 
         elif self.type == 'before_norm_prefix':
-            x = torch.cat(
-                [
-                    self.class_embedding.to(x.dtype).to(x.device)
-                    + torch.zeros(
-                        x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device
-                    ),
-                    x,
-                ],
-                dim=1,
-            )  # shape = [*, grid ** 2 + 1, width]
-            
-            x = x + self.positional_embedding.to(x.dtype) if pos_emb else x
 
             image_prefix = image_prefix.expand(x.shape[0], -1, -1)
             # Here we concat the prefix to the flattened patches
@@ -229,20 +197,12 @@ class CustomVisionTransformer(nn.Module):
                 x,
             ],
             dim=1,)
-            
-            x = self.ln_pre(x)
-
-            x = x.permute(1, 0, 2)  # NLD -> LND
-            x = self.transformer(x)
-            x = x.permute(1, 0, 2)  # LND -> NLD
-
-            x = self.ln_post(x[:, 0, :])
 
         x = x.permute(1, 0, 2)  # NLD -> LND
-            x = self.transformer(x)
-            x = x.permute(1, 0, 2)  # LND -> NLD
+        x = self.transformer(x)
+        x = x.permute(1, 0, 2)  # LND -> NLD
 
-            x = self.ln_post(x[:, 0, :])
+        x = self.ln_post(x[:, 0, :])
 
         if self.proj is not None:
             x = x @ self.proj
