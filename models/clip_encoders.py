@@ -103,7 +103,7 @@ class ImageEncoder(nn.Module):
 
 
 class CustomVisionTransformer(nn.Module):
-    def __init__(self, vision_transformer, config):
+    def __init__(self, vision_transformer):
         super().__init__()
         self.input_resolution = vision_transformer.input_resolution
         self.output_dim = vision_transformer.output_dim
@@ -118,7 +118,7 @@ class CustomVisionTransformer(nn.Module):
         self.ln_post = vision_transformer.ln_post
         self.proj = vision_transformer.proj
 
-        self.type = config.TYPE
+        # self.type = config.TYPE
 
     def forward(
         self,
@@ -144,58 +144,58 @@ class CustomVisionTransformer(nn.Module):
             
         x = x + self.positional_embedding.to(x.dtype) if pos_emb else x
         
-        if self.type == 'standard':
+        # if self.type == 'standard':
            
-            x = self.ln_pre(x)
+        #     x = self.ln_pre(x)
 
-            image_prefix = image_prefix.expand(x.shape[0], -1, -1)
-            # Here we concat the prefix to the flattened patches
-            x = torch.cat([
-                x[:,:1,:],
-                image_prefix, 
-                x[:,1:,:],
-            ],
-            dim=1,)
+        #     image_prefix = image_prefix.expand(x.shape[0], -1, -1)
+        #     # Here we concat the prefix to the flattened patches
+        #     x = torch.cat([
+        #         x[:,:1,:],
+        #         image_prefix, 
+        #         x[:,1:,:],
+        #     ],
+        #     dim=1,)
 
-        elif self.type == 'before_norm_cls':
+        #elif self.type == 'before_norm_cls':
             
-            image_prefix = image_prefix.expand(x.shape[0], -1, -1)
-            # Here we concat the prefix to the flattened patches
-            x = torch.cat([
-                x[:,:1,:],
-                image_prefix, 
-                x[:,1:,:],
-            ],
-            dim=1,)
+        image_prefix = image_prefix.expand(x.shape[0], -1, -1)
+        # Here we concat the prefix to the flattened patches
+        x = torch.cat([
+            x[:,:1,:],
+            image_prefix, 
+            x[:,1:,:],
+        ],
+        dim=1,)
+        
+        x = self.ln_pre(x)
+
+
+        # elif self.type == 'after_norm_prefix':
             
-            x = self.ln_pre(x)
+        #     x = self.ln_pre(x)
+
+        #     image_prefix = image_prefix.expand(x.shape[0], -1, -1)
+        #     #log.info(f"SHAPE image_prefix: {image_prefix.size()}")
+        #     # Here we concat the prefix to the flattened patches
+        #     x = torch.cat([
+        #         image_prefix, 
+        #         x,
+        #     ],
+        #     dim=1,)
+
+        #     #log.info(f"SHAPE X: {x.shape}")
 
 
-        elif self.type == 'after_norm_prefix':
-            
-            x = self.ln_pre(x)
+        # elif self.type == 'before_norm_prefix':
 
-            image_prefix = image_prefix.expand(x.shape[0], -1, -1)
-            #log.info(f"SHAPE image_prefix: {image_prefix.size()}")
-            # Here we concat the prefix to the flattened patches
-            x = torch.cat([
-                image_prefix, 
-                x,
-            ],
-            dim=1,)
-
-            #log.info(f"SHAPE X: {x.shape}")
-
-
-        elif self.type == 'before_norm_prefix':
-
-            image_prefix = image_prefix.expand(x.shape[0], -1, -1)
-            # Here we concat the prefix to the flattened patches
-            x = torch.cat([
-                image_prefix, 
-                x,
-            ],
-            dim=1,)
+        #     image_prefix = image_prefix.expand(x.shape[0], -1, -1)
+        #     # Here we concat the prefix to the flattened patches
+        #     x = torch.cat([
+        #         image_prefix, 
+        #         x,
+        #     ],
+        #     dim=1,)
 
         x = x.permute(1, 0, 2)  # NLD -> LND
         x = self.transformer(x)
@@ -215,7 +215,7 @@ class CustomImageEncoder(nn.Module):
 
     def __init__(self, visual, config):
         super(CustomImageEncoder, self).__init__()
-        self.visual = CustomVisionTransformer(visual, config)
+        self.visual = CustomVisionTransformer(visual)
         self.dtype = self.visual.conv1.weight.dtype
 
     def forward(self, image, prefix):

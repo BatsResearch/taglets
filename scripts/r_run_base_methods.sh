@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=R-base_meth
-#SBATCH --output=logs/recsis45_vpt_vitL_base_methods.out
+#SBATCH --output=logs/recsis45_new_vpt_base_methods.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
@@ -16,7 +16,7 @@ source ../../zsl/bin/activate
 sleep $[ ( $RANDOM % 30 )  + 1 ]s
 
 
-for vis_encoder in 'ViT-L/14'; do # 'ViT-B/32'  'RN50' 'ViT-L/14' 'RN101'
+for vis_encoder in 'ViT-B/32'; do # 'ViT-B/32'  'RN50' 'ViT-L/14' 'RN101'
 for split_seed in 500; do #  0 200
 for dataset_name in RESICS45; do
 for model in vpt_baseline; do # coop_baseline
@@ -28,7 +28,7 @@ for optim_seed in 1 2 3 4 5; do #10 100 50 400 250; do
     export SPLIT_SEED="$split_seed"
     export MODEL="$model"
     
-    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12076/'  accelerate_config.yml
+    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12070/'  accelerate_config.yml
     accelerate launch --config_file ./accelerate_config.yml ./run_main.py \
                     --model_config ${model}_config.yml
 done

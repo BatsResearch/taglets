@@ -48,7 +48,7 @@ class VPTBaseline(object):
         self.template = self.config.PROMPT_TEMPLATE
 
         visual_transformer = self.clip_model.visual
-        self.image_encoder = CustomImageEncoder(visual_transformer, self.config).to(self.device)
+        self.image_encoder = CustomImageEncoder(visual_transformer).to(self.device)
         log.info(f"Freeze visual encoder.")
         for param in self.image_encoder.parameters():
             param.requires_grad = False
