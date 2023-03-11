@@ -177,7 +177,7 @@ class CustomVisionTransformer(nn.Module):
             x = self.ln_pre(x)
 
             image_prefix = image_prefix.expand(x.shape[0], -1, -1)
-            log.info(f"SHAPE image_prefix: {image_prefix.size()}")
+            #log.info(f"SHAPE image_prefix: {image_prefix.size()}")
             # Here we concat the prefix to the flattened patches
             x = torch.cat([
                 image_prefix, 
@@ -185,7 +185,7 @@ class CustomVisionTransformer(nn.Module):
             ],
             dim=1,)
 
-            log.info(f"SHAPE X: {x.shape}")
+            #log.info(f"SHAPE X: {x.shape}")
 
 
         elif self.type == 'before_norm_prefix':

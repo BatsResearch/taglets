@@ -301,8 +301,8 @@ class VPTBaseline(object):
             logit_scale = self.clip_model.logit_scale.exp()
             logits = logit_scale * image_features @ text_features.t()
             idx_preds = torch.argmax(logits, dim=1)
-            log.info(f"variables idx_preds: {idx_preds}")
-            log.info(f"variables only_unlabelled: {only_unlabelled}")
+            #log.info(f"variables idx_preds: {idx_preds}")
+            #log.info(f"variables only_unlabelled: {only_unlabelled}")
             real_preds = self.reindex_predicted_labels(idx_preds, only_unlabelled)
 
             predictions += real_preds
