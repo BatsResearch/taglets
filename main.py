@@ -302,6 +302,8 @@ def main():
     obj_conf.PROMPT_TEMPLATE = dataset_custom_prompts[obj_conf.DATASET_NAME]
     # Define data dir
     dataset_dir = obj_conf.DATASET_DIR
+    # Int prefix
+    obj_conf.PREFIX_SIZE = int(obj_conf.PREFIX_SIZE)
     log.info(f"Dataset dir: {dataset_dir}")
 
     # Check dataset directory exists
