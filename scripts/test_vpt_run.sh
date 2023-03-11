@@ -29,7 +29,7 @@ for optim_seed in 1; do # 2 3 4 5; do #10 100 50 400 250; do
     export TYPE="$TYPE"
     export PREFIX_SIZE="$PREFIX_SIZE"
     
-    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\${PORT}/'  accelerate_config.yml
+    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\$PORT/'  accelerate_config.yml
     accelerate launch --config_file ./accelerate_config.yml ./run_main.py \
                     --model_config ${model}_config.yml
 done
