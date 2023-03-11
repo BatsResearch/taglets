@@ -10,6 +10,8 @@ PROMPT_TEMPLATE: 'imported in main.py'
 # Prefix size
 TYPE: "$TYPE"
 PREFIX_SIZE: "$PREFIX_SIZE"
+N_PSEUDOSHOTS: 16
+BALANCE_DATA: True
 # Prefix initialization: normal/uniform
 VIS_PREFIX_INIT: "normal"
 # Initialization of positional encoders same/zero
