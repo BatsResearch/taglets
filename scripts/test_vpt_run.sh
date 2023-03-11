@@ -20,7 +20,7 @@ for split_seed in 500; do #  0 200
 for dataset_name in RESICS45; do
 for model in vpt_baseline; do # coop_baseline
 for optim_seed in 1; do # 2 3 4 5; do #10 100 50 400 250; do
-
+    
     export OPTIM_SEED="$optim_seed"
     export VIS_ENCODER="$vis_encoder"
     export DATASET_NAME="$dataset_name"
@@ -29,6 +29,9 @@ for optim_seed in 1; do # 2 3 4 5; do #10 100 50 400 250; do
     export TYPE="$TYPE"
     export PREFIX_SIZE="$PREFIX_SIZE"
     #$PORT
+    echo $optim_seed
+    echo $TYPE
+    
     sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12076/'  accelerate_config.yml
     accelerate launch --config_file ./accelerate_config.yml ./run_main.py \
                     --model_config ${model}_config.yml
