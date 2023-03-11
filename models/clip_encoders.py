@@ -223,7 +223,7 @@ class CustomVisionTransformer(nn.Module):
 
             x = self.ln_post(x[:, 0, :])
 
-        elif self.type == 'before_norm_cls':
+        elif self.type == 'before_norm_prefix':
             x = torch.cat(
                 [
                     self.class_embedding.to(x.dtype).to(x.device)
