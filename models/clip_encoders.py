@@ -143,60 +143,17 @@ class CustomVisionTransformer(nn.Module):
             )  # shape = [*, grid ** 2 + 1, width]
             
         x = x + self.positional_embedding.to(x.dtype) if pos_emb else x
-            
         
-        if self.type == 'standard':
-           
-            x = self.ln_pre(x)
+        x = self.ln_pre(x)
 
-            image_prefix = image_prefix.expand(x.shape[0], -1, -1)
-            # Here we concat the prefix to the flattened patches
-            x = torch.cat([
-                x[:,:1,:],
-                image_prefix, 
-                x[:,1:,:],
-            ],
-            dim=1,)
-
-        elif self.type == 'before_norm_cls':
-            
-            image_prefix = image_prefix.expand(x.shape[0], -1, -1)
-            # Here we concat the prefix to the flattened patches
-            x = torch.cat([
-                x[:,:1,:],
-                image_prefix, 
-                x[:,1:,:],
-            ],
-            dim=1,)
-            
-            x = self.ln_pre(x)
-
-
-        elif self.type == 'after_norm_prefix':
-            
-            x = self.ln_pre(x)
-
-            image_prefix = image_prefix.expand(x.shape[0], -1, -1)
-            #log.info(f"SHAPE image_prefix: {image_prefix.size()}")
-            # Here we concat the prefix to the flattened patches
-            x = torch.cat([
-                image_prefix, 
-                x,
-            ],
-            dim=1,)
-
-            #log.info(f"SHAPE X: {x.shape}")
-
-
-        elif self.type == 'before_norm_prefix':
-
-            image_prefix = image_prefix.expand(x.shape[0], -1, -1)
-            # Here we concat the prefix to the flattened patches
-            x = torch.cat([
-                image_prefix, 
-                x,
-            ],
-            dim=1,)
+        image_prefix = image_prefix.expand(x.shape[0], -1, -1)
+        # Here we concat the prefix to the flattened patches
+        x = torch.cat([
+            x[:,:1,:],
+            image_prefix, 
+            x[:,1:,:],
+        ],
+        dim=1,)
 
         x = x.permute(1, 0, 2)  # NLD -> LND
         x = self.transformer(x)
@@ -208,6 +165,71 @@ class CustomVisionTransformer(nn.Module):
             x = x @ self.proj
 
         return x
+
+        
+        # if self.type == 'standard':
+           
+        #     x = self.ln_pre(x)
+
+        #     image_prefix = image_prefix.expand(x.shape[0], -1, -1)
+        #     # Here we concat the prefix to the flattened patches
+        #     x = torch.cat([
+        #         x[:,:1,:],
+        #         image_prefix, 
+        #         x[:,1:,:],
+        #     ],
+        #     dim=1,)
+
+        # elif self.type == 'before_norm_cls':
+            
+        #     image_prefix = image_prefix.expand(x.shape[0], -1, -1)
+        #     # Here we concat the prefix to the flattened patches
+        #     x = torch.cat([
+        #         x[:,:1,:],
+        #         image_prefix, 
+        #         x[:,1:,:],
+        #     ],
+        #     dim=1,)
+            
+        #     x = self.ln_pre(x)
+
+
+        # elif self.type == 'after_norm_prefix':
+            
+        #     x = self.ln_pre(x)
+
+        #     image_prefix = image_prefix.expand(x.shape[0], -1, -1)
+        #     #log.info(f"SHAPE image_prefix: {image_prefix.size()}")
+        #     # Here we concat the prefix to the flattened patches
+        #     x = torch.cat([
+        #         image_prefix, 
+        #         x,
+        #     ],
+        #     dim=1,)
+
+        #     #log.info(f"SHAPE X: {x.shape}")
+
+
+        # elif self.type == 'before_norm_prefix':
+
+        #     image_prefix = image_prefix.expand(x.shape[0], -1, -1)
+        #     # Here we concat the prefix to the flattened patches
+        #     x = torch.cat([
+        #         image_prefix, 
+        #         x,
+        #     ],
+        #     dim=1,)
+
+        # x = x.permute(1, 0, 2)  # NLD -> LND
+        # x = self.transformer(x)
+        # x = x.permute(1, 0, 2)  # LND -> NLD
+
+        # x = self.ln_post(x[:, 0, :])
+
+        # if self.proj is not None:
+        #     x = x @ self.proj
+
+        # return x
 
 
 
