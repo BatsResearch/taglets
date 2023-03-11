@@ -130,9 +130,8 @@ class CustomVisionTransformer(nn.Module):
         x = self.conv1(x)  # shape = [*, width, grid, grid]
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
-        
-        if self.type == 'after_norm_cls':
-            x = torch.cat(
+
+        x = torch.cat(
                 [
                     self.class_embedding.to(x.dtype).to(x.device)
                     + torch.zeros(
@@ -143,8 +142,11 @@ class CustomVisionTransformer(nn.Module):
                 dim=1,
             )  # shape = [*, grid ** 2 + 1, width]
             
-            x = x + self.positional_embedding.to(x.dtype) if pos_emb else x
+        x = x + self.positional_embedding.to(x.dtype) if pos_emb else x
             
+        
+        if self.type == 'standard':
+           
             x = self.ln_pre(x)
 
             image_prefix = image_prefix.expand(x.shape[0], -1, -1)
@@ -156,11 +158,19 @@ class CustomVisionTransformer(nn.Module):
             ],
             dim=1,)
 
-            x = x.permute(1, 0, 2)  # NLD -> LND
-            x = self.transformer(x)
-            x = x.permute(1, 0, 2)  # LND -> NLD
+        elif self.type == 'before_norm_cls':
+            
+            image_prefix = image_prefix.expand(x.shape[0], -1, -1)
+            # Here we concat the prefix to the flattened patches
+            x = torch.cat([
+                x[:,:1,:],
+                image_prefix, 
+                x[:,1:,:],
+            ],
+            dim=1,)
+            
+            x = self.ln_pre(x)
 
-            x = self.ln_post(x[:, 0, :])
 
         elif self.type == 'after_norm_prefix':
             x = torch.cat(
@@ -196,36 +206,7 @@ class CustomVisionTransformer(nn.Module):
 
             x = self.ln_post(x[:, 0, :])
 
-        elif self.type == 'before_norm_cls':
-            x = torch.cat(
-                [
-                    self.class_embedding.to(x.dtype).to(x.device)
-                    + torch.zeros(
-                        x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device
-                    ),
-                    x,
-                ],
-                dim=1,
-            )  # shape = [*, grid ** 2 + 1, width]
-            
-            x = x + self.positional_embedding.to(x.dtype) if pos_emb else x
-
-            image_prefix = image_prefix.expand(x.shape[0], -1, -1)
-            # Here we concat the prefix to the flattened patches
-            x = torch.cat([
-                x[:,:1,:],
-                image_prefix, 
-                x[:,1:,:],
-            ],
-            dim=1,)
-            
-            x = self.ln_pre(x)
-
-            x = x.permute(1, 0, 2)  # NLD -> LND
-            x = self.transformer(x)
-            x = x.permute(1, 0, 2)  # LND -> NLD
-
-            x = self.ln_post(x[:, 0, :])
+        
 
         elif self.type == 'before_norm_prefix':
             x = torch.cat(
@@ -257,7 +238,11 @@ class CustomVisionTransformer(nn.Module):
 
             x = self.ln_post(x[:, 0, :])
 
+        x = x.permute(1, 0, 2)  # NLD -> LND
+            x = self.transformer(x)
+            x = x.permute(1, 0, 2)  # LND -> NLD
 
+            x = self.ln_post(x[:, 0, :])
 
         if self.proj is not None:
             x = x @ self.proj
