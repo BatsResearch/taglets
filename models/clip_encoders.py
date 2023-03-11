@@ -118,6 +118,8 @@ class CustomVisionTransformer(nn.Module):
         self.ln_post = vision_transformer.ln_post
         self.proj = vision_transformer.proj
 
+        #self.type = config.TYPE
+
     def forward(
         self,
         x: torch.Tensor,
@@ -128,6 +130,7 @@ class CustomVisionTransformer(nn.Module):
         x = self.conv1(x)  # shape = [*, width, grid, grid]
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
+        
         
         x = torch.cat(
             [
@@ -141,6 +144,7 @@ class CustomVisionTransformer(nn.Module):
         )  # shape = [*, grid ** 2 + 1, width]
         
         x = x + self.positional_embedding.to(x.dtype) if pos_emb else x
+        
         x = self.ln_pre(x)
 
         image_prefix = image_prefix.expand(x.shape[0], -1, -1)
