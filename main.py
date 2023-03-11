@@ -304,6 +304,8 @@ def main():
     dataset_dir = obj_conf.DATASET_DIR
     # Int prefix
     obj_conf.PREFIX_SIZE = int(os.environ["PREFIX_SIZE"])
+    # Int prefix
+    obj_conf.TYPE = os.environ["TYPE"]
     log.info(f"Dataset dir: {dataset_dir}")
 
     # Check dataset directory exists
