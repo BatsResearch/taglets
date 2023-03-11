@@ -33,7 +33,7 @@ for optim_seed in 1; do # 2 3 4 5; do #10 100 50 400 250; do
     echo $TYPE
     echo $PORT
     # $PORT
-    sed -i "s/^\(\s*main_process_port\s*:\s*\).*/\$PORT/"  accelerate_config.yml
+    sed -i "s/^\(\s*main_process_port\s*:\s*\).*/\1$PORT/"  accelerate_config.yml
     accelerate launch --config_file ./accelerate_config.yml ./run_main.py \
                     --model_config test_vpt.yml
 done
