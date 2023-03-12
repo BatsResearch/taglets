@@ -213,7 +213,7 @@ class CustomVisionTransformer(nn.Module):
 class CustomImageEncoder(nn.Module):
     """CLIP image encoder"""
 
-    def __init__(self, visual, config):
+    def __init__(self, visual):
         super(CustomImageEncoder, self).__init__()
         self.visual = CustomVisionTransformer(visual)
         self.dtype = self.visual.conv1.weight.dtype
