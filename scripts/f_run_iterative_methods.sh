@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=F-iter_meth
-#SBATCH --output=logs/flowers102_iterative_methods.out
+#SBATCH --output=logs/flowers102_vpt_iterative_methods.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
