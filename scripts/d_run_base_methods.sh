@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=D-base_meth
-#SBATCH --output=logs/dtd_vpt_vitL_base_methods.out
+#SBATCH --output=logs/dtd_vpt_two_splits_base_methods.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
