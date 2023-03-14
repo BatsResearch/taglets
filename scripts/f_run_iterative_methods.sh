@@ -6,7 +6,7 @@
 #SBATCH --mem=64G
 #SBATCH -t 48:00:00
 #SBATCH -p gpu --gres=gpu:4
-##SBATCH --exclude=gpu[717-718,1201-1204,1209,1403]
+#SBATCH --exclude=gpu[717-718,1201-1204,1209,1403]
 
 module load cuda/11.1.1
 
@@ -28,7 +28,7 @@ for optim_seed in 1 2 3 4 5; do
     export SPLIT_SEED="$split_seed"
     export MODEL="$model"
     
-    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12070/'  accelerate_config.yml
+    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12074/'  accelerate_config.yml
     accelerate launch --config_file ./accelerate_config.yml ./run_main.py \
                     --model_config ${model}_config.yml
 done
