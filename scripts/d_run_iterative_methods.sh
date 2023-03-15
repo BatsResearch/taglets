@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=D-iter_meth
-#SBATCH --output=logs/dtd_iterative_methods.out
+#SBATCH --output=logs/dtd_vpt_iterative_methods_ViTL.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
