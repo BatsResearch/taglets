@@ -128,8 +128,9 @@ def pseudolabel_top_k(
     label_to_idx,
     device,
     vis_encoder,
+    split_seed, 
 ):
-    filename = f"pseudolabels/{data_name}_{vis_encoder.replace('/', '')}_{k}_pseudolabels.pickle"
+    filename = f"pseudolabels/{data_name}_{vis_encoder.replace('/', '')}_{k}_pseudolabels_split_{split_seed}.pickle"
     if os.path.exists(filename):
         # print('Load pseudolabels')
         with open(filename, "rb") as f:

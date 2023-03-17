@@ -57,6 +57,7 @@ class VPTPseudoBaseline(VPTBaseline):
             self.label_to_idx,
             self.device,
             self.config.VIS_ENCODER,
+            self.config.SPLIT_SEED,
         )
         
         # Define the lists of traiing data from seen and unseen classes
