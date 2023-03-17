@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=D-pseudo_meth
-#SBATCH --output=logs/dtd_pseudo_methods_split_200.out
+#SBATCH --output=logs/dtd_pseudo_methods_split_0_200.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
-#SBATCH -t 48:00:00
+#SBATCH -t 96:00:00
 #SBATCH -p gpu --gres=gpu:4
 #SBATCH --exclude=gpu[717-718,1201-1204,1209,1403]
 
@@ -16,7 +16,7 @@ source ../../zsl/bin/activate
 sleep $[ ( $RANDOM % 30 )  + 1 ]s
 
 for vis_encoder in 'ViT-B/32' 'ViT-L/14'; do # 'ViT-B/32' 'RN50' 'ViT-L/14' 'RN101'
-for split_seed in 200; do #  0 200
+for split_seed in 0 200; do #  0 200
 for dataset_name in DTD; do
 for model in coop_pseudo_baseline vpt_pseudo_baseline ; do # coop_pseudo_baseline
 for optim_seed in 1 2 3 4 5; do
