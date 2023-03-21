@@ -16,7 +16,7 @@ accelerator = Accelerator()
 
 from data import CustomDataset
 from models import CustomImageEncoder, ImagePrefixModel
-from methods import VPTPseudoBaseline
+from methods import TeacherStudent
 from utils import (
     dataset_object, 
     evaluate_predictions, 
