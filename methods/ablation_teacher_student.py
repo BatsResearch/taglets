@@ -157,6 +157,5 @@ class AblationTeacherStudent(TeacherStudent):
             )
 
             save_parameters(t_best_prompt, self.config, teacher=True, iteration=niter)
-            save_parameters(s_prompt, self.config, teacher=False, iteration=niter)
 
         return t_best_val_accuracy, t_best_prompt
