@@ -23,6 +23,7 @@ accelerator = Accelerator()
 
 from data import CustomDataset, dataset_custom_prompts
 from methods import (
+    AblationTeacherStudent,
     ClipBaseline,
     CoopBaseline,
     CoopPseudoBaseline,
@@ -220,6 +221,20 @@ def workflow(dataset_dir, obj_conf):
         )
 
     elif obj_conf.MODEL == "teacher_student":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = TeacherStudent(
+            obj_conf, label_to_idx, data_folder, device=device, **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.train(
+            train_seen_dataset,
+            val_seen_dataset,
+            train_unseen_dataset,
+            test_dataset,
+            test_labeled_files,
+            test_labeles,
+        )
+
+    elif obj_conf.MODEL == "ablation_teacher_student":
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = TeacherStudent(
             obj_conf, label_to_idx, data_folder, device=device, **dict_classes
