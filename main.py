@@ -244,7 +244,7 @@ def workflow(dataset_dir, obj_conf):
 
     elif obj_conf.MODEL == "ablation_teacher_student":
         log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = TeacherStudent(
+        model = AblationTeacherStudent(
             obj_conf, label_to_idx, data_folder, device=device, **dict_classes
         )
         val_accuracy, optimal_prompt = model.train(
