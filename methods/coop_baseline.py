@@ -96,7 +96,7 @@ class CoopBaseline(object):
         :param classes: list of classes to consider
         """
         log.info(f"ARRIVE HERE???? PROVA")
-        log.info(f{[" ".join(c.split("_")) for c in classes]})
+        log.info(f'{[" ".join(c.split("_")) for c in classes]}')
         log.info(f"ARRIVE HERE???? LATER")
 
         self.model = TextPrefixModel(
