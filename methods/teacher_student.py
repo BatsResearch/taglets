@@ -180,6 +180,14 @@ class TeacherStudent(VPTPseudoBaseline):
                 original_unlabeled_data, teacher=True
             )
 
+            save_pseudo_labels(
+                t_pseudo_labels.filepaths, 
+                t_pseudo_labels.labels, 
+                self.config, 
+                niter,
+                teacher=True,
+            )
+
             save_parameters(t_best_prompt, self.config, teacher=True, iteration=niter)
             save_parameters(s_prompt, self.config, teacher=False, iteration=niter)
 
