@@ -144,6 +144,7 @@ class TeacherStudent(VPTPseudoBaseline):
                 self.config, 
                 niter,
                 teacher=True,
+                small=True,
             )
 
             # 4. Initialize student model
@@ -173,6 +174,10 @@ class TeacherStudent(VPTPseudoBaseline):
 
             unlabeled_data = self.get_pseudo_labels(
                 original_unlabeled_data, teacher=False
+            )
+
+            t_pseudo_labels = self.get_pseudo_labels(
+                original_unlabeled_data, teacher=True
             )
 
             save_parameters(t_best_prompt, self.config, teacher=True, iteration=niter)
