@@ -1,6 +1,7 @@
 from .clip_baseline import ClipBaseline
 from .coop_baseline import CoopBaseline
 from .coop_pseudo_baseline import CoopPseudoBaseline
+from .quantile_coop_pseudo_baseline import QuantileCoopPseudoBaseline
 from .vpt_baseline import VPTBaseline
 from .vpt_pseudo_baseline import VPTPseudoBaseline
 from .quantile_vpt_pseudo_baseline import QuantileVPTPseudoBaseline
