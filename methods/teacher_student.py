@@ -87,6 +87,14 @@ class TeacherStudent(VPTPseudoBaseline):
         self.create_training_dataset(train_data, unlabeled_data)
         log.info(f"The original train data has size: {len(original_train_data.filepaths)}.")
         log.info(f"Plus: {len(unlabeled_data.filepaths)}.")
+        log.info(f"Saving initial pseudo-labels")
+        save_pseudo_labels(
+            unlabeled_data.filepaths, 
+            unlabeled_data.labels, 
+            self.config, 
+            0,
+            teacher=False,
+        )
 
         for niter in range(1, num_iter + 1):
             log.info(f"Start {niter} round of training..")
@@ -95,16 +103,6 @@ class TeacherStudent(VPTPseudoBaseline):
                 f for i, f in enumerate(original_train_data.filepaths)
             ]
             train_data.labels = [l for i, l in enumerate(original_train_data.labels)]
-
-            # Save pseudolabels
-            log.info(f"Saving pseudo-labels for iteration {niter}")
-            save_pseudo_labels(
-                unlabeled_data.filepaths, 
-                unlabeled_data.labels, 
-                self.config, 
-                niter,
-                teacher=False,
-            )
             
             self.update_training_set(train_data, unlabeled_data)
 
@@ -172,8 +170,19 @@ class TeacherStudent(VPTPseudoBaseline):
                         len(original_unlabeled_data.filepaths) / n_unseen
                     )
 
+            # Save pseudolabels
+            log.info(f"Saving initial pseudo-labels")
+            
             unlabeled_data = self.get_pseudo_labels(
                 original_unlabeled_data, teacher=False
+            )
+
+            save_pseudo_labels(
+                unlabeled_data.filepaths, 
+                unlabeled_data.labels, 
+                self.config, 
+                niter,
+                teacher=False,
             )
 
             t_pseudo_labels = self.get_pseudo_labels(
