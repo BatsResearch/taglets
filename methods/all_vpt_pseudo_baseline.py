@@ -18,7 +18,7 @@ from utils import make_scheduler, pseudolabel_top_k
 log = logging.getLogger(__name__)
 
 
-class QuantileVPTPseudoBaseline(VPTBaseline):
+class AllVPTPseudoBaseline(VPTBaseline):
     def __init__(
         self, config, label_to_idx, classes, seen_classes, unseen_classes, device
     ):
