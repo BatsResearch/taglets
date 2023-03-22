@@ -4,6 +4,7 @@ from .coop_pseudo_baseline import CoopPseudoBaseline
 from .quantile_coop_pseudo_baseline import QuantileCoopPseudoBaseline
 from .vpt_baseline import VPTBaseline
 from .vpt_pseudo_baseline import VPTPseudoBaseline
+from .all_vpt_pseudo_baseline import AllVPTPseudoBaseline
 from .iterative_vpt_pseudo_baseline import IterativeFixedPseudo
 from .quantile_vpt_pseudo_baseline import QuantileVPTPseudoBaseline
 from .teacher_student import TeacherStudent

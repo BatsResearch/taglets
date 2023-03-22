@@ -18,7 +18,7 @@ sleep $[ ( $RANDOM % 30 )  + 1 ]s
 for vis_encoder in 'ViT-B/32'; do # 'ViT-B/32' 'RN50' 'ViT-L/14' 'RN101'
 for split_seed in 500; do #  0 200
 for dataset_name in DTD; do
-for model in all_vpt_pseudo_baseline; do # coop_pseudo_baseline
+for model in all_vpt_pseudo_baseline all_labeles_vpt_pseudo; do # coop_pseudo_baseline
 for optim_seed in 1 2 3 4 5; do
 
     export OPTIM_SEED="$optim_seed"
