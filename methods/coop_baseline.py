@@ -141,6 +141,7 @@ class CoopBaseline(object):
         """
 
         self.initialize_model(classes)
+        log.info(f"ARRIVE HERE????")
         # Define training dataset
         train_data = self.create_training_dataset(train_data, unlabeled_data)
 
