@@ -23,7 +23,13 @@ log = logging.getLogger(__name__)
 
 class VPTBaseline(object):
     def __init__(
-        self, config, label_to_idx, classes, seen_classes, unseen_classes, device
+        self, 
+        config, 
+        label_to_idx, 
+        classes, 
+        seen_classes, 
+        unseen_classes, 
+        device,
     ):
         """This class defines Coop's training and evaluation.
 
@@ -194,7 +200,7 @@ class VPTBaseline(object):
             if val_loader is not None:
                 val_accuracy = self._run_validation(val_loader, only_unlabelled)
                 log.info(f"Validation accuracy after Epoch {epoch}: {val_accuracy}")
-                if val_accuracy > best_val_accuracy:
+                if val_accuracy >= best_val_accuracy:
                     best_val_accuracy = val_accuracy
                     best_prompt = epoch_parameters
             else:

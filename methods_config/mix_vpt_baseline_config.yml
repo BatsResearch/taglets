@@ -1,5 +1,5 @@
 # Dataset name
-DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification' # '/Users/menga/Desktop/github/zsl_taglets/development'
+DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification' # '/Users/menga/Desktop/github/zsl_taglets/development' # 
 DATASET_NAME: "$DATASET_NAME"
 # Model
 MODEL: "$MODEL"
@@ -10,6 +10,7 @@ PROMPT_TEMPLATE: 'imported in main.py'
 # Prefix size
 PREFIX_SIZE: 16
 N_PSEUDOSHOTS: 16
+ALPHA: "$ALPHA"
 # Prefix initialization: normal/uniform
 VIS_PREFIX_INIT: "normal"
 # Initialization of positional encoders same/zero

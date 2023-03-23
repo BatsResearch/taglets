@@ -89,7 +89,7 @@ def store_results(
                 # Write the res dictionary to the file
                 f.write(json.dumps(results_to_store) + "\n")
 
-def save_parameters(obj, config, teacher=None, iteration=None):
+def save_parameters(obj, config, teacher=None, iteration=None, init_seen=False):
     """ Save in a pickle the parameters used for 
     evaluation.
 
@@ -98,7 +98,13 @@ def save_parameters(obj, config, teacher=None, iteration=None):
     """
 
     if teacher is None:
-        file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
+        if init_seen:
+            file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
+        else:
+            try:
+                file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_alpha_{config.ALPHA}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
+            except:
+                file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
     else:
         if config.MODEL == 'teacher_student':
             if teacher:

@@ -13,7 +13,7 @@ accelerator = Accelerator()
 
 from methods import VPTBaseline
 from models import CustomImageEncoder, ImagePrefixModel
-from utils import make_scheduler, seed_worker
+from utils import make_scheduler, seed_worker, pseudolabel_top_k
 
 
 g = torch.Generator()
@@ -31,6 +31,7 @@ class InitVPTBaseline(VPTBaseline):
         unseen_classes, 
         init_param,
         device,
+        kind='init',
     ):
         """This class defines Coop's training and evaluation.
 
@@ -39,13 +40,23 @@ class InitVPTBaseline(VPTBaseline):
         :param classes: list of class names
         :param seen_classes: list of seen classes' names
         :param unseen_classes: list of unseen classes' names
+        :param init_param: initial parameters for the prompts
+        :param kind: 'init', 'mix'
         :param device: device in use
         """
         super().__init__(
             config, label_to_idx, classes, seen_classes, unseen_classes, device
         )
         
+        if kind == 'mix':
+            visual_transformer = self.clip_model.visual
+            self.image_encoder = CustomImageEncoder(visual_transformer, init_prefix=init_param, alpha=self.config.ALPHA).to(self.device)
+            log.info(f"Freeze visual encoder.")
+            for param in self.image_encoder.parameters():
+                param.requires_grad = False
+        
         self.vis_initial_prefix = init_param
+        self.config.EPOCHS = self.config.adapt_EPOCHS
 
     def create_training_dataset(self, train_data, unlabeled_data=None):
         """This function create the dataset for training. Specifically, it
@@ -184,9 +195,9 @@ class InitVPTBaseline(VPTBaseline):
             accelerator.free_memory()
 
             if val_loader is not None:
-                val_accuracy = self._run_validation(val_loader, only_unlabelled)
+                val_accuracy = self._run_validation(val_loader, only_unlabelled=True)
                 log.info(f"Validation accuracy after Epoch {epoch}: {val_accuracy}")
-                if val_accuracy > best_val_accuracy:
+                if val_accuracy >= best_val_accuracy:
                     best_val_accuracy = val_accuracy
                     best_prompt = epoch_parameters
             else:
@@ -217,7 +228,10 @@ class InitVPTBaseline(VPTBaseline):
         :param only_unlabelled: boolean. It is True if the training only involves
                                 pseudo-labeled unseen data
         """
-        return [self.seen_classes[i.item()] for i in idx_preds]
+        if only_unlabelled:
+            return [self.unseen_classes[i.item()] for i in idx_preds]
+        else:
+            return [self.seen_classes[i.item()] for i in idx_preds]
 
     def reindex_true_labels(self, label, only_unlabelled=False):
         """This function returns the correct index of true labels.
@@ -227,9 +241,14 @@ class InitVPTBaseline(VPTBaseline):
                                 pseudo-labeled unseen data
         """
 
-        return torch.tensor(
-            [self.seen_classes.index(self.classes[l.item()]) for l in label]
-        )
+        if only_unlabelled:
+            return torch.tensor(
+                [self.unseen_classes.index(self.classes[l.item()]) for l in label]
+            )
+        else:
+            return torch.tensor(
+                [self.seen_classes.index(self.classes[l.item()]) for l in label]
+            )
 
     def define_loss_function(self, logits, labs, teacher=False):
         return self.loss_func(logits, labs)
@@ -405,7 +424,7 @@ class InitVPTBaseline(VPTBaseline):
             if self.val_unseen_files is not None:
                 real_preds = [self.classes[i.item()] for i in idx_preds]
             else:
-                real_preds = [self.seen_classes[i.item()] for i in idx_preds]
+                real_preds = [self.unseen_classes[i.item()] for i in idx_preds]
 
             predictions += real_preds
             labels += [self.classes[i.item()] for i in label]
