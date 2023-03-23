@@ -100,25 +100,38 @@ def save_parameters(obj, config, teacher=None, iteration=None):
     if teacher is None:
         file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
     else:
-        if teacher:
-            file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_teacher_iter_{iteration}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}_s_epochs_{config.s_EPOCHS}.pickle"
+        if config.MODEL == 'teacher_student':
+            if teacher:
+                file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_teacher_iter_{iteration}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}_s_epochs_{config.s_EPOCHS}.pickle"
+            else:
+                file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_student_iter_{iteration}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}_s_epochs_{config.s_EPOCHS}.pickle"
         else:
-            file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_student_iter_{iteration}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}_s_epochs_{config.s_EPOCHS}.pickle"
-
+            if teacher:
+                file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_teacher_iter_{iteration}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
+            else:
+                file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_student_iter_{iteration}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
     with open(file_name, 'wb') as f:
         pickle.dump(obj, f)
 
 
 def save_pseudo_labels(imgs, labs, config, iteration, teacher=False, small=False):
 
-    if teacher:
-        if small:
-            filename = f"pseudolabels/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/', '')}_teacher_iter_{iteration}_opt_{config.OPTIM_SEED}_pseudolabels_spl_{config.SPLIT_SEED}_s_epochs_{config.s_EPOCHS}_before_student.pickle"
+    if config.MODEL == 'teacher_student':
+        if teacher:
+            if small:
+                filename = f"pseudolabels/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/', '')}_teacher_iter_{iteration}_opt_{config.OPTIM_SEED}_pseudolabels_spl_{config.SPLIT_SEED}_s_epochs_{config.s_EPOCHS}_before_student.pickle"
+            else:
+                filename = f"pseudolabels/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/', '')}_teacher_iter_{iteration}_opt_{config.OPTIM_SEED}_pseudolabels_spl_{config.SPLIT_SEED}_s_epochs_{config.s_EPOCHS}.pickle"
         else:
-            filename = f"pseudolabels/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/', '')}_teacher_iter_{iteration}_opt_{config.OPTIM_SEED}_pseudolabels_spl_{config.SPLIT_SEED}_s_epochs_{config.s_EPOCHS}.pickle"
+            filename = f"pseudolabels/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/', '')}_student_iter_{iteration}_opt_{config.OPTIM_SEED}_pseudolabels_spl_{config.SPLIT_SEED}_s_epochs_{config.s_EPOCHS}.pickle"
     else:
-        filename = f"pseudolabels/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/', '')}_student_iter_{iteration}_opt_{config.OPTIM_SEED}_pseudolabels_spl_{config.SPLIT_SEED}_s_epochs_{config.s_EPOCHS}.pickle"
-
+        if teacher:
+            if small:
+                filename = f"pseudolabels/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/', '')}_teacher_iter_{iteration}_opt_{config.OPTIM_SEED}_pseudolabels_spl_{config.SPLIT_SEED}_before_student.pickle"
+            else:
+                filename = f"pseudolabels/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/', '')}_teacher_iter_{iteration}_opt_{config.OPTIM_SEED}_pseudolabels_spl_{config.SPLIT_SEED}.pickle"
+        else:
+            filename = f"pseudolabels/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/', '')}_student_iter_{iteration}_opt_{config.OPTIM_SEED}_pseudolabels_spl_{config.SPLIT_SEED}.pickle"
     with open(filename, "wb") as f:
         pickle.dump({"filepaths": imgs, "labels": labs}, f)
 
