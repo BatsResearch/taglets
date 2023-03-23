@@ -251,6 +251,36 @@ def workflow(dataset_dir, obj_conf):
         )
         model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
+    elif obj_conf.MODEL == "combo_vpt_baseline":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+
+        filename = f"trained_prompts/{obj_conf.DATASET_NAME}_mix_vpt_baseline_{obj_conf.VIS_ENCODER.replace('/','')}_opt_{obj_conf.OPTIM_SEED}_spl_{obj_conf.SPLIT_SEED}.pickle"
+        log.info(f"{filename}")
+        if os.path.exists(filename):
+            with open(filename, "rb") as f:
+                trained_prompts = pickle.load(f)
+            learned_prefix = torch.tensor(trained_prompts[0]).to(device)
+        else:
+            raise Exception(f"Sorry, no model found. Run mix_vpt with for the seen initialization.")
+
+        log.info(f"Let's now train on the unseen classes exploiting learned prompts")
+
+        filename = f"trained_prompts/{obj_conf.DATASET_NAME}_mix_vpt_baseline_{obj_conf.VIS_ENCODER.replace('/','')}_alpha_{1.0}_opt_{obj_conf.OPTIM_SEED}_spl_{obj_conf.SPLIT_SEED}.pickle"
+        log.info(f"{filename}")
+        if os.path.exists(filename):
+            with open(filename, "rb") as f:
+                unseen_trained_prompts = pickle.load(f)
+            unseen_learned_prefix = torch.tensor(unseen_trained_prompts[0]).to(device)
+        else:
+            raise Exception(f"Sorry, no model found. Run mix_vpt with alpha=1")
+
+        log.info(f"Shape seen prompt: {learned_prefix.shape} and alpha: {obj_conf.ALPHA}")
+        log.info(f"Shape unseen prompt: {unseen_learned_prefix.shape} and alpha {obj_conf.ALPHA}")
+        optimal_prompt = obj_conf.ALPHA*unseen_learned_prefix + (1 - obj_conf.ALPHA)*learned_prefix
+        model = VPTBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
+        model.define_model()
+        model.model.prefix = torch.nn.Parameter(optimal_prompt)
+
 
     elif obj_conf.MODEL == "vpt_pseudo_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
@@ -405,7 +435,7 @@ def main():
     obj_conf.DATASET_NAME = os.environ["DATASET_NAME"]
     # Define model name
     obj_conf.MODEL = os.environ["MODEL"]
-    if obj_conf.MODEL == 'mix_vpt_baseline':
+    if obj_conf.MODEL == 'mix_vpt_baseline' or obj_conf.MODEL == 'combo_vpt_baseline':
         # Define split seed
         obj_conf.ALPHA = float(os.environ["ALPHA"])
     # Define split seed
