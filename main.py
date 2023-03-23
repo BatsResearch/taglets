@@ -211,7 +211,7 @@ def workflow(dataset_dir, obj_conf):
         model = InitVPTBaseline(
             obj_conf, 
             label_to_idx, 
-            init_param=learned_prefix
+            init_param=learned_prefix,
             device=device, 
             **dict_classes
         )
