@@ -215,7 +215,9 @@ def workflow(dataset_dir, obj_conf):
             device=device, 
             **dict_classes
         )
-
+        val_accuracy, optimal_prompt = model.train(
+            train_seen_dataset, val_seen_dataset, train_unseen_dataset
+        )
         model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
     elif obj_conf.MODEL == "vpt_pseudo_baseline":
