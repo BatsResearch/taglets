@@ -28,6 +28,7 @@ from methods import (
     ClipBaseline,
     CoopBaseline,
     CoopPseudoBaseline,
+    InitVPTBaseline,
     IterativeFixedPseudo,
     QuantileCoopPseudoBaseline,
     QuantileVPTPseudoBaseline,
@@ -198,6 +199,25 @@ def workflow(dataset_dir, obj_conf):
 
         model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
+    elif obj_conf.MODEL == "no_label_vpt_baseline":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = VPTBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
+        val_accuracy, optimal_prompt = model.train(
+            train_seen_dataset, val_seen_dataset, only_seen=True
+        )
+
+        learned_prefix = torch.tensor(optimal_prompt[0]).to(device)
+        log.info(f"Let's now train on the unseen classes exploiting learned prompts")
+        model = InitVPTBaseline(
+            obj_conf, 
+            label_to_idx, 
+            init_param=learned_prefix
+            device=device, 
+            **dict_classes
+        )
+
+        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+
     elif obj_conf.MODEL == "vpt_pseudo_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = VPTPseudoBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
@@ -211,6 +231,8 @@ def workflow(dataset_dir, obj_conf):
         val_accuracy, optimal_prompt = model.train(
             train_seen_dataset, val_seen_dataset, train_unseen_dataset
         )
+
+    
 
     elif obj_conf.MODEL == "quantile_coop_pseudo_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
