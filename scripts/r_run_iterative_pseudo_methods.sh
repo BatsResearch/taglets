@@ -2,7 +2,7 @@
 #SBATCH --job-name=R-ips_meth
 #SBATCH --output=logs/recsis45_iterative_pseudo.out
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
 #SBATCH -t 48:00:00
 #SBATCH -p gpu --gres=gpu:4

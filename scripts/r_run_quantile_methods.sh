@@ -2,7 +2,7 @@
 #SBATCH --job-name=R-quantile_meth
 #SBATCH --output=logs/resiscs45_quantile.out
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
 #SBATCH -t 96:00:00
 #SBATCH -p gpu --gres=gpu:4

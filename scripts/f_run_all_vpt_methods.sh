@@ -2,7 +2,7 @@
 #SBATCH --job-name=F-all_pseudo_meth
 #SBATCH --output=logs/flowers102_all_pseudo_methods.out
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
 #SBATCH -t 96:00:00
 #SBATCH -p gpu --gres=gpu:4
