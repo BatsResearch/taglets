@@ -41,7 +41,10 @@ class InitVPTBaseline(VPTBaseline):
         :param unseen_classes: list of unseen classes' names
         :param device: device in use
         """
-
+        super().__init__(
+            config, label_to_idx, classes, seen_classes, unseen_classes, device
+        )
+        
         self.vis_initial_prefix = init_param
 
     def create_training_dataset(self, train_data, unlabeled_data=None):
