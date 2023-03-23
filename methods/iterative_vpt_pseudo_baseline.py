@@ -88,7 +88,7 @@ class IterativeFixedPseudo(TeacherStudent):
         log.info(f"Plus: {len(unlabeled_data.filepaths)}.")
 
         # Save pseudolabels
-        log.info(f"Saving pseudo-labels for iteration {niter}")
+        log.info(f"Saving pseudo-labels for init")
         save_pseudo_labels(
             unlabeled_data.filepaths, 
             unlabeled_data.labels, 
