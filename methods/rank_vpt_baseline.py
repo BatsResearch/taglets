@@ -303,7 +303,7 @@ class RankVPTBaseline(InitVPTBaseline):
                 [self.classes.index(self.classes[l.item()]) for l in label]
             )
 
-    def define_loss_function(self, logits, labs, logits_seen, logits_unseen, teacher=False):
+    def define_loss_function(self, logits, labs, logits_seen, teacher=False):
         
         ce_loss = self.loss_ce(logits, labs)
         rank_loss = self.loss_rank(logits_seen, logits_unseen)
@@ -389,7 +389,7 @@ class RankVPTBaseline(InitVPTBaseline):
             # Logits seen on seen classes
             logits_seen = logit_scale * image_features_seen @ unseen_prompts.t()
             # Logits unseen on seen classes
-            logits_unseen = logit_scale * image_features_unseen @ unseen_prompts.t()
+            #logits_unseen = logit_scale * image_features_unseen @ unseen_prompts.t()
             
             #log.info(f"Logits on seenclasses size: {logits_unseen == logits_seen}")
             log.info(f"Features: {torch.all(image_features_unseen.eq(image_features_seen))}")
@@ -411,7 +411,7 @@ class RankVPTBaseline(InitVPTBaseline):
             labs = labs.to(self.device)
             loss = self.define_loss_function(logits, 
                 labs, logits_seen, 
-                logits_unseen, 
+                # logits_unseen, 
                 teacher
             )
             total_loss += loss.item()
