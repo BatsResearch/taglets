@@ -319,7 +319,7 @@ class RankVPTBaseline(InitVPTBaseline):
         log.info(f"KL seen: {kl_div}")
 
         #loss_func =  2*ce_loss_seen + ce_loss
-        loss_func =  2*kl_div + ce_loss
+        loss_func =  self.config.N_PSEUDOSHOTS*kl_div + ce_loss
         
         return loss_func
 
