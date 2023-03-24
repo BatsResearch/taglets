@@ -208,8 +208,8 @@ class RankVPTBaseline(InitVPTBaseline):
             unseen_imgs = list(self.val_unseen_files)
             unseen_labs = list(self.val_unseen_labs)
 
-            val_data.filepaths = list(unseen_imgs)
-            val_data.labels = list(unseen_labs)
+            val_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+            val_data.labels = list(unseen_labs) + list(seen_labs)
             val_data.label_id = True
 
         val_loader = torch.utils.data.DataLoader(
@@ -249,7 +249,7 @@ class RankVPTBaseline(InitVPTBaseline):
             accelerator.free_memory()
 
             if val_loader is not None:
-                val_accuracy = self._run_validation(val_loader, only_unlabelled=True)
+                val_accuracy = self._run_validation(val_loader, only_unlabelled=False)
                 log.info(f"Validation accuracy after Epoch {epoch}: {val_accuracy}")
                 if val_accuracy >= best_val_accuracy:
                     best_val_accuracy = val_accuracy
@@ -501,7 +501,7 @@ class RankVPTBaseline(InitVPTBaseline):
         else:
             val = True
 
-        prompts = self.define_textual_prompts(only_unlabelled, validation=val)
+        prompts = self.define_textual_prompts(only_unlabelled=False, validation=val)
         log.info(f"Number of prompts: {len(prompts)}")
 
         # Encode text
@@ -521,7 +521,7 @@ class RankVPTBaseline(InitVPTBaseline):
 
             idx_preds = torch.argmax(logits, dim=1)
             if self.val_unseen_files is not None:
-                real_preds = [self.unseen_classes[i.item()] for i in idx_preds]
+                real_preds = [self.classes[i.item()] for i in idx_preds]
             else:
                 real_preds = [self.unseen_classes[i.item()] for i in idx_preds]
 
