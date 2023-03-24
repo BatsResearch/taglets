@@ -104,6 +104,10 @@ class RankVPTBaseline(InitVPTBaseline):
             if parameter.requires_grad:
                 log.info(f"Shape of parameters seen model{i}: {parameter.shape}")
 
+        for i, parameter in enumerate(self.model.parameters()):
+            if parameter.requires_grad:
+                log.info(f"Shape of parameters MAIN model{i}: {parameter.shape}")
+
 
     def create_training_dataset(self, train_data, unlabeled_data=None):
         """This function create the dataset for training. Specifically, it
