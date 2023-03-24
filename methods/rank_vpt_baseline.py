@@ -100,7 +100,7 @@ class RankVPTBaseline(InitVPTBaseline):
         ).to(self.device)
 
         for i, parameter in enumerate(self.model_seen.parameters()):
-            param.requires_grad = False
+            parameter.requires_grad = False
             if parameter.requires_grad:
                 log.info(f"Shape of parameters seen model{i}: {parameter.shape}")
 
