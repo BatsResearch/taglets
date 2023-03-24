@@ -103,7 +103,7 @@ class ImageEncoder(nn.Module):
 
 
 class CustomVisionTransformer(nn.Module):
-    def __init__(self, vision_transformer, alpha=None):
+    def __init__(self, vision_transformer, alpha=None, kind=None):
         super().__init__()
         self.input_resolution = vision_transformer.input_resolution
         self.output_dim = vision_transformer.output_dim
@@ -119,6 +119,7 @@ class CustomVisionTransformer(nn.Module):
         self.proj = vision_transformer.proj
 
         self.alpha = alpha
+        self.kind = kind
 
     def forward(
         self,
@@ -146,8 +147,13 @@ class CustomVisionTransformer(nn.Module):
         x = x + self.positional_embedding.to(x.dtype) if pos_emb else x
 
         if init_prefix is not None:
-            image_prefix = self.alpha*image_prefix + (1-self.alpha)*init_prefix
-            
+            if self.kind == 'mix':
+                image_prefix = self.alpha*image_prefix + (1-self.alpha)*init_prefix
+            elif self.kind == 'cat':
+                #log.info(f"Init size: {init_prefix.size()}")
+                #log.info(f"Unseen size: {image_prefix.size()}")
+                image_prefix = torch.cat([init_prefix, image_prefix], dim=0)
+                #log.info(f"Final size: {image_prefix.size()}")
         image_prefix = image_prefix.expand(x.shape[0], -1, -1)
         # Here we concat the prefix to the flattened patches
         x = torch.cat([
@@ -176,9 +182,9 @@ class CustomVisionTransformer(nn.Module):
 class CustomImageEncoder(nn.Module):
     """CLIP image encoder"""
 
-    def __init__(self, visual, init_prefix=None, alpha=None):
+    def __init__(self, visual, init_prefix=None, alpha=None, kind=None):
         super(CustomImageEncoder, self).__init__()
-        self.visual = CustomVisionTransformer(visual, alpha)
+        self.visual = CustomVisionTransformer(visual, alpha, kind)
         self.dtype = self.visual.conv1.weight.dtype
         if init_prefix is not None:
             self.init_prefix = init_prefix.type(self.dtype)

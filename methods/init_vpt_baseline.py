@@ -41,21 +41,26 @@ class InitVPTBaseline(VPTBaseline):
         :param seen_classes: list of seen classes' names
         :param unseen_classes: list of unseen classes' names
         :param init_param: initial parameters for the prompts
-        :param kind: 'init', 'mix'
+        :param kind: 'init', 'mix', 'cat'
         :param device: device in use
         """
         super().__init__(
             config, label_to_idx, classes, seen_classes, unseen_classes, device
         )
         
-        if kind == 'mix':
+        if kind == 'mix' or kind == 'cat':
             visual_transformer = self.clip_model.visual
-            self.image_encoder = CustomImageEncoder(visual_transformer, init_prefix=init_param, alpha=self.config.ALPHA).to(self.device)
+            self.image_encoder = CustomImageEncoder(
+                visual_transformer,
+                init_prefix=init_param, 
+                alpha=self.config.ALPHA, 
+                kind=kind,
+            ).to(self.device)
             log.info(f"Freeze visual encoder.")
             for param in self.image_encoder.parameters():
                 param.requires_grad = False
         
-        self.vis_initial_prefix = self.initialize_model_parameters(visual_transformer)
+        self.vis_initial_prefix = init_param#self.initialize_model_parameters(visual_transformer)
         self.config.EPOCHS = self.config.adapt_EPOCHS
 
     def initialize_model_parameters(self, visual_transformer=None):
