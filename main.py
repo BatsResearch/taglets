@@ -410,7 +410,7 @@ def workflow(dataset_dir, obj_conf):
             train_seen_dataset, val_seen_dataset, train_unseen_dataset
         )
         
-        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+        #model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
     elif obj_conf.MODEL == "vpt_pseudo_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
