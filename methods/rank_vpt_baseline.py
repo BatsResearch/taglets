@@ -380,9 +380,9 @@ class RankVPTBaseline(InitVPTBaseline):
             logit_scale = self.clip_model.logit_scale.exp()
 
             # Logits seen on seen classes
-            logits_seen = logit_scale * image_features_seen @ seen_prompts.t()
+            logits_seen = logit_scale * image_features_seen @ unseen_prompts.t()
             # Logits unseen on seen classes
-            logits_unseen = logit_scale * image_features_unseen @ seen_prompts.t()
+            logits_unseen = logit_scale * image_features_unseen @ unseen_prompts.t()
             # log.info(f"Logits on seen classes size: {logits_unseen.size()}")
             
             # Logits unseen on unseen classes
