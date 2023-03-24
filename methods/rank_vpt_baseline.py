@@ -304,10 +304,10 @@ class RankVPTBaseline(InitVPTBaseline):
     def define_loss_function(self, logits, labs, logits_seen, logits_unseen, teacher=False):
         
         ce_loss = self.loss_ce(logits, labs)
-        rank_loss = self.loss_rank(logits_seen, logits_unseen)
-        log.info(f"Rank loss: {rank_loss}")
+        #rank_loss = self.loss_rank(logits_seen, logits_unseen)
+        #log.info(f"Rank loss: {rank_loss}")
         log.info(f"CE loss: {ce_loss}")
-        loss_func = ce_loss + rank_loss
+        loss_func = ce_loss #+ rank_loss
         
         return loss_func
 
@@ -389,8 +389,10 @@ class RankVPTBaseline(InitVPTBaseline):
             # Logits unseen on seen classes
             logits_unseen = logit_scale * image_features_unseen @ unseen_prompts.t()
             
-            log.info(f"Logits on seenclasses size: {logits_unseen == logits_seen}")
-            log.info(f"Features: {image_features_unseen == image_features_seen}")
+            #log.info(f"Logits on seenclasses size: {logits_unseen == logits_seen}")
+            #log.info(f"Features: {image_features_unseen == image_features_seen}")
+            log.info(f"param: {torch.all(self.model.prefix.eq(self.model_seen.prefix))}")
+            log.info(f"some param: {self.model.prefix[:3]}")
             
             # Logits unseen on unseen classes
             logits = logit_scale * image_features_unseen @ unseen_prompts.t()
