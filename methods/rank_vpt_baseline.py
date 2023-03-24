@@ -60,7 +60,7 @@ class RankVPTBaseline(InitVPTBaseline):
             device,
         )
 
-        frozen_param = copy.deep(init_param)
+        frozen_param = copy.deepcopy(init_param)
         self.vis_initial_prefix = init_param
         self.vis_seen_prefix = frozen_param
         log.info(f"INIT param: {init_param[:3]}")
