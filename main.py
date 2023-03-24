@@ -31,6 +31,7 @@ from methods import (
     CoopPseudoBaseline,
     InitVPTBaseline,
     IterativeFixedPseudo,
+    PostVPTBaseline,
     QuantileCoopPseudoBaseline,
     QuantileVPTPseudoBaseline,
     SeparateVPTBaseline,
@@ -317,6 +318,36 @@ def workflow(dataset_dir, obj_conf):
             **dict_classes
         )
 
+    elif obj_conf.MODEL == "post_vpt_baseline":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        
+        filename = f"trained_prompts/{obj_conf.DATASET_NAME}_{obj_conf.MODEL}_{obj_conf.VIS_ENCODER.replace('/','')}_opt_{obj_conf.OPTIM_SEED}_spl_{obj_conf.SPLIT_SEED}.pickle"
+        if os.path.exists(filename):
+            with open(filename, "rb") as f:
+                trained_prompts = pickle.load(f)
+            learned_prefix = torch.tensor(trained_prompts[0]).to(device)
+        else:
+            model = VPTBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
+            val_accuracy, optimal_prompt = model.train(
+                train_seen_dataset, val_seen_dataset, only_seen=True
+            )
+            save_parameters(optimal_prompt, obj_conf, init_seen=True)
+            
+            learned_prefix = torch.tensor(optimal_prompt[0]).to(device)
+
+        log.info(f"Let's now train on the unseen classes exploiting learned prompts")
+        model = PostVPTBaseline(
+            obj_conf, 
+            label_to_idx, 
+            init_param=learned_prefix,
+            device=device, 
+            **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.train(
+            train_seen_dataset, val_seen_dataset, train_unseen_dataset
+        )
+        
+        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
     elif obj_conf.MODEL == "vpt_pseudo_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
@@ -471,7 +502,7 @@ def main():
     obj_conf.DATASET_NAME = os.environ["DATASET_NAME"]
     # Define model name
     obj_conf.MODEL = os.environ["MODEL"]
-    if obj_conf.MODEL == 'mix_vpt_baseline' or obj_conf.MODEL == 'combo_vpt_baseline' or obj_conf.MODEL == 'after_combo_vpt_baseline':
+    if obj_conf.MODEL == 'mix_vpt_baseline' or obj_conf.MODEL == 'combo_vpt_baseline' or obj_conf.MODEL == 'after_combo_vpt_baseline' or obj_conf.MODEL == 'post_vpt_baseline':
         # Define split seed
         obj_conf.ALPHA = float(os.environ["ALPHA"])
     # Define split seed
