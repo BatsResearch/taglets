@@ -141,8 +141,8 @@ class SeparateVPTBaseline(InitVPTBaseline):
                 )
                 # cosine similarity as logits
 
-            log.info(f"shape seen: {image_features_seen.shape}")
-            log.info(f"shape unseen: {image_features_unseen.shape}")
+            #log.info(f"shape seen: {image_features_seen.shape}")
+            #log.info(f"shape unseen: {image_features_unseen.shape}")
             image_features = self.config.ALPHA*image_features_unseen + (1 - self.config.ALPHA)*image_features_unseen
             image_features = image_features / image_features.norm(
                     dim=-1, keepdim=True
