@@ -305,12 +305,12 @@ class RankVPTBaseline(InitVPTBaseline):
 
     def define_loss_function(self, logits, labs, logits_seen, teacher=False):
         
-        #ce_loss = self.loss_ce(logits, labs)
+        ce_loss = self.loss_ce(logits, labs)
         ce_loss_seen = self.loss_ce(logits, logits_seen)
         #rank_loss = self.loss_rank(logits_seen, logits)
         log.info(f"CE seen: {ce_loss_seen}")
-        #log.info(f"CE loss: {ce_loss}")
-        loss_func =  ce_loss_seen # + ce_loss
+        log.info(f"CE loss: {ce_loss}")
+        loss_func =  ce_loss_seen + ce_loss
         
         return loss_func
 
