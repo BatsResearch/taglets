@@ -1,3 +1,4 @@
+import copy
 import logging
 
 import clip
@@ -59,9 +60,9 @@ class RankVPTBaseline(InitVPTBaseline):
             device,
         )
 
-        
+        frozen_param = copy.deep(init_param)
         self.vis_initial_prefix = init_param
-        self.vis_seen_prefix = init_param
+        self.vis_seen_prefix = frozen_param
         log.info(f"INIT param: {init_param[:3]}")
         self.config.EPOCHS = self.config.adapt_EPOCHS
 
