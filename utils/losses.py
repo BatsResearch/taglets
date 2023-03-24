@@ -1,6 +1,8 @@
 import logging
 import math
 import torch
+import torchsort
+
 
 log = logging.getLogger(__name__)
 
@@ -19,6 +21,8 @@ def rank_biased_overlap(seen_distribution, unseen_distribution):
     sort_unseen = torch.argsort(unseen_distribution, descending=True)
     # log.info(f"seen: {sort_unseen}")
     #log.info(f"seen: {sort_unseen==sort_seen}")
+    log.info(f"loss - Features seen: {sort_seen.requires_grad}")
+    log.info(f"loss - Features unseen: {sort_unseen.requires_grad}")
 
     rank_list = []
     for i in range(sort_seen.size()[0]):
@@ -27,6 +31,17 @@ def rank_biased_overlap(seen_distribution, unseen_distribution):
         rank_list.append(1 - i_rank_biased_overlap(l_S, l_U, p=0.9))
 
     return torch.sum(torch.tensor(rank_list))
+
+def spearmanr(pred, target, **kw):
+    pred = torchsort.soft_rank(pred, **kw)
+    target = torchsort.soft_rank(target, **kw)
+    pred = pred - pred.mean()
+    pred = pred / pred.norm()
+    target = target - target.mean()
+    target = target / target.norm()
+    return (pred * target).sum()
+
+
 
 def i_rank_biased_overlap(S, T, p=0.9):
     """ Takes two lists S and T of any lengths and gives out the RBO Score

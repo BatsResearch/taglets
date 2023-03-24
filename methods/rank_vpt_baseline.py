@@ -102,7 +102,7 @@ class RankVPTBaseline(InitVPTBaseline):
         ).to(self.device)
 
         for i, parameter in enumerate(self.model_seen.parameters()):
-            parameter.requires_grad = False
+            #parameter.requires_grad = False
             if parameter.requires_grad:
                 log.info(f"Shape of parameters seen model{i}: {parameter.shape}")
 
@@ -306,10 +306,11 @@ class RankVPTBaseline(InitVPTBaseline):
     def define_loss_function(self, logits, labs, logits_seen, teacher=False):
         
         #ce_loss = self.loss_ce(logits, labs)
-        rank_loss = self.loss_rank(logits_seen, logits)
-        log.info(f"Rank loss: {rank_loss}")
+        ce_loss_seen = self.loss_ce(logits, logits_seen)
+        #rank_loss = self.loss_rank(logits_seen, logits)
+        log.info(f"CE seen: {ce_loss_seen}")
         #log.info(f"CE loss: {ce_loss}")
-        loss_func =  rank_loss # + ce_loss
+        loss_func =  ce_loss_seen # + ce_loss
         
         return loss_func
 
@@ -379,26 +380,19 @@ class RankVPTBaseline(InitVPTBaseline):
             
             seen_prompts = text_features[idx_seen, :]
             unseen_prompts = text_features #[idx_unseen, :]
-            # log.info(f"Size of prompts: {text_features.size()}")
-            # log.info(f"Size of seen prompts: {seen_prompts.size()}")
-            # log.info(f"Size of unseen prompts: {unseen_prompts.size()}")
 
             # cosine similarity as logits
             logit_scale = self.clip_model.logit_scale.exp()
-
+            
             # Logits seen on seen classes
             logits_seen = logit_scale * image_features_seen @ unseen_prompts.t()
+            log.info(f"Features seen: {logits_seen.requires_grad}")
+            labs_seen = torch.argmax(logits_seen, dim=1)
             # Logits unseen on seen classes
-            #logits_unseen = logit_scale * image_features_unseen @ unseen_prompts.t()
-            
-            #log.info(f"Logits on seenclasses size: {logits_unseen == logits_seen}")
-            log.info(f"Features: {torch.all(image_features_unseen.eq(image_features_seen))}")
-            #log.info(f"param: {torch.all(self.model.prefix.eq(self.model_seen.prefix))}")
-            log.info(f"unseen param: {self.model.module.prefix[:3]}")
-            log.info(f"seen param: {self.model_seen.prefix[:3]}")
             
             # Logits unseen on unseen classes
             logits = logit_scale * image_features_unseen @ unseen_prompts.t()
+            log.info(f"Features seen: {logits.requires_grad}")
             idx_preds = torch.argmax(logits, dim=1)
             #log.info(f"variables idx_preds: {idx_preds}")
             #log.info(f"variables only_unlabelled: {only_unlabelled}")
@@ -410,7 +404,7 @@ class RankVPTBaseline(InitVPTBaseline):
             labs = self.reindex_true_labels(label, only_unlabelled=False)
             labs = labs.to(self.device)
             loss = self.define_loss_function(logits, 
-                labs, logits_seen, 
+                labs, labs_seen, 
                 # logits_unseen, 
                 teacher
             )
