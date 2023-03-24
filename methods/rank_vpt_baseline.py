@@ -371,7 +371,7 @@ class RankVPTBaseline(InitVPTBaseline):
                 image_features_seen = image_features_seen / image_features_seen.norm(dim=-1, keepdim=True)
             
             seen_prompts = text_features[idx_seen, :]
-            unseen_prompts = text_features[idx_unseen, :]
+            unseen_prompts = text_features #[idx_unseen, :]
             # log.info(f"Size of prompts: {text_features.size()}")
             # log.info(f"Size of seen prompts: {seen_prompts.size()}")
             # log.info(f"Size of unseen prompts: {unseen_prompts.size()}")
