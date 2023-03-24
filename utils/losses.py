@@ -1,7 +1,6 @@
 import logging
 import math
 import torch
-import torchsort
 
 
 log = logging.getLogger(__name__)
