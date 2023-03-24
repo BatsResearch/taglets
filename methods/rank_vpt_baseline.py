@@ -500,7 +500,7 @@ class RankVPTBaseline(InitVPTBaseline):
 
             idx_preds = torch.argmax(logits, dim=1)
             if self.val_unseen_files is not None:
-                real_preds = [self.classes[i.item()] for i in idx_preds]
+                real_preds = [self.unseen_classes[i.item()] for i in idx_preds]
             else:
                 real_preds = [self.unseen_classes[i.item()] for i in idx_preds]
 
