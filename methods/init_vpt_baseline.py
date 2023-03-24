@@ -55,8 +55,24 @@ class InitVPTBaseline(VPTBaseline):
             for param in self.image_encoder.parameters():
                 param.requires_grad = False
         
-        self.vis_initial_prefix = init_param
+        self.vis_initial_prefix = self.initialize_model_parameters(visual_transformer)
         self.config.EPOCHS = self.config.adapt_EPOCHS
+
+    def initialize_model_parameters(self, visual_transformer=None):
+        """This function defines the models' parameters initialization."""
+
+        # Initialize prefix and pos embeddings for visual prompts
+        width = visual_transformer.class_embedding.size()[0]
+        scale = width**-0.5
+        if self.config.VIS_PREFIX_INIT == "normal":
+            vis_initial_prefix = scale * torch.randn(self.config.PREFIX_SIZE, width)
+
+        elif self.config.VIS_PREFIX_INIT == "uniform":
+            val = math.sqrt(6.0 / float(3 * reduce(mul, (16, 16), 1) + width))  # noqa
+            vis_initial_prefix = torch.zeros(self.config.PREFIX_SIZE, width)
+            vis_initial_prefix = scale * nn.init.uniform_(vis_initial_prefix, -val, val)
+
+        return vis_initial_prefix
 
     def create_training_dataset(self, train_data, unlabeled_data=None):
         """This function create the dataset for training. Specifically, it
