@@ -60,7 +60,7 @@ class InitVPTBaseline(VPTBaseline):
             for param in self.image_encoder.parameters():
                 param.requires_grad = False
         
-        self.vis_initial_prefix = self.initialize_model_parameters(visual_transformer)
+        self.vis_initial_prefix = init_param # self.initialize_model_parameters(visual_transformer)
         self.config.EPOCHS = self.config.adapt_EPOCHS
 
     def initialize_model_parameters(self, visual_transformer=None):
@@ -239,7 +239,7 @@ class InitVPTBaseline(VPTBaseline):
         if only_unlabelled:
             return [self.template.format(" ".join(i.split("_"))) for i in self.unseen_classes]
         else:
-            return [self.template.format(" ".join(i.split("_"))) for i in self.seen_classes]
+            return [self.template.format(" ".join(i.split("_"))) for i in self.classes]
 
     def reindex_predicted_labels(self, idx_preds, only_unlabelled=False):
         """This function returns the correct index of predictions to compute
@@ -252,7 +252,7 @@ class InitVPTBaseline(VPTBaseline):
         if only_unlabelled:
             return [self.unseen_classes[i.item()] for i in idx_preds]
         else:
-            return [self.seen_classes[i.item()] for i in idx_preds]
+            return [self.classes[i.item()] for i in idx_preds]
 
     def reindex_true_labels(self, label, only_unlabelled=False):
         """This function returns the correct index of true labels.
@@ -268,7 +268,7 @@ class InitVPTBaseline(VPTBaseline):
             )
         else:
             return torch.tensor(
-                [self.seen_classes.index(self.classes[l.item()]) for l in label]
+                [self.classes.index(self.classes[l.item()]) for l in label]
             )
 
     def define_loss_function(self, logits, labs, teacher=False):
@@ -316,7 +316,7 @@ class InitVPTBaseline(VPTBaseline):
         """
 
         # Define text queries
-        prompts = self.define_textual_prompts(only_unlabelled)
+        prompts = self.define_textual_prompts(only_unlabelled=False)
         log.info(f"Number of prompts: {len(prompts)}")
 
         # Encode text
@@ -337,12 +337,12 @@ class InitVPTBaseline(VPTBaseline):
             idx_preds = torch.argmax(logits, dim=1)
             #log.info(f"variables idx_preds: {idx_preds}")
             #log.info(f"variables only_unlabelled: {only_unlabelled}")
-            real_preds = self.reindex_predicted_labels(idx_preds, only_unlabelled)
+            real_preds = self.reindex_predicted_labels(idx_preds, only_unlabelled=False)
 
             predictions += real_preds
             labels += [self.classes[i.item()] for i in label]
 
-            labs = self.reindex_true_labels(label, only_unlabelled)
+            labs = self.reindex_true_labels(label, only_unlabelled=False)
             labs = labs.to(self.device)
             loss = self.define_loss_function(logits, labs, teacher)
             total_loss += loss.item()
@@ -443,7 +443,7 @@ class InitVPTBaseline(VPTBaseline):
 
             idx_preds = torch.argmax(logits, dim=1)
             if self.val_unseen_files is not None:
-                real_preds = [self.classes[i.item()] for i in idx_preds]
+                real_preds = [self.unclasses[i.item()] for i in idx_preds]
             else:
                 real_preds = [self.unseen_classes[i.item()] for i in idx_preds]
 
