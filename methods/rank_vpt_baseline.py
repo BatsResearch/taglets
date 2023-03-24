@@ -205,6 +205,9 @@ class RankVPTBaseline(InitVPTBaseline):
             generator=g,
         )
         if self.val_unseen_files is not None:
+            seen_imgs = val_data.filepaths
+            seen_labs = [self.label_to_idx[l] for l in val_data.labels]
+
             unseen_imgs = list(self.val_unseen_files)
             unseen_labs = list(self.val_unseen_labs)
 
