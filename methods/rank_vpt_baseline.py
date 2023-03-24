@@ -215,8 +215,8 @@ class RankVPTBaseline(InitVPTBaseline):
 
         accelerator.wait_for_everyone()
 
-        self.model, self.model_seen, self.optimizer, train_loader, val_loader = accelerator.prepare(
-            self.model, self.model_seen, self.optimizer, train_loader, val_loader
+        self.model, self.optimizer, train_loader, val_loader = accelerator.prepare(
+            self.model, self.optimizer, train_loader, val_loader
         )
 
         best_val_accuracy = 0
