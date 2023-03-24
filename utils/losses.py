@@ -1,9 +1,11 @@
 import logging
 import math
+
 import torch
 
 
 log = logging.getLogger(__name__)
+
 
 def rank_biased_overlap(seen_distribution, unseen_distribution):
     """ Takes two matrices of prob distribution over the seen classes.

@@ -9,6 +9,7 @@ import torch
 from accelerate import Accelerator
 from PIL import Image
 from torch import nn
+import torch.nn.functional as F
 
 accelerator = Accelerator()
 
@@ -92,7 +93,7 @@ class RankVPTBaseline(InitVPTBaseline):
 
         self.scheduler = make_scheduler(self.optimizer, self.config)
         self.loss_ce = torch.nn.CrossEntropyLoss()
-        self.loss_rank = rank_biased_overlap 
+        self.loss_div = torch.nn.KLDivLoss(reduction="batchmean") 
 
         # Define model
         self.model_seen = ImagePrefixModel(
@@ -303,14 +304,19 @@ class RankVPTBaseline(InitVPTBaseline):
                 [self.classes.index(self.classes[l.item()]) for l in label]
             )
 
-    def define_loss_function(self, logits, labs, logits_seen, teacher=False):
+    def define_loss_function(self, logits, labs, logits_seen, logits_unseen, teacher=False):
         
         ce_loss = self.loss_ce(logits, labs)
-        ce_loss_seen = self.loss_ce(logits, logits_seen)
-        #rank_loss = self.loss_rank(logits_seen, logits)
-        log.info(f"CE seen: {ce_loss_seen}")
         log.info(f"CE loss: {ce_loss}")
-        loss_func =  2*ce_loss_seen + ce_loss
+        # ce_loss_seen = self.loss_ce(logits, logits_seen)
+        # log.info(f"CE seen: {ce_loss_seen}")
+        unseen_l = F.log_softmax(logits_unseen, dim=1)
+        seen_l = F.softmax(logits_seen, dim=1)
+        kl_div = self.loss_div(unseen_l, seen_l)
+        log.info(f"KL seen: {kl_div}")
+
+        #loss_func =  2*ce_loss_seen + ce_loss
+        loss_func =  2*kl_div + ce_loss
         
         return loss_func
 
@@ -385,9 +391,13 @@ class RankVPTBaseline(InitVPTBaseline):
             logit_scale = self.clip_model.logit_scale.exp()
             
             # Logits seen on seen classes
-            logits_seen = logit_scale * image_features_seen @ unseen_prompts.t()
+            # logits_seen = logit_scale * image_features_seen @ unseen_prompts.t()
+            # log.info(f"Features seen: {logits_seen.requires_grad}")
+            # labs_seen = torch.argmax(logits_seen, dim=1)
+            logits_seen = logit_scale * image_features_seen @ seen_prompts.t()
             log.info(f"Features seen: {logits_seen.requires_grad}")
-            labs_seen = torch.argmax(logits_seen, dim=1)
+            logits_unseen = logit_scale * image_features_unseen @ seen_prompts.t()
+            log.info(f"Features unseen: {logits_unseen.requires_grad}")
             # Logits unseen on seen classes
             
             # Logits unseen on unseen classes
@@ -403,9 +413,14 @@ class RankVPTBaseline(InitVPTBaseline):
 
             labs = self.reindex_true_labels(label, only_unlabelled=False)
             labs = labs.to(self.device)
+            # loss = self.define_loss_function(logits, 
+            #     labs, labs_seen, 
+            #     # logits_unseen, 
+            #     teacher
+            # )
             loss = self.define_loss_function(logits, 
-                labs, labs_seen, 
-                # logits_unseen, 
+                labs, logits_seen, 
+                logits_unseen, 
                 teacher
             )
             total_loss += loss.item()
