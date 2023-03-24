@@ -15,9 +15,10 @@ def rank_biased_overlap(seen_distribution, unseen_distribution):
     # should change to https://pytorch.org/docs/master/generated/torch.vmap.html#torch.vmap
     
     sort_seen = torch.argsort(seen_distribution, descending=True)
-    log.info(f"seen: {sort_seen}")
+    # log.info(f"seen: {sort_seen}")
     sort_unseen = torch.argsort(unseen_distribution, descending=True)
-    log.info(f"seen: {sort_unseen}")
+    # log.info(f"seen: {sort_unseen}")
+    log.info(f"seen: {sort_unseen==sort_seen}")
 
     rank_list = []
     for i in range(sort_seen.size()[0]):

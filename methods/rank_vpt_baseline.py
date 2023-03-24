@@ -100,6 +100,7 @@ class RankVPTBaseline(InitVPTBaseline):
         ).to(self.device)
 
         for i, parameter in enumerate(self.model_seen.parameters()):
+            param.requires_grad = False
             if parameter.requires_grad:
                 log.info(f"Shape of parameters seen model{i}: {parameter.shape}")
 
@@ -383,7 +384,9 @@ class RankVPTBaseline(InitVPTBaseline):
             logits_seen = logit_scale * image_features_seen @ unseen_prompts.t()
             # Logits unseen on seen classes
             logits_unseen = logit_scale * image_features_unseen @ unseen_prompts.t()
-            # log.info(f"Logits on seen classes size: {logits_unseen.size()}")
+            
+            log.info(f"Logits on seenclasses size: {logits_unseen == logits_seen}")
+            log.info(f"Features: {image_features_unseen == image_features_seen}")
             
             # Logits unseen on unseen classes
             logits = logit_scale * image_features_unseen @ unseen_prompts.t()
