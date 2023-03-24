@@ -390,9 +390,9 @@ class RankVPTBaseline(InitVPTBaseline):
             logits_unseen = logit_scale * image_features_unseen @ unseen_prompts.t()
             
             #log.info(f"Logits on seenclasses size: {logits_unseen == logits_seen}")
-            #log.info(f"Features: {image_features_unseen == image_features_seen}")
-            log.info(f"param: {torch.all(self.model.prefix.eq(self.model_seen.prefix))}")
-            log.info(f"some param: {self.model.prefix[:3]}")
+            log.info(f"Features: {torch.all(image_features_unseen.eq(image_features_seen))}")
+            #log.info(f"param: {torch.all(self.model.prefix.eq(self.model_seen.prefix))}")
+            #log.info(f"some param: {self.model.prefix[:3]}")
             
             # Logits unseen on unseen classes
             logits = logit_scale * image_features_unseen @ unseen_prompts.t()
