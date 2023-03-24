@@ -277,7 +277,7 @@ class RankVPTBaseline(InitVPTBaseline):
         if only_unlabelled:
             return [self.unseen_classes[i.item()] for i in idx_preds]
         else:
-            return [self.seen_classes[i.item()] for i in idx_preds]
+            return [self.classes[i.item()] for i in idx_preds]
 
     def reindex_true_labels(self, label, only_unlabelled=False):
         """This function returns the correct index of true labels.
@@ -293,7 +293,7 @@ class RankVPTBaseline(InitVPTBaseline):
             )
         else:
             return torch.tensor(
-                [self.seen_classes.index(self.classes[l.item()]) for l in label]
+                [self.classes.index(self.classes[l.item()]) for l in label]
             )
 
     def define_loss_function(self, logits, labs, logits_seen, logits_unseen, teacher=False):
@@ -390,12 +390,12 @@ class RankVPTBaseline(InitVPTBaseline):
             idx_preds = torch.argmax(logits, dim=1)
             #log.info(f"variables idx_preds: {idx_preds}")
             #log.info(f"variables only_unlabelled: {only_unlabelled}")
-            real_preds = self.reindex_predicted_labels(idx_preds, only_unlabelled=True)
+            real_preds = self.reindex_predicted_labels(idx_preds, only_unlabelled=False)
 
             predictions += real_preds
             labels += [self.classes[i.item()] for i in label]
 
-            labs = self.reindex_true_labels(label, only_unlabelled)
+            labs = self.reindex_true_labels(label, only_unlabelled=False)
             labs = labs.to(self.device)
             loss = self.define_loss_function(logits, 
                 labs, logits_seen, 
