@@ -4,6 +4,7 @@ from .coop_pseudo_baseline import CoopPseudoBaseline
 from .quantile_coop_pseudo_baseline import QuantileCoopPseudoBaseline
 from .vpt_baseline import VPTBaseline
 from .init_vpt_baseline import InitVPTBaseline
+from .separate_vpt_baseline import SeparateVPTBaseline
 from .vpt_pseudo_baseline import VPTPseudoBaseline
 from .teacher_student import TeacherStudent
 from .ablation_teacher_student import AblationTeacherStudent
