@@ -62,6 +62,7 @@ class RankVPTBaseline(InitVPTBaseline):
         
         self.vis_initial_prefix = init_param
         self.vis_seen_prefix = init_param
+        log.info(f"INIT param: {init_param[:3]}")
         self.config.EPOCHS = self.config.adapt_EPOCHS
 
     def define_models(self, teacher=False):
@@ -392,7 +393,8 @@ class RankVPTBaseline(InitVPTBaseline):
             #log.info(f"Logits on seenclasses size: {logits_unseen == logits_seen}")
             log.info(f"Features: {torch.all(image_features_unseen.eq(image_features_seen))}")
             #log.info(f"param: {torch.all(self.model.prefix.eq(self.model_seen.prefix))}")
-            #log.info(f"some param: {self.model.prefix[:3]}")
+            log.info(f"some param: {self.model.model.prefix[:3]}")
+            log.info(f"some param: {self.model_seen.prefix[:3]}")
             
             # Logits unseen on unseen classes
             logits = logit_scale * image_features_unseen @ unseen_prompts.t()
