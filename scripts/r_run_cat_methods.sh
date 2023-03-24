@@ -7,7 +7,7 @@
 #SBATCH -t 96:00:00
 #SBATCH -p gpu --gres=gpu:4
 #SBATCH --exclude=gpu[717-718,1201-1204,1209,1403]
-#SBATCH -C quadrortx
+##SBATCH -C quadrortx
 
 module load cuda/11.1.1
 

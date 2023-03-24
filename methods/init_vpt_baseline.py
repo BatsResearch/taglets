@@ -60,7 +60,7 @@ class InitVPTBaseline(VPTBaseline):
             for param in self.image_encoder.parameters():
                 param.requires_grad = False
         
-        self.vis_initial_prefix = init_param#self.initialize_model_parameters(visual_transformer)
+        self.vis_initial_prefix = self.initialize_model_parameters(visual_transformer)
         self.config.EPOCHS = self.config.adapt_EPOCHS
 
     def initialize_model_parameters(self, visual_transformer=None):
@@ -478,9 +478,9 @@ class InitVPTBaseline(VPTBaseline):
             unseen_labs = labels_outputs[unseen_true]
             unseen_accuracy = torch.sum(unseen_preds == unseen_labs) / len(unseen_true)
 
-            if only_seen:
-                accuracy = seen_accuracy
-                log.info(f"Validation SEEN accuracy after Epoch: {seen_accuracy}")
+            if only_unlabelled:
+                accuracy = unseen_accuracy
+                log.info(f"Validation SEEN accuracy after Epoch: {unseen_accuracy}")
 
             else:
                 accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
