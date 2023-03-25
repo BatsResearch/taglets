@@ -148,7 +148,8 @@ class CustomVisionTransformer(nn.Module):
 
         if init_prefix is not None:
             if self.kind == 'mix':
-                image_prefix = self.alpha*image_prefix + (1-self.alpha)*init_prefix
+                # image_prefix = self.alpha*image_prefix + (1-self.alpha)*init_prefix 
+                image_prefix = image_prefix + self.alpha*init_prefix 
             elif self.kind == 'cat':
                 #log.info(f"Init size: {init_prefix.size()}")
                 #log.info(f"Unseen size: {image_prefix.size()}")

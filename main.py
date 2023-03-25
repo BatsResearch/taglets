@@ -205,12 +205,20 @@ def workflow(dataset_dir, obj_conf):
 
     elif obj_conf.MODEL == "no_label_vpt_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = VPTBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
-        val_accuracy, optimal_prompt = model.train(
-            train_seen_dataset, val_seen_dataset, only_seen=True
-        )
 
-        learned_prefix = torch.tensor(optimal_prompt[0]).to(device)
+        filename = f"trained_prompts/{obj_conf.DATASET_NAME}_{obj_conf.MODEL}_{obj_conf.VIS_ENCODER.replace('/','')}_opt_{obj_conf.OPTIM_SEED}_spl_{obj_conf.SPLIT_SEED}.pickle"
+        if os.path.exists(filename):
+            with open(filename, "rb") as f:
+                trained_prompts = pickle.load(f)
+            learned_prefix = torch.tensor(trained_prompts[0]).to(device)
+        else:
+            model = VPTBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
+            val_accuracy, optimal_prompt = model.train(
+                train_seen_dataset, val_seen_dataset, only_seen=True
+            )
+            save_parameters(optimal_prompt, obj_conf, init_seen=True)
+            learned_prefix = torch.tensor(optimal_prompt[0]).to(device)
+        
         log.info(f"Let's now train on the unseen classes exploiting learned prompts")
         model = InitVPTBaseline(
             obj_conf, 
@@ -253,7 +261,7 @@ def workflow(dataset_dir, obj_conf):
         val_accuracy, optimal_prompt = model.train(
             train_seen_dataset, val_seen_dataset, train_unseen_dataset
         )
-        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+        # model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
     elif obj_conf.MODEL == "cat_vpt_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
@@ -284,7 +292,7 @@ def workflow(dataset_dir, obj_conf):
         val_accuracy, optimal_prompt = model.train(
             train_seen_dataset, val_seen_dataset, train_unseen_dataset
         )
-        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+        # model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
     elif obj_conf.MODEL == "combo_vpt_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
@@ -314,7 +322,7 @@ def workflow(dataset_dir, obj_conf):
         optimal_prompt = obj_conf.ALPHA*unseen_learned_prefix + (1 - obj_conf.ALPHA)*learned_prefix
         model = VPTBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
         model.define_model()
-        model.model.prefix = torch.nn.Parameter(optimal_prompt)
+        # model.model.prefix = torch.nn.Parameter(optimal_prompt)
 
     elif obj_conf.MODEL == "after_combo_vpt_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
@@ -379,7 +387,7 @@ def workflow(dataset_dir, obj_conf):
             train_seen_dataset, val_seen_dataset, train_unseen_dataset
         )
         
-        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+        # model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
     elif obj_conf.MODEL == 'rank_vpt_baseline':
         log.info(f"The model in use is: {obj_conf.MODEL}")

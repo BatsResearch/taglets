@@ -1,3 +1,4 @@
+import copy
 import logging
 
 import clip
@@ -48,11 +49,13 @@ class InitVPTBaseline(VPTBaseline):
             config, label_to_idx, classes, seen_classes, unseen_classes, device
         )
         
+        original_init = copy.deepcopy(init_param)
+        self.balance_weight = self.N_PSEUDOSHOTS*self.unseen_classes
         if kind == 'mix' or kind == 'cat':
             visual_transformer = self.clip_model.visual
             self.image_encoder = CustomImageEncoder(
                 visual_transformer,
-                init_prefix=init_param, 
+                init_prefix=original_init, 
                 alpha=self.config.ALPHA, 
                 kind=kind,
             ).to(self.device)
