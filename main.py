@@ -235,7 +235,7 @@ def workflow(dataset_dir, obj_conf):
     elif obj_conf.MODEL == "mix_vpt_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
 
-        filename = f"trained_prompts/{obj_conf.DATASET_NAME}_{obj_conf.MODEL}_{obj_conf.VIS_ENCODER.replace('/','')}_opt_{obj_conf.OPTIM_SEED}_spl_{obj_conf.SPLIT_SEED}.pickle"
+        filename = f"trained_prompts/{obj_conf.DATASET_NAME}_no_label_vpt_baseline_{obj_conf.VIS_ENCODER.replace('/','')}_opt_{obj_conf.OPTIM_SEED}_spl_{obj_conf.SPLIT_SEED}.pickle"
         if os.path.exists(filename):
             with open(filename, "rb") as f:
                 trained_prompts = pickle.load(f)
@@ -266,7 +266,7 @@ def workflow(dataset_dir, obj_conf):
     elif obj_conf.MODEL == "cat_vpt_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
 
-        filename = f"trained_prompts/{obj_conf.DATASET_NAME}_{obj_conf.MODEL}_{obj_conf.VIS_ENCODER.replace('/','')}_opt_{obj_conf.OPTIM_SEED}_spl_{obj_conf.SPLIT_SEED}.pickle"
+        filename = f"trained_prompts/{obj_conf.DATASET_NAME}_no_label_vpt_baseline_{obj_conf.VIS_ENCODER.replace('/','')}_opt_{obj_conf.OPTIM_SEED}_spl_{obj_conf.SPLIT_SEED}.pickle"
         if os.path.exists(filename):
             with open(filename, "rb") as f:
                 trained_prompts = pickle.load(f)
