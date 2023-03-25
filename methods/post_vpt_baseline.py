@@ -1,3 +1,4 @@
+import copy
 import logging
 
 import clip
@@ -48,8 +49,9 @@ class PostVPTBaseline(InitVPTBaseline):
             config, label_to_idx, classes, seen_classes, unseen_classes, init_param, device
         )
         
+        original_init = copy.deepcopy(init_param)
         self.vis_initial_prefix = init_param
-        self.vis_seen_prefix = init_param
+        self.vis_seen_prefix = original_init
         self.config.EPOCHS = self.config.adapt_EPOCHS
 
     def define_models(self, teacher=False):
@@ -66,7 +68,7 @@ class PostVPTBaseline(InitVPTBaseline):
 
         for i, parameter in enumerate(self.model.parameters()):
             if parameter.requires_grad:
-                log.info(f"Shape of parameters {i}: {parameter.shape}")
+                log.info(f"Shape of unseen parameters {i}: {parameter.shape}")
 
         if self.config.OPTIM == "SGD":
             self.optimizer = torch.optim.SGD(
@@ -87,6 +89,7 @@ class PostVPTBaseline(InitVPTBaseline):
         ).to(self.device)
 
         for i, parameter in enumerate(self.model_seen.parameters()):
+            parameter.requires_grad = False
             if parameter.requires_grad:
                 log.info(f"Shape of parameters seen model{i}: {parameter.shape}")
 
@@ -196,8 +199,8 @@ class PostVPTBaseline(InitVPTBaseline):
 
         accelerator.wait_for_everyone()
 
-        self.model, self.model_seen, self.optimizer, train_loader, val_loader = accelerator.prepare(
-            self.model, self.model_seen, self.optimizer, train_loader, val_loader
+        self.model, self.optimizer, train_loader, val_loader = accelerator.prepare(
+            self.model, self.optimizer, train_loader, val_loader
         )
 
         best_val_accuracy = 0
@@ -352,9 +355,9 @@ class PostVPTBaseline(InitVPTBaseline):
 
             # combine feature
             image_features = self.config.ALPHA*image_features_unseen + (1 - self.config.ALPHA)*image_features_seen
-            image_features = image_features / image_features.norm(
-                    dim=-1, keepdim=True
-                )
+            # image_features = image_features / image_features.norm(
+            #         dim=-1, keepdim=True
+            #     )
             # cosine similarity as logits
             logit_scale = self.clip_model.logit_scale.exp()
             logits = logit_scale * image_features @ text_features.t()

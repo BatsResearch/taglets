@@ -334,7 +334,7 @@ def workflow(dataset_dir, obj_conf):
                 trained_prompts = pickle.load(f)
             learned_prefix = torch.tensor(trained_prompts[0]).to(device)
         else:
-            raise Exception(f"Sorry, no model found. Run mix_vpt with for the seen initialization.")
+            raise Exception(f"Sorry, no model found. Run no_label_vpt_baseline with for the seen initialization.")
 
         log.info(f"Let's now train on the unseen classes exploiting learned prompts")
 
@@ -345,7 +345,7 @@ def workflow(dataset_dir, obj_conf):
                 unseen_trained_prompts = pickle.load(f)
             unseen_learned_prefix = torch.tensor(unseen_trained_prompts[0]).to(device)
         else:
-            raise Exception(f"Sorry, no model found. Run mix_vpt with alpha=1")
+            raise Exception(f"Sorry, no model found. Run no_label_vpt_baseline with alpha=1")
 
         log.info(f"Shape seen prompt: {learned_prefix.shape} and alpha: {obj_conf.ALPHA}")
         log.info(f"Shape unseen prompt: {unseen_learned_prefix.shape} and alpha {obj_conf.ALPHA}")
@@ -361,7 +361,7 @@ def workflow(dataset_dir, obj_conf):
     elif obj_conf.MODEL == "post_vpt_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
         
-        filename = f"trained_prompts/{obj_conf.DATASET_NAME}_{obj_conf.MODEL}_{obj_conf.VIS_ENCODER.replace('/','')}_opt_{obj_conf.OPTIM_SEED}_spl_{obj_conf.SPLIT_SEED}.pickle"
+        filename = f"trained_prompts/{obj_conf.DATASET_NAME}_no_label_vpt_baseline_{obj_conf.VIS_ENCODER.replace('/','')}_opt_{obj_conf.OPTIM_SEED}_spl_{obj_conf.SPLIT_SEED}.pickle"
         if os.path.exists(filename):
             with open(filename, "rb") as f:
                 trained_prompts = pickle.load(f)
@@ -372,7 +372,6 @@ def workflow(dataset_dir, obj_conf):
                 train_seen_dataset, val_seen_dataset, only_seen=True
             )
             save_parameters(optimal_prompt, obj_conf, init_seen=True)
-            
             learned_prefix = torch.tensor(optimal_prompt[0]).to(device)
 
         log.info(f"Let's now train on the unseen classes exploiting learned prompts")
@@ -389,10 +388,10 @@ def workflow(dataset_dir, obj_conf):
         
         # model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
-    elif obj_conf.MODEL == 'rank_vpt_baseline':
+    elif obj_conf.MODEL == 'regularizer_vpt_baseline':
         log.info(f"The model in use is: {obj_conf.MODEL}")
         
-        filename = f"trained_prompts/{obj_conf.DATASET_NAME}_{obj_conf.MODEL}_{obj_conf.VIS_ENCODER.replace('/','')}_opt_{obj_conf.OPTIM_SEED}_spl_{obj_conf.SPLIT_SEED}.pickle"
+        filename = f"trained_prompts/{obj_conf.DATASET_NAME}_rank_vpt_baseline_{obj_conf.VIS_ENCODER.replace('/','')}_opt_{obj_conf.OPTIM_SEED}_spl_{obj_conf.SPLIT_SEED}.pickle"
         if os.path.exists(filename):
             with open(filename, "rb") as f:
                 trained_prompts = pickle.load(f)
@@ -419,6 +418,8 @@ def workflow(dataset_dir, obj_conf):
         )
         
         #model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+
+
 
     elif obj_conf.MODEL == "vpt_pseudo_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")

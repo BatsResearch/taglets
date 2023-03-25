@@ -38,7 +38,8 @@ class RankVPTBaseline(InitVPTBaseline):
         unseen_classes, 
         init_param,
         device,
-        kind='init',
+        regularizer='kl',
+        classes_regularizer='seen',
     ):
         """This class defines Coop's training and evaluation.
 
@@ -48,7 +49,8 @@ class RankVPTBaseline(InitVPTBaseline):
         :param seen_classes: list of seen classes' names
         :param unseen_classes: list of unseen classes' names
         :param init_param: initial parameters for the prompts
-        :param kind: 'init', 'mix'
+        :param regularizer: 'kl', 'ce', 'both'
+        :param classes_regularizer: 'seen', 'all'
         :param device: device in use
         """
         super().__init__(
@@ -64,8 +66,9 @@ class RankVPTBaseline(InitVPTBaseline):
         frozen_param = copy.deepcopy(init_param)
         self.vis_initial_prefix = init_param
         self.vis_seen_prefix = frozen_param
-        log.info(f"INIT param: {init_param[:3]}")
         self.config.EPOCHS = self.config.adapt_EPOCHS
+        self.regularizer = regularizer
+        self.classes_regularizer = classes_regularizer
 
     def define_models(self, teacher=False):
         """This function allows to define the model and its
