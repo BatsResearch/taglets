@@ -19,10 +19,10 @@ sleep $[ ( $RANDOM % 30 )  + 1 ]s
 
 for vis_encoder in 'ViT-B/32'; do # 'ViT-B/32' 'RN50' 'ViT-L/14' 'RN101'
 for split_seed in 500; do #  0 200
-for model in no_label_vpt_baseline mix_vpt_baseline cat_vpt_baseline; do #  all_vpt_pseudo_baseline; do 
 for dataset_name in RESICS45 Flowers102 DTD EuroSat FGVCAircraft MNIST; do
 for optim_seed in 1 2 3 4 5; do # 10 100 50 400 250; do
-for alpha in 1; do
+for model in combo_vpt_baseline; do #  all_vpt_pseudo_baseline; do 
+for alpha in 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1; do
 
     export OPTIM_SEED="$optim_seed"
     export VIS_ENCODER="$vis_encoder"

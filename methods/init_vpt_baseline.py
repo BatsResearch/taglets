@@ -50,7 +50,7 @@ class InitVPTBaseline(VPTBaseline):
         )
         
         original_init = copy.deepcopy(init_param)
-        self.balance_weight = self.N_PSEUDOSHOTS*self.unseen_classes
+        self.balance_weight = self.N_PSEUDOSHOTS*(len(self.unseen_classes))
         if kind == 'mix' or kind == 'cat':
             visual_transformer = self.clip_model.visual
             self.image_encoder = CustomImageEncoder(

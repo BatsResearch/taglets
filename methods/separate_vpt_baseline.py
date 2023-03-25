@@ -143,7 +143,8 @@ class SeparateVPTBaseline(InitVPTBaseline):
 
             #log.info(f"shape seen: {image_features_seen.shape}")
             #log.info(f"shape unseen: {image_features_unseen.shape}")
-            image_features = self.config.ALPHA*image_features_unseen + (1 - self.config.ALPHA)*image_features_unseen
+            #image_features = self.config.ALPHA*image_features_unseen + (1 - self.config.ALPHA)*image_features_unseen
+            image_features = image_features_unseen + (self.config.N_PSEUDOSHOTS*len(self.unseen_classes))*image_features_seen
             image_features = image_features / image_features.norm(
                     dim=-1, keepdim=True
             )
