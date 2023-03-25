@@ -1,5 +1,5 @@
 # Dataset name
-DATASET_DIR: '/Users/menga/Desktop/github/zsl_taglets/development' #  '/users/cmenghin/data/bats/datasets/classification' # 
+DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification' # '/Users/menga/Desktop/github/zsl_taglets/development' #  
 DATASET_NAME: "$DATASET_NAME"
 # Model
 MODEL: "$MODEL"
@@ -10,6 +10,7 @@ PROMPT_TEMPLATE: 'imported in main.py'
 # Prefix size
 PREFIX_SIZE: 16
 N_PSEUDOSHOTS: 16
+STEP_QUANTILE: 10
 ALPHA: "$ALPHA"
 # Prefix initialization: normal/uniform
 VIS_PREFIX_INIT: "normal"
@@ -25,8 +26,8 @@ ratio_train_val: 0.8
 # Batch size
 BATCH_SIZE: 32
 # Number of epochs
-EPOCHS: 2
-adapt_EPOCHS: 2
+EPOCHS: 150
+adapt_EPOCHS: 200
 # Scheduler
 SCHEDULER: "cosine"
 # Scheduler warmup epochs
@@ -40,7 +41,7 @@ LR: 0.1
 DECAY: 0.1
 STEP_SIZE: 1
 # Regularizer
-ITERATIVE: False
+ITERATIVE: True
 REGULARIZER: "$REGULARIZER"
 CLASSES_REGULARIZER: "$CLASSES_REGULARIZER"
 # Set seeds
@@ -49,3 +50,5 @@ OPTIM_SEED: "$OPTIM_SEED"
 CLASSES_SPLIT: SPLIT_SEED
 # Seed split
 SPLIT_SEED: "$SPLIT_SEED"
+# Increase num pseudo-labels
+ALL_UNLABELED: True

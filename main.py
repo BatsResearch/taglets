@@ -419,7 +419,36 @@ def workflow(dataset_dir, obj_conf):
         
         #model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
+    elif obj_conf.MODEL == 'iterative_regularizer_vpt_baseline':
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        
+        filename = f"trained_prompts/{obj_conf.DATASET_NAME}_rank_vpt_baseline_{obj_conf.VIS_ENCODER.replace('/','')}_opt_{obj_conf.OPTIM_SEED}_spl_{obj_conf.SPLIT_SEED}.pickle"
+        if os.path.exists(filename):
+            with open(filename, "rb") as f:
+                trained_prompts = pickle.load(f)
+            learned_prefix = torch.tensor(trained_prompts[0]).to(device)
+        else:
+            model = VPTBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
+            val_accuracy, optimal_prompt = model.train(
+                train_seen_dataset, val_seen_dataset, only_seen=True
+            )
+            save_parameters(optimal_prompt, obj_conf, init_seen=True)
+            
+            learned_prefix = torch.tensor(optimal_prompt[0]).to(device)
 
+        log.info(f"Let's now train on the unseen classes exploiting learned prompts")
+        model = RankVPTBaseline(
+            obj_conf, 
+            label_to_idx, 
+            init_param=learned_prefix,
+            device=device, 
+            **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.iterative_train(
+            train_seen_dataset, val_seen_dataset, train_unseen_dataset
+        )
+        
+        #model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
     elif obj_conf.MODEL == "vpt_pseudo_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
@@ -581,6 +610,12 @@ def main():
     or obj_conf.MODEL == 'cat_vpt_baseline':
         # Define split seed
         obj_conf.ALPHA = float(os.environ["ALPHA"])
+    # Regularizer
+    if obj_conf.MODEL == 'regularizer_vpt_baseline' or obj_conf.MODEL == 'iterative_regularizer_vpt_baseline':
+        # Define split seed
+        obj_conf.REGULARIZER = os.environ["REGULARIZER"]
+        obj_conf.CLASSES_REGULARIZER = os.environ["CLASSES_REGULARIZER"]
+
     # Define split seed
     obj_conf.SPLIT_SEED = int(os.environ["SPLIT_SEED"])
     # Define dataset's template for textual prompts

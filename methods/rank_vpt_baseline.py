@@ -1,5 +1,6 @@
 import copy
 import logging
+import math
 
 import clip
 import numpy as np
@@ -16,10 +17,13 @@ accelerator = Accelerator()
 from methods import InitVPTBaseline
 from models import CustomImageEncoder, ImagePrefixModel
 from utils import (
+    dataset_object, 
     make_scheduler, 
-    seed_worker, 
     pseudolabel_top_k, 
     rank_biased_overlap,
+    seed_worker, 
+    save_parameters,
+    save_pseudo_labels,
 )
 
 
@@ -38,8 +42,6 @@ class RankVPTBaseline(InitVPTBaseline):
         unseen_classes, 
         init_param,
         device,
-        regularizer='kl',
-        classes_regularizer='seen',
     ):
         """This class defines Coop's training and evaluation.
 
@@ -67,8 +69,8 @@ class RankVPTBaseline(InitVPTBaseline):
         self.vis_initial_prefix = init_param
         self.vis_seen_prefix = frozen_param
         self.config.EPOCHS = self.config.adapt_EPOCHS
-        self.regularizer = regularizer
-        self.classes_regularizer = classes_regularizer
+        self.regularizer = self.config.REGULARIZER
+        self.classes_regularizer = self.config.CLASSES_REGULARIZER
 
     def define_models(self, teacher=False):
         """This function allows to define the model and its
@@ -172,6 +174,280 @@ class RankVPTBaseline(InitVPTBaseline):
 
         return train_data
 
+    def iterative_train(
+        self,
+        train_data,
+        val_data,
+        unlabeled_data,
+    ):
+        # Number of total iterations to cover all unlabeled data
+        num_iter = int(100/self.config.STEP_QUANTILE)
+        num_samples = int(len(unlabeled_data) / num_iter)
+        # Initialize the number of pseudo-labels per class
+        n_per_class = int(num_samples / len(self.unseen_classes))
+        n_unseen = len(self.unseen_classes)
+        if n_per_class * n_unseen <= len(unlabeled_data.filepaths):
+            # self.num_pseudo_labels_per_class =  n_per_class
+            self.config.N_PSEUDOSHOTS = n_per_class
+        else:
+            # self.num_pseudo_labels_per_class =  math.floor(len(unlabeled_data.filepaths)/n_unseen)
+            self.config.N_PSEUDOSHOTS = math.floor(
+                len(unlabeled_data.filepaths) / n_unseen
+            )
+
+        log.info(f"We select {self.config.N_PSEUDOSHOTS} pseudolabel per each unseen classes.")
+        log.info(f"The number of unseen classes is: {len(self.unseen_classes)}.")
+        log.info(f"Thus we expect an initial number of pseudo labeles equal to {len(self.unseen_classes) * self.config.N_PSEUDOSHOTS}.")
+
+        # Create a safe copy of labeled/unlabeled data
+        original_train_data = copy.deepcopy(train_data)
+        # log.info(f"Training data labels: {original_train_data.labels}")
+        original_unlabeled_data = copy.deepcopy(unlabeled_data)
+        # Original val
+        original_val_data = copy.deepcopy(val_data)
+
+        # 1. Get training data  (also get pseudo-labeles from CLIP)
+        self.create_training_dataset(train_data, unlabeled_data)
+        log.info(f"The original train data has size: {len(original_train_data.filepaths)}.")
+        log.info(f"Only with unlabeled is: {len(unlabeled_data.filepaths)}.")
+
+        # Save pseudolabels
+        log.info(f"Saving pseudo-labels for init")
+        save_pseudo_labels(
+            unlabeled_data.filepaths, 
+            unlabeled_data.labels, 
+            self.config, 
+            0,
+            teacher=False,
+        )
+
+        for niter in range(1, num_iter + 1):
+            log.info(f"Start {niter} round of training..")
+
+            train_data.filepaths = [
+                f for i, f in enumerate(original_train_data.filepaths)
+            ]
+            train_data.labels = [l for i, l in enumerate(original_train_data.labels)]
+
+            self.update_training_set(train_data, unlabeled_data)
+
+            # 2. Define model
+            self.define_models()
+            log.info(f"[MODEL] Initialization iter {niter}")
+
+            # Validation with seen and unseen.
+            if self.val_unseen_files is not None:
+                seen_imgs = original_val_data.filepaths
+                seen_labs = [self.label_to_idx[l] for l in original_val_data.labels]
+
+                unseen_imgs = list(self.val_unseen_files)
+                unseen_labs = list(self.val_unseen_labs)
+
+                val_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+                val_data.labels = list(unseen_labs) + list(seen_labs)
+                val_data.label_id = True
+
+            # 3. Train model
+            log.info(f"[MODEL] Start model training iter {niter}..")
+            t_best_val_accuracy, t_best_prompt = self.train(
+                train_data, val_data
+            )
+            log.info(f"[MODEL] Training completed iter {niter}.")
+
+            # 4. Generate new pseudo-labels
+            # Define number of pseudo-labels to collect
+            if self.config.ALL_UNLABELED:
+                n_per_class = int((niter + 1) * num_samples / n_unseen)
+                if n_per_class * n_unseen <= len(original_unlabeled_data.filepaths):
+                    self.config.N_PSEUDOSHOTS = n_per_class
+                else:
+                    # We are making a stong assumption about the distribution of unlabeled data
+                    self.config.N_PSEUDOSHOTS = math.floor(
+                        len(original_unlabeled_data.filepaths) / n_unseen
+                    )
+
+            log.info(f"[MODEL] Collecting model pseudo-labels on unlabeled data..")
+            unlabeled_data = self.get_pseudo_labels(
+                original_unlabeled_data
+            )
+
+             # Save pseudolabels
+            log.info(f"Saving pseudo-labels for iteration {niter}")
+            save_pseudo_labels(
+                unlabeled_data.filepaths, 
+                unlabeled_data.labels, 
+                self.config, 
+                niter,
+                teacher=True,
+            )
+
+            save_parameters(
+                t_best_prompt,
+                self.config, 
+                teacher=True, 
+                iteration=niter
+            )
+
+        return t_best_val_accuracy, t_best_prompt
+
+    def get_pseudo_labels(self, unlabeled_examples, teacher=True):
+        log.info(f"Num unlabeled data: {len(unlabeled_examples)}")
+        # Get prediction of teacher on unlabeled data
+        std_preds = self.test_predictions(
+            unlabeled_examples, standard_zsl=True
+        )
+
+        DatasetObject = dataset_object(self.config.DATASET_NAME)
+        # 4. Take top-16 pseudo-labels to finetune the student
+        pseudo_unseen_examples = DatasetObject(
+            std_preds["id"],
+            self.data_folder,
+            transform=self.transform,
+            augmentations=None,
+            train=True,
+            labels=None,
+            label_map=self.label_to_idx,
+            class_folder=True,
+            original_filepaths=unlabeled_examples.filepaths,
+        )
+
+        pseudo_labels = self.assign_pseudo_labels(
+            self.config.N_PSEUDOSHOTS, pseudo_unseen_examples
+        )
+
+        return pseudo_labels
+
+    def assign_pseudo_labels(self, k, unlabeled_data, teacher=True):
+        # Define text queries
+        prompts = [
+            self.template.format(" ".join(i.split("_"))) for i in self.unseen_classes
+        ]
+        log.info(f"Number of prompts: {len(prompts)}")
+
+        # Encode text
+        text = clip.tokenize(prompts).to(self.device)
+        text_features = self.clip_model.encode_text(text)
+        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+
+        # to find the top k for each class, each class has it's own "leaderboard"
+        top_k_leaderboard = {
+            self.label_to_idx[self.unseen_classes[i]]: []
+            for i in range(len(self.unseen_classes))
+        }  # maps class idx -> (confidence, image_path) tuple
+
+        for img_path in unlabeled_data.filepaths:
+            # log.info(f"IMAGEPATH: {img_path}")
+            img = Image.open(img_path).convert("RGB")
+            img = torch.unsqueeze(self.transform(img), 0).to(self.device)
+            with torch.no_grad():
+                if teacher:
+                    image_features = self.teacher(img)
+                else:
+                    image_features = self.student(img)
+                image_features = image_features / image_features.norm(
+                    dim=-1, keepdim=True
+                )
+                # cosine similarity as logits
+
+            logit_scale = self.clip_model.logit_scale.exp()
+            logits = logit_scale * image_features @ text_features.t()
+            probs = logits.softmax(dim=-1)
+            idx_preds = torch.argmax(logits, dim=1)
+            pred_id = idx_preds.item()
+            pred = self.label_to_idx[self.unseen_classes[idx_preds.item()]]
+
+            """if predicted class has empty leaderboard, or if the confidence is high
+            enough for predicted class leaderboard, add the new example
+            """
+            prob_score = probs[0][pred_id]
+            if len(top_k_leaderboard[pred]) < k:
+                top_k_leaderboard[pred].append((prob_score, img_path))
+            elif (
+                top_k_leaderboard[pred][-1][0] < prob_score
+            ):  # if the confidence in predicted class "qualifies" for top-k
+                # default sorting of tuples is by first element
+                top_k_leaderboard[pred] = sorted(
+                    top_k_leaderboard[pred] + [(probs[0][pred_id], img_path)],
+                    reverse=True,
+                )[:k]
+            else:
+                # sort the other classes by confidence score
+                order_of_classes = sorted(
+                    [
+                        (probs[0][j], j)
+                        for j in range(len(self.unseen_classes))
+                        if j != pred_id
+                    ],
+                    reverse=True,
+                )
+                for score, index in order_of_classes:
+                    index_dict = self.label_to_idx[self.unseen_classes[index]]
+                    # log.info(f"{classnames[index]}")
+                    # log.info(f"{index_dict}")
+                    if len(top_k_leaderboard[index_dict]) < k:
+                        top_k_leaderboard[index_dict].append(
+                            (probs[0][index], img_path)
+                        )
+                    elif top_k_leaderboard[index_dict][-1][0] < probs[0][index]:
+                        # default sorting of tuples is by first element
+                        top_k_leaderboard[index_dict] = sorted(
+                            top_k_leaderboard[index_dict]
+                            + [((probs[0][index], img_path))],
+                            reverse=True,
+                        )[:k]
+
+        new_imgs = []
+        new_labels = []
+        # loop through, and rebuild the dataset
+        for index, leaderboard in top_k_leaderboard.items():
+            new_imgs += [tup[1] for tup in leaderboard]
+            new_labels += [index for _ in leaderboard]
+
+        unlabeled_data.filepaths = new_imgs
+        unlabeled_data.labels = new_labels
+        unlabeled_data.label_id = True
+
+        return unlabeled_data
+
+    def update_training_set(self, train_data, unlabeled_data):
+        
+        # Get pseudo-labels for unlabeled data from unseen classes
+        train_unseen_dataset = unlabeled_data
+        # Define the lists of traiing data from seen and unseen classes
+        unseen_imgs = train_unseen_dataset.filepaths
+        unseen_labs = train_unseen_dataset.labels
+
+        # Use a portion of the pseudo-labeled data to build a validation set
+        if self.config.N_PSEUDOSHOTS >= 10:
+            np.random.seed(self.config.validation_seed)
+            train_indices = np.random.choice(
+                range(len(unseen_imgs)),
+                size=int(len(unseen_imgs) * self.config.ratio_train_val),
+                replace=False,
+            )
+            val_indices = list(
+                set(range(len(unseen_imgs))).difference(set(train_indices))
+            )
+
+            self.val_unseen_files = np.array(unseen_imgs)[val_indices]
+            self.val_unseen_labs = np.array(unseen_labs)[val_indices]
+
+            unseen_imgs = list(np.array(unseen_imgs)[train_indices])
+            unseen_labs = list(np.array(unseen_labs)[train_indices])
+        else:
+            self.val_unseen_files = None
+            self.val_unseen_labs = None
+
+        # Specify train labeled data
+        seen_imgs = train_data.filepaths
+        seen_labs = [self.label_to_idx[l] for l in train_data.labels]        
+
+        train_data.filepaths = list(unseen_imgs) 
+        train_data.labels = list(unseen_labs) 
+        train_data.label_id = True
+        log.info(f"UPDATED DATASET SIZE: {len(train_data.filepaths)}")
+
+
     def train(
         self,
         train_data,
@@ -192,10 +468,12 @@ class RankVPTBaseline(InitVPTBaseline):
                                 pseudo-labeled unseen data
         """
 
-        # Define training dataset
-        self.create_training_dataset(train_data, unlabeled_data)
+        if self.config.ITERATIVE == False:
+            # Define training dataset
+            self.create_training_dataset(train_data, unlabeled_data)
 
-        self.define_models()
+            self.define_models()
+        
         # Declare the data pre processing for train and validation data
         train_data.transform = self.transform
         val_data.transform = self.transform
@@ -207,16 +485,17 @@ class RankVPTBaseline(InitVPTBaseline):
             worker_init_fn=seed_worker,
             generator=g,
         )
-        if self.val_unseen_files is not None:
-            seen_imgs = val_data.filepaths
-            seen_labs = [self.label_to_idx[l] for l in val_data.labels]
+        if self.config.ITERATIVE == False:
+            if self.val_unseen_files is not None:
+                seen_imgs = val_data.filepaths
+                seen_labs = [self.label_to_idx[l] for l in val_data.labels]
 
-            unseen_imgs = list(self.val_unseen_files)
-            unseen_labs = list(self.val_unseen_labs)
+                unseen_imgs = list(self.val_unseen_files)
+                unseen_labs = list(self.val_unseen_labs)
 
-            val_data.filepaths = list(unseen_imgs) + list(seen_imgs)
-            val_data.labels = list(unseen_labs) + list(seen_labs)
-            val_data.label_id = True
+                val_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+                val_data.labels = list(unseen_labs) + list(seen_labs)
+                val_data.label_id = True
 
         val_loader = torch.utils.data.DataLoader(
             val_data, batch_size=self.config.BATCH_SIZE
@@ -310,19 +589,33 @@ class RankVPTBaseline(InitVPTBaseline):
                 [self.classes.index(self.classes[l.item()]) for l in label]
             )
 
-    def define_loss_function(self, logits, labs, logits_seen, logits_unseen, teacher=False):
+    def define_loss_function(self, logits, labs, logits_seen, logits_unseen, labs_seen=None, teacher=False):
         
         ce_loss = self.loss_ce(logits, labs)
         log.info(f"CE loss: {ce_loss}")
-        # ce_loss_seen = self.loss_ce(logits, logits_seen)
-        # log.info(f"CE seen: {ce_loss_seen}")
-        unseen_l = F.log_softmax(logits_unseen, dim=1)
-        seen_l = F.softmax(logits_seen, dim=1)
-        kl_div = self.loss_div(unseen_l, seen_l)
-        log.info(f"KL seen: {kl_div}")
 
-        #loss_func =  2*ce_loss_seen + ce_loss
-        loss_func =  (len(self.unseen_classes)*self.config.N_PSEUDOSHOTS)*kl_div + ce_loss
+        if self.regularizer == 'kl':
+            unseen_l = F.log_softmax(logits_unseen, dim=1)
+            seen_l = F.softmax(logits_seen, dim=1)
+            kl_div = self.loss_div(unseen_l, seen_l)
+            log.info(f"KL seen: {kl_div}")
+            loss_func =  (len(self.seen_classes)*self.config.N_PSEUDOSHOTS)*kl_div + ce_loss
+            
+        elif self.regularizer == 'ce':
+            ce_seen = self.loss_ce(logits_unseen, labs_seen)
+            log.info(f"CE seen loss: {ce_seen}")
+            loss_func =  (len(self.seen_classes)*self.config.N_PSEUDOSHOTS)*ce_seen + ce_loss
+
+        elif self.regularizer == 'both':
+            unseen_l = F.log_softmax(logits_unseen, dim=1)
+            seen_l = F.softmax(logits_seen, dim=1)
+            kl_div = self.loss_div(unseen_l, seen_l)
+            log.info(f"KL seen: {kl_div}")
+
+            ce_seen = self.loss_ce(logits_unseen, labs_seen)
+            log.info(f"CE seen loss: {ce_seen}")
+            
+            loss_func =  (len(self.seen_classes)*self.config.N_PSEUDOSHOTS)*(ce_seen + kl_div) + ce_loss
         
         return loss_func
 
@@ -390,25 +683,30 @@ class RankVPTBaseline(InitVPTBaseline):
                 image_features_seen = self.model_seen(img)
                 image_features_seen = image_features_seen / image_features_seen.norm(dim=-1, keepdim=True)
             
-            seen_prompts = text_features[idx_seen, :]
-            unseen_prompts = text_features #[idx_unseen, :]
+            if self.classes_regularizer == 'seen':
+                seen_prompts = text_features[idx_seen, :]
+            elif self.classes_regularizer == 'all':
+                seen_prompts = text_features
+            
+            unseen_prompts = text_features
 
             # cosine similarity as logits
             logit_scale = self.clip_model.logit_scale.exp()
             
             # Logits seen on seen classes
-            # logits_seen = logit_scale * image_features_seen @ unseen_prompts.t()
-            # log.info(f"Features seen: {logits_seen.requires_grad}")
-            # labs_seen = torch.argmax(logits_seen, dim=1)
             logits_seen = logit_scale * image_features_seen @ seen_prompts.t()
-            log.info(f"Features seen: {logits_seen.requires_grad}")
-            logits_unseen = logit_scale * image_features_unseen @ seen_prompts.t()
-            log.info(f"Features unseen: {logits_unseen.requires_grad}")
+            # log.info(f"Features seen: {logits_seen.requires_grad}")
+            if self.regularizer == 'ce' or self.regularizer == 'both':
+                labs_seen = torch.argmax(logits_seen, dim=1)
+            else:
+                labs_seen = None
             # Logits unseen on seen classes
+            logits_unseen = logit_scale * image_features_unseen @ seen_prompts.t()
+            # log.info(f"Features unseen: {logits_unseen.requires_grad}")
             
-            # Logits unseen on unseen classes
+            # Logits unseen on all classes
             logits = logit_scale * image_features_unseen @ unseen_prompts.t()
-            log.info(f"Features seen: {logits.requires_grad}")
+            # log.info(f"Features seen: {logits.requires_grad}")
             idx_preds = torch.argmax(logits, dim=1)
             #log.info(f"variables idx_preds: {idx_preds}")
             #log.info(f"variables only_unlabelled: {only_unlabelled}")
@@ -419,14 +717,13 @@ class RankVPTBaseline(InitVPTBaseline):
 
             labs = self.reindex_true_labels(label, only_unlabelled=False)
             labs = labs.to(self.device)
-            # loss = self.define_loss_function(logits, 
-            #     labs, labs_seen, 
-            #     # logits_unseen, 
-            #     teacher
-            # )
-            loss = self.define_loss_function(logits, 
-                labs, logits_seen, 
-                logits_unseen, 
+
+            loss = self.define_loss_function(
+                logits, 
+                labs, 
+                logits_seen, 
+                logits_unseen,
+                labs_seen,  
                 teacher
             )
             total_loss += loss.item()
