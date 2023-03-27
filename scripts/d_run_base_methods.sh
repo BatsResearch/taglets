@@ -2,8 +2,8 @@
 #SBATCH --job-name=D-base_meth
 #SBATCH --output=logs/dtd_base_methods_split_200.out
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=64G
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=32G
 #SBATCH -t 72:00:00
 #SBATCH -p gpu --gres=gpu:4
 #SBATCH --exclude=gpu[717-718,1201-1204,1209,1403]
