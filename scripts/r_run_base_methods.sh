@@ -2,11 +2,12 @@
 #SBATCH --job-name=R-base_meth
 #SBATCH --output=logs/recsis45_base_methods_split_200.out
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=64G
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=32G
 #SBATCH -t 72:00:00
 #SBATCH -p gpu --gres=gpu:4
 #SBATCH --exclude=gpu[717-718,1201-1204,1209,1403]
+#SBATCH -C quadrortx
 
 module load cuda/11.1.1
 
@@ -28,7 +29,7 @@ for optim_seed in 1 2 3 4 5; do #10 100 50 400 250; do
     export SPLIT_SEED="$split_seed"
     export MODEL="$model"
     
-    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12076/'  accelerate_config.yml
+    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12072/'  accelerate_config.yml
     accelerate launch --config_file ./accelerate_config.yml ./run_main.py \
                     --model_config ${model}_config.yml
 done
