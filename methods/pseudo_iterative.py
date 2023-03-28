@@ -91,11 +91,11 @@ class PseudoIterative(TeacherStudent):
 
         for niter in range(1, num_iter + 1):
             log.info(f"NUM PSEUDO SHOTS: {self.config.N_PSEUDOSHOTS}")
-            unlabeled_data = pseudolabel_top_k(
+            pseudolabel_top_k(
                 self.config.DATASET_NAME,
                 self.config.N_PSEUDOSHOTS,
                 self.config.PROMPT_TEMPLATE,
-                original_unlabeled_data,
+                unlabeled_data,
                 self.unseen_classes,
                 self.transform,
                 self.clip_model,
@@ -123,3 +123,5 @@ class PseudoIterative(TeacherStudent):
                     self.config.N_PSEUDOSHOTS = math.floor(
                         len(original_unlabeled_data.filepaths) / n_unseen
                     )
+
+            unlabeled_data = original_unlabeled_data
