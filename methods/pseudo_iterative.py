@@ -90,8 +90,8 @@ class PseudoIterative(TeacherStudent):
         log.info(f"Plus: {len(unlabeled_data.filepaths)}.")
 
         for niter in range(1, num_iter + 1):
-
-            pseudolabel_top_k(
+            log.info(f"NUM PSEUDO SHOTS: {self.config.N_PSEUDOSHOTS}")
+            unlabeled_data = pseudolabel_top_k(
                 self.config.DATASET_NAME,
                 self.config.N_PSEUDOSHOTS,
                 self.config.PROMPT_TEMPLATE,
