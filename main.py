@@ -29,6 +29,7 @@ from methods import (
     CoopBaseline,
     CoopPseudoBaseline,
     IterativeFixedPseudo,
+    PseudoIterative,
     QuantileCoopPseudoBaseline,
     QuantileVPTPseudoBaseline,
     TeacherStudent,
@@ -288,7 +289,7 @@ def workflow(dataset_dir, obj_conf):
 
     elif obj_conf.MODEL == "pseudo_iterative":
         log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = AblationTeacherStudent(
+        model = PseudoIterative(
             obj_conf, label_to_idx, data_folder, device=device, **dict_classes
         )
         model.train(
