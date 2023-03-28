@@ -125,3 +125,4 @@ class PseudoIterative(TeacherStudent):
                     )
 
             unlabeled_data = original_unlabeled_data
+            original_unlabeled_data = copy.deepcopy(unlabeled_data)
