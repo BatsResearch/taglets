@@ -112,11 +112,13 @@ class PseudoIterative(TeacherStudent):
 
             # Exploit all the available unlabeled data
             if self.config.ALL_UNLABELED:
-                log.info("PASSO QUI")
                 n_per_class = int((niter + 1) * num_samples / n_unseen)
+                log.info(f"n_per_class: {n_per_class}")
                 if n_per_class * n_unseen <= len(original_unlabeled_data.filepaths):
+                    log.info(f"if n_per_class: {n_per_class}")
                     self.config.N_PSEUDOSHOTS = n_per_class
                 else:
+                    log.info(f"else new val: {len(original_unlabeled_data.filepaths) / n_unseen}")
                     # We are making a stong assumption about the distribution of unlabeled data
                     self.config.N_PSEUDOSHOTS = math.floor(
                         len(original_unlabeled_data.filepaths) / n_unseen
