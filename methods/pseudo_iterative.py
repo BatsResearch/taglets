@@ -106,10 +106,9 @@ class PseudoIterative(TeacherStudent):
             )
             
             log.info(f"Plus: {len(unlabeled_data.filepaths)}.")
-            filename = f"pseudolabels/{self.config.DATASET_NAME}_CLIP_{config.VIS_ENCODER.replace('/', '')}_iter_{niter}_pseudolabels_spl_{config.SPLIT_SEED}.pickle"
+            filename = f"pseudolabels/{self.config.DATASET_NAME}_CLIP_{self.config.VIS_ENCODER.replace('/', '')}_iter_{niter}_pseudolabels_spl_{self.config.SPLIT_SEED}.pickle"
             with open(filename, "wb") as f:
                 pickle.dump({"filepaths": unlabeled_data.filepaths, "labels": unlabeled_data.labels}, f)
-
 
             # Exploit all the available unlabeled data
             if self.config.ALL_UNLABELED:
