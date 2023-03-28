@@ -87,7 +87,7 @@ class PseudoIterative(TeacherStudent):
         # Initialize here first batch of pseudo labels
         #self.create_training_dataset(train_data, unlabeled_data)
         #log.info(f"The original train data has size: {len(original_train_data.filepaths)}.")
-        log.info(f"Plus: {len(unlabeled_data.filepaths)}.")
+        #log.info(f"Plus: {len(unlabeled_data.filepaths)}.")
 
         for niter in range(1, num_iter + 1):
             log.info(f"NUM PSEUDO SHOTS: {self.config.N_PSEUDOSHOTS}")
@@ -112,6 +112,7 @@ class PseudoIterative(TeacherStudent):
 
             # Exploit all the available unlabeled data
             if self.config.ALL_UNLABELED:
+                log.info("PASSO QUI")
                 n_per_class = int((niter + 1) * num_samples / n_unseen)
                 if n_per_class * n_unseen <= len(original_unlabeled_data.filepaths):
                     self.config.N_PSEUDOSHOTS = n_per_class
