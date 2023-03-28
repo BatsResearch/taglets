@@ -285,6 +285,22 @@ def workflow(dataset_dir, obj_conf):
             test_labeled_files,
             test_labeles,
         )
+
+    elif obj_conf.MODEL == "pseudo_iterative":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = AblationTeacherStudent(
+            obj_conf, label_to_idx, data_folder, device=device, **dict_classes
+        )
+        model.train(
+            train_seen_dataset,
+            val_seen_dataset,
+            train_unseen_dataset,
+            test_dataset,
+            test_labeled_files,
+            test_labeles,
+        )
+
+        sys.exit()
     
     if obj_conf.MODEL != 'clip_baseline':
         # Save prompt
