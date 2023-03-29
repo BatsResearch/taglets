@@ -2,8 +2,8 @@
 #SBATCH --job-name=F-abl_meth
 #SBATCH --output=logs/flowers102_ablation_methods.out
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=64G
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=32G
 #SBATCH -t 48:00:00
 #SBATCH -p gpu --gres=gpu:4
 #SBATCH --exclude=gpu[717-718,1201-1204,1209,1403]
@@ -28,7 +28,7 @@ for optim_seed in 1 2 3 4 5; do
     export SPLIT_SEED="$split_seed"
     export MODEL="$model"
     
-    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12071/'  accelerate_config.yml
+    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12077/'  accelerate_config.yml
     accelerate launch --config_file ./accelerate_config.yml ./run_main.py \
                     --model_config ${model}_config.yml
 done
