@@ -96,7 +96,7 @@ class PseudoIterative(TeacherStudent):
                 self.config.N_PSEUDOSHOTS,
                 self.config.PROMPT_TEMPLATE,
                 unlabeled_data,
-                self.unseen_classes,
+                self.classes,
                 self.transform,
                 self.clip_model,
                 self.label_to_idx,
