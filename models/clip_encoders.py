@@ -147,18 +147,18 @@ class CustomVisionTransformer(nn.Module):
             
         image_prefix = image_prefix.expand(x.shape[0], -1, -1)
         # Here we concat the prefix to the flattened patches
-        # x = torch.cat([
-        #     x[:,:1,:],
-        #     image_prefix, 
-        #     x[:,1:,:],
-        # ],
-        # dim=1,)
-
         x = torch.cat([
+            x[:,:1,:],
             image_prefix, 
-            x,
+            x[:,1:,:],
         ],
         dim=1,)
+
+        # x = torch.cat([
+        #     image_prefix, 
+        #     x,
+        # ],
+        # dim=1,)
         
         x = self.ln_pre(x)
 
