@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=R-base_meth
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
 #SBATCH -t 48:00:00
 #SBATCH -p gpu --gres=gpu:4
