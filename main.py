@@ -190,7 +190,7 @@ def workflow(dataset_dir, obj_conf):
         
         model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
-    elif obj_conf.MODEL == "vpt_baseline":
+    elif obj_conf.MODEL == "vpt":
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = VPTBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
         val_accuracy, optimal_prompt = model.train(
@@ -199,14 +199,14 @@ def workflow(dataset_dir, obj_conf):
 
         model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
-    elif obj_conf.MODEL == "vpt_pseudo_baseline":
+    elif obj_conf.MODEL == "fps_vps":
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = VPTPseudoBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
         val_accuracy, optimal_prompt = model.train(
             train_seen_dataset, val_seen_dataset, train_unseen_dataset
         )
 
-    elif obj_conf.MODEL == "quantile_vpt_pseudo_baseline":
+    elif obj_conf.MODEL == "grip_vpt":
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = QuantileVPTPseudoBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
         val_accuracy, optimal_prompt = model.train(

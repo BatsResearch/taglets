@@ -21,11 +21,17 @@ g.manual_seed(0)
 log = logging.getLogger(__name__)
 
 
-class VPTBaseline(object):
+class VPT(object):
     def __init__(
-        self, config, label_to_idx, classes, seen_classes, unseen_classes, device
+        self, 
+        config, 
+        label_to_idx, 
+        classes, 
+        seen_classes, 
+        unseen_classes, 
+        device
     ):
-        """This class defines Coop's training and evaluation.
+        """This class defines VPT's training and evaluation.
 
         :param config: dictionaries of prameters in models_config/vpt_baseline_config.yml
         :param label_to_idx: dictionary (key, value):(class name, id)
