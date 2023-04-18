@@ -10,7 +10,7 @@
 module load cuda/11.1.1
 
 pwd
-source ../../zsl/bin/activate
+source ../../../zsl/bin/activate
 
 sleep $[ ( $RANDOM % 30 )  + 40 ]s
 
