@@ -149,7 +149,7 @@ class MultimodalPrompt(TrainingStrategy):
 
         unwrapped_model = self.unwrap_model()
         epoch_parameters = [
-            self.model.module.prompt_transformer.detach().cpu().numpy(),
+            self.model.module.transformer.detach().cpu().numpy(),
             self.model.module.proj_coop_pre.detach().cpu().numpy(),
             self.model.module.proj_coop_post.detach().cpu().numpy(),
             self.model.module.proj_vpt_pre.detach().cpu().numpy(),
