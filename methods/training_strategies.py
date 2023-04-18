@@ -524,7 +524,7 @@ class TrainingStrategy(object):
         log.info(f"Plus: {len(unlabeled_data.filepaths)}.")
 
         # Save pseudolabels
-        log.info(f"Saving pseudo-labels for iteration {niter}")
+        log.info(f"Saving pseudo-labels for iteration {0}")
         save_pseudo_labels(
             unlabeled_data.filepaths, 
             unlabeled_data.labels, 
@@ -555,7 +555,8 @@ class TrainingStrategy(object):
             # Validation with seen and unseen.
             if self.val_unseen_files is not None:
                 seen_imgs = original_val_data.filepaths
-                #seen_labs = [self.label_to_idx[l] for l in original_val_data.labels]
+                # seen_labs = [self.label_to_idx[l] for l in original_val_data.labels]
+                seen_labs = [l for l in original_val_data.labels]
 
                 unseen_imgs = list(self.val_unseen_files)
                 unseen_labs = list(self.val_unseen_labs)
