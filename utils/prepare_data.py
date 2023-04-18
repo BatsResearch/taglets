@@ -393,7 +393,7 @@ def get_labeled_and_unlabeled_data(
                             f"The extracted class is not among the seen or unseen classes."
                         )
         N1 = 4
-        N2 = 300
+        N2 = 50
         N3 = 4
         labeled_data = list(zip(labeled_files, labels_files))#[:N1]
         unlabeled_data = list(zip(unlabeled_lab_files, unlabeled_labs))#[:N2]

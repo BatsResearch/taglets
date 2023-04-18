@@ -118,6 +118,7 @@ def compute_pseudo_labels(
 
 
 def pseudolabel_top_k(
+    config,
     data_name,
     k,
     template,
@@ -130,7 +131,7 @@ def pseudolabel_top_k(
     vis_encoder,
     split_seed, 
 ):
-    filename = f"pseudolabels/{data_name}_{vis_encoder.replace('/', '')}_{k}_pseudolabels_split_{split_seed}.pickle"
+    filename = f"pseudolabels/{data_name}_{vis_encoder.replace('/', '')}_{config.LEARNING_PARADIGM}_{config.MODEL}_{k}_pseudolabels_split_{split_seed}.pickle"
     if os.path.exists(filename):
         # print('Load pseudolabels')
         with open(filename, "rb") as f:

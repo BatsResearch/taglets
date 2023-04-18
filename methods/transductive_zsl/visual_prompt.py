@@ -11,7 +11,7 @@ from torch import nn
 
 accelerator = Accelerator()
 
-from methods import TrainingStrategy
+from methods.transductive_zsl import TrainingStrategy
 from utils import make_scheduler, seed_worker
 
 

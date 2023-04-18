@@ -15,6 +15,7 @@ log = logging.getLogger(__name__)
 
 
 def evaluate_predictions(
+    config,
     df_predictions,
     test_labeled_files,
     labels,
@@ -27,6 +28,14 @@ def evaluate_predictions(
     # log.info(f"DF TEST: {df_test.head(5)}")
     # log.info(f"DF PREDS: {df_predictions.head(5)}")
     df_predictions = pd.merge(df_predictions, df_test, on="id")
+
+    if config.LEARNING_PARADIGM == 'ul':
+        accuracy = (
+            np.sum(df_predictions["class"] == df_predictions["true"])
+            / df_predictions.shape[0]
+        )
+
+        return accuracy
 
     if standard_zsl:
         # df_predictions['true'] = labels
@@ -57,7 +66,7 @@ def evaluate_predictions(
         return unseen_accuracy, seen_accuracy, harmonic_mean
 
 def store_results(
-    obj_conf, std_response, unseen_accuracy, seen_accuracy, harmonic_mean
+    obj_conf, std_response
 ):
     """The function stores results of the model in a json.
 
@@ -71,9 +80,6 @@ def store_results(
             "model": obj_conf.MODEL,
             "config": obj_conf.__dict__,
             "std_accuracy": std_response,
-            "gen_accuracy": harmonic_mean,
-            "gen_seen": seen_accuracy,
-            "gen_unseen": unseen_accuracy,
         }
         file_name = f"results_model_{obj_conf.MODEL}.json"
 
@@ -98,9 +104,9 @@ def save_parameters(obj, config, iteration=None):
     """
 
     if iteration is None:
-        file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
+        file_name = f"trained_prompts/{config.DATASET_NAME}_{config.LEARNING_PARADIGM}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
     else:
-        file_name = f"trained_prompts/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_iter_{iteration}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
+        file_name = f"trained_prompts/{config.DATASET_NAME}_{config.LEARNING_PARADIGM}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_iter_{iteration}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
     
     with open(file_name, 'wb') as f:
         pickle.dump(obj, f)
@@ -108,7 +114,7 @@ def save_parameters(obj, config, iteration=None):
 
 def save_pseudo_labels(imgs, labs, config, iteration):
 
-    filename = f"pseudolabels/{config.DATASET_NAME}_{config.MODEL}_{config.VIS_ENCODER.replace('/', '')}_iter_{iteration}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
+    filename = f"pseudolabels/{config.DATASET_NAME}_{config.LEARNING_PARADIGM}_{config.MODEL}_{config.VIS_ENCODER.replace('/', '')}_iter_{iteration}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
     with open(filename, "wb") as f:
         pickle.dump({"filepaths": imgs, "labels": labs}, f)
 
