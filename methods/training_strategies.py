@@ -529,7 +529,7 @@ class TrainingStrategy(object):
             unlabeled_data.filepaths, 
             unlabeled_data.labels, 
             self.config, 
-            niter,
+            0,
         )
         log.info(f"Unlabeled is: {len(unlabeled_data.filepaths)}.")
 
