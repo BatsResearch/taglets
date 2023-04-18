@@ -206,10 +206,10 @@ class TextualPrompt(TrainingStrategy):
         for img, _, _, label, img_path in val_loader:
             if torch.cuda.is_available():
                 self.model.module.classes = self.classes if self.val_unseen_files is not None else self.seen_classes
+                text_features = self.model(self.model.module.classes)
             else:
                 self.model.classes = self.classes if self.val_unseen_files is not None else self.seen_classes
-            
-            text_features = self.model(self.model.classes)
+                text_features = self.model(self.model.classes)
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
             with torch.no_grad():
                 image_features = self.clip_model.encode_image(img)
