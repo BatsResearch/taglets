@@ -4,7 +4,7 @@
 for vis_encoder in 'ViT-B/32'; do 
 for split_seed in 500; do 
 for dataset_name in RESICS45; do
-for model in multimodal_fpl; do 
+for model in grip_visual; do 
 for optim_seed in 1; do 
     
     export OPTIM_SEED="$optim_seed"

@@ -188,7 +188,7 @@ class VisualFPL(VisualPrompt):
         # prompts = [f"{self.template}{' '.join(i.split('_'))}" \
         #             for i in self.unseen_classes]
         prompts = [
-            self.template.format(" ".join(i.split("_"))) for i in self.unseen_classes
+            self.template.format(" ".join(i.split("_"))) for i in self.classes
         ]
         log.info(f"Number of prompts: {len(prompts)}")
 
@@ -199,8 +199,8 @@ class VisualFPL(VisualPrompt):
 
         # to find the top k for each class, each class has it's own "leaderboard"
         top_k_leaderboard = {
-            self.label_to_idx[self.unseen_classes[i]]: []
-            for i in range(len(self.unseen_classes))
+            self.label_to_idx[self.classes[i]]: []
+            for i in range(len(self.classes))
         }  # maps class idx -> (confidence, image_path) tuple
 
         for img_path in unlabeled_data.filepaths:
@@ -219,7 +219,7 @@ class VisualFPL(VisualPrompt):
             probs = logits.softmax(dim=-1)
             idx_preds = torch.argmax(logits, dim=1)
             pred_id = idx_preds.item()
-            pred = self.label_to_idx[self.unseen_classes[idx_preds.item()]]
+            pred = self.label_to_idx[self.classes[idx_preds.item()]]
 
             """if predicted class has empty leaderboard, or if the confidence is high
             enough for predicted class leaderboard, add the new example
@@ -240,13 +240,13 @@ class VisualFPL(VisualPrompt):
                 order_of_classes = sorted(
                     [
                         (probs[0][j], j)
-                        for j in range(len(self.unseen_classes))
+                        for j in range(len(self.classes))
                         if j != pred_id
                     ],
                     reverse=True,
                 )
                 for score, index in order_of_classes:
-                    index_dict = self.label_to_idx[self.unseen_classes[index]]
+                    index_dict = self.label_to_idx[self.classes[index]]
                     # log.info(f"{classnames[index]}")
                     # log.info(f"{index_dict}")
                     if len(top_k_leaderboard[index_dict]) < k:

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=upt_UL
+#SBATCH --job-name=m_fpl_UL
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=40G

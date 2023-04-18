@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=vpt_UL
+#SBATCH --job-name=fpl_UL
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=40G
@@ -33,7 +33,7 @@ for optim_seed in 1; do # 2 3 4 5; do #10 100 50 400 250; do
     # echo $TYPE
     # echo $PORT
     # $PORT
-    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12070/'  accelerate_config.yml
+    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12071/'  accelerate_config.yml
     accelerate launch --config_file ./accelerate_config.yml ./run_main_ul.py \
                     --model_config ${model}_config.yml --learning_paradigm ul
 done

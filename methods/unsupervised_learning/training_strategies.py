@@ -397,11 +397,11 @@ class TrainingStrategy(object):
         num_samples = int(len(unlabeled_data) / num_iter)
         # Initialize the number of pseudo-labels per class
         n_per_class = int(num_samples / len(self.classes))
-        n_unseen = len(self.unseen_classes)
+        n_unseen = len(self.classes)
 
         log.info(f"We select {self.config.N_PSEUDOSHOTS} pseudolabel per each unseen classes.")
-        log.info(f"The number of unseen classes is: {len(self.unseen_classes)}.")
-        log.info(f"Thus we expect an initial number of pseudo labeles equal to {len(self.unseen_classes) * self.config.N_PSEUDOSHOTS}.")
+        log.info(f"The number of unseen classes is: {len(self.classes)}.")
+        log.info(f"Thus we expect an initial number of pseudo labeles equal to {len(self.classes) * self.config.N_PSEUDOSHOTS}.")
 
         # Create a safe copy of labeled/unlabeled data
         original_train_data = copy.deepcopy(train_data)
@@ -490,8 +490,8 @@ class TrainingStrategy(object):
         num_iter = int(100/self.config.STEP_QUANTILE)
         num_samples = int(len(unlabeled_data) / num_iter)
         # Initialize the number of pseudo-labels per class
-        n_per_class = int(num_samples / len(self.unseen_classes))
-        n_unseen = len(self.unseen_classes)
+        n_per_class = int(num_samples / len(self.classes))
+        n_unseen = len(self.classes)
         if n_per_class * n_unseen <= len(unlabeled_data.filepaths):
             # self.num_pseudo_labels_per_class =  n_per_class
             self.config.N_PSEUDOSHOTS = n_per_class
@@ -502,8 +502,8 @@ class TrainingStrategy(object):
             )
 
         log.info(f"We select {self.config.N_PSEUDOSHOTS} pseudolabel per each unseen classes.")
-        log.info(f"The number of unseen classes is: {len(self.unseen_classes)}.")
-        log.info(f"Thus we expect an initial number of pseudo labeles equal to {len(self.unseen_classes) * self.config.N_PSEUDOSHOTS}.")
+        log.info(f"The number of unseen classes is: {len(self.classes)}.")
+        log.info(f"Thus we expect an initial number of pseudo labeles equal to {len(self.classes) * self.config.N_PSEUDOSHOTS}.")
         # Create a safe copy of labeled/unlabeled data
         original_train_data = copy.deepcopy(train_data)
         # log.info(f"Training data labels: {original_train_data.labels}")
@@ -642,16 +642,8 @@ class TrainingStrategy(object):
             self.val_unseen_files = None
             self.val_unseen_labs = None
 
-        # Specify train labeled data
-        seen_imgs = train_data.filepaths
-        seen_labs = [self.label_to_idx[l] for l in train_data.labels]
-
-        # Weigth the classes representativeness
-        self.balance_param = len(seen_imgs) / len(unseen_imgs)
-
-        train_data.filepaths = list(unseen_imgs) + list(seen_imgs)
-        train_data.labels = list(unseen_labs) + list(seen_labs)
+        train_data.filepaths = list(unseen_imgs)
+        train_data.labels = list(unseen_labs)
         train_data.label_id = True
         log.info(f"UPDATE DATASET: size = {len(train_data.filepaths)}")
         log.info(f"UPDATE UNSEEN DATASET: size = {len(unseen_imgs)}")
-        log.info(f"UPDATE SEEN DATASET: size = {len(seen_imgs)}")
