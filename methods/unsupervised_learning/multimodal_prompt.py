@@ -149,11 +149,11 @@ class MultimodalPrompt(TrainingStrategy):
 
         unwrapped_model = self.unwrap_model()
         epoch_parameters = [
-            self.model.module.transformer.detach().cpu().numpy(),
-            self.model.module.proj_coop_pre.detach().cpu().numpy(),
-            self.model.module.proj_coop_post.detach().cpu().numpy(),
-            self.model.module.proj_vpt_pre.detach().cpu().numpy(),
-            self.model.module.proj_vpt_post.detach().cpu().numpy(),
+            copy.deepcopy(self.prompt_transformer),
+            copy.deepcopy(self.proj_coop_pre),
+            copy.deepcopy(self.proj_coop_post),
+            copy.deepcopy(self.proj_vpt_pre),
+            copy.deepcopy(self.proj_vpt_post),
             self.model.module.coop_embeddings.detach().cpu().numpy(),
             None if self.model.vpt_embeddings_deep is None else self.model.vpt_embeddings_deep.detach().cpu().numpy(),
             self.model.module.vpt_embeddings.detach().cpu().numpy(),
