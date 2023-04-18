@@ -1,4 +1,8 @@
+import copy
+from functools import reduce
 import logging
+import math
+from operator import mul
 
 import clip
 import numpy as np
@@ -8,6 +12,7 @@ import torch
 from accelerate import Accelerator
 from PIL import Image
 from torch import nn
+from torch.nn.modules.utils import _pair
 
 accelerator = Accelerator()
 
@@ -15,10 +20,13 @@ from models import (
     CustomImageEncoder, 
     CustomTextEncoder, 
     ImagePrefixModel,
+    TextPrefixModel,
+    UPTModel,
 )
 from utils import (
     make_scheduler, 
     seed_worker, 
+    save_parameters,
     save_pseudo_labels,
 )
 
@@ -89,6 +97,26 @@ class TrainingStrategy(object):
             for param in self.text_encoder.parameters():
                 param.requires_grad = False
 
+        elif self.config.MODALITY == 'multi':
+            self.visual_transformer = self.clip_model.visual
+            self.image_encoder = CustomImageEncoder(self.visual_transformer).to(self.device)
+            if torch.cuda.is_available():
+                self.text_encoder = CustomTextEncoder(
+                    self.clip_model, self.device, torch.float16
+                ).to(self.device)
+            else:
+                self.text_encoder = CustomTextEncoder(
+                    self.clip_model, self.device, torch.half
+                ).to(self.device)
+
+            log.info(f"Freeze visual encoder.")
+            for param in self.image_encoder.parameters():
+                param.requires_grad = False
+
+            log.info(f"Freeze text encoder.")
+            for param in self.text_encoder.parameters():
+                param.requires_grad = False
+
     def initialize_prompts_parameters(self):
         """ This function initialized the prompt parameters
         depending on the prompt modality.
@@ -118,7 +146,69 @@ class TrainingStrategy(object):
             )
             self.initial_prefix = torch.normal(
                 self.config.MEAN_INIT, self.config.VAR_INIT, size=prefix_dim
-            ).to(device)
+            ).to(self.device)
+
+        elif self.config.MODALITY == 'multi':
+            # Get relevant dimensions
+            vpt_dim = self.clip_model.visual.conv1.weight.shape[0]
+            coop_dim = self.clip_model.ln_final.weight.shape[0]
+
+            # Initialize linear layers (project into and out of lightweight transformer dimension)
+            self.proj_coop_pre = nn.Linear(
+                coop_dim, 
+                self.config.TRANSFORMER_DIM, 
+                dtype=self.dtype).to(self.device)
+            self.proj_coop_post = nn.Linear(
+                self.config.TRANSFORMER_DIM,
+                 coop_dim, 
+                 dtype=self.dtype).to(self.device)
+            self.proj_vpt_pre = nn.Linear(
+                vpt_dim,
+                self.config.TRANSFORMER_DIM, 
+                dtype=self.dtype).to(self.device)
+            self.proj_vpt_post = nn.Linear(
+                self.config.TRANSFORMER_DIM, 
+                vpt_dim, 
+                dtype=self.dtype).to(self.device)
+
+            # Initialize the lightweight transformer
+            self.prompt_transformer = clip.model.Transformer(
+                width=self.config.TRANSFORMER_DIM, 
+                layers=1, 
+                heads=1).to(self.device)
+
+            # Initialize the coop prompt
+            self.coop_embeddings = torch.empty(
+                1, 
+                self.config.TEXT_PREFIX_SIZE, 
+                coop_dim,
+                dtype=self.dtype).to(self.device)
+            nn.init.normal_(self.coop_embeddings, std=0.02)
+
+            # Initialize the vpt prompt
+            clip_patchsize = self.clip_model.visual.conv1.weight.shape[-1]
+            clip_patchsize = _pair(clip_patchsize)
+            val = math.sqrt(6. / float(3 * reduce(mul, clip_patchsize, 1) + vpt_dim))  # noqa
+
+            self.vpt_embeddings = nn.Parameter(torch.zeros(
+                1, self.config.VISION_PREFIX_SIZE, vpt_dim, dtype=self.dtype)).to(self.device)
+            # xavier_uniform initialization
+            nn.init.uniform_(self.vpt_embeddings.data, -val, val)
+
+            if self.config.VPT_DEEP:
+                self.vision_layers = len([k for k in self.clip_model.state_dict().keys() if k.startswith("visual.") and k.endswith(".attn.in_proj_weight")])
+
+                self.vpt_embeddings_deep = nn.Parameter(
+                    torch.zeros(
+                        self.vision_layers-1, 
+                        self.config.VISION_PREFIX_SIZE, 
+                        vpt_dim, 
+                        dtype=self.dtype)).to(self.device)
+                # xavier_uniform initialization
+                nn.init.uniform_(self.vpt_embeddings_deep.data, -val, val)
+            else:
+                self.vpt_embeddings_deep = None
+
 
     def define_model(self, classes=None):
         """ This function initialized the model
@@ -143,6 +233,28 @@ class TrainingStrategy(object):
                 self.text_encoder,
                 [" ".join(c.split("_")) for c in classes],
                 device=self.device, 
+            ).to(self.device)
+
+        elif self.config.MODALITY == 'multi':
+            linear_layers = [
+                self.proj_coop_pre,
+                self.proj_coop_post,
+                self.proj_vpt_pre,
+                self.proj_vpt_post
+            ]
+
+            # Define model
+            self.model = UPTModel(
+                self.coop_embeddings,
+                self.vpt_embeddings,
+                self.vpt_embeddings_deep,
+                linear_layers,
+                self.prompt_transformer,
+                self.image_encoder,
+                self.text_encoder,
+                self.classes,
+                device=self.device,
+                dtype=self.dtype
             ).to(self.device)
 
         for i, parameter in enumerate(self.model.parameters()):
@@ -178,6 +290,7 @@ class TrainingStrategy(object):
         unlabeled_data=None,
         only_unlabelled=False,
         only_seen=False,
+        iterative=False,
     ):
         """This function defines the training of self.model.
 
@@ -192,13 +305,17 @@ class TrainingStrategy(object):
         """
 
         # Define training dataset
-        self.create_training_dataset(train_data, unlabeled_data)
-        log.info(f"[self.train] Training data: {len(train_data.filepaths)}")
+        if not iterative:
+            self.create_training_dataset(train_data, unlabeled_data)
+        
+            if self.config.MODEL == 'textual_prompt':
+                self.define_model(self.seen_classes)
+            elif self.config.MODEL == 'textual_fpl' or self.config.MODEL == 'iterative_textual_fpl':
+                self.define_model(self.classes)
+            else:
+                self.define_model()
 
-        if self.config.MODEL == 'coop':
-            self.define_model(self.config.MODALITY, self.seen_classes)
-        else:
-            self.define_model(self.config.MODALITY)
+        log.info(f"[self.train] Training data: {len(train_data.filepaths)}")
         
         # Declare the data pre processing for train and validation data
         train_data.transform = self.transform
@@ -278,6 +395,7 @@ class TrainingStrategy(object):
         train_data,
         val_data,
         unlabeled_data,
+        only_seen=False,
     ):
         # Number of total iterations to cover all unlabeled data
         num_iter = int(100/self.config.STEP_QUANTILE)
@@ -326,13 +444,19 @@ class TrainingStrategy(object):
             log.info(f"Train data is {len(train_data.filepaths)} at iter: {niter}.")
 
             # 2. Define model
-            self.define_model()
+            if self.config.MODEL == 'textual_prompt':
+                self.define_model(self.seen_classes)
+            elif self.config.MODEL == 'textual_fpl' or self.config.MODEL == 'iterative_textual_fpl':
+                self.define_model(self.classes)
+            else:
+                self.define_model()
+
             log.info(f"[MODEL] Initialization iter {niter}")
 
             # 3. Train model
             log.info(f"[MODEL] Start model training iter {niter}..")
             t_best_val_accuracy, t_best_prompt = self.train(
-                train_data, val_data
+                train_data, val_data, only_seen=only_seen, iterative=True,
             )
             log.info(f"[MODEL] Training completed iter {niter}.")
 
@@ -356,10 +480,124 @@ class TrainingStrategy(object):
                 iteration=niter
             )
 
-        return t_best_val_accuracy, t_best_prompt
+            val_data = original_val_data
+            original_val_data = copy.deepcopy(val_data)
         
+        return t_best_val_accuracy, t_best_prompt
 
+    def grip_train(
+        self,
+        train_data,
+        val_data,
+        unlabeled_data,
+        only_seen=False,
+    ):
 
+        # Number of total iterations to cover all unlabeled data
+        num_iter = int(100/self.config.STEP_QUANTILE)
+        num_samples = int(len(unlabeled_data) / num_iter)
+        # Initialize the number of pseudo-labels per class
+        n_per_class = int(num_samples / len(self.unseen_classes))
+        n_unseen = len(self.unseen_classes)
+        if n_per_class * n_unseen <= len(unlabeled_data.filepaths):
+            # self.num_pseudo_labels_per_class =  n_per_class
+            self.config.N_PSEUDOSHOTS = n_per_class
+        else:
+            # self.num_pseudo_labels_per_class =  math.floor(len(unlabeled_data.filepaths)/n_unseen)
+            self.config.N_PSEUDOSHOTS = math.floor(
+                len(unlabeled_data.filepaths) / n_unseen
+            )
+
+        log.info(f"We select {self.config.N_PSEUDOSHOTS} pseudolabel per each unseen classes.")
+        log.info(f"The number of unseen classes is: {len(self.unseen_classes)}.")
+        log.info(f"Thus we expect an initial number of pseudo labeles equal to {len(self.unseen_classes) * self.config.N_PSEUDOSHOTS}.")
+        # Create a safe copy of labeled/unlabeled data
+        original_train_data = copy.deepcopy(train_data)
+        # log.info(f"Training data labels: {original_train_data.labels}")
+        original_unlabeled_data = copy.deepcopy(unlabeled_data)
+        # Original val
+        original_val_data = copy.deepcopy(val_data)
+
+        # Initialize here first batch of pseudo labels
+        self.create_training_dataset(train_data, unlabeled_data)
+        log.info(f"The original train data has size: {len(original_train_data.filepaths)}.")
+        log.info(f"Plus: {len(unlabeled_data.filepaths)}.")
+
+        # Save pseudolabels
+        log.info(f"Saving pseudo-labels for iteration {niter}")
+        save_pseudo_labels(
+            unlabeled_data.filepaths, 
+            unlabeled_data.labels, 
+            self.config, 
+            niter,
+        )
+        log.info(f"Unlabeled is: {len(unlabeled_data.filepaths)}.")
+
+        for niter in range(1, num_iter + 1):
+            log.info(f"Start {niter} round of training..")
+
+            train_data.filepaths = [
+                f for i, f in enumerate(original_train_data.filepaths)
+            ]
+            train_data.labels = [l for i, l in enumerate(original_train_data.labels)]
+
+            self.update_training_set(train_data, unlabeled_data)
+
+            # 1. Initialize model            
+            if self.config.MODEL == 'textual_prompt':
+                self.define_model(self.seen_classes)
+            elif self.config.MODEL == 'textual_fpl' or self.config.MODEL == 'iterative_textual_fpl':
+                self.define_model(self.classes)
+            else:
+                self.define_model()
+            log.info(f"[TEACHER] Initialization..")
+
+            # Validation with seen and unseen.
+            if self.val_unseen_files is not None:
+                seen_imgs = original_val_data.filepaths
+                seen_labs = [self.label_to_idx[l] for l in original_val_data.labels]
+
+                unseen_imgs = list(self.val_unseen_files)
+                unseen_labs = list(self.val_unseen_labs)
+
+                val_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+                val_data.labels = list(unseen_labs) + list(seen_labs)
+                val_data.label_id = True
+
+            # 2. Train teacher with labeled seen and pseudo-labeled unseen
+            log.info(f"[TEACHER] Start model training..")
+            t_best_val_accuracy, t_best_prompt = self.train(
+                train_data, val_data, only_seen=only_seen, iterative=True,
+            )
+            log.info(f"[TEACHER] Training completed.")
+
+            # Increase the number of pseudolabels
+            n_per_class = int((niter + 1) * num_samples / n_unseen)
+            if n_per_class * n_unseen <= len(original_unlabeled_data.filepaths):
+                self.config.N_PSEUDOSHOTS = n_per_class
+            else:
+                # We are making a stong assumption about the distribution of unlabeled data
+                self.config.N_PSEUDOSHOTS = math.floor(
+                    len(original_unlabeled_data.filepaths) / n_unseen
+                )
+
+            # 3. Get teacher pseudo-labels
+            log.info(f"[TEACHER] Collecting teacher pseudo-labels on unlabeled data..")
+            unlabeled_data = self.get_pseudo_labels(
+                original_unlabeled_data
+            )
+
+            save_pseudo_labels(
+                unlabeled_data.filepaths, 
+                unlabeled_data.labels, 
+                self.config, 
+                niter,
+            )
+
+            save_parameters(t_best_prompt, self.config, iteration=niter)
+
+            val_data = original_val_data
+            original_val_data = copy.deepcopy(val_data)
 
     def define_loss_function(self, logits, labs):
         return self.loss_func(logits, labs)
@@ -381,3 +619,46 @@ class TrainingStrategy(object):
         :param img: Tensor of images form Dataloader
         """
         return self.model(img)
+
+    def update_training_set(self, train_data, unlabeled_data):
+        
+        # Get pseudo-labels for unlabeled data from unseen classes
+        train_unseen_dataset = unlabeled_data
+        # Define the lists of traiing data from seen and unseen classes
+        unseen_imgs = train_unseen_dataset.filepaths
+        unseen_labs = train_unseen_dataset.labels
+
+        # Use a portion of the pseudo-labeled data to build a validation set
+        if self.config.N_PSEUDOSHOTS >= 10:
+            np.random.seed(self.config.validation_seed)
+            train_indices = np.random.choice(
+                range(len(unseen_imgs)),
+                size=int(len(unseen_imgs) * self.config.ratio_train_val),
+                replace=False,
+            )
+            val_indices = list(
+                set(range(len(unseen_imgs))).difference(set(train_indices))
+            )
+
+            self.val_unseen_files = np.array(unseen_imgs)[val_indices]
+            self.val_unseen_labs = np.array(unseen_labs)[val_indices]
+
+            unseen_imgs = list(np.array(unseen_imgs)[train_indices])
+            unseen_labs = list(np.array(unseen_labs)[train_indices])
+        else:
+            self.val_unseen_files = None
+            self.val_unseen_labs = None
+
+        # Specify train labeled data
+        seen_imgs = train_data.filepaths
+        seen_labs = [self.label_to_idx[l] for l in train_data.labels]
+
+        # Weigth the classes representativeness
+        self.balance_param = len(seen_imgs) / len(unseen_imgs)
+
+        train_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+        train_data.labels = list(unseen_labs) + list(seen_labs)
+        train_data.label_id = True
+        log.info(f"UPDATE DATASET: size = {len(train_data.filepaths)}")
+        log.info(f"UPDATE UNSEEN DATASET: size = {len(unseen_imgs)}")
+        log.info(f"UPDATE SEEN DATASET: size = {len(seen_imgs)}")

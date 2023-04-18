@@ -125,6 +125,7 @@ class CustomVisionTransformer(nn.Module):
         x: torch.Tensor,
         image_prefix: torch.Tensor,
         pos_emb=True,
+        deep_embs=None,
     ):
 
         x = self.conv1(x)  # shape = [*, width, grid, grid]
@@ -143,62 +144,46 @@ class CustomVisionTransformer(nn.Module):
             )  # shape = [*, grid ** 2 + 1, width]
             
         x = x + self.positional_embedding.to(x.dtype) if pos_emb else x
-        
-        # if self.type == 'standard':
-           
-        #     x = self.ln_pre(x)
-
-        #     image_prefix = image_prefix.expand(x.shape[0], -1, -1)
-        #     # Here we concat the prefix to the flattened patches
-        #     x = torch.cat([
-        #         x[:,:1,:],
-        #         image_prefix, 
-        #         x[:,1:,:],
-        #     ],
-        #     dim=1,)
-
-        #elif self.type == 'before_norm_cls':
             
         image_prefix = image_prefix.expand(x.shape[0], -1, -1)
         # Here we concat the prefix to the flattened patches
+        # x = torch.cat([
+        #     x[:,:1,:],
+        #     image_prefix, 
+        #     x[:,1:,:],
+        # ],
+        # dim=1,)
+
         x = torch.cat([
-            x[:,:1,:],
             image_prefix, 
-            x[:,1:,:],
+            x,
         ],
         dim=1,)
         
         x = self.ln_pre(x)
 
-
-        # elif self.type == 'after_norm_prefix':
-            
-        #     x = self.ln_pre(x)
-
-        #     image_prefix = image_prefix.expand(x.shape[0], -1, -1)
-        #     #log.info(f"SHAPE image_prefix: {image_prefix.size()}")
-        #     # Here we concat the prefix to the flattened patches
-        #     x = torch.cat([
-        #         image_prefix, 
-        #         x,
-        #     ],
-        #     dim=1,)
-
-        #     #log.info(f"SHAPE X: {x.shape}")
-
-
-        # elif self.type == 'before_norm_prefix':
-
-        #     image_prefix = image_prefix.expand(x.shape[0], -1, -1)
-        #     # Here we concat the prefix to the flattened patches
-        #     x = torch.cat([
-        #         image_prefix, 
-        #         x,
-        #     ],
-        #     dim=1,)
-
         x = x.permute(1, 0, 2)  # NLD -> LND
-        x = self.transformer(x)
+        if deep_embs is not None:
+            B = x.shape[0]
+            # Code adapted from https://github.com/sIncerass/MVLPT/blob/main/trainers/mvlpt.py#L65
+            for layer_idx in range(self.visual.transformer.layers):
+                layer = self.transformer.resblocks[layer_idx]
+                
+                if layer_idx == 0:
+                    x = layer(x)
+                elif layer_idx <= deep_embs.shape[0]:
+                    vpt_emb_deep = self.mvlpt_model.vpt_dropout(self.mvlpt_model.vpt_proj(
+                        deep_embs[layer_idx-1]).expand(B, -1, -1)).to(x.dtype)
+
+                    vpt_emb_deep = vpt_emb_deep.permute(1, 0, 2)  # NLD -> LND
+                    x = torch.cat((
+                        x[:1, :, :],
+                        vpt_emb_deep,
+                        x[(1+self.mvlpt_model.vpt_n_ctx):, :, :]
+                    ), dim=0)
+                    x = layer(x)
+        else:
+            x = self.transformer(x)
         x = x.permute(1, 0, 2)  # LND -> NLD
 
         x = self.ln_post(x[:, 0, :])
@@ -218,6 +203,6 @@ class CustomImageEncoder(nn.Module):
         self.visual = CustomVisionTransformer(visual)
         self.dtype = self.visual.conv1.weight.dtype
 
-    def forward(self, image, prefix):
-        encoded_image = self.visual(image.type(self.dtype), prefix.type(self.dtype))
+    def forward(self, image, prefix, deep_embds=None):
+        encoded_image = self.visual(image.type(self.dtype), prefix.type(self.dtype), deep_embds)
         return encoded_image

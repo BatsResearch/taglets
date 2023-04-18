@@ -2,18 +2,18 @@ import logging
 
 import clip
 import numpy as np
+import copy
 import pandas as pd
 import scipy.stats as st
 import torch
 from accelerate import Accelerator
-from PIL import Image
-from torch import nn
+
 
 accelerator = Accelerator()
 
-from models import CustomTextEncoder, TextPrefixModel
 from methods import TrainingStrategy
 from utils import make_scheduler, seed_worker
+
 
 g = torch.Generator()
 g.manual_seed(0)
@@ -21,57 +21,66 @@ g.manual_seed(0)
 log = logging.getLogger(__name__)
 
 
-class TextualPrompt(TrainingStrategy):
+class MultimodalPrompt(TrainingStrategy):
     def __init__(
-        self,
-        config,
-        label_to_idx,
-        classes,
-        seen_classes,
-        unseen_classes,
-        device,
+        self, 
+        config, 
+        label_to_idx, 
+        classes, 
+        seen_classes, 
+        unseen_classes, 
+        device
     ):
-        """This class define Coop's training and evaluation.
-
-        :param config: dictionaries of prameters in models_config/coop_baseline_config.yml
+        """This class defines UPT's training and evaluation.
+        :param config: dictionaries of prameters in models_config/vpt_baseline_config.yml
         :param label_to_idx: dictionary (key, value):(class name, id)
         :param classes: list of class names
         :param seen_classes: list of seen classes' names
         :param unseen_classes: list of unseen classes' names
         :param device: device in use
         """
-
         super().__init__(
             config, label_to_idx, classes, seen_classes, unseen_classes, device
         )
-
-        # Build dictionaries to correctly label model's predictions
-        seen_to_idx = {c: idx for idx, c in enumerate(self.seen_classes)}
-        self.idx_to_real = {
-            seen_to_idx[c]: self.label_to_idx[c] for c in self.seen_classes
-        }
-        self.real_to_idx = {
-            self.label_to_idx[c]: seen_to_idx[c] for c in self.seen_classes
-        }
         
-        # Load custom encoder
+        self.dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+
         self.declare_custom_encoder()
-        # log.info(f"Custom Encoder: {self.image_encoder}.")
-        # Initialize prompt parameters
+        
+        # creates initial prefixes, linear layers, and lightweight transformer
         self.initialize_prompts_parameters()
 
+    def reindex_predicted_labels(self, idx_preds, only_unlabelled=False):
+        """This function returns the correct index of predictions to compute
+        model's accuracy.
+        :param idx_pred: list of predictions ids
+        :param only_unlabelled: boolean. It is True if the training only involves
+                                pseudo-labeled unseen data
+        """
+        return [self.seen_classes[i.item()] for i in idx_preds]
+
+    def reindex_true_labels(self, label, only_unlabelled=False):
+        """This function returns the correct index of true labels.
+        :param label: list of labels from data loader
+        :param only_unlabelled: boolean. It is True if the training only involves
+                                pseudo-labeled unseen data
+        """
+
+        return torch.tensor(
+            [self.seen_classes.index(self.classes[l.item()]) for l in label]
+        )
+
     def _train_epoch(
-        self, 
-        loss, 
-        total_loss, 
-        train_loader, 
-        accum_iter, 
-        epoch, 
+        self,
+        loss,
+        total_loss,
+        train_loader,
+        accum_iter,
+        epoch,
         only_unlabelled=False,
         only_seen=False,
     ):
         """This function defines the training epoch of self.model.
-
         :param loss: float loss (average across batches)
         :param total_loss: float total loss
         :param train_loader: Dataloader object - training data defined in self.train
@@ -79,49 +88,40 @@ class TextualPrompt(TrainingStrategy):
         :param epoch: current epoch
         :param only_unlabelled: boolean. It is True if the training only involves
                                 pseudo-labeled unseen data
-        :param only_seen: boolean.  It is True if the training only involves
-                                seen data
-
+        :param teachet: boolean. Added to use this function in more subclasses
         """
-        if torch.cuda.is_available():
-            log.info(f"[self._train_epoch] Number of prompts: {len(self.model.module.classes)}")
+        if only_unlabelled:
+            classes = self.unseen_classes
+        elif only_seen:
+            classes = self.seen_classes
         else:
-            log.info(f"[self._train_epoch] Number of prompts: {len(self.model.classes)}")
-        
+            classes = self.classes
+        log.info(f"[self._train_epoch] Number of prompts: {len(classes)}")
+
         predictions = []
         labels = []
         for i, (img, _, _, label, img_path) in enumerate(train_loader):
-            if torch.cuda.is_available():
-                text_features = self.model(self.model.module.classes)
-            else:
-                text_features = self.model(self.model.classes)
+            # Get text and image prompts using UPT
+            coop_embeddings, vpt_embeddings, vpt_deep_embeddings = self.model(0)
+            # Calculate text prompts
+            text_features = self.text_encoder(coop_embeddings, classes)
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
-            with torch.no_grad():
-                image_features = self.clip_model.encode_image(img)
-                image_features = image_features / image_features.norm(
-                    dim=-1, keepdim=True
-                )
+            # Calculate image prompts
+            image_features = self.image_encoder(img, vpt_embeddings, deep_embds=vpt_deep_embeddings)
+            image_features = image_features / image_features.norm(dim=-1, keepdim=True)
 
             # cosine similarity as logits
             logit_scale = self.clip_model.logit_scale.exp()
             logits = logit_scale * image_features @ text_features.t()
-
             idx_preds = torch.argmax(logits, dim=1)
-            if only_seen:
-                real_preds = [self.seen_classes[i.item()] for i in idx_preds]
-            else:
-                real_preds = [self.classes[i.item()] for i in idx_preds]
+
+            real_preds = self.reindex_predicted_labels(idx_preds, only_unlabelled)
 
             predictions += real_preds
             labels += [self.classes[i.item()] for i in label]
 
-            if only_seen:
-                labs = torch.tensor([self.real_to_idx[l.item()] for l in label]).to(
-                    self.device
-                )
-            else:
-                labs = torch.tensor([l.item() for l in label]).to(self.device)
-
+            labs = self.reindex_true_labels(label, only_unlabelled)
+            labs = labs.to(self.device)
             loss = self.define_loss_function(logits, labs)
             total_loss += loss.item()
 
@@ -136,12 +136,10 @@ class TextualPrompt(TrainingStrategy):
 
         accelerator.wait_for_everyone()
 
-        predictions = torch.tensor(
-            [self.label_to_idx[p] for p in predictions][: len(train_loader.dataset)]
-        ).to(self.device)
-        labels = torch.tensor(
-            [self.label_to_idx[l] for l in labels][: len(train_loader.dataset)]
-        ).to(self.device)
+        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(
+            self.device
+        )
+        labels = torch.tensor([self.label_to_idx[l] for l in labels]).to(self.device)
 
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
@@ -180,35 +178,45 @@ class TextualPrompt(TrainingStrategy):
 
         unwrapped_model = self.unwrap_model()
         epoch_parameters = [
-            unwrapped_model.prefix.detach().cpu().numpy()
+            copy.deepcopy(self.prompt_transformer),
+            copy.deepcopy(self.proj_coop_pre),
+            copy.deepcopy(self.proj_coop_post),
+            copy.deepcopy(self.proj_vpt_pre),
+            copy.deepcopy(self.proj_vpt_post),
+            self.coop_embeddings.detach().cpu().numpy(),
+            None if self.vpt_embeddings_deep is None else self.vpt_embeddings_deep.detach().cpu().numpy(),
+            self.vpt_embeddings.detach().cpu().numpy(),
         ]
 
         return loss, total_loss, epoch_parameters
 
     def _run_validation(
-        self, 
-        val_loader,
-        only_unlabelled=False, 
-        only_seen=False,
+        self, val_loader, only_unlabelled=False, only_seen=False
     ):
         """This function computes the validation accuracy on labeled seen data.
-
         :param val_loder: Dataloader object - validation dataset
         """
 
-        log.info(f"[self._run_validation] Number of prompts: {len(self.model.classes)}")
-        
+        # Define text queries
+        if self.val_unseen_files is not None:
+            val = False
+        else:
+            val = True
+
         predictions = []
         labels = []
+        classes = self.seen_classes if self.val_unseen_files is None else self.classes
+        log.info(f"[self._run_validation] Number of prompts: {len(classes)}")
+
         for img, _, _, label, img_path in val_loader:
-            self.model.classes = self.classes if self.val_unseen_files is not None else self.seen_classes
-            text_features = self.model(self.model.classes)
+            # Get text and image prompts using UPT
+            coop_embeddings, vpt_embeddings, vpt_deep_embeddings = self.model(0)
+            # Calculate text prompts
+            text_features = self.text_encoder(coop_embeddings, classes) # TODO: Should this be all classes?
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
-            with torch.no_grad():
-                image_features = self.clip_model.encode_image(img)
-                image_features = image_features / image_features.norm(
-                    dim=-1, keepdim=True
-                )
+            # Calculate image prompts
+            image_features = self.image_encoder(img, vpt_embeddings, deep_embds=vpt_deep_embeddings)
+            image_features = image_features / image_features.norm(dim=-1, keepdim=True)
 
             logit_scale = self.clip_model.logit_scale.exp()
             logits = logit_scale * image_features @ text_features.t()
@@ -224,17 +232,14 @@ class TextualPrompt(TrainingStrategy):
 
         accelerator.wait_for_everyone()
 
-        predictions = torch.tensor(
-            [self.label_to_idx[p] for p in predictions][: len(val_loader.dataset)]
-        ).to(self.device)
-        labels = torch.tensor(
-            [self.label_to_idx[l] for l in labels][: len(val_loader.dataset)]
-        ).to(self.device)
+        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(
+            self.device
+        )
+        labels = torch.tensor([self.label_to_idx[l] for l in labels]).to(self.device)
 
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
 
-        log.info(f"[self._run_validation] shape text_features {len(text_features)}")
         if len(text_features) < len(self.classes):
             accuracy = torch.sum(predictions_outputs == labels_outputs) / len(
                 predictions_outputs
@@ -263,12 +268,10 @@ class TextualPrompt(TrainingStrategy):
                 log.info(f"Validation UNSEEN accuracy after Epoch: {unseen_accuracy}")
                 log.info(f"Validation HARMONIC accuracy after Epoch: {accuracy}")
 
-
         return accuracy
 
     def test_predictions(self, data, standard_zsl=False):
         """This function computes predictions on test data.
-
         :param data: Dataset object - test dataset
         """
 
@@ -279,34 +282,28 @@ class TextualPrompt(TrainingStrategy):
             data, batch_size=self.config.BATCH_SIZE
         )
 
-        self.model, test_loader = accelerator.prepare(self.model, test_loader)
-
-        if standard_zsl:
-            self.model.classes = self.unseen_classes
-        else:
-            self.model.classes = self.classes
-
-        log.info(f"[self.test_predictions] Number of prompts: {len(self.model.classes)}")
         accelerator.wait_for_everyone()
 
-        # Get prompts
-        text_features = self.model(self.model.classes)
-        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
-        log.info(f"TEXT FEATURES SHAPE: {text_features.size()}")
+        self.model, test_loader = accelerator.prepare(self.model, test_loader)
 
-        log.info(f"Start inference for test data")
         # This is required for distributed training
         test_files = [f.split("/")[-1] for f in test_loader.dataset.filepaths]
 
+        log.info(f"Start inference for test data")
         predictions = []
         images = []
+        classes = self.unseen_classes if standard_zsl else self.classes
         for img, _, _, img_path in test_loader:
             with torch.no_grad():
-                image_features = self.clip_model.encode_image(img)
-                image_features = image_features / image_features.norm(
-                    dim=-1, keepdim=True
-                )
-                # cosine similarity as logits
+                # Get text and image prompts using UPT
+                coop_embeddings, vpt_embeddings, vpt_deep_embeddings = self.model(0)
+                # Calculate text prompts
+                text_features = self.text_encoder(coop_embeddings, classes)
+                text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+                # Calculate image prompts
+                image_features = self.image_encoder(img, vpt_embeddings, deep_embds=vpt_deep_embeddings)
+                image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+
             logit_scale = self.clip_model.logit_scale.exp()
             logits = logit_scale * image_features @ text_features.t()
             idx_preds = torch.argmax(logits, dim=1)

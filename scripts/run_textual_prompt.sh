@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=R-test_coop
+#SBATCH --job-name=R-base_meth
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G

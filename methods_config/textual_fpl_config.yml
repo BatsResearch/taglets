@@ -1,6 +1,7 @@
-DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification'
+DATASET_DIR: '/Users/menga/Desktop/github/zsl_taglets/development' # '/users/cmenghin/data/bats/datasets/classification'
 DATASET_NAME: "$DATASET_NAME"
 # Model
+MODALITY: 'text'
 MODEL: "$MODEL"
 # Visual ecoder
 VIS_ENCODER: "$VIS_ENCODER"
@@ -10,11 +11,8 @@ PROMPT_TEMPLATE: 'imported in main.py'
 PREFIX_SIZE: 16
 N_PSEUDOSHOTS: 16
 STEP_QUANTILE: 10
-BALANCE_DATA: True
 # Prefix initialization: normal/uniform
 VIS_PREFIX_INIT: "normal"
-# Initialization of positional encoders same/zero
-POS_ENC_INIT: "same"
 # Initialization mean and variance
 MEAN_INIT: 0
 VAR_INIT: 0.02
@@ -25,8 +23,7 @@ ratio_train_val: 0.8
 # Batch size
 BATCH_SIZE: 16
 # Number of epochs
-t_EPOCHS: 150
-s_EPOCHS: 30
+EPOCHS: 2
 # Scheduler
 SCHEDULER: "cosine"
 # Scheduler warmup epochs
@@ -35,19 +32,13 @@ WARMUP_LR: 0.0001
 # Number of accumulation iter
 ACCUMULATION_ITER: 1
 # Optimizer teacher
-t_OPTIM: "SGD"
-t_LR: 0.1
-t_DECAY: 0.1
+OPTIM: "SGD"
+LR: 0.1
+DECAY: 0.1
 STEP_SIZE: 1
-# Optimizer student
-s_OPTIM: "SGD"
-s_LR: 0.1
-s_DECAY: 0.1
 STEP_SIZE: 1
 # Set seeds
 OPTIM_SEED: "$OPTIM_SEED"
-# Teacher pseudolabeleing
-ALL_UNLABELED: True
 # Classes split
 CLASSES_SPLIT: SPLIT_SEED
 # Seed split

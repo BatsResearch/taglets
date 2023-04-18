@@ -1,20 +1,23 @@
-DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification'
+# Dataset name
+DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification' #  '/Users/menga/Desktop/github/zsl_taglets/development' # '/users/cmenghin/data/bats/datasets/classification'
 DATASET_NAME: "$DATASET_NAME"
 # Model
+MODALITY: 'multi'
 MODEL: "$MODEL"
 # Visual ecoder
 VIS_ENCODER: "$VIS_ENCODER"
 # Prompt template
 PROMPT_TEMPLATE: 'imported in main.py'
-# Prefix size
-PREFIX_SIZE: 16
-N_PSEUDOSHOTS: 16
-STEP_QUANTILE: 10
-BALANCE_DATA: True
+# Text Prefix size
+TEXT_PREFIX_SIZE: 4
+# Vision Prefix size
+VISION_PREFIX_SIZE: 4
+# Lightweight transformer dim
+TRANSFORMER_DIM: 128
+# Use VPT-Deep?
+VPT_DEEP: False
 # Prefix initialization: normal/uniform
 VIS_PREFIX_INIT: "normal"
-# Initialization of positional encoders same/zero
-POS_ENC_INIT: "same"
 # Initialization mean and variance
 MEAN_INIT: 0
 VAR_INIT: 0.02
@@ -35,7 +38,7 @@ WARMUP_LR: 0.0001
 ACCUMULATION_ITER: 1
 # Optimizer
 OPTIM: "SGD"
-LR: 0.1
+LR: 0.01
 DECAY: 0.1
 STEP_SIZE: 1
 # Set seeds
@@ -44,4 +47,3 @@ OPTIM_SEED: "$OPTIM_SEED"
 CLASSES_SPLIT: SPLIT_SEED
 # Seed split
 SPLIT_SEED: "$SPLIT_SEED"
-

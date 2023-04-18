@@ -24,8 +24,14 @@ accelerator = Accelerator()
 from data import CustomDataset, dataset_custom_prompts
 from methods import (
     ClipBaseline,
+    MultimodalFPL,
+    MultimodalPrompt,
+    TextualFPL,
+    TextualPrompt,
+    VisualFPL,
     VisualPrompt,
 )
+
 from utils import (
     Config,
     dataset_object,
@@ -185,6 +191,181 @@ def workflow(dataset_dir, obj_conf):
         )
 
         model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+
+    elif obj_conf.MODEL == "visual_fpl":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = VisualFPL(
+            obj_conf, 
+            label_to_idx, 
+            data_folder,
+            device=device, 
+            **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.train(
+            train_seen_dataset, 
+            val_seen_dataset,
+            train_unseen_dataset,
+            only_seen=False
+        )
+
+    elif obj_conf.MODEL == "iterative_visual_fpl":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = VisualFPL(
+            obj_conf, 
+            label_to_idx, 
+            data_folder,
+            device=device, 
+            **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.fixed_iterative_train(
+            train_seen_dataset, 
+            val_seen_dataset,
+            train_unseen_dataset,
+            only_seen=False
+        )
+
+    elif obj_conf.MODEL == "grip_visual":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = VisualFPL(
+            obj_conf, 
+            label_to_idx, 
+            data_folder,
+            device=device, 
+            **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.grip_train(
+            train_seen_dataset, 
+            val_seen_dataset,
+            train_unseen_dataset,
+            only_seen=False
+        )
+
+    elif obj_conf.MODEL == "textual_prompt":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = TextualPrompt(
+            obj_conf, 
+            label_to_idx, 
+            device=device, 
+            **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.train(
+            train_seen_dataset, 
+            val_seen_dataset, 
+            only_seen=True
+        )
+
+        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+
+    elif obj_conf.MODEL == "textual_fpl":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = TextualFPL(
+            obj_conf, 
+            label_to_idx, 
+            data_folder,
+            device=device, 
+            **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.train(
+            train_seen_dataset, 
+            val_seen_dataset,
+            train_unseen_dataset,
+            only_seen=False
+        )
+
+    elif obj_conf.MODEL == "iterative_textual_fpl":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = TextualFPL(
+            obj_conf, 
+            label_to_idx, 
+            data_folder,
+            device=device, 
+            **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.fixed_iterative_train(
+            train_seen_dataset, 
+            val_seen_dataset,
+            train_unseen_dataset,
+            only_seen=False
+        )
+
+    elif obj_conf.MODEL == "grip_textual":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = TextualFPL(
+            obj_conf, 
+            label_to_idx, 
+            data_folder,
+            device=device, 
+            **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.grip_train(
+            train_seen_dataset, 
+            val_seen_dataset,
+            train_unseen_dataset,
+            only_seen=False
+        )
+
+    elif obj_conf.MODEL == "multimodal_prompt":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = MultimodalPrompt(
+            obj_conf, 
+            label_to_idx, 
+            device=device, 
+            **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.train(
+            train_seen_dataset, 
+            val_seen_dataset, 
+            only_seen=True
+        )
+
+    elif obj_conf.MODEL == "multimodal_fpl":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = MultimodalFPL(
+            obj_conf, 
+            label_to_idx, 
+            data_folder,
+            device=device, 
+            **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.train(
+            train_seen_dataset, 
+            val_seen_dataset,
+            train_unseen_dataset,
+            only_seen=False
+        )
+
+    elif obj_conf.MODEL == "iterative_multimodal_fpl":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = MultimodalFPL(
+            obj_conf, 
+            label_to_idx, 
+            data_folder,
+            device=device, 
+            **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.fixed_iterative_train(
+            train_seen_dataset, 
+            val_seen_dataset,
+            train_unseen_dataset,
+            only_seen=False
+        )
+
+    elif obj_conf.MODEL == "grip_multimodal":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = MultimodalFPL(
+            obj_conf, 
+            label_to_idx, 
+            data_folder,
+            device=device, 
+            **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.grip_train(
+            train_seen_dataset, 
+            val_seen_dataset,
+            train_unseen_dataset,
+            only_seen=False
+        )
+
 
     if obj_conf.MODEL != 'clip_baseline':
         # Save prompt

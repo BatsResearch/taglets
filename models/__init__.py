@@ -4,4 +4,8 @@ from .clip_encoders import (
     ImageEncoder,
     TextEncoder,
 )
-from .prompts_models import ImagePrefixModel, TextPrefixModel
+from .prompts_models import (
+    ImagePrefixModel, 
+    TextPrefixModel,
+    UPTModel,
+)
