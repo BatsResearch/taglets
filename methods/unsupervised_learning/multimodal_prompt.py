@@ -155,7 +155,7 @@ class MultimodalPrompt(TrainingStrategy):
             copy.deepcopy(self.proj_vpt_pre),
             copy.deepcopy(self.proj_vpt_post),
             self.model.module.coop_embeddings.detach().cpu().numpy(),
-            None if self.model.vpt_embeddings_deep is None else self.model.vpt_embeddings_deep.detach().cpu().numpy(),
+            None if self.model.module.vpt_embeddings_deep is None else self.model.module.vpt_embeddings_deep.detach().cpu().numpy(),
             self.model.module.vpt_embeddings.detach().cpu().numpy(),
         ]
 
