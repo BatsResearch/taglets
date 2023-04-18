@@ -11,7 +11,7 @@ from torch import nn
 
 accelerator = Accelerator()
 
-from methods.unsupervised_learning import TrainingStrategy
+from methods.transductive_zsl import TrainingStrategy
 from utils import make_scheduler, seed_worker
 
 
@@ -57,8 +57,10 @@ class VisualPrompt(TrainingStrategy):
         :param only_unlabelled: boolean. It is True if the training only involves
                                 pseudo-labeled unseen data
         """
+        # return [f"{self.template}{' '.join(i.split('_'))}" \
+        #                     for i in self.seen_classes]
 
-        return [self.template.format(" ".join(i.split("_"))) for i in self.classes]
+        return [self.template.format(" ".join(i.split("_"))) for i in self.seen_classes]
 
     def reindex_predicted_labels(self, idx_preds, only_unlabelled=False):
         """This function returns the correct index of predictions to compute
@@ -68,7 +70,7 @@ class VisualPrompt(TrainingStrategy):
         :param only_unlabelled: boolean. It is True if the training only involves
                                 pseudo-labeled unseen data
         """
-        return [self.classes[i.item()] for i in idx_preds]
+        return [self.seen_classes[i.item()] for i in idx_preds]
 
     def reindex_true_labels(self, label, only_unlabelled=False):
         """This function returns the correct index of true labels.
@@ -79,7 +81,7 @@ class VisualPrompt(TrainingStrategy):
         """
 
         return torch.tensor(
-            [self.classes.index(self.classes[l.item()]) for l in label]
+            [self.seen_classes.index(self.classes[l.item()]) for l in label]
         )
 
     def _train_epoch(
@@ -106,7 +108,7 @@ class VisualPrompt(TrainingStrategy):
         """
 
         # Define text queries
-        prompts = self.define_textual_prompts()
+        prompts = self.define_textual_prompts(only_unlabelled)
         log.info(f"[self._train_epoch] Number of prompts: {len(prompts)}")
 
         # Encode text
@@ -127,12 +129,12 @@ class VisualPrompt(TrainingStrategy):
             idx_preds = torch.argmax(logits, dim=1)
             #log.info(f"variables idx_preds: {idx_preds}")
             #log.info(f"variables only_unlabelled: {only_unlabelled}")
-            real_preds = self.reindex_predicted_labels(idx_preds)
+            real_preds = self.reindex_predicted_labels(idx_preds, only_unlabelled)
 
             predictions += real_preds
             labels += [self.classes[i.item()] for i in label]
 
-            labs = self.reindex_true_labels(label)
+            labs = self.reindex_true_labels(label, only_unlabelled)
             labs = labs.to(self.device)
             loss = self.define_loss_function(logits, labs)
             total_loss += loss.item()
@@ -156,8 +158,35 @@ class VisualPrompt(TrainingStrategy):
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
 
-        accuracy = torch.sum(predictions_outputs == labels_outputs) / len(labels_outputs)
-        log.info(f"Training accuracy after Epoch {epoch}: {accuracy}")
+        # Get harmonic mean
+        idx_seen = [self.label_to_idx[c] for c in self.seen_classes]
+        seen_true = [i for i, c in enumerate(labels_outputs) if c in idx_seen]
+        seen_preds = predictions_outputs[seen_true]
+        seen_labs = labels_outputs[seen_true]
+        seen_accuracy = torch.sum(seen_preds == seen_labs) / len(seen_true)
+
+        idx_unseen = [self.label_to_idx[c] for c in self.unseen_classes]
+        unseen_true = [i for i, c in enumerate(labels_outputs) if c in idx_unseen]
+        unseen_preds = predictions_outputs[unseen_true]
+        unseen_labs = labels_outputs[unseen_true]
+        unseen_accuracy = torch.sum(unseen_preds == unseen_labs) / len(unseen_true)
+
+        if only_unlabelled:
+            accuracy = unseen_accuracy
+            log.info(f"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
+        else:
+            if only_seen:
+                accuracy = seen_accuracy
+                log.info(f"Training SEEN accuracy after Epoch {epoch}: {accuracy}")
+            else:
+                accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
+
+                # accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
+                log.info(f"Training SEEN accuracy after Epoch {epoch}: {seen_accuracy}")
+                log.info(
+                    f"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}"
+                )
+                log.info(f"Training HARMONIC accuracy after Epoch {epoch}: {accuracy}")
 
         self.update_scheduler()
 
@@ -185,7 +214,7 @@ class VisualPrompt(TrainingStrategy):
         else:
             val = True
 
-        prompts = self.define_textual_prompts()
+        prompts = self.define_textual_prompts(only_unlabelled, validation=val)
         log.info(f"[self._run_validation] Number of prompts: {len(prompts)}")
 
         # Encode text
@@ -204,11 +233,10 @@ class VisualPrompt(TrainingStrategy):
             logits = logit_scale * image_features @ text_features.t()
 
             idx_preds = torch.argmax(logits, dim=1)
-            # if self.val_unseen_files is not None:
-            #     real_preds = [self.classes[i.item()] for i in idx_preds]
-            # else:
-            #     real_preds = [self.seen_classes[i.item()] for i in idx_preds]
-            real_preds = [self.classes[i.item()] for i in idx_preds]
+            if self.val_unseen_files is not None:
+                real_preds = [self.classes[i.item()] for i in idx_preds]
+            else:
+                real_preds = [self.seen_classes[i.item()] for i in idx_preds]
 
             predictions += real_preds
             labels += [self.classes[i.item()] for i in label]
@@ -223,12 +251,33 @@ class VisualPrompt(TrainingStrategy):
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
 
-        
-        accuracy = torch.sum(predictions_outputs == labels_outputs) / len(
-            predictions_outputs
-        )
-        
-        log.info(f"Validation accuracy after Epoch: {accuracy}")
+        if len(prompts) < len(self.classes):
+            accuracy = torch.sum(predictions_outputs == labels_outputs) / len(
+                predictions_outputs
+            )
+        else:
+            # Get harmonic mean
+            idx_seen = [self.label_to_idx[c] for c in self.seen_classes]
+            seen_true = [i for i, c in enumerate(labels_outputs) if c in idx_seen]
+            seen_preds = predictions_outputs[seen_true]
+            seen_labs = labels_outputs[seen_true]
+            seen_accuracy = torch.sum(seen_preds == seen_labs) / len(seen_true)
+
+            idx_unseen = [self.label_to_idx[c] for c in self.unseen_classes]
+            unseen_true = [i for i, c in enumerate(labels_outputs) if c in idx_unseen]
+            unseen_preds = predictions_outputs[unseen_true]
+            unseen_labs = labels_outputs[unseen_true]
+            unseen_accuracy = torch.sum(unseen_preds == unseen_labs) / len(unseen_true)
+
+            if only_seen:
+                accuracy = seen_accuracy
+                log.info(f"Validation SEEN accuracy after Epoch: {seen_accuracy}")
+
+            else:
+                accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
+                log.info(f"Validation SEEN accuracy after Epoch: {seen_accuracy}")
+                log.info(f"Validation UNSEEN accuracy after Epoch: {unseen_accuracy}")
+                log.info(f"Validation HARMONIC accuracy after Epoch: {accuracy}")
 
         return accuracy
 
@@ -250,10 +299,15 @@ class VisualPrompt(TrainingStrategy):
         self.model, test_loader = accelerator.prepare(self.model, test_loader)
 
         # Define text queries
-        prompts = [
-            self.template.format(" ".join(i.split("_")))
-            for i in self.classes
-        ]
+        if standard_zsl:
+            prompts = [
+                self.template.format(" ".join(i.split("_")))
+                for i in self.unseen_classes
+            ]
+        else:
+            prompts = [
+                self.template.format(" ".join(i.split("_"))) for i in self.classes
+            ]
 
         log.info(f"[self.test_predictions] Number of prompts: {len(prompts)}")
         # This is required for distributed training
@@ -279,7 +333,10 @@ class VisualPrompt(TrainingStrategy):
             logits = logit_scale * image_features @ text_features.t()
             idx_preds = torch.argmax(logits, dim=1)
 
-            predictions += [self.classes[i] for i in idx_preds]
+            if standard_zsl:
+                predictions += [self.unseen_classes[i] for i in idx_preds]
+            else:
+                predictions += [self.classes[i] for i in idx_preds]
 
             images += [i for i in img_path]
 

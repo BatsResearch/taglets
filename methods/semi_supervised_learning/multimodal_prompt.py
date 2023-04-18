@@ -11,7 +11,7 @@ from accelerate import Accelerator
 
 accelerator = Accelerator()
 
-from methods.unsupervised_learning import TrainingStrategy
+from methods.transductive_zsl import TrainingStrategy
 from utils import make_scheduler, seed_worker
 
 
@@ -57,7 +57,7 @@ class MultimodalPrompt(TrainingStrategy):
         :param only_unlabelled: boolean. It is True if the training only involves
                                 pseudo-labeled unseen data
         """
-        return [self.classes[i.item()] for i in idx_preds]
+        return [self.seen_classes[i.item()] for i in idx_preds]
 
     def reindex_true_labels(self, label, only_unlabelled=False):
         """This function returns the correct index of true labels.
@@ -67,7 +67,7 @@ class MultimodalPrompt(TrainingStrategy):
         """
 
         return torch.tensor(
-            [self.classes.index(self.classes[l.item()]) for l in label]
+            [self.seen_classes.index(self.classes[l.item()]) for l in label]
         )
 
     def _train_epoch(
@@ -90,8 +90,12 @@ class MultimodalPrompt(TrainingStrategy):
                                 pseudo-labeled unseen data
         :param teachet: boolean. Added to use this function in more subclasses
         """
-        
-        classes = self.classes
+        if only_unlabelled:
+            classes = self.unseen_classes
+        elif only_seen:
+            classes = self.seen_classes
+        else:
+            classes = self.classes
         log.info(f"[self._train_epoch] Number of prompts: {len(classes)}")
 
         predictions = []
@@ -111,12 +115,12 @@ class MultimodalPrompt(TrainingStrategy):
             logits = logit_scale * image_features @ text_features.t()
             idx_preds = torch.argmax(logits, dim=1)
 
-            real_preds = self.reindex_predicted_labels(idx_preds)
+            real_preds = self.reindex_predicted_labels(idx_preds, only_unlabelled)
 
             predictions += real_preds
             labels += [self.classes[i.item()] for i in label]
 
-            labs = self.reindex_true_labels(label)
+            labs = self.reindex_true_labels(label, only_unlabelled)
             labs = labs.to(self.device)
             loss = self.define_loss_function(logits, labs)
             total_loss += loss.item()
@@ -140,23 +144,48 @@ class MultimodalPrompt(TrainingStrategy):
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
 
-        accuracy = torch.sum(predictions_outputs == labels_outputs) / len(
-            predictions_outputs
-        )
-        log.info(f"Training accuracy after Epoch {epoch}: {accuracy}")
+        # Get harmonic mean
+        idx_seen = [self.label_to_idx[c] for c in self.seen_classes]
+        seen_true = [i for i, c in enumerate(labels_outputs) if c in idx_seen]
+        seen_preds = predictions_outputs[seen_true]
+        seen_labs = labels_outputs[seen_true]
+        seen_accuracy = torch.sum(seen_preds == seen_labs) / len(seen_true)
+
+        idx_unseen = [self.label_to_idx[c] for c in self.unseen_classes]
+        unseen_true = [i for i, c in enumerate(labels_outputs) if c in idx_unseen]
+        unseen_preds = predictions_outputs[unseen_true]
+        unseen_labs = labels_outputs[unseen_true]
+        unseen_accuracy = torch.sum(unseen_preds == unseen_labs) / len(unseen_true)
+
+        if only_unlabelled:
+            accuracy = unseen_accuracy
+            log.info(f"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
+        else:
+            if only_seen:
+                accuracy = seen_accuracy
+                log.info(f"Training SEEN accuracy after Epoch {epoch}: {accuracy}")
+            else:
+                accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
+
+                # accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
+                log.info(f"Training SEEN accuracy after Epoch {epoch}: {seen_accuracy}")
+                log.info(
+                    f"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}"
+                )
+                log.info(f"Training HARMONIC accuracy after Epoch {epoch}: {accuracy}")
 
         self.update_scheduler()
 
         unwrapped_model = self.unwrap_model()
         epoch_parameters = [
-            self.model.transformer.detach().cpu().numpy(),
-            self.model.proj_coop_pre.detach().cpu().numpy(),
-            self.model.proj_coop_post.detach().cpu().numpy(),
-            self.model.proj_vpt_pre.detach().cpu().numpy(),
-            self.model.proj_vpt_post.detach().cpu().numpy(),
-            self.model.coop_embeddings.detach().cpu().numpy(),
-            None if self.model.vpt_embeddings_deep is None else self.model.vpt_embeddings_deep.detach().cpu().numpy(),
-            self.model.vpt_embeddings.detach().cpu().numpy(),
+            copy.deepcopy(self.prompt_transformer),
+            copy.deepcopy(self.proj_coop_pre),
+            copy.deepcopy(self.proj_coop_post),
+            copy.deepcopy(self.proj_vpt_pre),
+            copy.deepcopy(self.proj_vpt_post),
+            self.coop_embeddings.detach().cpu().numpy(),
+            None if self.vpt_embeddings_deep is None else self.vpt_embeddings_deep.detach().cpu().numpy(),
+            self.vpt_embeddings.detach().cpu().numpy(),
         ]
 
         return loss, total_loss, epoch_parameters
@@ -176,7 +205,7 @@ class MultimodalPrompt(TrainingStrategy):
 
         predictions = []
         labels = []
-        classes = self.classes
+        classes = self.seen_classes if self.val_unseen_files is None else self.classes
         log.info(f"[self._run_validation] Number of prompts: {len(classes)}")
 
         for img, _, _, label, img_path in val_loader:
@@ -193,9 +222,11 @@ class MultimodalPrompt(TrainingStrategy):
             logits = logit_scale * image_features @ text_features.t()
 
             idx_preds = torch.argmax(logits, dim=1)
-            
-            real_preds = [self.classes[i.item()] for i in idx_preds]
-            
+            if self.val_unseen_files is not None:
+                real_preds = [self.classes[i.item()] for i in idx_preds]
+            else:
+                real_preds = [self.seen_classes[i.item()] for i in idx_preds]
+
             predictions += real_preds
             labels += [self.classes[i.item()] for i in label]
 
@@ -209,11 +240,33 @@ class MultimodalPrompt(TrainingStrategy):
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
 
-        
-        accuracy = torch.sum(predictions_outputs == labels_outputs) / len(
-            predictions_outputs
-        )
-        log.info(f"Validation accuracy after Epoch: {accuracy}")
+        if len(text_features) < len(self.classes):
+            accuracy = torch.sum(predictions_outputs == labels_outputs) / len(
+                predictions_outputs
+            )
+        else:
+            # Get harmonic mean
+            idx_seen = [self.label_to_idx[c] for c in self.seen_classes]
+            seen_true = [i for i, c in enumerate(labels_outputs) if c in idx_seen]
+            seen_preds = predictions_outputs[seen_true]
+            seen_labs = labels_outputs[seen_true]
+            seen_accuracy = torch.sum(seen_preds == seen_labs) / len(seen_true)
+
+            idx_unseen = [self.label_to_idx[c] for c in self.unseen_classes]
+            unseen_true = [i for i, c in enumerate(labels_outputs) if c in idx_unseen]
+            unseen_preds = predictions_outputs[unseen_true]
+            unseen_labs = labels_outputs[unseen_true]
+            unseen_accuracy = torch.sum(unseen_preds == unseen_labs) / len(unseen_true)
+
+            if only_seen:
+                accuracy = seen_accuracy
+                log.info(f"Validation SEEN accuracy after Epoch: {seen_accuracy}")
+
+            else:
+                accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
+                log.info(f"Validation SEEN accuracy after Epoch: {seen_accuracy}")
+                log.info(f"Validation UNSEEN accuracy after Epoch: {unseen_accuracy}")
+                log.info(f"Validation HARMONIC accuracy after Epoch: {accuracy}")
 
         return accuracy
 
@@ -239,7 +292,7 @@ class MultimodalPrompt(TrainingStrategy):
         log.info(f"Start inference for test data")
         predictions = []
         images = []
-        classes = self.classes
+        classes = self.unseen_classes if standard_zsl else self.classes
         for img, _, _, img_path in test_loader:
             with torch.no_grad():
                 # Get text and image prompts using UPT
@@ -255,7 +308,10 @@ class MultimodalPrompt(TrainingStrategy):
             logits = logit_scale * image_features @ text_features.t()
             idx_preds = torch.argmax(logits, dim=1)
 
-            predictions += [self.classes[i] for i in idx_preds]
+            if standard_zsl:
+                predictions += [self.unseen_classes[i] for i in idx_preds]
+            else:
+                predictions += [self.classes[i] for i in idx_preds]
 
             images += [i for i in img_path]
 

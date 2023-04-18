@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 accelerator = Accelerator()
 
-from methods.unsupervised_learning import TextualPrompt
+from methods.transductive_zsl import TextualPrompt
 from utils import (
     dataset_object,
     make_scheduler, 
@@ -63,12 +63,11 @@ class TextualFPL(TextualPrompt):
 
         # Get pseudo-labels for unlabeled data from unseen classes
         train_unseen_dataset = pseudolabel_top_k(
-            self.config, 
             self.config.DATASET_NAME,
             self.config.N_PSEUDOSHOTS,
             self.config.PROMPT_TEMPLATE,
             unlabeled_data,
-            self.classes,
+            self.unseen_classes,
             self.transform,
             self.clip_model,
             self.label_to_idx,
@@ -103,17 +102,23 @@ class TextualFPL(TextualPrompt):
             self.val_unseen_files = None
             self.val_unseen_labs = None
 
-        train_data.filepaths = list(unseen_imgs) 
-        train_data.labels = list(unseen_labs) 
+        seen_imgs = train_data.filepaths
+        seen_labs = [self.label_to_idx[l] for l in train_data.labels]
+
+        self.balance_param = len(seen_imgs) / len(unseen_imgs)
+
+        train_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+        train_data.labels = list(unseen_labs) + list(seen_labs)
         train_data.label_id = True
 
         return train_data
 
     def define_loss_function(self, logits, labs):
 
-        loss_ce = self.cross_entropy(logits, labs, self.classes)
-        
-        return loss_ce
+        loss_ce_seen = self.cross_entropy(logits, labs, self.seen_classes)
+        loss_ce_unseen = self.cross_entropy(logits, labs, self.unseen_classes)
+
+        return loss_ce_seen + self.balance_param * loss_ce_unseen
 
     def cross_entropy(self, logits, labels, classes):
         """This loss computes the probability mass on the
@@ -123,8 +128,21 @@ class TextualFPL(TextualPrompt):
         :param labels: class ids
         """
 
-        error = self.loss_func(logits, labels)
-        
+        ids = [self.label_to_idx[c] for c in classes]
+
+        # Get indices of unseen and seen samples in the batch
+        samples = []
+
+        for idx, l in enumerate(labels):
+            if l in ids:
+                samples.append(idx)
+
+        # Get logit sums on unseen samples
+        if samples:
+            error = self.loss_func(logits[samples], labels[samples])
+        else:
+            error = 0
+
         return error
 
 
@@ -160,18 +178,18 @@ class TextualFPL(TextualPrompt):
         # prompts = [f"{self.template}{' '.join(i.split('_'))}" \
         #             for i in self.unseen_classes]
 
-        log.info(f"[self.assign_pseudo_labels] Number of prompts: {len(self.classes)}")
+        log.info(f"[self.assign_pseudo_labels] Number of prompts: {len(self.unseen_classes)}")
 
         # Get prompts
-        self.model.classes = self.classes
+        self.model.classes = self.unseen_classes
         text_features = self.model(self.model.classes)
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
         log.info(f"TEXT FEATURES SHAPE: {text_features.size()}")
 
         # to find the top k for each class, each class has it's own "leaderboard"
         top_k_leaderboard = {
-            self.label_to_idx[self.classes[i]]: []
-            for i in range(len(self.classes))
+            self.label_to_idx[self.unseen_classes[i]]: []
+            for i in range(len(self.unseen_classes))
         }  # maps class idx -> (confidence, image_path) tuple
 
         for img_path in unlabeled_data.filepaths:
@@ -190,7 +208,7 @@ class TextualFPL(TextualPrompt):
             probs = logits.softmax(dim=-1)
             idx_preds = torch.argmax(logits, dim=1)
             pred_id = idx_preds.item()
-            pred = self.label_to_idx[self.classes[idx_preds.item()]]
+            pred = self.label_to_idx[self.unseen_classes[idx_preds.item()]]
 
             """if predicted class has empty leaderboard, or if the confidence is high
             enough for predicted class leaderboard, add the new example
@@ -211,13 +229,13 @@ class TextualFPL(TextualPrompt):
                 order_of_classes = sorted(
                     [
                         (probs[0][j], j)
-                        for j in range(len(self.classes))
+                        for j in range(len(self.unseen_classes))
                         if j != pred_id
                     ],
                     reverse=True,
                 )
                 for score, index in order_of_classes:
-                    index_dict = self.label_to_idx[self.classes[index]]
+                    index_dict = self.label_to_idx[self.unseen_classes[index]]
                     # log.info(f"{classnames[index]}")
                     # log.info(f"{index_dict}")
                     if len(top_k_leaderboard[index_dict]) < k:

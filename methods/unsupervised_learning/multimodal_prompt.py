@@ -98,12 +98,13 @@ class MultimodalPrompt(TrainingStrategy):
         labels = []
         for i, (img, _, _, label, img_path) in enumerate(train_loader):
             # Get text and image prompts using UPT
-            coop_embeddings, vpt_embeddings, vpt_deep_embeddings = self.model(0)
+            # coop_embeddings, vpt_embeddings, vpt_deep_embeddings = self.model(0)
             # Calculate text prompts
-            text_features = self.text_encoder(coop_embeddings, classes)
+            # text_features = self.text_encoder(coop_embeddings, classes)
+            text_features, image_features = self.model(img, classes)
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
             # Calculate image prompts
-            image_features = self.image_encoder(img, vpt_embeddings, deep_embds=vpt_deep_embeddings)
+            # image_features = self.image_encoder(img, vpt_embeddings, deep_embds=vpt_deep_embeddings)
             image_features = image_features / image_features.norm(dim=-1, keepdim=True)
 
             # cosine similarity as logits
@@ -181,12 +182,13 @@ class MultimodalPrompt(TrainingStrategy):
 
         for img, _, _, label, img_path in val_loader:
             # Get text and image prompts using UPT
-            coop_embeddings, vpt_embeddings, vpt_deep_embeddings = self.model(0)
+            # coop_embeddings, vpt_embeddings, vpt_deep_embeddings = self.model(0)
             # Calculate text prompts
-            text_features = self.text_encoder(coop_embeddings, classes) # TODO: Should this be all classes?
+            # text_features = self.text_encoder(coop_embeddings, classes) # TODO: Should this be all classes?
+            text_features, image_features = self.model(img, classes)
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
             # Calculate image prompts
-            image_features = self.image_encoder(img, vpt_embeddings, deep_embds=vpt_deep_embeddings)
+            # image_features = self.image_encoder(img, vpt_embeddings, deep_embds=vpt_deep_embeddings)
             image_features = image_features / image_features.norm(dim=-1, keepdim=True)
 
             logit_scale = self.clip_model.logit_scale.exp()
@@ -243,12 +245,13 @@ class MultimodalPrompt(TrainingStrategy):
         for img, _, _, img_path in test_loader:
             with torch.no_grad():
                 # Get text and image prompts using UPT
-                coop_embeddings, vpt_embeddings, vpt_deep_embeddings = self.model(0)
+                # coop_embeddings, vpt_embeddings, vpt_deep_embeddings = self.model(0)
                 # Calculate text prompts
-                text_features = self.text_encoder(coop_embeddings, classes)
+                # text_features = self.text_encoder(coop_embeddings, classes)
+                text_features, image_features = self.model(img, classes)
                 text_features = text_features / text_features.norm(dim=-1, keepdim=True)
                 # Calculate image prompts
-                image_features = self.image_encoder(img, vpt_embeddings, deep_embds=vpt_deep_embeddings)
+                # image_features = self.image_encoder(img, vpt_embeddings, deep_embds=vpt_deep_embeddings)
                 image_features = image_features / image_features.norm(dim=-1, keepdim=True)
 
             logit_scale = self.clip_model.logit_scale.exp()

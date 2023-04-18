@@ -22,11 +22,14 @@ from urllib3.util import Retry
 accelerator = Accelerator()
 
 from data import CustomDataset, dataset_custom_prompts
-from methods.unsupervised_learning import (
+from methods.transductive_zsl import (
     ClipBaseline,
     MultimodalFPL,
+    MultimodalPrompt,
     TextualFPL,
+    TextualPrompt,
     VisualFPL,
+    VisualPrompt,
 )
 
 from utils import (
@@ -114,11 +117,6 @@ def workflow(dataset_dir, obj_conf):
     val_labeled_files = np.array(labeled_files)[val_indices]
     val_labeles = np.array(labeles)[val_indices]
 
-    unseen_labeled_files = list(unseen_labeled_files) + list(train_labeled_files) + list(val_labeled_files)
-    unseen_labeles = list(unseen_labeles) + list(train_labeles) + list(val_labeles)
-    log.info(f"LEN UNSEEN AFTER CONCAT: {len(unseen_labeled_files)}")
-
-
     DatasetObject = dataset_object(obj_conf.DATASET_NAME)
     # Training set (labeled seen): note that here tranform and augmentations are None.
     # These are attributes that everyone can set in the modules.
@@ -178,6 +176,22 @@ def workflow(dataset_dir, obj_conf):
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = ClipBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
     
+    elif obj_conf.MODEL == "visual_prompt":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = VisualPrompt(
+            obj_conf, 
+            label_to_idx, 
+            device=device, 
+            **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.train(
+            train_seen_dataset, 
+            val_seen_dataset, 
+            only_seen=True
+        )
+
+        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+
     elif obj_conf.MODEL == "visual_fpl":
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = VisualFPL(
@@ -226,6 +240,22 @@ def workflow(dataset_dir, obj_conf):
             only_seen=False
         )
 
+    elif obj_conf.MODEL == "textual_prompt":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = TextualPrompt(
+            obj_conf, 
+            label_to_idx, 
+            device=device, 
+            **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.train(
+            train_seen_dataset, 
+            val_seen_dataset, 
+            only_seen=True
+        )
+
+        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
+
     elif obj_conf.MODEL == "textual_fpl":
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = TextualFPL(
@@ -272,6 +302,20 @@ def workflow(dataset_dir, obj_conf):
             val_seen_dataset,
             train_unseen_dataset,
             only_seen=False
+        )
+
+    elif obj_conf.MODEL == "multimodal_prompt":
+        log.info(f"The model in use is: {obj_conf.MODEL}")
+        model = MultimodalPrompt(
+            obj_conf, 
+            label_to_idx, 
+            device=device, 
+            **dict_classes
+        )
+        val_accuracy, optimal_prompt = model.train(
+            train_seen_dataset, 
+            val_seen_dataset, 
+            only_seen=True
         )
 
     elif obj_conf.MODEL == "multimodal_fpl":
@@ -330,7 +374,6 @@ def workflow(dataset_dir, obj_conf):
     std_predictions = model.test_predictions(test_dataset, standard_zsl=True)
     # Submit predictions (standard)
     std_response = evaluate_predictions(
-        obj_conf,
         std_predictions,
         test_labeled_files,
         test_labeles,
@@ -339,8 +382,24 @@ def workflow(dataset_dir, obj_conf):
     )
     log.info(f"ZSL accuracy: {std_response}")
 
+    # Validate on test set (general)
+    gen_predictions = model.test_predictions(test_dataset, standard_zsl=False)
+    # Submit predictions (general)
+    unseen_accuracy, seen_accuracy, harmonic_mean = evaluate_predictions(
+        gen_predictions,
+        test_labeled_files,
+        test_labeles,
+        unseen_classes,
+        seen_classes,
+        standard_zsl=False,
+    )
+    log.info(f"Generalized ZSL results")
+    log.info(f"Accuracy seen classes: {seen_accuracy}")
+    log.info(f"Accuracy unseen classes: {unseen_accuracy}")
+    log.info(f"Harmonic mean: {harmonic_mean}")
+
     # Store model results
-    store_results(obj_conf, std_response)
+    store_results(obj_conf, std_response, unseen_accuracy, seen_accuracy, harmonic_mean)
 
  
 def main():

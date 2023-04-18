@@ -307,7 +307,12 @@ class TrainingStrategy(object):
         # Define training dataset
         if not iterative:
             self.create_training_dataset(train_data, unlabeled_data)
-            if self.config.MODALITY == 'text':
+        
+            if self.config.MODEL == 'textual_prompt':
+                self.define_model(self.seen_classes)
+            elif self.config.MODEL == 'textual_fpl' \
+                or self.config.MODEL == 'iterative_textual_fpl' \
+                or self.config.MODEL == 'grip_textual':
                 self.define_model(self.classes)
             else:
                 self.define_model()
@@ -326,12 +331,14 @@ class TrainingStrategy(object):
             generator=g,
         )
         if self.val_unseen_files is not None:
-        
+            seen_imgs = val_data.filepaths
+            seen_labs = [self.label_to_idx[l] for l in val_data.labels]
+
             unseen_imgs = list(self.val_unseen_files)
             unseen_labs = list(self.val_unseen_labs)
 
-            val_data.filepaths = list(unseen_imgs)
-            val_data.labels = list(unseen_labs)
+            val_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+            val_data.labels = list(unseen_labs) + list(seen_labs)
             val_data.label_id = True
 
         val_loader = torch.utils.data.DataLoader(
@@ -380,7 +387,9 @@ class TrainingStrategy(object):
                 best_val_accuracy = None
                 best_prompt = epoch_parameters
 
-            if self.config.MODALITY == 'text':
+            if self.config.MODEL == 'textual_fpl' \
+                or self.config.MODEL == 'iterative_textual_fpl' \
+                or self.config.MODEL == 'grip_textual':
                 # After validation on seen classes redefine the set of training classes
                 self.model.classes = self.classes
 
@@ -397,11 +406,11 @@ class TrainingStrategy(object):
         num_samples = int(len(unlabeled_data) / num_iter)
         # Initialize the number of pseudo-labels per class
         n_per_class = int(num_samples / len(self.classes))
-        n_unseen = len(self.classes)
+        n_unseen = len(self.unseen_classes)
 
         log.info(f"We select {self.config.N_PSEUDOSHOTS} pseudolabel per each unseen classes.")
-        log.info(f"The number of unseen classes is: {len(self.classes)}.")
-        log.info(f"Thus we expect an initial number of pseudo labeles equal to {len(self.classes) * self.config.N_PSEUDOSHOTS}.")
+        log.info(f"The number of unseen classes is: {len(self.unseen_classes)}.")
+        log.info(f"Thus we expect an initial number of pseudo labeles equal to {len(self.unseen_classes) * self.config.N_PSEUDOSHOTS}.")
 
         # Create a safe copy of labeled/unlabeled data
         original_train_data = copy.deepcopy(train_data)
@@ -439,7 +448,10 @@ class TrainingStrategy(object):
             log.info(f"Train data is {len(train_data.filepaths)} at iter: {niter}.")
 
             # 2. Define model
-            if self.config.MODALITY == 'text':
+            if self.config.MODEL == 'textual_prompt':
+                self.define_model(self.seen_classes)
+            elif self.config.MODEL == 'textual_fpl' or self.config.MODEL == 'iterative_textual_fpl' \
+                or self.config.MODEL == 'grip_textual':
                 self.define_model(self.classes)
             else:
                 self.define_model()
@@ -490,8 +502,8 @@ class TrainingStrategy(object):
         num_iter = int(100/self.config.STEP_QUANTILE)
         num_samples = int(len(unlabeled_data) / num_iter)
         # Initialize the number of pseudo-labels per class
-        n_per_class = int(num_samples / len(self.classes))
-        n_unseen = len(self.classes)
+        n_per_class = int(num_samples / len(self.unseen_classes))
+        n_unseen = len(self.unseen_classes)
         if n_per_class * n_unseen <= len(unlabeled_data.filepaths):
             # self.num_pseudo_labels_per_class =  n_per_class
             self.config.N_PSEUDOSHOTS = n_per_class
@@ -502,8 +514,8 @@ class TrainingStrategy(object):
             )
 
         log.info(f"We select {self.config.N_PSEUDOSHOTS} pseudolabel per each unseen classes.")
-        log.info(f"The number of unseen classes is: {len(self.classes)}.")
-        log.info(f"Thus we expect an initial number of pseudo labeles equal to {len(self.classes) * self.config.N_PSEUDOSHOTS}.")
+        log.info(f"The number of unseen classes is: {len(self.unseen_classes)}.")
+        log.info(f"Thus we expect an initial number of pseudo labeles equal to {len(self.unseen_classes) * self.config.N_PSEUDOSHOTS}.")
         # Create a safe copy of labeled/unlabeled data
         original_train_data = copy.deepcopy(train_data)
         # log.info(f"Training data labels: {original_train_data.labels}")
@@ -537,7 +549,11 @@ class TrainingStrategy(object):
             self.update_training_set(train_data, unlabeled_data)
 
             # 1. Initialize model            
-            if self.config.MODALITY == 'text':
+            if self.config.MODEL == 'textual_prompt':
+                self.define_model(self.seen_classes)
+            elif self.config.MODEL == 'textual_fpl' \
+            or self.config.MODEL == 'iterative_textual_fpl' \
+            or self.config.MODEL == 'grip_textual':
                 self.define_model(self.classes)
             else:
                 self.define_model()
@@ -642,8 +658,16 @@ class TrainingStrategy(object):
             self.val_unseen_files = None
             self.val_unseen_labs = None
 
-        train_data.filepaths = list(unseen_imgs)
-        train_data.labels = list(unseen_labs)
+        # Specify train labeled data
+        seen_imgs = train_data.filepaths
+        seen_labs = [self.label_to_idx[l] for l in train_data.labels]
+
+        # Weigth the classes representativeness
+        self.balance_param = len(seen_imgs) / len(unseen_imgs)
+
+        train_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+        train_data.labels = list(unseen_labs) + list(seen_labs)
         train_data.label_id = True
         log.info(f"UPDATE DATASET: size = {len(train_data.filepaths)}")
         log.info(f"UPDATE UNSEEN DATASET: size = {len(unseen_imgs)}")
+        log.info(f"UPDATE SEEN DATASET: size = {len(seen_imgs)}")

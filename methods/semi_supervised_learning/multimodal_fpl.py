@@ -11,7 +11,7 @@ import math
 
 accelerator = Accelerator()
 
-from methods.unsupervised_learning import MultimodalPrompt
+from methods.transductive_zsl import MultimodalPrompt
 from utils import (
     dataset_object,
     make_scheduler, 
@@ -27,7 +27,7 @@ class MultimodalFPL(MultimodalPrompt):
         self, 
         config, 
         label_to_idx,
-        data_folder,
+         data_folder,
         classes, 
         seen_classes, 
         unseen_classes, 
@@ -58,12 +58,11 @@ class MultimodalFPL(MultimodalPrompt):
 
         # Get pseudo-labels for unlabeled data from unseen classes
         train_unseen_dataset = pseudolabel_top_k(
-            self.config,
             self.config.DATASET_NAME,
             self.config.N_PSEUDOSHOTS,
             self.config.PROMPT_TEMPLATE,
             unlabeled_data,
-            self.classes,
+            self.unseen_classes,
             self.transform,
             self.clip_model,
             self.label_to_idx,
@@ -75,7 +74,6 @@ class MultimodalFPL(MultimodalPrompt):
         # Define the lists of traiing data from seen and unseen classes
         unseen_imgs = train_unseen_dataset.filepaths
         unseen_labs = train_unseen_dataset.labels
-        log.info(f"Number of classes in pseudolabels: {len(set(unseen_labs))}")
 
         # Use a portion of the pseudo-labeled data to build a validation set
         if self.config.N_PSEUDOSHOTS >= 10:
@@ -99,15 +97,21 @@ class MultimodalFPL(MultimodalPrompt):
             self.val_unseen_files = None
             self.val_unseen_labs = None
 
-        train_data.filepaths = list(unseen_imgs)
-        train_data.labels = list(unseen_labs)
+        seen_imgs = train_data.filepaths
+        seen_labs = [self.label_to_idx[l] for l in train_data.labels]
+
+        self.balance_param = math.sqrt(len(seen_imgs) / len(unseen_imgs))
+
+        train_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+        train_data.labels = list(unseen_labs) + list(seen_labs)
         train_data.label_id = True
 
-    def define_loss_function(self, logits, labs):
+    def define_loss_function(self, logits, labs, teacher=False):
         
-        loss_ce = self.cross_entropy(logits, labs, self.classes)        
+        loss_ce_seen = self.cross_entropy(logits, labs, self.seen_classes)
+        loss_ce_unseen = self.cross_entropy(logits, labs, self.unseen_classes)
 
-        return loss_ce
+        return loss_ce_seen + self.balance_param * loss_ce_unseen
 
     def cross_entropy(self, logits, labels, classes):
         """This loss computes the probability mass on the
@@ -116,8 +120,20 @@ class MultimodalFPL(MultimodalPrompt):
         :param labels: class ids
         """
 
-        error = self.loss_func(logits, labels)
-        
+        ids = [self.label_to_idx[c] for c in classes]
+
+        # Get indices of unseen and seen samples in the batch
+        samples = []
+
+        for idx, l in enumerate(labels):
+            if l in ids:
+                samples.append(idx)
+
+        if samples:
+            error = self.loss_func(logits[samples], labels[samples])
+        else:
+            error = 0
+
         return error
 
     def reindex_predicted_labels(self, idx_preds, only_unlabelled=False):
@@ -128,7 +144,10 @@ class MultimodalFPL(MultimodalPrompt):
                                 pseudo-labeled unseen data
         """
 
-        return [self.classes[i.item()] for i in idx_preds]
+        if only_unlabelled:
+            return [self.unseen_classes[i.item()] for i in idx_preds]
+        else:
+            return [self.classes[i.item()] for i in idx_preds]
 
     def reindex_true_labels(self, label, only_unlabelled=False):
         """This function returns the correct index of true labels.
@@ -137,10 +156,15 @@ class MultimodalFPL(MultimodalPrompt):
                                 pseudo-labeled unseen data
         """
 
-        return torch.tensor([l for l in label])
+        if only_unlabelled:
+            return torch.tensor(
+                [self.unseen_classes.index(self.classes[l.item()]) for l in label]
+            )
+        else:
+            return torch.tensor([l for l in label])
 
     def get_pseudo_labels(self, unlabeled_examples):
-        log.info(f"[self.get_pseudo_labels] Num unlabeled data: {len(unlabeled_examples)}")
+        log.info(f"Num unlabeled data: {len(unlabeled_examples)}")
         # Get prediction on unlabeled data
         std_preds = self.test_predictions(
             unlabeled_examples, standard_zsl=True
@@ -170,11 +194,11 @@ class MultimodalFPL(MultimodalPrompt):
 
         # to find the top k for each class, each class has it's own "leaderboard"
         top_k_leaderboard = {
-            self.label_to_idx[self.classes[i]]: []
-            for i in range(len(self.classes))
+            self.label_to_idx[self.unseen_classes[i]]: []
+            for i in range(len(self.unseen_classes))
         }  # maps class idx -> (confidence, image_path) tuple
 
-        classes = self.classes
+        classes = self.unseen_classes
         for img_path in unlabeled_data.filepaths:
             # log.info(f"IMAGEPATH: {img_path}")
             img = Image.open(img_path).convert("RGB")
@@ -194,7 +218,7 @@ class MultimodalFPL(MultimodalPrompt):
             probs = logits.softmax(dim=-1)
             idx_preds = torch.argmax(logits, dim=1)
             pred_id = idx_preds.item()
-            pred = self.label_to_idx[self.classes[idx_preds.item()]]
+            pred = self.label_to_idx[self.unseen_classes[idx_preds.item()]]
 
             """if predicted class has empty leaderboard, or if the confidence is high
             enough for predicted class leaderboard, add the new example
@@ -215,13 +239,13 @@ class MultimodalFPL(MultimodalPrompt):
                 order_of_classes = sorted(
                     [
                         (probs[0][j], j)
-                        for j in range(len(self.classes))
+                        for j in range(len(self.unseen_classes))
                         if j != pred_id
                     ],
                     reverse=True,
                 )
                 for score, index in order_of_classes:
-                    index_dict = self.label_to_idx[self.classes[index]]
+                    index_dict = self.label_to_idx[self.unseen_classes[index]]
                     # log.info(f"{classnames[index]}")
                     # log.info(f"{index_dict}")
                     if len(top_k_leaderboard[index_dict]) < k:

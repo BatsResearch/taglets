@@ -110,9 +110,9 @@ class UPTModel(nn.Module):
     # - Run sequence through transformer
     # - Project back to CLIP (512) dim space
     # (Error when there is no input arg. https://github.com/pytorch/pytorch/pull/37902)
-    def forward(self, dummy_input):
+    def forward(self, x, classes):
         # First, we project the prompts into lower dim space, and concat them, and make them correct dtype
-        coop_embeddings = self.coop_embeddings + dummy_input
+        coop_embeddings = self.coop_embeddings 
         coop_embds = self.proj_coop_pre(coop_embeddings).to(self.device)
         if self.vpt_embeddings_deep is not None:
             vpt_embds = torch.cat((self.vpt_embeddings, self.vpt_embeddings_deep), dim=0).to(self.device)
@@ -129,4 +129,9 @@ class UPTModel(nn.Module):
         vpt_embs = self.proj_vpt_post(output_seq[len(self.coop_embeddings):].to(self.dtype)).reshape(-1, self.vpt_length, self.vpt_dim)
         vpt_emb_deep = None if vpt_embs.shape[0] == 1 else vpt_embs[1:, :, :]
         
-        return coop_embs, vpt_embs, vpt_emb_deep
+        text_out = self.text_encoder(coop_embs, classes)
+        norm_text_out = text_out / text_out.norm(dim=-1, keepdim=True)
+        visual_out = self.image_encoder(x, vpt_embs)
+        norm_visual_out = visual_out / visual_out.norm(dim=-1, keepdim=True)
+
+        return text_out, visual_out
