@@ -45,8 +45,8 @@ class VisualPrompt(TrainingStrategy):
         )
 
         # Load custom encoder
-        self.declare_custom_encoder().to(self.device)
-        log.info(f"Custom Encoder: {self.image_encoder}.")
+        self.declare_custom_encoder()
+        # log.info(f"Custom Encoder: {self.image_encoder}.")
         # Initialize prompt parameters
         self.initialize_prompts_parameters()
         
@@ -109,7 +109,7 @@ class VisualPrompt(TrainingStrategy):
 
         # Define text queries
         prompts = self.define_textual_prompts(only_unlabelled)
-        log.info(f"Number of prompts: {len(prompts)}")
+        log.info(f"[self._train_epoch] Number of prompts: {len(prompts)}")
 
         # Encode text
         with torch.no_grad():
@@ -215,7 +215,7 @@ class VisualPrompt(TrainingStrategy):
             val = True
 
         prompts = self.define_textual_prompts(only_unlabelled, validation=val)
-        log.info(f"Number of prompts: {len(prompts)}")
+        log.info(f"[self._run_validation] Number of prompts: {len(prompts)}")
 
         # Encode text
         with torch.no_grad():
@@ -309,7 +309,7 @@ class VisualPrompt(TrainingStrategy):
                 self.template.format(" ".join(i.split("_"))) for i in self.classes
             ]
 
-        log.info(f"Number of prompts: {len(prompts)}")
+        log.info(f"[self.test_predictions] Number of prompts: {len(prompts)}")
         # This is required for distributed training
         test_files = [f.split("/")[-1] for f in test_loader.dataset.filepaths]
 

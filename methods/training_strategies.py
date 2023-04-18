@@ -16,7 +16,11 @@ from models import (
     CustomTextEncoder, 
     ImagePrefixModel,
 )
-from utils import make_scheduler, seed_worker
+from utils import (
+    make_scheduler, 
+    seed_worker, 
+    save_pseudo_labels,
+)
 
 
 g = torch.Generator()
@@ -64,8 +68,8 @@ class TrainingStrategy(object):
         """
 
         if self.config.MODALITY == 'image':
-            visual_transformer = self.clip_model.visual
-            self.image_encoder = CustomImageEncoder(visual_transformer
+            self.visual_transformer = self.clip_model.visual
+            self.image_encoder = CustomImageEncoder(self.visual_transformer
             ).to(self.device)
             log.info(f"Freeze visual encoder.")
             for param in self.image_encoder.parameters():
@@ -93,7 +97,7 @@ class TrainingStrategy(object):
         """
 
         if self.config.MODALITY == 'image':
-            width = visual_transformer.class_embedding.size()[0]
+            width = self.visual_transformer.class_embedding.size()[0]
             scale = width**-0.5
             if self.config.VIS_PREFIX_INIT == "normal":
                 vis_initial_prefix = scale * torch.randn(self.config.PREFIX_SIZE, width)
@@ -189,6 +193,7 @@ class TrainingStrategy(object):
 
         # Define training dataset
         self.create_training_dataset(train_data, unlabeled_data)
+        log.info(f"[self.train] Training data: {len(train_data.filepaths)}")
 
         if self.config.MODEL == 'coop':
             self.define_model(self.config.MODALITY, self.seen_classes)
@@ -268,6 +273,93 @@ class TrainingStrategy(object):
                 self.model.classes = self.classes
 
         return best_val_accuracy, epoch_parameters
+
+    def fixed_iterative_train(self,
+        train_data,
+        val_data,
+        unlabeled_data,
+    ):
+        # Number of total iterations to cover all unlabeled data
+        num_iter = int(100/self.config.STEP_QUANTILE)
+        num_samples = int(len(unlabeled_data) / num_iter)
+        # Initialize the number of pseudo-labels per class
+        n_per_class = int(num_samples / len(self.classes))
+        n_unseen = len(self.unseen_classes)
+
+        log.info(f"We select {self.config.N_PSEUDOSHOTS} pseudolabel per each unseen classes.")
+        log.info(f"The number of unseen classes is: {len(self.unseen_classes)}.")
+        log.info(f"Thus we expect an initial number of pseudo labeles equal to {len(self.unseen_classes) * self.config.N_PSEUDOSHOTS}.")
+
+        # Create a safe copy of labeled/unlabeled data
+        original_train_data = copy.deepcopy(train_data)
+        # log.info(f"Training data labels: {original_train_data.labels}")
+        original_unlabeled_data = copy.deepcopy(unlabeled_data)
+        # Original val
+        original_val_data = copy.deepcopy(val_data)
+
+        # 1. Get training data (also get pseudo-labeles from CLIP)
+        self.create_training_dataset(train_data, unlabeled_data)
+        log.info(f"The original train data has size: {len(original_train_data.filepaths)}.")
+        log.info(f"Only with unlabeled is: {len(unlabeled_data.filepaths)}.")
+        log.info(f"Current train data is: {len(train_data.filepaths)}.")
+
+        # Save pseudolabels
+        log.info(f"Saving pseudo-labels for init")
+        save_pseudo_labels(
+            unlabeled_data.filepaths, 
+            unlabeled_data.labels, 
+            self.config, 
+            iteration=0,
+        )
+        log.info(f"Unlabeled is: {len(unlabeled_data.filepaths)}.")
+
+        for niter in range(1, num_iter + 1):
+            log.info(f"Start {niter} round of training..")
+
+            train_data.filepaths = [
+                f for i, f in enumerate(original_train_data.filepaths)
+            ]
+            train_data.labels = [l for i, l in enumerate(original_train_data.labels)]
+           
+            log.info(f"Unlabeled is {len(unlabeled_data.filepaths)} at iter: {niter}.")
+            self.update_training_set(train_data, unlabeled_data)
+            log.info(f"Train data is {len(train_data.filepaths)} at iter: {niter}.")
+
+            # 2. Define model
+            self.define_model()
+            log.info(f"[MODEL] Initialization iter {niter}")
+
+            # 3. Train model
+            log.info(f"[MODEL] Start model training iter {niter}..")
+            t_best_val_accuracy, t_best_prompt = self.train(
+                train_data, val_data
+            )
+            log.info(f"[MODEL] Training completed iter {niter}.")
+
+            log.info(f"[MODEL] Collecting model pseudo-labels on unlabeled data..")
+            unlabeled_data = self.get_pseudo_labels(
+                original_unlabeled_data
+            )
+
+             # Save pseudolabels
+            log.info(f"Saving pseudo-labels for iteration {niter}")
+            save_pseudo_labels(
+                unlabeled_data.filepaths, 
+                unlabeled_data.labels, 
+                self.config, 
+                iteration=niter,
+            )
+
+            save_parameters(
+                t_best_prompt,
+                self.config, 
+                iteration=niter
+            )
+
+        return t_best_val_accuracy, t_best_prompt
+        
+
+
 
     def define_loss_function(self, logits, labs):
         return self.loss_func(logits, labs)

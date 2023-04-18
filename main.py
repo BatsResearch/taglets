@@ -23,18 +23,8 @@ accelerator = Accelerator()
 
 from data import CustomDataset, dataset_custom_prompts
 from methods import (
-    AblationTeacherStudent,
-    AllVPTPseudoBaseline,
     ClipBaseline,
-    CoopBaseline,
-    CoopPseudoBaseline,
-    IterativeFixedPseudo,
-    PseudoIterative,
-    QuantileCoopPseudoBaseline,
-    QuantileVPTPseudoBaseline,
-    TeacherStudent,
-    VPTBaseline,
-    VPTPseudoBaseline,
+    VisualPrompt,
 )
 from utils import (
     Config,
@@ -180,129 +170,22 @@ def workflow(dataset_dir, obj_conf):
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = ClipBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
     
-    elif obj_conf.MODEL == "coop_baseline":
+    elif obj_conf.MODEL == "visual_prompt":
         log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = CoopBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
-
-        val_accuracy, optimal_prompt = model.train(
-            train_seen_dataset, val_seen_dataset, classes=seen_classes
+        model = VisualPrompt(
+            obj_conf, 
+            label_to_idx, 
+            device=device, 
+            **dict_classes
         )
-        
-        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
-
-    elif obj_conf.MODEL == "vpt":
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = VPTBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
         val_accuracy, optimal_prompt = model.train(
-            train_seen_dataset, val_seen_dataset, only_seen=True
+            train_seen_dataset, 
+            val_seen_dataset, 
+            only_seen=True
         )
 
         model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
-    elif obj_conf.MODEL == "fps_vps":
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = VPTPseudoBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
-        val_accuracy, optimal_prompt = model.train(
-            train_seen_dataset, val_seen_dataset, train_unseen_dataset
-        )
-
-    elif obj_conf.MODEL == "grip_vpt":
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = QuantileVPTPseudoBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
-        val_accuracy, optimal_prompt = model.train(
-            train_seen_dataset, val_seen_dataset, train_unseen_dataset
-        )
-
-    elif obj_conf.MODEL == "quantile_coop_pseudo_baseline":
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = QuantileCoopPseudoBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
-        val_accuracy, optimal_prompt = model.train(
-            train_seen_dataset, val_seen_dataset, train_unseen_dataset
-        )
-
-    elif obj_conf.MODEL == "all_labeles_vpt_pseudo":
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = AllVPTPseudoBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
-        val_accuracy, optimal_prompt = model.train(
-            train_seen_dataset, val_seen_dataset, train_unseen_dataset
-        )
-
-    elif obj_conf.MODEL == "all_vpt_pseudo_baseline":
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = VPTPseudoBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
-        val_accuracy, optimal_prompt = model.train(
-            train_seen_dataset, val_seen_dataset, train_unseen_dataset
-        )
-
-    elif obj_conf.MODEL == "coop_pseudo_baseline":
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = CoopPseudoBaseline(
-            obj_conf, label_to_idx, device=device, **dict_classes
-        )
-        val_accuracy, optimal_prompt = model.train(
-            train_seen_dataset,
-            val_seen_dataset,
-            classes=classes,
-            unlabeled_data=train_unseen_dataset,
-        )
-
-    elif obj_conf.MODEL == "teacher_student":
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = TeacherStudent(
-            obj_conf, label_to_idx, data_folder, device=device, **dict_classes
-        )
-        val_accuracy, optimal_prompt = model.train(
-            train_seen_dataset,
-            val_seen_dataset,
-            train_unseen_dataset,
-            test_dataset,
-            test_labeled_files,
-            test_labeles,
-        )
-    elif obj_conf.MODEL == "iterative_vpt_pseudo":
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = IterativeFixedPseudo(
-            obj_conf, label_to_idx, data_folder, device=device, **dict_classes
-        )
-        val_accuracy, optimal_prompt = model.train(
-            train_seen_dataset,
-            val_seen_dataset,
-            train_unseen_dataset,
-            test_dataset,
-            test_labeled_files,
-            test_labeles,
-        )
-
-    elif obj_conf.MODEL == "ablation_teacher_student":
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = AblationTeacherStudent(
-            obj_conf, label_to_idx, data_folder, device=device, **dict_classes
-        )
-        val_accuracy, optimal_prompt = model.train(
-            train_seen_dataset,
-            val_seen_dataset,
-            train_unseen_dataset,
-            test_dataset,
-            test_labeled_files,
-            test_labeles,
-        )
-
-    elif obj_conf.MODEL == "pseudo_iterative":
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = PseudoIterative(
-            obj_conf, label_to_idx, data_folder, device=device, **dict_classes
-        )
-        model.train(
-            train_seen_dataset,
-            val_seen_dataset,
-            train_unseen_dataset,
-            test_dataset,
-            test_labeled_files,
-            test_labeles,
-        )
-
-        sys.exit()
-    
     if obj_conf.MODEL != 'clip_baseline':
         # Save prompt
         save_parameters(optimal_prompt, obj_conf)

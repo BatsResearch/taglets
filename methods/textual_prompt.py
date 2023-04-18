@@ -54,7 +54,7 @@ class TextualPrompt(TrainingStrategy):
         }
 
         # Load custom encoder
-        self.declare_custom_encoder().to(self.device)
+        self.declare_custom_encoder()
         log.info(f"Custom Encoder: {self.image_encoder}.")
         # Initialize prompt parameters
         self.initialize_prompts_parameters()
