@@ -310,7 +310,9 @@ class TrainingStrategy(object):
         
             if self.config.MODEL == 'textual_prompt':
                 self.define_model(self.seen_classes)
-            elif self.config.MODEL == 'textual_fpl' or self.config.MODEL == 'iterative_textual_fpl':
+            elif self.config.MODEL == 'textual_fpl' \
+                or self.config.MODEL == 'iterative_textual_fpl' \
+                or self.config.MODEL == 'grip_textual':
                 self.define_model(self.classes)
             else:
                 self.define_model()
@@ -385,7 +387,9 @@ class TrainingStrategy(object):
                 best_val_accuracy = None
                 best_prompt = epoch_parameters
 
-            if unlabeled_data and self.config.MODALITY == 'text':
+            if self.config.MODEL == 'textual_fpl' \
+                or self.config.MODEL == 'iterative_textual_fpl' \
+                or self.config.MODEL == 'grip_textual':
                 # After validation on seen classes redefine the set of training classes
                 self.model.classes = self.classes
 
@@ -446,7 +450,8 @@ class TrainingStrategy(object):
             # 2. Define model
             if self.config.MODEL == 'textual_prompt':
                 self.define_model(self.seen_classes)
-            elif self.config.MODEL == 'textual_fpl' or self.config.MODEL == 'iterative_textual_fpl':
+            elif self.config.MODEL == 'textual_fpl' or self.config.MODEL == 'iterative_textual_fpl' \
+                or self.config.MODEL == 'grip_textual':
                 self.define_model(self.classes)
             else:
                 self.define_model()
@@ -546,24 +551,25 @@ class TrainingStrategy(object):
             # 1. Initialize model            
             if self.config.MODEL == 'textual_prompt':
                 self.define_model(self.seen_classes)
-            elif self.config.MODEL == 'textual_fpl' or self.config.MODEL == 'iterative_textual_fpl':
+            elif self.config.MODEL == 'textual_fpl' \
+            or self.config.MODEL == 'iterative_textual_fpl' \
+            or self.config.MODEL == 'grip_textual':
                 self.define_model(self.classes)
             else:
                 self.define_model()
             log.info(f"[TEACHER] Initialization..")
 
-            # Validation with seen and unseen.
-            if self.val_unseen_files is not None:
-                seen_imgs = original_val_data.filepaths
-                # seen_labs = [self.label_to_idx[l] for l in original_val_data.labels]
-                seen_labs = [l for l in original_val_data.labels]
+            # # Validation with seen and unseen.
+            # if self.val_unseen_files is not None:
+            #     seen_imgs = original_val_data.filepaths
+            #     seen_labs = [self.label_to_idx[l] for l in original_val_data.labels]
+                
+            #     unseen_imgs = list(self.val_unseen_files)
+            #     unseen_labs = list(self.val_unseen_labs)
 
-                unseen_imgs = list(self.val_unseen_files)
-                unseen_labs = list(self.val_unseen_labs)
-
-                val_data.filepaths = list(unseen_imgs) + list(seen_imgs)
-                val_data.labels = list(unseen_labs) + list(seen_labs)
-                val_data.label_id = True
+            #     val_data.filepaths = list(unseen_imgs) + list(seen_imgs)
+            #     val_data.labels = list(unseen_labs) + list(seen_labs)
+            #     val_data.label_id = True
 
             # 2. Train teacher with labeled seen and pseudo-labeled unseen
             log.info(f"[TEACHER] Start model training..")
@@ -599,6 +605,8 @@ class TrainingStrategy(object):
 
             val_data = original_val_data
             original_val_data = copy.deepcopy(val_data)
+
+        return t_best_val_accuracy, t_best_prompt
 
     def define_loss_function(self, logits, labs):
         return self.loss_func(logits, labs)

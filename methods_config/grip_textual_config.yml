@@ -1,4 +1,4 @@
-DATASET_DIR: '/Users/menga/Desktop/github/zsl_taglets/development' # '/users/cmenghin/data/bats/datasets/classification'
+DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification' #'/Users/menga/Desktop/github/zsl_taglets/development' # '/users/cmenghin/data/bats/datasets/classification'
 DATASET_NAME: "$DATASET_NAME"
 # Model
 MODALITY: 'text'
@@ -10,7 +10,7 @@ PROMPT_TEMPLATE: 'imported in main.py'
 # Prefix size
 PREFIX_SIZE: 16
 N_PSEUDOSHOTS: 16
-STEP_QUANTILE: 33
+STEP_QUANTILE: 10
 # Prefix initialization: normal/uniform
 VIS_PREFIX_INIT: "normal"
 # Initialization mean and variance
@@ -23,7 +23,7 @@ ratio_train_val: 0.8
 # Batch size
 BATCH_SIZE: 16
 # Number of epochs
-EPOCHS: 2
+EPOCHS: 150
 # Scheduler
 SCHEDULER: "cosine"
 # Scheduler warmup epochs

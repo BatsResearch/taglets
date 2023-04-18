@@ -197,9 +197,9 @@ class TextualPrompt(TrainingStrategy):
         """
 
         if torch.cuda.is_available():
-            log.info(f"[self._train_epoch] Number of prompts: {len(self.model.module.classes)}")
+            log.info(f"[self._run_validation] Number of prompts: {len(self.model.module.classes)}")
         else:
-            log.info(f"[self._train_epoch] Number of prompts: {len(self.model.classes)}")
+            log.info(f"[self._run_validation] Number of prompts: {len(self.model.classes)}")
         
         predictions = []
         labels = []
@@ -269,7 +269,6 @@ class TextualPrompt(TrainingStrategy):
                 log.info(f"Validation SEEN accuracy after Epoch: {seen_accuracy}")
                 log.info(f"Validation UNSEEN accuracy after Epoch: {unseen_accuracy}")
                 log.info(f"Validation HARMONIC accuracy after Epoch: {accuracy}")
-
 
         return accuracy
 
