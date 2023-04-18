@@ -395,8 +395,8 @@ def get_labeled_and_unlabeled_data(
         N1 = 4
         N2 = 50
         N3 = 4
-        labeled_data = list(zip(labeled_files, labels_files))[:N1]
-        unlabeled_data = list(zip(unlabeled_lab_files, unlabeled_labs))[:N2]
+        labeled_data = list(zip(labeled_files, labels_files))#[:N1]
+        unlabeled_data = list(zip(unlabeled_lab_files, unlabeled_labs))#[:N2]
 
         test_files = []
         test_labs = []
@@ -411,7 +411,7 @@ def get_labeled_and_unlabeled_data(
                 test_files.append(img)
                 test_labs.append(cl)
 
-        test_data = list(zip(test_files, test_labs))[:N3]
+        test_data = list(zip(test_files, test_labs))#[:N3]
 
         return labeled_data, unlabeled_data, test_data
 
