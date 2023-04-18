@@ -204,5 +204,5 @@ class CustomImageEncoder(nn.Module):
         self.dtype = self.visual.conv1.weight.dtype
 
     def forward(self, image, prefix, deep_embds=None):
-        encoded_image = self.visual(image.type(self.dtype), prefix.type(self.dtype), deep_embds)
+        encoded_image = self.visual(image.type(self.dtype), prefix.type(self.dtype), deep_embs=deep_embds)
         return encoded_image
