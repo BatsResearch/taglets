@@ -555,7 +555,7 @@ class TrainingStrategy(object):
             # Validation with seen and unseen.
             if self.val_unseen_files is not None:
                 seen_imgs = original_val_data.filepaths
-                seen_labs = [self.label_to_idx[l] for l in original_val_data.labels]
+                #seen_labs = [self.label_to_idx[l] for l in original_val_data.labels]
 
                 unseen_imgs = list(self.val_unseen_files)
                 unseen_labs = list(self.val_unseen_labs)
