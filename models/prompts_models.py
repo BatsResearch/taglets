@@ -66,11 +66,11 @@ class UPTModel(nn.Module):
         coop_embeddings,
         vpt_embeddings,
         vpt_embeddings_deep,
-        linear_layers,
         transformer,
         image_encoder,
         text_encoder,
         classes,
+        dim_transformer,
         temperature=0.07,
         device="cpu",
         dtype=torch.float32,
@@ -96,10 +96,23 @@ class UPTModel(nn.Module):
         else:
             self.vpt_embeddings_deep = None
 
-        self.proj_coop_pre = linear_layers[0]
-        self.proj_coop_post = linear_layers[1]
-        self.proj_vpt_pre = linear_layers[2]
-        self.proj_vpt_post = linear_layers[3]
+        self.proj_coop_pre = nn.Linear(
+            self.coop_dim, 
+            dim_transformer, 
+            dtype=self.dtype).to(self.device)
+        self.proj_coop_post = nn.Linear(
+            dim_transformer,
+            self.coop_dim, 
+            dtype=self.dtype).to(self.device)
+        self.proj_vpt_pre = nn.Linear(
+            self.vpt_dim,
+            dim_transformer, 
+            dtype=self.dtype).to(self.device)
+        self.proj_vpt_post = nn.Linear(
+            dim_transformer, 
+            self.vpt_dim, 
+            dtype=self.dtype).to(self.device)
+        
         self.transformer = transformer
 
         self.image_encoder = image_encoder

@@ -150,11 +150,6 @@ class MultimodalPrompt(TrainingStrategy):
 
         unwrapped_model = self.unwrap_model()
         epoch_parameters = [
-            # copy.deepcopy(self.prompt_transformer),
-            # copy.deepcopy(self.proj_coop_pre),
-            # copy.deepcopy(self.proj_coop_post),
-            # copy.deepcopy(self.proj_vpt_pre),
-            # copy.deepcopy(self.proj_vpt_post),
             unwrapped_model.transformer.state_dict(),
             unwrapped_model.proj_coop_pre.state_dict(),
             unwrapped_model.proj_coop_post.state_dict(),
