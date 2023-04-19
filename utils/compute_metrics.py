@@ -139,7 +139,7 @@ def save_parameters(obj, config, iteration=None):
             'vpt_embeddings'
         ]
         for idx, param in enumerate(obj):
-            if param in [
+            if names[idx] in [
                 'transformer', 
                 'proj_coop_pre',
                 'proj_coop_post',
