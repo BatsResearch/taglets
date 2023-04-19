@@ -135,6 +135,7 @@ def save_parameters(obj, config, iteration=None):
             'proj_vpt_pre',
             'proj_vpt_post',
             'coop_embeddings',
+            'deep_vpt', 
             'vpt_embeddings'
         ]
         for idx, param in enumerate(obj):
