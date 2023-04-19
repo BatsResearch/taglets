@@ -20,7 +20,7 @@ for vis_encoder in 'ViT-B/32'; do # 'ViT-B/32'  'RN50' 'ViT-L/14' 'RN101'
 for split_seed in 500; do 
 for dataset_name in RESICS45; do
 for model in multimodal_fpl; do 
-for optim_seed in 1 2 3 4 5; do 
+for optim_seed in 1; do 
     
     export OPTIM_SEED="$optim_seed"
     export VIS_ENCODER="$vis_encoder"
