@@ -70,9 +70,6 @@ def workflow(dataset_dir, obj_conf):
     # Get class names of target task
     # define function for each dataset
     classes, seen_classes, unseen_classes = get_class_names(dataset, dataset_dir, obj_conf.SPLIT_SEED)
-    if obj_conf.LEARNING_PARADIGM == 'ssl':
-        seen_classes = classes
-        unseen_classes = classes
     # Create dict classes to pass as variable
     dict_classes = {
         "classes": classes,
@@ -116,13 +113,17 @@ def workflow(dataset_dir, obj_conf):
     # Define model
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    file_param = 'trained_prompts/RESICS45_ssl_textual_fpl_ViT-B32_opt_1_spl_500.pickle'
+    folder = 'trained_prompts'
+    # params = 'RESICS45_ssl_textual_fpl_ViT-B32_opt_1_spl_500.pickle'
+    # params = 'RESICS45_ssl_visual_fpl_ViT-B32_opt_1_spl_500.pickle'
+    params = 'RESICS45_ul_multimodal_fpl_ViT-B32_opt_1_spl_500.pickle'
+    file_param = f'{folder}/{params}'
     with open(file_param, 'rb') as f:
         prompts = pickle.load(f)
 
     log.info(f"Len params: {len(prompts)}")
     log.info(f"Params: {prompts}")
-
+    sys.exit()
     
     log.info(f"\n----------------------MODEL INFO-----------------------\n")
     if obj_conf.MODALITY == "text":
@@ -133,7 +134,7 @@ def workflow(dataset_dir, obj_conf):
             **dict_classes
         )
 
-        model.model.prefix = torch.nn.Parameter(torch.tensor(prompts[0]))
+        model.prefix = torch.nn.Parameter(torch.tensor(prompts[0]))
 
     elif obj_conf.MODALITY == "image":
         model = VisualPrompt(
@@ -143,6 +144,8 @@ def workflow(dataset_dir, obj_conf):
             **dict_classes
         )
 
+        model.prefix = torch.nn.Parameter(torch.tensor(prompts[0]))
+
     elif obj_conf.MODALITY == "multi":
         model = MultimodalPrompt(
             obj_conf, 
@@ -151,24 +154,23 @@ def workflow(dataset_dir, obj_conf):
             **dict_classes
         )
 
-
-    
-
     # Validate on test set (standard)
     images, predictions, prob_preds = model.evaluation(test_dataset)
-    # # Submit predictions (standard)
-    # std_response = evaluate_predictions(
-    #     obj_conf,
-    #     std_predictions,
-    #     test_labeled_files,
-    #     test_labeles,
-    #     unseen_classes,
-    #     standard_zsl=True,
-    # )
-    log.info(f"IMAGES: {images[:3]}")
+
+    log.info(f"IMAGES: {np.array(images[:3])}")
     log.info(f"PREDICTIONS: {predictions[:3]}")
     log.info(f"LABELS: {test_labeles[:3]}")
     log.info(f"PROBS: {prob_preds[0]}")
+
+    dictionary_predictions = {
+        'images' : images, 
+        'predictions' : predictions,
+        'labels' : test_labeles,
+        'logits' : prob_preds,
+    }
+
+    with open(f'evaluation/{params}', 'wb') as f:
+        pickle.dump(dictionary_predictions, f)
 
     # Store model results
     # store_results(obj_conf, std_response)

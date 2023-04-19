@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=ULI-v
-#SBATCH --output=logsul_visual_iterative_fpl.out
+#SBATCH --output=logs/ul_visual_iterative_fpl.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=40G

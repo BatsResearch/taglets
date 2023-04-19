@@ -6,6 +6,7 @@ import pickle
 import numpy as np
 import pandas as pd
 import scipy.stats as st
+import torch
 from accelerate import Accelerator
 
 accelerator = Accelerator()
@@ -126,8 +127,11 @@ def save_parameters(obj, config, iteration=None):
     else:
         file_name = f"trained_prompts/{config.DATASET_NAME}_{config.LEARNING_PARADIGM}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_iter_{iteration}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
     
-    with open(file_name, 'wb') as f:
-        pickle.dump(obj, f)
+    if config.MODALITY == 'multi':
+        torch.save(obj, file_name)
+    else:
+        with open(file_name, 'wb') as f:
+            pickle.dump(obj, f)
 
 
 def save_pseudo_labels(imgs, labs, config, iteration):

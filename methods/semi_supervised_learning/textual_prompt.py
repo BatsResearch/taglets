@@ -295,11 +295,13 @@ class TextualPrompt(TrainingStrategy):
 
         return df_predictions
 
-    def evaluation(self, data, standard_zsl=False):
+    def evaluation(self, data):
         """This function computes predictions on test data.
 
         :param data: Dataset object - test dataset
         """
+        # Define model 
+        self.define_model(classes=self.classes)
 
         # Declare the data pre processing
         data.transform = self.transform
@@ -310,7 +312,7 @@ class TextualPrompt(TrainingStrategy):
 
         self.model.classes = self.classes
 
-        log.info(f"[self.test_predictions] Number of prompts: {len(self.model.classes)}")
+        log.info(f"[self.evaluation] Number of prompts: {len(self.model.classes)}")
 
         # Get prompts
         text_features = self.model(self.model.classes)
@@ -340,13 +342,12 @@ class TextualPrompt(TrainingStrategy):
 
             images += [i for i in img_path]
 
-        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(
-            self.device
-        )
-        images = torch.tensor([test_files.index(img) for img in images]).to(self.device)
+        #predictions = torch.tensor([p for p in predictions])
+        prob_preds = torch.cat(prob_preds, axis=0).detach().to('cpu')
 
         log.info(f"Number of images: {len(images)}")
         log.info(f"Number of images: {len(predictions)}")
+        log.info(f"Number of probs: {prob_preds.size()}")
 
         return images, predictions, prob_preds
 

@@ -309,3 +309,62 @@ class VisualPrompt(TrainingStrategy):
         df_predictions.drop_duplicates(subset=["id", "class"], inplace=True)
 
         return df_predictions
+
+
+    def evaluation(self, data):
+        """This function computes predictions on test data.
+
+        :param data: Dataset object - test dataset
+        """
+        # Define model 
+        self.define_model()
+        
+        # Declare the data pre processing
+        data.transform = self.transform
+        # Define the data loader
+        test_loader = torch.utils.data.DataLoader(
+            data, batch_size=self.config.BATCH_SIZE
+        )
+
+        prompts = [
+            self.template.format(" ".join(i.split("_"))) for i in self.classes
+        ]
+
+        log.info(f"[self.evaluation] Number of prompts: {len(prompts)}")
+        # This is required for distributed training
+        test_files = [f.split("/")[-1] for f in test_loader.dataset.filepaths]
+
+        # Encode text
+        text = clip.tokenize(prompts).to(self.device)
+        text_features = self.clip_model.encode_text(text)
+        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+
+        log.info(f"Start inference for test data")
+        predictions = []
+        images = []
+        prob_preds = []
+        for img, _, _, img_path in test_loader:
+            with torch.no_grad():
+                image_features = self.model(img)
+                image_features = image_features / image_features.norm(
+                    dim=-1, keepdim=True
+                )
+                # cosine similarity as logits
+
+            logit_scale = self.clip_model.logit_scale.exp()
+            logits = logit_scale * image_features @ text_features.t()
+            idx_preds = torch.argmax(logits, dim=1)
+
+            predictions += [self.classes[i] for i in idx_preds]
+            prob_preds += [logits]
+
+            images += [i for i in img_path]
+
+        prob_preds = torch.cat(prob_preds, axis=0).detach().to('cpu')
+
+        log.info(f"Number of images: {len(images)}")
+        log.info(f"Number of images: {len(predictions)}")
+        log.info(f"Number of probs: {prob_preds.size()}")
+        
+        return images, predictions, prob_preds
+

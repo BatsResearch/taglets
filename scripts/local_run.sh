@@ -14,7 +14,7 @@ for optim_seed in 1; do
     export MODEL="$model"
 
     accelerate launch --config_file ./accelerate_localtest_config.yml ./run_evaluation.py \
-                    --model_config ${model}_config.yml --learning_paradigm ssl
+                    --model_config ${model}_config.yml --learning_paradigm ul
 
 done
 done

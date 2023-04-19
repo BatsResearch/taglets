@@ -149,16 +149,17 @@ class MultimodalPrompt(TrainingStrategy):
         self.update_scheduler()
 
         unwrapped_model = self.unwrap_model()
-        epoch_parameters = [
-            unwrapped_model.transformer.state_dict(),
-            unwrapped_model.proj_coop_pre.state_dict(),
-            unwrapped_model.proj_coop_post.state_dict(),
-            unwrapped_model.proj_vpt_pre.state_dict(),
-            unwrapped_model.proj_vpt_post.state_dict(),
-            unwrapped_model.coop_embeddings.detach().cpu().numpy(),
-            None if unwrapped_model.vpt_embeddings_deep is None else unwrapped_model.vpt_embeddings_deep.detach().cpu().numpy(),
-            unwrapped_model.vpt_embeddings.detach().cpu().numpy(),
-        ]
+        epoch_parameters = unwrapped_model.state_dict()
+        # epoch_parameters = [
+        #     unwrapped_model.transformer.state_dict(),
+        #     unwrapped_model.proj_coop_pre.state_dict(),
+        #     unwrapped_model.proj_coop_post.state_dict(),
+        #     unwrapped_model.proj_vpt_pre.state_dict(),
+        #     unwrapped_model.proj_vpt_post.state_dict(),
+        #     unwrapped_model.coop_embeddings.detach().cpu().numpy(),
+        #     None if unwrapped_model.vpt_embeddings_deep is None else unwrapped_model.vpt_embeddings_deep.detach().cpu().numpy(),
+        #     unwrapped_model.vpt_embeddings.detach().cpu().numpy(),
+        # ]
 
         return loss, total_loss, epoch_parameters
 

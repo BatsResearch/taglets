@@ -394,7 +394,7 @@ def get_labeled_and_unlabeled_data(
                         )
         N1 = 4
         N2 = 50
-        N3 = 15
+        N3 = 50
         labeled_data = list(zip(labeled_files, labels_files))#[:N1]
         unlabeled_data = list(zip(unlabeled_lab_files, unlabeled_labs))#[:N2]
 
