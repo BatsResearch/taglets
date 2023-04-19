@@ -66,21 +66,39 @@ def evaluate_predictions(
         return unseen_accuracy, seen_accuracy, harmonic_mean
 
 def store_results(
-    obj_conf, std_response
+    obj_conf, 
+    std_response, 
+    unseen_accuracy=None, 
+    seen_accuracy=None, 
+    harmonic_mean=None
 ):
     """The function stores results of the model in a json.
 
     :param obj_config: class object that stores configurations
 
     """
-
-    # Store results
-    if accelerator.is_local_main_process:
-        results_to_store = {
+    if obj_conf.LEARNING_PARADIGM == 'trzsl':
+        # Store results
+        if accelerator.is_local_main_process:
+            results_to_store = {
             "model": obj_conf.MODEL,
             "config": obj_conf.__dict__,
             "std_accuracy": std_response,
+            "gen_accuracy": harmonic_mean,
+            "gen_seen": seen_accuracy,
+            "gen_unseen": unseen_accuracy,
         }
+    else:
+        # Store results
+        if accelerator.is_local_main_process:
+            results_to_store = {
+                "model": obj_conf.MODEL,
+                "config": obj_conf.__dict__,
+                "std_accuracy": std_response,
+            }
+
+
+    if accelerator.is_local_main_process:
         file_name = f"results_model_{obj_conf.MODEL}.json"
 
         # Check if the file already exists
