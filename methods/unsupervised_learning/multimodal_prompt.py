@@ -150,15 +150,25 @@ class MultimodalPrompt(TrainingStrategy):
 
         unwrapped_model = self.unwrap_model()
         epoch_parameters = [
-            copy.deepcopy(self.prompt_transformer),
-            copy.deepcopy(self.proj_coop_pre),
-            copy.deepcopy(self.proj_coop_post),
-            copy.deepcopy(self.proj_vpt_pre),
-            copy.deepcopy(self.proj_vpt_post),
-            self.model.module.coop_embeddings.detach().cpu().numpy(),
-            None if self.model.module.vpt_embeddings_deep is None else self.model.module.vpt_embeddings_deep.detach().cpu().numpy(),
-            self.model.module.vpt_embeddings.detach().cpu().numpy(),
+            # copy.deepcopy(self.prompt_transformer),
+            # copy.deepcopy(self.proj_coop_pre),
+            # copy.deepcopy(self.proj_coop_post),
+            # copy.deepcopy(self.proj_vpt_pre),
+            # copy.deepcopy(self.proj_vpt_post),
+            unwrapped_model.prompt_transformer,
+            unwrapped_model.self.proj_coop_pre.detach().cpu().numpy(),
+            unwrapped_model.proj_coop_post.detach().cpu().numpy(),
+            unwrapped_model.proj_vpt_pre.detach().cpu().numpy(),
+            unwrapped_model.proj_vpt_post.detach().cpu().numpy(),
+            unwrapped_model.coop_embeddings.detach().cpu().numpy(),
+            None if unwrapped_model.vpt_embeddings_deep is None else unwrapped_model.vpt_embeddings_deep.detach().cpu().numpy(),
+            unwrapped_model.vpt_embeddings.detach().cpu().numpy(),
         ]
+
+        # unwrapped_model = self.unwrap_model()
+        # epoch_parameters = [
+        #     unwrapped_model.prefix.detach().cpu().numpy()
+        # ]
 
         return loss, total_loss, epoch_parameters
 
