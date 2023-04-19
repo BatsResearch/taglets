@@ -272,11 +272,13 @@ class TextualPrompt(TrainingStrategy):
 
         return accuracy
 
-    def test_predictions(self, data, standard_zsl=False):
+    def evaluation(self, data):
         """This function computes predictions on test data.
 
         :param data: Dataset object - test dataset
         """
+        # Define model 
+        self.define_model(classes=self.classes)
 
         # Declare the data pre processing
         data.transform = self.transform
@@ -285,26 +287,21 @@ class TextualPrompt(TrainingStrategy):
             data, batch_size=self.config.BATCH_SIZE
         )
 
-        self.model, test_loader = accelerator.prepare(self.model, test_loader)
+        self.model.classes = self.classes
 
-        if standard_zsl:
-            self.model.classes = self.unseen_classes
-        else:
-            self.model.classes = self.classes
-
-        log.info(f"[self.test_predictions] Number of prompts: {len(self.model.classes)}")
-        accelerator.wait_for_everyone()
+        log.info(f"[self.evaluation] Number of prompts: {len(self.model.classes)}")
 
         # Get prompts
         text_features = self.model(self.model.classes)
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
-        log.info(f"TEXT FEATURES SHAPE: {text_features.size()}")
+        log.info(f"[self.evaluation] TEXT FEATURES SHAPE: {text_features.size()}")
 
         log.info(f"Start inference for test data")
         # This is required for distributed training
         test_files = [f.split("/")[-1] for f in test_loader.dataset.filepaths]
 
         predictions = []
+        prob_preds = []
         images = []
         for img, _, _, img_path in test_loader:
             with torch.no_grad():
@@ -317,29 +314,16 @@ class TextualPrompt(TrainingStrategy):
             logits = logit_scale * image_features @ text_features.t()
             idx_preds = torch.argmax(logits, dim=1)
 
-            if standard_zsl:
-                predictions += [self.unseen_classes[i] for i in idx_preds]
-            else:
-                predictions += [self.classes[i] for i in idx_preds]
+            predictions += [self.classes[i] for i in idx_preds]
+            prob_preds += [logits]
 
             images += [i for i in img_path]
 
-        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(
-            self.device
-        )
-        images = torch.tensor([test_files.index(img) for img in images]).to(self.device)
+        #predictions = torch.tensor([p for p in predictions])
+        prob_preds = torch.cat(prob_preds, axis=0).detach().to('cpu')
 
-        accelerator.wait_for_everyone()
+        log.info(f"Number of images: {len(images)}")
+        log.info(f"Number of images: {len(predictions)}")
+        log.info(f"Number of probs: {prob_preds.size()}")
 
-        predictions_outputs = accelerator.gather(predictions)
-        image_outputs = accelerator.gather(images)
-
-        predictions_outputs = [self.classes[p] for p in predictions_outputs]
-        image_outputs = [test_files[i] for i in image_outputs]
-
-        df_predictions = pd.DataFrame(
-            {"id": image_outputs, "class": predictions_outputs}
-        )
-        df_predictions.drop_duplicates(subset=["id", "class"], inplace=True)
-
-        return df_predictions
+        return images, predictions, prob_preds
