@@ -448,6 +448,8 @@ def main():
     obj_conf.VIS_ENCODER = os.environ["VIS_ENCODER"]
     # Define dataset name
     obj_conf.DATASET_NAME = os.environ["DATASET_NAME"]
+    # Define dataset dir
+    obj_conf.DATASET_DIR = os.environ["DATASET_DIR"]
     # Define model name
     obj_conf.MODEL = os.environ["MODEL"]
     # Define split seed

@@ -1,4 +1,4 @@
-DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification' # '/Users/menga/Desktop/github/zsl_taglets/development' #
+DATASET_DIR: "$DATASET_DIR" #'/users/cmenghin/data/bats/datasets/classification' # '/Users/menga/Desktop/github/zsl_taglets/development' #
 DATASET_NAME: "$DATASET_NAME"
 # Model
 MODALITY: 'text'
