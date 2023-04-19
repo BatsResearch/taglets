@@ -128,7 +128,28 @@ def save_parameters(obj, config, iteration=None):
         file_name = f"trained_prompts/{config.DATASET_NAME}_{config.LEARNING_PARADIGM}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_iter_{iteration}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
     
     if config.MODALITY == 'multi':
-        torch.save(obj, file_name)
+        names = [
+            'transformer', 
+            'proj_coop_pre',
+            'proj_coop_post',
+            'proj_vpt_pre',
+            'proj_vpt_post',
+            'coop_embeddings',
+            'vpt_embeddings'
+        ]
+        for idx, param in enumerate(obj):
+            if param in [
+                'transformer', 
+                'proj_coop_pre',
+                'proj_coop_post',
+                'proj_vpt_pre',
+                'proj_vpt_post',
+            ]:
+                torch.save(obj, file_name.split('.')[:-1] + names[idx])
+            else:
+                with open(file_name.split('.')[:-1] + names[idx], 'wb') as f:
+                    pickle.dump(obj, f)
+
     else:
         with open(file_name, 'wb') as f:
             pickle.dump(obj, f)
