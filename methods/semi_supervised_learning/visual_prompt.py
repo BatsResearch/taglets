@@ -310,6 +310,8 @@ class VisualPrompt(TrainingStrategy):
 
         return df_predictions
 
+    def load_model_eval(self):
+        self.define_model()
 
     def evaluation(self, data):
         """This function computes predictions on test data.

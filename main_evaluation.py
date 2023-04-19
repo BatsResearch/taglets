@@ -115,15 +115,43 @@ def workflow(dataset_dir, obj_conf):
 
     folder = 'trained_prompts'
     # params = 'RESICS45_ssl_textual_fpl_ViT-B32_opt_1_spl_500.pickle'
-    # params = 'RESICS45_ssl_visual_fpl_ViT-B32_opt_1_spl_500.pickle'
-    params = 'RESICS45_ul_multimodal_fpl_ViT-B32_opt_1_spl_500.pickle'
+    params = 'RESICS45_ssl_visual_fpl_ViT-B32_opt_1_spl_500.pickle'
     file_param = f'{folder}/{params}'
     with open(file_param, 'rb') as f:
         prompts = pickle.load(f)
 
-    log.info(f"Len params: {len(prompts)}")
-    log.info(f"Params: {prompts}")
-    sys.exit()
+    # params = [
+    #     'RESICS45_ul_multimodal_fpl_ViT-B32_opt_1_spl_500_coop_embeddings.pickle',
+    #     'RESICS45_ul_multimodal_fpl_ViT-B32_opt_1_spl_500_deep_vpt.pickle',
+    #     'RESICS45_ul_multimodal_fpl_ViT-B32_opt_1_spl_500_proj_coop_post.pt',
+    #     'RESICS45_ul_multimodal_fpl_ViT-B32_opt_1_spl_500_proj_coop_pre.pt',
+    #     'RESICS45_ul_multimodal_fpl_ViT-B32_opt_1_spl_500_proj_vpt_post.pt',
+    #     'RESICS45_ul_multimodal_fpl_ViT-B32_opt_1_spl_500_proj_vpt_pre.pt',
+    #     'RESICS45_ul_multimodal_fpl_ViT-B32_opt_1_spl_500_transformer.pt',
+    #     'RESICS45_ul_multimodal_fpl_ViT-B32_opt_1_spl_500_vpt_embeddings.pickle',
+    # ]
+    # list_dicts = [
+    #     'transformer', 
+    #     'proj_coop_pre',
+    #     'proj_coop_post',
+    #     'proj_vpt_pre',
+    #     'proj_vpt_post',
+    # ]
+
+    # dict_param = {}
+    # for p in params:
+    #     file_param = f'{folder}/{p}'
+    #     name = '_'.join(p.split('_')[9:]).split('.')[0]
+    #     if name in list_dicts:
+    #         dict_param[name] = torch.load(file_param, map_location=torch.device('cpu'))
+    #     else:
+    #         print(name, file_param)
+    #         with open(file_param, 'rb') as f:
+    #             dict_param[name] = pickle.load(f)
+    
+    # log.info(f"Len params: {len(dict_param)}")
+
+    
     
     log.info(f"\n----------------------MODEL INFO-----------------------\n")
     if obj_conf.MODALITY == "text":
@@ -133,8 +161,9 @@ def workflow(dataset_dir, obj_conf):
             device=device, 
             **dict_classes
         )
+        model.load_model_eval()
 
-        model.prefix = torch.nn.Parameter(torch.tensor(prompts[0]))
+        model.model.prefix = torch.nn.Parameter(torch.tensor(prompts[0]))
 
     elif obj_conf.MODALITY == "image":
         model = VisualPrompt(
@@ -143,8 +172,9 @@ def workflow(dataset_dir, obj_conf):
             device=device, 
             **dict_classes
         )
+        model.load_model_eval()
 
-        model.prefix = torch.nn.Parameter(torch.tensor(prompts[0]))
+        model.model.prefix = torch.nn.Parameter(torch.tensor(prompts[0]))
 
     elif obj_conf.MODALITY == "multi":
         model = MultimodalPrompt(
@@ -153,15 +183,19 @@ def workflow(dataset_dir, obj_conf):
             device=device, 
             **dict_classes
         )
+        model.load_model_eval()
 
-        model.coop_embeddings = torch.nn.Parameter(torch.tensor(prompts[0]))
-        model.vpt_embeddings = torch.nn.Parameter(torch.tensor(prompts[0]))
+        model.model.coop_embeddings = torch.nn.Parameter(torch.tensor(dict_param['coop_embeddings']))
+        model.model.vpt_embeddings = torch.nn.Parameter(torch.tensor(dict_param['vpt_embeddings']))
+        
+        model.model.proj_coop_pre.load_state_dict(dict_param['proj_coop_pre'])
+        model.model.proj_coop_post.load_state_dict(dict_param['proj_coop_post'])
+        
+        model.model.proj_vpt_pre.load_state_dict(dict_param['proj_vpt_pre'])
+        model.model.proj_vpt_post.load_state_dict(dict_param['proj_vpt_post'])
 
-        self.proj_coop_pre = pass
-        self.proj_coop_post = pass
-        self.proj_vpt_pre = pass
-        self.proj_vpt_post = pass
-        self.transformer = pass
+        model.model.transformer.load_state_dict(dict_param['transformer'])
+        
 
     # Validate on test set (standard)
     images, predictions, prob_preds = model.evaluation(test_dataset)
@@ -199,6 +233,12 @@ def main():
         default="trzsl",
         help="Choose among trzsl, ssl, and ul",
     )
+    # dataset
+    # modality
+    # model
+    # encoder
+    # optim seed
+    # split
 
     args = parser.parse_args()
 

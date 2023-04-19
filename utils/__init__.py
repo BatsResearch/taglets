@@ -3,6 +3,7 @@ from .compute_metrics import (
     evaluate_predictions, 
     store_results, 
     save_parameters,
+    save_predictions,
     save_pseudo_labels,
 )
 from .prepare_data import (

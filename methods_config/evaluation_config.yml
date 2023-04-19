@@ -3,7 +3,7 @@ DATASET_NAME: "$DATASET_NAME"
 DATASET_DIR: '/Users/menga/Desktop/github/zsl_taglets/development' # '/users/cmenghin/data/bats/datasets/classification'
 # Model
 MODEL: "$MODEL"
-MODALITY: 'multi'
+MODALITY: 'image'
 # Visual ecoder
 VIS_ENCODER: "$VIS_ENCODER"
 # Prompt template
@@ -12,6 +12,14 @@ PROMPT_TEMPLATE: 'imported in main.py'
 N_LABEL: 16
 ALPHA: 0.3
 # Prefix size
+# Text Prefix size
+TEXT_PREFIX_SIZE: 4
+# Vision Prefix size
+VISION_PREFIX_SIZE: 4
+# Lightweight transformer dim
+TRANSFORMER_DIM: 128
+# Use VPT-Deep?
+VPT_DEEP: False
 PREFIX_SIZE: 16
 # Prefix initialization: normal/uniform
 VIS_PREFIX_INIT: "normal"

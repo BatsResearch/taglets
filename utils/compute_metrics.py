@@ -164,3 +164,19 @@ def save_pseudo_labels(imgs, labs, config, iteration):
     with open(filename, "wb") as f:
         pickle.dump({"filepaths": imgs, "labels": labs}, f)
 
+
+def save_predictions(obj, config, iteration=None):
+    """ Save in a pickle the parameters used for 
+    evaluation.
+
+    :param obj: object to save
+    :param config: object with method configurations
+    """
+
+    if iteration is None:
+        file_name = f"evaluation/{config.DATASET_NAME}_{config.LEARNING_PARADIGM}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
+    else:
+        file_name = f"evaluation/{config.DATASET_NAME}_{config.LEARNING_PARADIGM}_{config.MODEL}_{config.VIS_ENCODER.replace('/','')}_iter_{iteration}_opt_{config.OPTIM_SEED}_spl_{config.SPLIT_SEED}.pickle"
+    
+    with open(file_name, 'wb') as f:
+        pickle.dump(obj, f)

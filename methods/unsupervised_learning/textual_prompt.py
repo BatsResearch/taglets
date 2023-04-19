@@ -279,6 +279,9 @@ class TextualPrompt(TrainingStrategy):
 
         return df_predictions
 
+    def load_model_eval(self):
+        self.define_model(self.classes)
+
     def evaluation(self, data):
         """This function computes predictions on test data.
 
