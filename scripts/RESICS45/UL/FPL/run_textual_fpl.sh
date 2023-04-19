@@ -27,13 +27,8 @@ for optim_seed in 1; do # 2 3 4 5; do #10 100 50 400 250; do
     export DATASET_NAME="$dataset_name"
     export SPLIT_SEED="$split_seed"
     export MODEL="$model"
-    # export TYPE="$TYPE"
-    # export PREFIX_SIZE="$PREFIX_SIZE"
-    # #$PORT
-    # echo $optim_seed
-    # echo $TYPE
-    # echo $PORT
-    # $PORT
+    export DATASET_DIR="$dataset_dir"
+
     sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12070/'  accelerate_config.yml
     accelerate launch --config_file ./accelerate_config.yml ./run_main_ul.py \
                     --model_config ${model}_config.yml --learning_paradigm ul
