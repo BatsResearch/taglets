@@ -385,14 +385,18 @@ def get_labeled_and_unlabeled_data(
                     if cl in seen_classes:
                         labeled_files.append(img)
                         labels_files.append(cl)
+                    elif cl in unseen_classes:
+                        unlabeled_lab_files.append(img)
+                        unlabeled_labs.append(cl)
                     else:
                         raise Exception(
                             f"The extracted class is not among the seen or unseen classes."
                         )
-        N1 = 5
+        N1 = 4
         N2 = 50
         N3 = 4
         labeled_data = list(zip(labeled_files, labels_files))#[:N1]
+        unlabeled_data = list(zip(unlabeled_lab_files, unlabeled_labs))#[:N2]
 
         test_files = []
         test_labs = []
@@ -409,7 +413,7 @@ def get_labeled_and_unlabeled_data(
 
         test_data = list(zip(test_files, test_labs))#[:N3]
 
-        return labeled_data, test_data
+        return labeled_data, unlabeled_data, test_data
 
     elif dataset == "FGVCAircraft":
         labeled_files = []

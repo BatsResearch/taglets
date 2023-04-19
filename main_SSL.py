@@ -94,7 +94,7 @@ def workflow(dataset_dir, obj_conf):
     # Get labeled data (seen classes)
     # Get unlabeled data (unseen classes)
     # Get test data (both seen and unseen classes)
-    labeled_data, test_data = get_labeled_and_unlabeled_data(
+    labeled_data, unlabeled_data, test_data = get_labeled_and_unlabeled_data(
         dataset, data_folder, seen_classes, unseen_classes, classes
     )
 
