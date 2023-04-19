@@ -358,7 +358,7 @@ def workflow(dataset_dir, obj_conf):
         'logits' : prob_preds,
     }
 
-    save_predictions(dictionary_predictions, config, iteration=None)
+    save_predictions(dictionary_predictions, obj_conf, iteration=None)
 
  
 def main():
