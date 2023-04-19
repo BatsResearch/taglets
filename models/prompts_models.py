@@ -1,5 +1,6 @@
 import logging
 
+import clip
 import torch
 from torch import nn
 
@@ -66,7 +67,6 @@ class UPTModel(nn.Module):
         coop_embeddings,
         vpt_embeddings,
         vpt_embeddings_deep,
-        transformer,
         image_encoder,
         text_encoder,
         classes,
@@ -113,7 +113,10 @@ class UPTModel(nn.Module):
             self.vpt_dim, 
             dtype=self.dtype).to(self.device)
         
-        self.transformer = transformer
+        self.transformer = clip.model.Transformer(
+            width=dim_transformer, 
+            layers=1, 
+            heads=1).to(self.device)
 
         self.image_encoder = image_encoder
         self.text_encoder = text_encoder

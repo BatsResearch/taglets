@@ -153,12 +153,6 @@ class TrainingStrategy(object):
             vpt_dim = self.clip_model.visual.conv1.weight.shape[0]
             coop_dim = self.clip_model.ln_final.weight.shape[0]
 
-            # Initialize the lightweight transformer
-            self.prompt_transformer = clip.model.Transformer(
-                width=self.config.TRANSFORMER_DIM, 
-                layers=1, 
-                heads=1).to(self.device)
-
             # Initialize the coop prompt
             self.coop_embeddings = torch.empty(
                 1, 
@@ -226,7 +220,6 @@ class TrainingStrategy(object):
                 self.coop_embeddings,
                 self.vpt_embeddings,
                 self.vpt_embeddings_deep,
-                self.prompt_transformer,
                 self.image_encoder,
                 self.text_encoder,
                 self.classes,
