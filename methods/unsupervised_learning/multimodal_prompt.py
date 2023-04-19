@@ -149,7 +149,7 @@ class MultimodalPrompt(TrainingStrategy):
         self.update_scheduler()
 
         unwrapped_model = self.unwrap_model()
-        epoch_parameters = unwrapped_model.state_dict()
+        # epoch_parameters = unwrapped_model.state_dict()
         epoch_parameters = [
             unwrapped_model.transformer.state_dict(),
             unwrapped_model.proj_coop_pre.state_dict(),

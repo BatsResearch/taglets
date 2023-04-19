@@ -147,7 +147,7 @@ def save_parameters(obj, config, iteration=None):
                 'proj_vpt_post',
             ]:
                 ff = file_name.split('.')[:-1][0]
-                torch.save(obj, f'{ff}_{names[idx]}.pt')
+                torch.save(obj[idx], f'{ff}_{names[idx]}.pt')
             else:
                 ff = file_name.split('.')[:-1][0]
                 with open(f'{ff}_{names[idx]}.pickle', 'wb') as f:
@@ -155,7 +155,7 @@ def save_parameters(obj, config, iteration=None):
 
     else:
         with open(file_name, 'wb') as f:
-            pickle.dump(obj, f)
+            pickle.dump(obj[idx], f)
 
 
 def save_pseudo_labels(imgs, labs, config, iteration):
