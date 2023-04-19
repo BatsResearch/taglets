@@ -1,5 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=R-base_meth
+#SBATCH --job-name=SSL-vp
+#SBATCH --output=logs/ssl_visual_prompts.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=40G
@@ -33,7 +34,7 @@ for optim_seed in 1; do # 2 3 4 5; do #10 100 50 400 250; do
     # echo $TYPE
     # echo $PORT
     # $PORT
-    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12074/'  accelerate_config.yml
+    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12072/'  accelerate_config.yml
     accelerate launch --config_file ./accelerate_config.yml ./run_main_ssl.py \
                     --model_config ${model}_config.yml --learning_paradigm ssl
 done
