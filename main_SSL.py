@@ -403,6 +403,7 @@ def workflow(dataset_dir, obj_conf):
     std_predictions = model.test_predictions(test_dataset, standard_zsl=True)
     # Submit predictions (standard)
     std_response = evaluate_predictions(
+        obj_conf,
         std_predictions,
         test_labeled_files,
         test_labeles,
