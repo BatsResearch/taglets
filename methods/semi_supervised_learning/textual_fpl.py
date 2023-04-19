@@ -63,6 +63,7 @@ class TextualFPL(TextualPrompt):
 
         # Get pseudo-labels for unlabeled data from unseen classes
         train_unseen_dataset = pseudolabel_top_k(
+            self.config,
             self.config.DATASET_NAME,
             self.config.N_PSEUDOSHOTS,
             self.config.PROMPT_TEMPLATE,

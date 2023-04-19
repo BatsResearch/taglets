@@ -58,6 +58,7 @@ class MultimodalFPL(MultimodalPrompt):
 
         # Get pseudo-labels for unlabeled data from unseen classes
         train_unseen_dataset = pseudolabel_top_k(
+            self.config,
             self.config.DATASET_NAME,
             self.config.N_PSEUDOSHOTS,
             self.config.PROMPT_TEMPLATE,
@@ -205,12 +206,13 @@ class MultimodalFPL(MultimodalPrompt):
             img = torch.unsqueeze(self.transform(img), 0).to(self.device)
             with torch.no_grad():
                 # Get text and image prompts using UPT
-                coop_embeddings, vpt_embeddings, vpt_deep_embeddings = self.model(0)
+                # coop_embeddings, vpt_embeddings, vpt_deep_embeddings = self.model(0)
                 # Calculate text prompts
-                text_features = self.text_encoder(coop_embeddings, classes)
+                # text_features = self.text_encoder(coop_embeddings, classes)
+                text_features, image_features = self.model(img, classes)
                 text_features = text_features / text_features.norm(dim=-1, keepdim=True)
                 # Calculate image prompts
-                image_features = self.image_encoder(img, vpt_embeddings, deep_embds=vpt_deep_embeddings)
+                # image_features = self.image_encoder(img, vpt_embeddings, deep_embds=vpt_deep_embeddings)
                 image_features = image_features / image_features.norm(dim=-1, keepdim=True)
 
             logit_scale = self.clip_model.logit_scale.exp()

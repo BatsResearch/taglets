@@ -153,30 +153,6 @@ class TrainingStrategy(object):
             vpt_dim = self.clip_model.visual.conv1.weight.shape[0]
             coop_dim = self.clip_model.ln_final.weight.shape[0]
 
-            # Initialize linear layers (project into and out of lightweight transformer dimension)
-            self.proj_coop_pre = nn.Linear(
-                coop_dim, 
-                self.config.TRANSFORMER_DIM, 
-                dtype=self.dtype).to(self.device)
-            self.proj_coop_post = nn.Linear(
-                self.config.TRANSFORMER_DIM,
-                 coop_dim, 
-                 dtype=self.dtype).to(self.device)
-            self.proj_vpt_pre = nn.Linear(
-                vpt_dim,
-                self.config.TRANSFORMER_DIM, 
-                dtype=self.dtype).to(self.device)
-            self.proj_vpt_post = nn.Linear(
-                self.config.TRANSFORMER_DIM, 
-                vpt_dim, 
-                dtype=self.dtype).to(self.device)
-
-            # Initialize the lightweight transformer
-            self.prompt_transformer = clip.model.Transformer(
-                width=self.config.TRANSFORMER_DIM, 
-                layers=1, 
-                heads=1).to(self.device)
-
             # Initialize the coop prompt
             self.coop_embeddings = torch.empty(
                 1, 
@@ -190,20 +166,22 @@ class TrainingStrategy(object):
             clip_patchsize = _pair(clip_patchsize)
             val = math.sqrt(6. / float(3 * reduce(mul, clip_patchsize, 1) + vpt_dim))  # noqa
 
-            self.vpt_embeddings = nn.Parameter(torch.zeros(
-                1, self.config.VISION_PREFIX_SIZE, vpt_dim, dtype=self.dtype)).to(self.device)
+            self.vpt_embeddings = torch.zeros(
+                1, 
+                self.config.VISION_PREFIX_SIZE, 
+                vpt_dim, 
+                dtype=self.dtype).to(self.device)
             # xavier_uniform initialization
             nn.init.uniform_(self.vpt_embeddings.data, -val, val)
 
             if self.config.VPT_DEEP:
                 self.vision_layers = len([k for k in self.clip_model.state_dict().keys() if k.startswith("visual.") and k.endswith(".attn.in_proj_weight")])
 
-                self.vpt_embeddings_deep = nn.Parameter(
-                    torch.zeros(
+                self.vpt_embeddings_deep = torch.zeros(
                         self.vision_layers-1, 
                         self.config.VISION_PREFIX_SIZE, 
                         vpt_dim, 
-                        dtype=self.dtype)).to(self.device)
+                        dtype=self.dtype).to(self.device)
                 # xavier_uniform initialization
                 nn.init.uniform_(self.vpt_embeddings_deep.data, -val, val)
             else:
@@ -236,23 +214,16 @@ class TrainingStrategy(object):
             ).to(self.device)
 
         elif self.config.MODALITY == 'multi':
-            linear_layers = [
-                self.proj_coop_pre,
-                self.proj_coop_post,
-                self.proj_vpt_pre,
-                self.proj_vpt_post
-            ]
 
             # Define model
             self.model = UPTModel(
                 self.coop_embeddings,
                 self.vpt_embeddings,
                 self.vpt_embeddings_deep,
-                linear_layers,
-                self.prompt_transformer,
                 self.image_encoder,
                 self.text_encoder,
                 self.classes,
+                self.config.TRANSFORMER_DIM, 
                 device=self.device,
                 dtype=self.dtype
             ).to(self.device)
