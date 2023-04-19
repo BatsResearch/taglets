@@ -190,8 +190,6 @@ def workflow(dataset_dir, obj_conf):
             only_seen=True
         )
 
-        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
-
     elif obj_conf.MODEL == "visual_fpl":
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = VisualFPL(
@@ -254,7 +252,6 @@ def workflow(dataset_dir, obj_conf):
             only_seen=True
         )
 
-        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
     elif obj_conf.MODEL == "textual_fpl":
         log.info(f"The model in use is: {obj_conf.MODEL}")

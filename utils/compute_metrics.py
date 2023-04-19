@@ -29,7 +29,7 @@ def evaluate_predictions(
     # log.info(f"DF PREDS: {df_predictions.head(5)}")
     df_predictions = pd.merge(df_predictions, df_test, on="id")
 
-    if config.LEARNING_PARADIGM == 'ul':
+    if config.LEARNING_PARADIGM == 'ul' or config.LEARNING_PARADIGM == 'ssl':
         accuracy = (
             np.sum(df_predictions["class"] == df_predictions["true"])
             / df_predictions.shape[0]

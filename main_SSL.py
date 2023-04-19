@@ -73,6 +73,8 @@ def workflow(dataset_dir, obj_conf):
     # Get class names of target task
     # define function for each dataset
     classes, seen_classes, unseen_classes = get_class_names(dataset, dataset_dir, obj_conf.SPLIT_SEED)
+    seen_classes = classes
+    unseen_classes = classes
     # Create dict classes to pass as variable
     dict_classes = {
         "classes": classes,
@@ -92,15 +94,45 @@ def workflow(dataset_dir, obj_conf):
     # Get labeled data (seen classes)
     # Get unlabeled data (unseen classes)
     # Get test data (both seen and unseen classes)
-    labeled_data, unlabeled_data, test_data = get_labeled_and_unlabeled_data(
+    labeled_data, test_data = get_labeled_and_unlabeled_data(
         dataset, data_folder, seen_classes, unseen_classes, classes
     )
 
     # Create datasets
     labeled_files, labeles = zip(*labeled_data)
-    unseen_labeled_files, unseen_labeles = zip(*unlabeled_data)
     test_labeled_files, test_labeles = zip(*test_data)
     label_to_idx = {c: idx for idx, c in enumerate(classes)}
+
+    # Select few-samples
+    few_shots_files = []
+    few_shots_labs = []
+    
+    labeled_files = np.array(labeled_files)
+    labeles = np.array(labeles)
+    for c in classes:
+        np.random.seed(obj_conf.validation_seed)
+        indices = np.random.choice(
+            np.where(labeles == c)[0], 
+            size=obj_conf.N_LABEL, 
+            replace=False, 
+        )
+        few_shots_files += list(labeled_files[indices])
+        few_shots_labs += list(labeles[indices])
+
+    log.info(f"NUMBER OF SHOTS {len(classes)} X {obj_conf.N_LABEL}: {obj_conf.N_LABEL*len(classes)}")
+    log.info(f"NUMBER OF SHOTS {len(few_shots_labs)}")
+    
+    unseen_labeled_files = []
+    unseen_labeles = []
+    for idx, f in enumerate(labeled_files):
+        if f not in few_shots_files:
+            unseen_labeled_files += [f]
+            unseen_labeles += [labeles[idx]]
+
+    log.info(f"All data: {len(labeled_files)} unlabeled: {len(unseen_labeled_files)}")
+
+    labeled_files = few_shots_files
+    labeles = few_shots_labs
 
     # Separate train and validation
     np.random.seed(obj_conf.validation_seed)
@@ -171,6 +203,7 @@ def workflow(dataset_dir, obj_conf):
     # Define model
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
+
     log.info(f"\n----------------------MODEL INFO-----------------------\n")
     if obj_conf.MODEL == "clip_baseline":
         log.info(f"The model in use is: {obj_conf.MODEL}")
@@ -189,8 +222,6 @@ def workflow(dataset_dir, obj_conf):
             val_seen_dataset, 
             only_seen=True
         )
-
-        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
     elif obj_conf.MODEL == "visual_fpl":
         log.info(f"The model in use is: {obj_conf.MODEL}")
@@ -253,8 +284,6 @@ def workflow(dataset_dir, obj_conf):
             val_seen_dataset, 
             only_seen=True
         )
-
-        model.model.prefix = torch.nn.Parameter(torch.tensor(optimal_prompt[0]))
 
     elif obj_conf.MODEL == "textual_fpl":
         log.info(f"The model in use is: {obj_conf.MODEL}")
@@ -381,22 +410,6 @@ def workflow(dataset_dir, obj_conf):
         standard_zsl=True,
     )
     log.info(f"ZSL accuracy: {std_response}")
-
-    # Validate on test set (general)
-    gen_predictions = model.test_predictions(test_dataset, standard_zsl=False)
-    # Submit predictions (general)
-    unseen_accuracy, seen_accuracy, harmonic_mean = evaluate_predictions(
-        gen_predictions,
-        test_labeled_files,
-        test_labeles,
-        unseen_classes,
-        seen_classes,
-        standard_zsl=False,
-    )
-    log.info(f"Generalized ZSL results")
-    log.info(f"Accuracy seen classes: {seen_accuracy}")
-    log.info(f"Accuracy unseen classes: {unseen_accuracy}")
-    log.info(f"Harmonic mean: {harmonic_mean}")
 
     # Store model results
     store_results(obj_conf, std_response, unseen_accuracy, seen_accuracy, harmonic_mean)

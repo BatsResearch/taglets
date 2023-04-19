@@ -114,7 +114,7 @@ class VisualFPL(VisualPrompt):
         loss_ce_seen = self.cross_entropy(logits, labs, self.seen_classes)
         loss_ce_unseen = self.cross_entropy(logits, labs, self.unseen_classes)
 
-        return loss_ce_seen + self.balance_param * loss_ce_unseen
+        return (1 - config.ALPHA)*loss_ce_seen + config.ALPHA * loss_ce_unseen
 
     def cross_entropy(self, logits, labels, classes):
         """This loss computes the probability mass on the
