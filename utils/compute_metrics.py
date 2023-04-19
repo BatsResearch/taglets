@@ -151,11 +151,11 @@ def save_parameters(obj, config, iteration=None):
             else:
                 ff = file_name.split('.')[:-1][0]
                 with open(f'{ff}_{names[idx]}.pickle', 'wb') as f:
-                    pickle.dump(obj, f)
+                    pickle.dump(obj[idx], f)
 
     else:
         with open(file_name, 'wb') as f:
-            pickle.dump(obj[idx], f)
+            pickle.dump(obj, f)
 
 
 def save_pseudo_labels(imgs, labs, config, iteration):

@@ -154,6 +154,15 @@ def workflow(dataset_dir, obj_conf):
             **dict_classes
         )
 
+        model.coop_embeddings = torch.nn.Parameter(torch.tensor(prompts[0]))
+        model.vpt_embeddings = torch.nn.Parameter(torch.tensor(prompts[0]))
+
+        self.proj_coop_pre = pass
+        self.proj_coop_post = pass
+        self.proj_vpt_pre = pass
+        self.proj_vpt_post = pass
+        self.transformer = pass
+
     # Validate on test set (standard)
     images, predictions, prob_preds = model.evaluation(test_dataset)
 
