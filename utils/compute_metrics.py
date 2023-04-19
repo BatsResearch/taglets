@@ -145,9 +145,11 @@ def save_parameters(obj, config, iteration=None):
                 'proj_vpt_pre',
                 'proj_vpt_post',
             ]:
-                torch.save(obj, f'{file_name.split('.')[:-1]}_{names[idx]}.p')
+                ff = f'{file_name.split('.')[:-1]}_{names[idx]}.p'
+                torch.save(obj, ff)
             else:
-                with open(f'{file_name.split('.')[:-1]}_{names[idx]}.p', 'wb') as f:
+                ff = f'{file_name.split('.')[:-1]}_{names[idx]}.p'
+                with open(ff, 'wb') as f:
                     pickle.dump(obj, f)
 
     else:
