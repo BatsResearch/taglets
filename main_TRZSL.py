@@ -371,6 +371,7 @@ def workflow(dataset_dir, obj_conf):
     std_predictions = model.test_predictions(test_dataset, standard_zsl=True)
     # Submit predictions (standard)
     std_response = evaluate_predictions(
+        obj_conf,
         std_predictions,
         test_labeled_files,
         test_labeles,
@@ -383,6 +384,7 @@ def workflow(dataset_dir, obj_conf):
     gen_predictions = model.test_predictions(test_dataset, standard_zsl=False)
     # Submit predictions (general)
     unseen_accuracy, seen_accuracy, harmonic_mean = evaluate_predictions(
+        obj_conf,
         gen_predictions,
         test_labeled_files,
         test_labeles,
