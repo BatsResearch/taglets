@@ -109,10 +109,13 @@ class MultimodalFPL(MultimodalPrompt):
 
     def define_loss_function(self, logits, labs, teacher=False):
         
-        loss_ce_seen = self.cross_entropy(logits, labs, self.seen_classes)
-        loss_ce_unseen = self.cross_entropy(logits, labs, self.unseen_classes)
+        # loss_ce_seen = self.cross_entropy(logits, labs, self.seen_classes)
+        # loss_ce_unseen = self.cross_entropy(logits, labs, self.unseen_classes)
+        loss_ce = self.cross_entropy(logits, labs, self.seen_classes)
 
-        return loss_ce_seen + self.balance_param * loss_ce_unseen
+        return loss_ce
+        # return (1 - config.ALPHA)*loss_ce_seen + config.ALPHA * loss_ce_unseen
+
 
     def cross_entropy(self, logits, labels, classes):
         """This loss computes the probability mass on the
@@ -121,19 +124,7 @@ class MultimodalFPL(MultimodalPrompt):
         :param labels: class ids
         """
 
-        ids = [self.label_to_idx[c] for c in classes]
-
-        # Get indices of unseen and seen samples in the batch
-        samples = []
-
-        for idx, l in enumerate(labels):
-            if l in ids:
-                samples.append(idx)
-
-        if samples:
-            error = self.loss_func(logits[samples], labels[samples])
-        else:
-            error = 0
+        error = self.loss_func(logits, labels)
 
         return error
 

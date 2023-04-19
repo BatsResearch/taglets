@@ -413,7 +413,7 @@ def workflow(dataset_dir, obj_conf):
     log.info(f"ZSL accuracy: {std_response}")
 
     # Store model results
-    store_results(obj_conf, std_response, unseen_accuracy, seen_accuracy, harmonic_mean)
+    store_results(obj_conf, std_response)
 
  
 def main():

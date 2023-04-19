@@ -146,35 +146,8 @@ class TextualPrompt(TrainingStrategy):
         predictions_outputs = accelerator.gather(predictions)
         labels_outputs = accelerator.gather(labels)
 
-        # Get harmonic mean
-        idx_seen = [self.label_to_idx[c] for c in self.seen_classes]
-        seen_true = [i for i, c in enumerate(labels_outputs) if c in idx_seen]
-        seen_preds = predictions_outputs[seen_true]
-        seen_labs = labels_outputs[seen_true]
-        seen_accuracy = torch.sum(seen_preds == seen_labs) / len(seen_true)
-
-        idx_unseen = [self.label_to_idx[c] for c in self.unseen_classes]
-        unseen_true = [i for i, c in enumerate(labels_outputs) if c in idx_unseen]
-        unseen_preds = predictions_outputs[unseen_true]
-        unseen_labs = labels_outputs[unseen_true]
-        unseen_accuracy = torch.sum(unseen_preds == unseen_labs) / len(unseen_true)
-
-        if only_unlabelled:
-            accuracy = unseen_accuracy
-            log.info(f"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}")
-        else:
-            if only_seen:
-                accuracy = seen_accuracy
-                log.info(f"Training SEEN accuracy after Epoch {epoch}: {accuracy}")
-            else:
-                accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
-
-                # accuracy = torch.sum(predictions_outputs == labels_outputs)/len(predictions_outputs)
-                log.info(f"Training SEEN accuracy after Epoch {epoch}: {seen_accuracy}")
-                log.info(
-                    f"Training UNSEEN accuracy after Epoch {epoch}: {unseen_accuracy}"
-                )
-                log.info(f"Training HARMONIC accuracy after Epoch {epoch}: {accuracy}")
+        accuracy = torch.sum(predictions_outputs == labels_outputs) / len(labels_outputs)
+        log.info(f"Training accuracy after Epoch {epoch}: {accuracy}")
 
         self.update_scheduler()
 
@@ -242,33 +215,11 @@ class TextualPrompt(TrainingStrategy):
         labels_outputs = accelerator.gather(labels)
 
         log.info(f"[self._run_validation] shape text_features {len(text_features)}")
-        if len(text_features) < len(self.classes):
-            accuracy = torch.sum(predictions_outputs == labels_outputs) / len(
+        
+        accuracy = torch.sum(predictions_outputs == labels_outputs) / len(
                 predictions_outputs
             )
-        else:
-            # Get harmonic mean
-            idx_seen = [self.label_to_idx[c] for c in self.seen_classes]
-            seen_true = [i for i, c in enumerate(labels_outputs) if c in idx_seen]
-            seen_preds = predictions_outputs[seen_true]
-            seen_labs = labels_outputs[seen_true]
-            seen_accuracy = torch.sum(seen_preds == seen_labs) / len(seen_true)
-
-            idx_unseen = [self.label_to_idx[c] for c in self.unseen_classes]
-            unseen_true = [i for i, c in enumerate(labels_outputs) if c in idx_unseen]
-            unseen_preds = predictions_outputs[unseen_true]
-            unseen_labs = labels_outputs[unseen_true]
-            unseen_accuracy = torch.sum(unseen_preds == unseen_labs) / len(unseen_true)
-
-            if only_seen:
-                accuracy = seen_accuracy
-                log.info(f"Validation SEEN accuracy after Epoch: {seen_accuracy}")
-
-            else:
-                accuracy = st.hmean([unseen_accuracy.cpu(), seen_accuracy.cpu()])
-                log.info(f"Validation SEEN accuracy after Epoch: {seen_accuracy}")
-                log.info(f"Validation UNSEEN accuracy after Epoch: {unseen_accuracy}")
-                log.info(f"Validation HARMONIC accuracy after Epoch: {accuracy}")
+        log.info(f"Validation accuracy after Epoch: {accuracy}")
 
         return accuracy
 

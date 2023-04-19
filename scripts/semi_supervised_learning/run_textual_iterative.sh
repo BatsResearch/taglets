@@ -34,7 +34,7 @@ for optim_seed in 1; do # 2 3 4 5; do #10 100 50 400 250; do
     # echo $PORT
     # $PORT
     sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12077/'  accelerate_config.yml
-    accelerate launch --config_file ./accelerate_config.yml ./run_main_trzsl.py \
+    accelerate launch --config_file ./accelerate_config.yml ./run_main_ssl.py \
                     --model_config ${model}_config.yml --learning_paradigm trzsl
 done
 done
