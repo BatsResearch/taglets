@@ -272,6 +272,9 @@ class TextualPrompt(TrainingStrategy):
 
         return accuracy
 
+    def load_model_eval(self):
+        self.define_model(self.classes)
+
     def evaluation(self, data):
         """This function computes predictions on test data.
 
@@ -304,6 +307,7 @@ class TextualPrompt(TrainingStrategy):
         prob_preds = []
         images = []
         for img, _, _, img_path in test_loader:
+            img = img.to(self.device)
             with torch.no_grad():
                 image_features = self.clip_model.encode_image(img)
                 image_features = image_features / image_features.norm(

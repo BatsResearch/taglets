@@ -338,6 +338,9 @@ class MultimodalPrompt(TrainingStrategy):
 
         return df_predictions
 
+    def load_model_eval(self):
+        self.define_model()
+
     def evaluation(self, data):
         """This function computes predictions on test data.
         :param data: Dataset object - test dataset
@@ -358,6 +361,7 @@ class MultimodalPrompt(TrainingStrategy):
         prob_preds = []
         classes = self.classes
         for img, _, _, img_path in test_loader:
+            img = img.to(self.device)
             with torch.no_grad():
                 # Get text and image prompts using UPT
                 text_features, image_features = self.model(img, classes)

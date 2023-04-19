@@ -331,6 +331,7 @@ class TextualPrompt(TrainingStrategy):
         images = []
         for img, _, _, img_path in test_loader:
             with torch.no_grad():
+                img = img.to(self.device)
                 image_features = self.clip_model.encode_image(img)
                 image_features = image_features / image_features.norm(
                     dim=-1, keepdim=True

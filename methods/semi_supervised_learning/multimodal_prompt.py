@@ -312,6 +312,7 @@ class MultimodalPrompt(TrainingStrategy):
         classes = self.classes
         for img, _, _, img_path in test_loader:
             with torch.no_grad():
+                img = img.to(self.device)
                 # Get text and image prompts using UPT
                 text_features, image_features = self.model(img, classes)
                 text_features = text_features / text_features.norm(dim=-1, keepdim=True)

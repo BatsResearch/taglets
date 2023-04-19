@@ -360,6 +360,9 @@ class VisualPrompt(TrainingStrategy):
 
         return df_predictions
 
+    def load_model_eval(self):
+        self.define_model()
+
     def evaluation(self, data):
         """This function computes predictions on test data.
 
@@ -393,6 +396,7 @@ class VisualPrompt(TrainingStrategy):
         images = []
         prob_preds = []
         for img, _, _, img_path in test_loader:
+            img = img.to(self.device)
             with torch.no_grad():
                 image_features = self.model(img)
                 image_features = image_features / image_features.norm(
