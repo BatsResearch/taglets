@@ -4,7 +4,7 @@ for dataset_dir in '/Users/menga/Desktop/github/zsl_taglets/development'; do
 for vis_encoder in 'ViT-B/32'; do 
 for split_seed in 500; do 
 for dataset_name in RESICS45; do
-for model in textual_fpl; do 
+for model in visual_fpl; do 
 for optim_seed in 1; do 
     
     export OPTIM_SEED="$optim_seed"
