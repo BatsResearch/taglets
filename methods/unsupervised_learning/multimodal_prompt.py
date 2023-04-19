@@ -156,7 +156,7 @@ class MultimodalPrompt(TrainingStrategy):
             # copy.deepcopy(self.proj_vpt_pre),
             # copy.deepcopy(self.proj_vpt_post),
             unwrapped_model.transformer,
-            unwrapped_model.self.proj_coop_pre.detach().cpu().numpy(),
+            unwrapped_model.proj_coop_pre.detach().cpu().numpy(),
             unwrapped_model.proj_coop_post.detach().cpu().numpy(),
             unwrapped_model.proj_vpt_pre.detach().cpu().numpy(),
             unwrapped_model.proj_vpt_post.detach().cpu().numpy(),
