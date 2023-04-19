@@ -155,20 +155,15 @@ class MultimodalPrompt(TrainingStrategy):
             # copy.deepcopy(self.proj_coop_post),
             # copy.deepcopy(self.proj_vpt_pre),
             # copy.deepcopy(self.proj_vpt_post),
-            unwrapped_model.transformer,
-            unwrapped_model.proj_coop_pre.detach().cpu().numpy(),
-            unwrapped_model.proj_coop_post.detach().cpu().numpy(),
-            unwrapped_model.proj_vpt_pre.detach().cpu().numpy(),
-            unwrapped_model.proj_vpt_post.detach().cpu().numpy(),
+            unwrapped_model.transformer.state_dict(),
+            unwrapped_model.proj_coop_pre.state_dict(),
+            unwrapped_model.proj_coop_post.state_dict(),
+            unwrapped_model.proj_vpt_pre.state_dict(),
+            unwrapped_model.proj_vpt_post.state_dict(),
             unwrapped_model.coop_embeddings.detach().cpu().numpy(),
             None if unwrapped_model.vpt_embeddings_deep is None else unwrapped_model.vpt_embeddings_deep.detach().cpu().numpy(),
             unwrapped_model.vpt_embeddings.detach().cpu().numpy(),
         ]
-
-        # unwrapped_model = self.unwrap_model()
-        # epoch_parameters = [
-        #     unwrapped_model.prefix.detach().cpu().numpy()
-        # ]
 
         return loss, total_loss, epoch_parameters
 
