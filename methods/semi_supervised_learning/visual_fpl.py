@@ -10,7 +10,7 @@ from torch import nn
 
 accelerator = Accelerator()
 
-from methods.transductive_zsl import VisualPrompt
+from methods.semi_supervised_learning import VisualPrompt
 from utils import (
     dataset_object,
     make_scheduler, 

@@ -12,7 +12,7 @@ from torch import nn
 accelerator = Accelerator()
 
 from models import CustomTextEncoder, TextPrefixModel
-from methods.transductive_zsl import TrainingStrategy
+from methods.semi_supervised_learning import TrainingStrategy
 from utils import make_scheduler, seed_worker
 
 g = torch.Generator()

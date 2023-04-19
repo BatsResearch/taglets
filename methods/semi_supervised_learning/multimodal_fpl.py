@@ -11,7 +11,7 @@ import math
 
 accelerator = Accelerator()
 
-from methods.transductive_zsl import MultimodalPrompt
+from methods.semi_supervised_learning import MultimodalPrompt
 from utils import (
     dataset_object,
     make_scheduler, 

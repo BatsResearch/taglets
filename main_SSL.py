@@ -22,7 +22,7 @@ from urllib3.util import Retry
 accelerator = Accelerator()
 
 from data import CustomDataset, dataset_custom_prompts
-from methods.transductive_zsl import (
+from methods.semi_supervised_learning import (
     ClipBaseline,
     MultimodalFPL,
     MultimodalPrompt,

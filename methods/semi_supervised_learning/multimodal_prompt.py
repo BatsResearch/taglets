@@ -11,7 +11,7 @@ from accelerate import Accelerator
 
 accelerator = Accelerator()
 
-from methods.transductive_zsl import TrainingStrategy
+from methods.semi_supervised_learning import TrainingStrategy
 from utils import make_scheduler, seed_worker
 
 

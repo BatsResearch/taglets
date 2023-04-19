@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 accelerator = Accelerator()
 
-from methods.transductive_zsl import TextualPrompt
+from methods.semi_supervised_learning import TextualPrompt
 from utils import (
     dataset_object,
     make_scheduler, 
