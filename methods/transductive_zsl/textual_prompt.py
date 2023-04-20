@@ -284,41 +284,34 @@ class TextualPrompt(TrainingStrategy):
             data, batch_size=self.config.BATCH_SIZE
         )
 
-        accelerator.wait_for_everyone()
-
         self.model, test_loader = accelerator.prepare(self.model, test_loader)
 
-        # Define text queries
         if standard_zsl:
-            prompts = [
-                self.template.format(" ".join(i.split("_")))
-                for i in self.unseen_classes
-            ]
+            self.model.classes = self.unseen_classes
         else:
-            prompts = [
-                self.template.format(" ".join(i.split("_"))) for i in self.classes
-            ]
+            self.model.classes = self.classes
 
-        log.info(f"[self.test_predictions] Number of prompts: {len(prompts)}")
+        log.info(f"[self.test_predictions] Number of prompts: {len(self.model.classes)}")
+        accelerator.wait_for_everyone()
+
+        # Get prompts
+        text_features = self.model(self.model.classes)
+        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+        log.info(f"TEXT FEATURES SHAPE: {text_features.size()}")
+
+        log.info(f"Start inference for test data")
         # This is required for distributed training
         test_files = [f.split("/")[-1] for f in test_loader.dataset.filepaths]
 
-        # Encode text
-        text = clip.tokenize(prompts).to(self.device)
-        text_features = self.clip_model.encode_text(text)
-        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
-
-        log.info(f"Start inference for test data")
         predictions = []
         images = []
         for img, _, _, img_path in test_loader:
             with torch.no_grad():
-                image_features = self.model(img)
+                image_features = self.clip_model.encode_image(img)
                 image_features = image_features / image_features.norm(
                     dim=-1, keepdim=True
                 )
                 # cosine similarity as logits
-
             logit_scale = self.clip_model.logit_scale.exp()
             logits = logit_scale * image_features @ text_features.t()
             idx_preds = torch.argmax(logits, dim=1)
