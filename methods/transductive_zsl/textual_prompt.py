@@ -272,6 +272,86 @@ class TextualPrompt(TrainingStrategy):
 
         return accuracy
 
+    def test_predictions(self, data, standard_zsl=False):
+        """This function computes predictions on test data.
+        :param data: Dataset object - test dataset
+        """
+
+        # Declare the data pre processing
+        data.transform = self.transform
+        # Define the data loader
+        test_loader = torch.utils.data.DataLoader(
+            data, batch_size=self.config.BATCH_SIZE
+        )
+
+        accelerator.wait_for_everyone()
+
+        self.model, test_loader = accelerator.prepare(self.model, test_loader)
+
+        # Define text queries
+        if standard_zsl:
+            prompts = [
+                self.template.format(" ".join(i.split("_")))
+                for i in self.unseen_classes
+            ]
+        else:
+            prompts = [
+                self.template.format(" ".join(i.split("_"))) for i in self.classes
+            ]
+
+        log.info(f"[self.test_predictions] Number of prompts: {len(prompts)}")
+        # This is required for distributed training
+        test_files = [f.split("/")[-1] for f in test_loader.dataset.filepaths]
+
+        # Encode text
+        text = clip.tokenize(prompts).to(self.device)
+        text_features = self.clip_model.encode_text(text)
+        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+
+        log.info(f"Start inference for test data")
+        predictions = []
+        images = []
+        for img, _, _, img_path in test_loader:
+            with torch.no_grad():
+                image_features = self.model(img)
+                image_features = image_features / image_features.norm(
+                    dim=-1, keepdim=True
+                )
+                # cosine similarity as logits
+
+            logit_scale = self.clip_model.logit_scale.exp()
+            logits = logit_scale * image_features @ text_features.t()
+            idx_preds = torch.argmax(logits, dim=1)
+
+            if standard_zsl:
+                predictions += [self.unseen_classes[i] for i in idx_preds]
+            else:
+                predictions += [self.classes[i] for i in idx_preds]
+
+            images += [i for i in img_path]
+
+        predictions = torch.tensor([self.label_to_idx[p] for p in predictions]).to(
+            self.device
+        )
+        images = torch.tensor([test_files.index(img) for img in images]).to(self.device)
+
+        accelerator.wait_for_everyone()
+
+        predictions_outputs = accelerator.gather(predictions)
+        image_outputs = accelerator.gather(images)
+
+        predictions_outputs = [self.classes[p] for p in predictions_outputs]
+        image_outputs = [test_files[i] for i in image_outputs]
+
+        df_predictions = pd.DataFrame(
+            {"id": image_outputs, "class": predictions_outputs}
+        )
+        df_predictions.drop_duplicates(subset=["id", "class"], inplace=True)
+
+        return df_predictions
+
+    
+    
     def load_model_eval(self):
         self.define_model(self.classes)
 
