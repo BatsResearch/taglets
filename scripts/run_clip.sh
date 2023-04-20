@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=RSSL-base
-#SBATCH --output=logs/ssl_resics_prompts.out
+#SBATCH --job-name=CLIP
+#SBATCH --output=logs/clip.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=40G
