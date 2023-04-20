@@ -23,7 +23,6 @@ accelerator = Accelerator()
 
 from data import CustomDataset, dataset_custom_prompts
 from methods.unsupervised_learning import (
-    ClipBaseline,
     MultimodalFPL,
     TextualFPL,
     VisualFPL,
@@ -174,12 +173,8 @@ def workflow(dataset_dir, obj_conf):
     # Define model
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    log.info(f"\n----------------------MODEL INFO-----------------------\n")
-    if obj_conf.MODEL == "clip_baseline":
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = ClipBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
-    
-    elif obj_conf.MODEL == "visual_fpl":
+    log.info(f"\n----------------------MODEL INFO-----------------------\n")    
+    if obj_conf.MODEL == "visual_fpl":
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = VisualFPL(
             obj_conf, 

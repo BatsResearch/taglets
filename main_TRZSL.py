@@ -23,7 +23,6 @@ accelerator = Accelerator()
 
 from data import CustomDataset, dataset_custom_prompts
 from methods.transductive_zsl import (
-    ClipBaseline,
     MultimodalFPL,
     MultimodalPrompt,
     TextualFPL,
@@ -173,11 +172,7 @@ def workflow(dataset_dir, obj_conf):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     log.info(f"\n----------------------MODEL INFO-----------------------\n")
-    if obj_conf.MODEL == "clip_baseline":
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = ClipBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
-    
-    elif obj_conf.MODEL == "visual_prompt":
+    if obj_conf.MODEL == "visual_prompt":
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = VisualPrompt(
             obj_conf, 

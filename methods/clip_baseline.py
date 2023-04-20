@@ -100,4 +100,4 @@ class ClipBaseline(object):
 
         df_predictions = pd.DataFrame({"id": images, "class": predictions})
 
-        return images, predictions, prob_preds
+        return df_predictions, images, predictions, prob_preds

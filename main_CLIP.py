@@ -31,6 +31,7 @@ from utils import (
     get_class_names,
     get_labeled_and_unlabeled_data,
     save_parameters,
+    save_predictions,
     store_results,
 )
 
@@ -201,12 +202,8 @@ def workflow(dataset_dir, obj_conf):
         log.info(f"The model in use is: {obj_conf.MODEL}")
         model = ClipBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
     
-
-    if obj_conf.MODEL != 'clip_baseline':
-        # Save prompt
-        save_parameters(optimal_prompt, obj_conf)
     # Validate on test set (standard)
-    std_predictions = model.test_predictions(test_dataset, standard_zsl=True)
+    std_predictions, images, predictions, prob_preds = model.test_predictions(test_dataset, standard_zsl=True)
     # Submit predictions (standard)
     std_response = evaluate_predictions(
         obj_conf,
@@ -220,6 +217,20 @@ def workflow(dataset_dir, obj_conf):
 
     # Store model results
     store_results(obj_conf, std_response)
+
+    log.info(f"IMAGES: {np.array(images[:3])}")
+    log.info(f"PREDICTIONS: {predictions[:3]}")
+    log.info(f"LABELS: {test_labeles[:3]}")
+    log.info(f"PROBS: {prob_preds[0]}")
+
+    dictionary_predictions = {
+        'images' : images, 
+        'predictions' : predictions,
+        'labels' : test_labeles,
+        'logits' : prob_preds,
+    }
+
+    save_predictions(dictionary_predictions, obj_conf, iteration=None)
 
  
 def main():

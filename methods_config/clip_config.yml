@@ -1,6 +1,6 @@
 # Dataset name
 DATASET_NAME: "$DATASET_NAME"
-DATASET_DIR: '/users/cmenghin/data/bats/datasets/classification'
+DATASET_DIR: "$DATASET_DIR"
 # Model
 MODEL: "$MODEL"
 # Visual ecoder
