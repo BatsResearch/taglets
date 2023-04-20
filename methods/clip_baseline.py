@@ -40,10 +40,9 @@ class ClipBaseline(object):
         )
         self.template = self.config.PROMPT_TEMPLATE
 
-    def test_predictions(self, data, standard_zsl=False):
+    def test_predictions(self, data):
         """
         :param data: test dataset
-        :param standard_zsl: True if standard preds
         """
 
         # Declare the data pre processing
@@ -53,20 +52,9 @@ class ClipBaseline(object):
             data, batch_size=self.config.BATCH_SIZE
         )
 
-        # Define text queries
-        if standard_zsl:
-            # prompts = [f"{self.template}{' '.join(i.split('_'))}" \
-            #             for i in self.unseen_classes]
-            prompts = [
-                self.template.format(" ".join(i.split("_")))
-                for i in self.unseen_classes
-            ]
-        else:
-            # prompts = [f"{self.template}{' '.join(i.split('_'))}" \
-            #             for i in self.classes]
-            prompts = [
-                self.template.format(" ".join(i.split("_"))) for i in self.classes
-            ]
+        prompts = [
+            self.template.format(" ".join(i.split("_"))) for i in self.classes
+        ]
 
         log.info(f"Number of prompts: {len(prompts)}")
         # Encode text

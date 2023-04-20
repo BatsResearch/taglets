@@ -92,89 +92,11 @@ def workflow(dataset_dir, obj_conf):
     )
 
     # Create datasets
-    labeled_files, labeles = zip(*labeled_data)
     test_labeled_files, test_labeles = zip(*test_data)
     label_to_idx = {c: idx for idx, c in enumerate(classes)}
 
-    # Select few-samples
-    few_shots_files = []
-    few_shots_labs = []
-    
-    labeled_files = np.array(labeled_files)
-    labeles = np.array(labeles)
-    for c in classes:
-        np.random.seed(obj_conf.validation_seed)
-        indices = np.random.choice(
-            np.where(labeles == c)[0], 
-            size=obj_conf.N_LABEL, 
-            replace=False, 
-        )
-        few_shots_files += list(labeled_files[indices])
-        few_shots_labs += list(labeles[indices])
-
-    log.info(f"NUMBER OF SHOTS {len(classes)} X {obj_conf.N_LABEL}: {obj_conf.N_LABEL*len(classes)}")
-    log.info(f"NUMBER OF SHOTS {len(few_shots_labs)}")
-    
-    unseen_labeled_files = []
-    unseen_labeles = []
-    for idx, f in enumerate(labeled_files):
-        if f not in few_shots_files:
-            unseen_labeled_files += [f]
-            unseen_labeles += [labeles[idx]]
-
-    log.info(f"All data: {len(labeled_files)} unlabeled: {len(unseen_labeled_files)}")
-
-    labeled_files = few_shots_files
-    labeles = few_shots_labs
-
-    # Separate train and validation
-    np.random.seed(obj_conf.validation_seed)
-    train_indices = np.random.choice(
-        range(len(labeled_files)),
-        size=int(len(labeled_files) * obj_conf.ratio_train_val),
-        replace=False,
-    )
-    val_indices = list(set(range(len(labeled_files))).difference(set(train_indices)))
-
-    train_labeled_files = np.array(labeled_files)[train_indices]
-    train_labeles = np.array(labeles)[train_indices]
-
-    val_labeled_files = np.array(labeled_files)[val_indices]
-    val_labeles = np.array(labeles)[val_indices]
-
     DatasetObject = dataset_object(obj_conf.DATASET_NAME)
-    # Training set (labeled seen): note that here tranform and augmentations are None.
-    # These are attributes that everyone can set in the modules.
-    train_seen_dataset = DatasetObject(
-        train_labeled_files,
-        data_folder,
-        transform=None,
-        augmentations=None,
-        train=True,
-        labels=train_labeles,
-        label_map=label_to_idx,
-    )
-    # Training set (unlabeled unseen)
-    train_unseen_dataset = DatasetObject(
-        unseen_labeled_files,
-        data_folder,
-        transform=None,
-        augmentations=None,
-        train=True,
-        labels=None,
-        label_map=label_to_idx,
-    )
 
-    # Validation set (labeled seen)
-    val_seen_dataset = DatasetObject(
-        val_labeled_files,
-        data_folder,
-        transform=None,
-        augmentations=None,
-        train=True,
-        labels=val_labeles,
-        label_map=label_to_idx,
-    )
     # Test set (test seen and unseen)
     test_dataset = DatasetObject(
         test_labeled_files,
@@ -187,10 +109,6 @@ def workflow(dataset_dir, obj_conf):
     )
     # Log info data
     log.info(f"\n----------------------TRAINING DATA INFO-----------------------\n")
-    log.info(f"Len training seen data: {len(train_seen_dataset.filepaths)}")
-    log.info(f"Average number of labeled images per seen class:{len(train_seen_dataset.filepaths)/len(seen_classes)} ")
-    log.info(f"Len training unseen data: {len(train_unseen_dataset.filepaths)}")
-    log.info(f"Len validation seen data: {len(val_seen_dataset.filepaths)}")
     log.info(f"Len test data: {len(test_dataset.filepaths)}")
     log.info(f"\n-------------------------------------------------------------\n")
     # Define model
@@ -203,7 +121,7 @@ def workflow(dataset_dir, obj_conf):
         model = ClipBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
     
     # Validate on test set (standard)
-    std_predictions, images, predictions, prob_preds = model.test_predictions(test_dataset, standard_zsl=True)
+    std_predictions, images, predictions, prob_preds = model.test_predictions(test_dataset)
     # Submit predictions (standard)
     std_response = evaluate_predictions(
         obj_conf,
