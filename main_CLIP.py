@@ -116,10 +116,9 @@ def workflow(dataset_dir, obj_conf):
 
 
     log.info(f"\n----------------------MODEL INFO-----------------------\n")
-    if obj_conf.MODEL == "clip_baseline":
-        log.info(f"The model in use is: {obj_conf.MODEL}")
-        model = ClipBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
-    
+    log.info(f"The model in use is: {obj_conf.MODEL}")
+    model = ClipBaseline(obj_conf, label_to_idx, device=device, **dict_classes)
+
     # Validate on test set (standard)
     std_predictions, images, predictions, prob_preds = model.test_predictions(test_dataset)
     # Submit predictions (standard)
