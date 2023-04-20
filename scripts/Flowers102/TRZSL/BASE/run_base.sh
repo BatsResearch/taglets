@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=FTR-BASE
-#SBATCH --output=logs/trzsl_flower_base.out
+#SBATCH --output=logs/trzsl_flower_base_text.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=40G
@@ -19,7 +19,7 @@ for dataset_dir in '/users/cmenghin/data/bats/datasets/classification' ; do
 for vis_encoder in 'ViT-B/32'; do # 'ViT-B/32'  'RN50' 'ViT-L/14' 'RN101'
 for split_seed in 500; do #  0 200
 for dataset_name in Flowers102; do
-for model in textual_prompt visual_prompt multimodal_prompt; do # coop_baseline
+for model in textual_prompt ; do # visual_prompt multimodal_prompt
 for optim_seed in 1 2 3 4 5; do # 2 3 4 5; do #10 100 50 400 250; do
     
     export OPTIM_SEED="$optim_seed"
