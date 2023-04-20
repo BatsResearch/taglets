@@ -78,6 +78,7 @@ class ClipBaseline(object):
 
         predictions = []
         images = []
+        prob_preds = []
         # Iterate through data loader
         for img, _, _, img_path in tqdm(test_loader):
             with torch.no_grad():
@@ -86,13 +87,17 @@ class ClipBaseline(object):
                 )
                 probs = logits_per_image.softmax(dim=-1)
                 idx_preds = torch.argmax(probs, dim=1)
-                if standard_zsl:
-                    predictions += [self.unseen_classes[i] for i in idx_preds]
-                else:
-                    predictions += [self.classes[i] for i in idx_preds]
 
+                predictions += [self.classes[i] for i in idx_preds]
                 images += [i for i in img_path]
+                prob_preds += [logits_per_image]
+
+        prob_preds = torch.cat(prob_preds, axis=0).detach().to('cpu')
+
+        log.info(f"Number of images: {len(images)}")
+        log.info(f"Number of images: {len(predictions)}")
+        log.info(f"Number of probs: {prob_preds.size()}")
 
         df_predictions = pd.DataFrame({"id": images, "class": predictions})
 
-        return df_predictions
+        return images, predictions, prob_preds
