@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=ULI-v
-#SBATCH --output=logs/ul_visual_iterative_fpl.out
+#SBATCH --job-name=AUL-vIFPL
+#SBATCH --output=logs/ul_fgvca_image_ifpl.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=40G
@@ -15,28 +15,25 @@ source ../../zsl/bin/activate
 
 sleep $[ ( $RANDOM % 30 )  + 40 ]s
 
-
+for dataset_dir in '/users/adelwort/data/bats/datasets/classification' ; do
 for vis_encoder in 'ViT-B/32'; do # 'ViT-B/32'  'RN50' 'ViT-L/14' 'RN101'
 for split_seed in 500; do #  0 200
-for dataset_name in RESICS45; do
+for dataset_name in FGVCAircraft; do
 for model in iterative_visual_fpl; do # coop_baseline
-for optim_seed in 2 3 4 5; do # 2 3 4 5; do #10 100 50 400 250; do
+for optim_seed in 1 2 3 4 5; do # 2 3 4 5; do #10 100 50 400 250; do
     
     export OPTIM_SEED="$optim_seed"
     export VIS_ENCODER="$vis_encoder"
     export DATASET_NAME="$dataset_name"
     export SPLIT_SEED="$split_seed"
     export MODEL="$model"
-    # export TYPE="$TYPE"
-    # export PREFIX_SIZE="$PREFIX_SIZE"
-    # #$PORT
-    # echo $optim_seed
-    # echo $TYPE
-    # echo $PORT
-    # $PORT
-    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12078/'  accelerate_config.yml
+    export DATASET_DIR="$dataset_dir"
+
+
+    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12071/'  accelerate_config.yml
     accelerate launch --config_file ./accelerate_config.yml ./run_main_ul.py \
                     --model_config ${model}_config.yml --learning_paradigm ul
+done
 done
 done
 done
