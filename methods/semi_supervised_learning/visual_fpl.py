@@ -105,8 +105,9 @@ class VisualFPL(VisualPrompt):
         seen_imgs = train_data.filepaths
         seen_labs = [self.label_to_idx[l] for l in train_data.labels]
 
-        self.labeled_weight = 1 / len(seen_imgs)
-        self.unlabeled_weight = 1 / len(unseen_imgs)
+        # self.labeled_weight = 1 / len(seen_imgs)
+        # self.unlabeled_weight = 1 / len(unseen_imgs)
+        self.balance_param = len(unseen_imgs) / len(seen_imgs)
 
         train_data.filepaths = list(unseen_imgs) + list(seen_imgs)
         train_data.labels = list(unseen_labs) + list(seen_labs)
@@ -118,7 +119,7 @@ class VisualFPL(VisualPrompt):
         loss_ce_seen = self.cross_entropy(logits, labs, paths, False)
         loss_ce_unseen = self.cross_entropy(logits, labs, paths, True)
 
-        return self.labeled_weight * loss_ce_seen + self.unlabeled_weight * loss_ce_unseen
+        return self.balance_param * loss_ce_seen + loss_ce_unseen
 
     def cross_entropy(self, logits, labels, paths, unlabeled=True):
         """This loss computes the probability mass on the
