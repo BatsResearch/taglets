@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=DTR-FPL
-#SBATCH --output=logs/trzsl_dtd_fpl_text.out
+#SBATCH --output=logs/trzsl_dtd_fpl.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=40G
@@ -19,7 +19,7 @@ for dataset_dir in '/users/cmenghin/data/bats/datasets/classification' ; do
 for vis_encoder in 'ViT-B/32'; do # 'ViT-B/32'  'RN50' 'ViT-L/14' 'RN101'
 for split_seed in 500; do #  0 200
 for dataset_name in DTD; do
-for model in textual_fpl ; do # visual_fpl multimodal_fpl
+for model in textual_fpl visual_fpl multimodal_fpl; do # 
 for optim_seed in 1 2 3 4 5; do # 2 3 4 5; do #10 100 50 400 250; do
     
     export OPTIM_SEED="$optim_seed"
