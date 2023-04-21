@@ -6,7 +6,7 @@
 #SBATCH --mem=40G
 #SBATCH -t 48:00:00
 #SBATCH -p gpu --gres=gpu:4
-##SBATCH --exclude=gpu[717-718,1201-1204,1209,1403]
+##SBATCH --exclude=gpu[717-718,1201-1204,1209,1403,2103]
 
 module load cuda/11.1.1
 
