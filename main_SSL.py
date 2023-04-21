@@ -173,7 +173,9 @@ def workflow(dataset_dir, obj_conf):
     )
 
     truncated_unseen_labeled_files = [i.split("/")[-1] for i in train_unseen_dataset.filepaths]
-    
+    log.info(f"TRUNCATED: {truncated_unseen_labeled_files[:10]}")
+
+    # sys.exit()
     # Validation set (labeled seen)
     val_seen_dataset = DatasetObject(
         val_labeled_files,
@@ -472,6 +474,8 @@ def main():
     obj_conf.VIS_ENCODER = os.environ["VIS_ENCODER"]
     # Define dataset name
     obj_conf.DATASET_NAME = os.environ["DATASET_NAME"]
+    if obj_conf.DATASET_NAME == 'Flowers102':
+        obj_conf.N_LABEL = 2
     # Define dataset dir
     obj_conf.DATASET_DIR = os.environ["DATASET_DIR"]
     # Define model name

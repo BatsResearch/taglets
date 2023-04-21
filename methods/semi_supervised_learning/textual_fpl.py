@@ -111,7 +111,7 @@ class TextualFPL(TextualPrompt):
 
         # self.labeled_weight = 1 / len(seen_imgs)
         # self.unlabeled_weight = 1 / len(unseen_imgs)
-
+        # log.info(f"UNLABELD: {len(unseen_imgs)} and LABELED {len(seen_imgs)}")
         self.balance_param = len(unseen_imgs) / len(seen_imgs)
 
         train_data.filepaths = list(unseen_imgs) + list(seen_imgs)
@@ -135,6 +135,9 @@ class TextualFPL(TextualPrompt):
         :param labels: class ids
         """
 
+        # log.info(f"IMAGE PATHS: {paths}")
+        # log.info(f"IMAGE CHECK: {self.check_unlabeled[:10]}")
+
         # self.check_unlabeled
         if unlabeled:
             samples = []
@@ -142,7 +145,7 @@ class TextualFPL(TextualPrompt):
                 if paths[idx] in self.check_unlabeled:
                     samples.append(idx)
 
-            #log.info(f"Unlabeled: {len(samples)} {self.unlabeled_weight}")
+            # log.info(f"Unlabeled: {len(samples)} {self.balance_param}")
             if samples:
                 error = self.loss_func(logits[samples], labels[samples])
             else:
@@ -153,12 +156,12 @@ class TextualFPL(TextualPrompt):
                 if paths[idx] not in self.check_unlabeled:
                     samples.append(idx)
 
-            #log.info(f"Labeled: {len(samples)} {self.labeled_weight}")
+            # log.info(f"Labeled: {len(samples)} {self.balance_param}")
             if samples:
                 error = self.loss_func(logits[samples], labels[samples])
             else:
                 error = 0
-
+        
         return error
 
 
