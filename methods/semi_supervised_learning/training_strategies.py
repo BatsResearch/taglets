@@ -579,7 +579,7 @@ class TrainingStrategy(object):
 
         return t_best_val_accuracy, t_best_prompt
 
-    def define_loss_function(self, logits, labs):
+    def define_loss_function(self, logits, labs, paths):
         return self.loss_func(logits, labs)
 
     def backpropagate(self):
