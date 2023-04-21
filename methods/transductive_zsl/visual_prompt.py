@@ -369,7 +369,7 @@ class VisualPrompt(TrainingStrategy):
         :param data: Dataset object - test dataset
         """
         # Define model 
-        self.define_model()
+        #self.define_model()
         
         # Declare the data pre processing
         data.transform = self.transform

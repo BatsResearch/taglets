@@ -27,6 +27,7 @@ class VisualFPL(VisualPrompt):
         config, 
         label_to_idx, 
         data_folder,
+        unlabeled_files,
         classes, 
         seen_classes, 
         unseen_classes, 
@@ -47,6 +48,8 @@ class VisualFPL(VisualPrompt):
         )
 
         self.data_folder = data_folder
+
+        self.check_unlabeled = unlabeled_files
 
     def create_training_dataset(self, train_data, unlabeled_data=None):
         """This function creates the dataset for training. Specifically, it
@@ -102,23 +105,22 @@ class VisualFPL(VisualPrompt):
         seen_imgs = train_data.filepaths
         seen_labs = [self.label_to_idx[l] for l in train_data.labels]
 
-        self.balance_param = len(seen_imgs) / len(unseen_imgs)
+        self.labeled_weight = 1 / len(seen_imgs)
+        self.unlabeled_weight = 1 / len(unseen_imgs)
 
         train_data.filepaths = list(unseen_imgs) + list(seen_imgs)
         train_data.labels = list(unseen_labs) + list(seen_labs)
         train_data.label_id = True
 
 
-    def define_loss_function(self, logits, labs):
+    def define_loss_function(self, logits, labs, paths):
 
-        # loss_ce_seen = self.cross_entropy(logits, labs, self.seen_classes)
-        # loss_ce_unseen = self.cross_entropy(logits, labs, self.unseen_classes)
-        loss_ce = self.cross_entropy(logits, labs, self.seen_classes)
+        loss_ce_seen = self.cross_entropy(logits, labs, paths, False)
+        loss_ce_unseen = self.cross_entropy(logits, labs, paths, True)
 
-        return loss_ce
-        # return (1 - config.ALPHA)*loss_ce_seen + config.ALPHA * loss_ce_unseen
+        return self.labeled_weight * loss_ce_seen + self.unlabeled_weight * loss_ce_unseen
 
-    def cross_entropy(self, logits, labels, classes):
+    def cross_entropy(self, logits, labels, paths, unlabeled=True):
         """This loss computes the probability mass on the
         opposite set of classes for each sample.
 
@@ -126,7 +128,29 @@ class VisualFPL(VisualPrompt):
         :param labels: class ids
         """
 
-        error = self.loss_func(logits, labels)
+        # self.check_unlabeled
+        if unlabeled:
+            samples = []
+            for idx in range(len(paths)):
+                if paths[idx] in self.check_unlabeled:
+                    samples.append(idx)
+
+            #log.info(f"Unlabeled: {len(samples)} {self.unlabeled_weight}")
+            if samples:
+                error = self.loss_func(logits[samples], labels[samples])
+            else:
+                error = 0
+        else:
+            samples = []
+            for idx in range(len(paths)):
+                if paths[idx] not in self.check_unlabeled:
+                    samples.append(idx)
+
+            #log.info(f"Labeled: {len(samples)} {self.labeled_weight}")
+            if samples:
+                error = self.loss_func(logits[samples], labels[samples])
+            else:
+                error = 0
 
         return error
 

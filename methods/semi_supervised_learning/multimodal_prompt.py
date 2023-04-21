@@ -123,7 +123,7 @@ class MultimodalPrompt(TrainingStrategy):
 
             labs = self.reindex_true_labels(label, only_unlabelled)
             labs = labs.to(self.device)
-            loss = self.define_loss_function(logits, labs)
+            loss = self.define_loss_function(logits, labs, img_path)
             total_loss += loss.item()
 
             accelerator.wait_for_everyone()
@@ -296,7 +296,7 @@ class MultimodalPrompt(TrainingStrategy):
         :param data: Dataset object - test dataset
         """
         # Define model 
-        self.define_model()
+        #self.define_model()
 
         # Declare the data pre processing
         data.transform = self.transform

@@ -354,7 +354,7 @@ class TextualPrompt(TrainingStrategy):
         :param data: Dataset object - test dataset
         """
         # Define model 
-        self.define_model(classes=self.classes)
+        #self.define_model(classes=self.classes)
 
         # Declare the data pre processing
         data.transform = self.transform

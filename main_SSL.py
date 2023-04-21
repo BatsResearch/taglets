@@ -172,6 +172,8 @@ def workflow(dataset_dir, obj_conf):
         label_map=label_to_idx,
     )
 
+    truncated_unseen_labeled_files = [i.split("/")[-1] for i in train_unseen_dataset.filepaths]
+    
     # Validation set (labeled seen)
     val_seen_dataset = DatasetObject(
         val_labeled_files,
@@ -225,6 +227,7 @@ def workflow(dataset_dir, obj_conf):
             obj_conf, 
             label_to_idx, 
             data_folder,
+            unlabeled_files=truncated_unseen_labeled_files,
             device=device, 
             **dict_classes
         )
@@ -241,6 +244,7 @@ def workflow(dataset_dir, obj_conf):
             obj_conf, 
             label_to_idx, 
             data_folder,
+            unlabeled_files=truncated_unseen_labeled_files,
             device=device, 
             **dict_classes
         )
@@ -257,6 +261,7 @@ def workflow(dataset_dir, obj_conf):
             obj_conf, 
             label_to_idx, 
             data_folder,
+            unlabeled_files=truncated_unseen_labeled_files,
             device=device, 
             **dict_classes
         )
@@ -287,6 +292,7 @@ def workflow(dataset_dir, obj_conf):
             obj_conf, 
             label_to_idx, 
             data_folder,
+            unlabeled_files=truncated_unseen_labeled_files,
             device=device, 
             **dict_classes
         )
@@ -303,6 +309,7 @@ def workflow(dataset_dir, obj_conf):
             obj_conf, 
             label_to_idx, 
             data_folder,
+            unlabeled_files=truncated_unseen_labeled_files,
             device=device, 
             **dict_classes
         )
@@ -319,6 +326,7 @@ def workflow(dataset_dir, obj_conf):
             obj_conf, 
             label_to_idx, 
             data_folder,
+            unlabeled_files=truncated_unseen_labeled_files,
             device=device, 
             **dict_classes
         )
@@ -349,6 +357,7 @@ def workflow(dataset_dir, obj_conf):
             obj_conf, 
             label_to_idx, 
             data_folder,
+            unlabeled_files=truncated_unseen_labeled_files,
             device=device, 
             **dict_classes
         )
@@ -365,6 +374,7 @@ def workflow(dataset_dir, obj_conf):
             obj_conf, 
             label_to_idx, 
             data_folder,
+            unlabeled_files=truncated_unseen_labeled_files,
             device=device, 
             **dict_classes
         )
@@ -381,6 +391,7 @@ def workflow(dataset_dir, obj_conf):
             obj_conf, 
             label_to_idx, 
             data_folder,
+            unlabeled_files=truncated_unseen_labeled_files,
             device=device, 
             **dict_classes
         )

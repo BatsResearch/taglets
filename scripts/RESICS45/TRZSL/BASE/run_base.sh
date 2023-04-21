@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=RTR-BASE
-#SBATCH --output=logs/trzsl_resics_base_text.out
+#SBATCH --output=logs/trzsl_resics_base.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=40G
@@ -19,7 +19,7 @@ for dataset_dir in '/users/cmenghin/data/bats/datasets/classification' ; do
 for vis_encoder in 'ViT-B/32'; do # 'ViT-B/32'  'RN50' 'ViT-L/14' 'RN101'
 for split_seed in 500; do #  0 200
 for dataset_name in RESICS45; do
-for model in textual_prompt ; do # visual_prompt multimodal_prompt
+for model in textual_prompt visual_prompt multimodal_prompt; do # 
 for optim_seed in 1 2 3 4 5; do # 2 3 4 5; do #10 100 50 400 250; do
     
     export OPTIM_SEED="$optim_seed"
@@ -29,7 +29,7 @@ for optim_seed in 1 2 3 4 5; do # 2 3 4 5; do #10 100 50 400 250; do
     export MODEL="$model"
     export DATASET_DIR="$dataset_dir"
 
-    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12070/'  accelerate_config.yml
+    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12079/'  accelerate_config.yml
     accelerate launch --config_file ./accelerate_config.yml ./run_main_trzsl.py \
                     --model_config ${model}_config.yml --learning_paradigm trzsl
 done
