@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=DSSL-vIFPL
-#SBATCH --output=logs/ssl_dtd_image_ifpl.out
+#SBATCH --job-name=DTR-vIFPL
+#SBATCH --output=logs/trzsl_dtd_image_ifpl.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=40G
