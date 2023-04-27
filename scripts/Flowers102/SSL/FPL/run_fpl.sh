@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=FSSL-FPL
-#SBATCH --output=logs/ssl_flowers_fpl.out
+#SBATCH --output=logs/ssl_flowers_fpl_vit.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=40G
@@ -16,7 +16,7 @@ source ../../zsl/bin/activate
 sleep $[ ( $RANDOM % 30 )  + 40 ]s
 
 for dataset_dir in '/users/cmenghin/data/bats/datasets/classification' ; do
-for vis_encoder in 'ViT-B/32'; do # 'ViT-B/32'  'RN50' 'ViT-L/14' 'RN101'
+for vis_encoder in 'ViT-L/14'; do # 'ViT-B/32'  'RN50' 'ViT-L/14' 'RN101'
 for split_seed in 500; do #  0 200
 for dataset_name in Flowers102; do
 for model in textual_fpl visual_fpl multimodal_fpl; do # coop_baseline
@@ -29,7 +29,7 @@ for optim_seed in 1 2 3 4 5; do # 2 3 4 5; do #10 100 50 400 250; do
     export MODEL="$model"
     export DATASET_DIR="$dataset_dir"
 
-    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12078/'  accelerate_config.yml
+    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12074/'  accelerate_config.yml
     accelerate launch --config_file ./accelerate_config.yml ./run_main_ssl.py \
                     --model_config ${model}_config.yml --learning_paradigm ssl
 done
