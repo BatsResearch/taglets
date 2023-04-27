@@ -8,7 +8,7 @@ VIS_ENCODER: "$VIS_ENCODER"
 # Prompt template
 PROMPT_TEMPLATE: 'imported in main.py'
 # Number of shats per classes in SSL
-N_LABEL: 16
+N_LABEL: 2
 ALPHA: 0.3
 # Text Prefix size
 TEXT_PREFIX_SIZE: 4
