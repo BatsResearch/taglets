@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=RTR-FPL
-#SBATCH --output=logs/trzsl_resics_fpl.out
+#SBATCH --output=logs/trzsl_resics_fpl_2.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=40G
@@ -16,7 +16,7 @@ source ../../zsl/bin/activate
 sleep $[ ( $RANDOM % 30 )  + 40 ]s
 
 for dataset_dir in '/users/cmenghin/data/bats/datasets/classification' ; do
-for vis_encoder in 'ViT-B/32'; do # 'ViT-B/32'  'RN50' 'ViT-L/14' 'RN101'
+for vis_encoder in 'ViT-L/14'; do # 'ViT-B/32'  'RN50' 'ViT-L/14' 'RN101'
 for split_seed in 500; do #  0 200
 for dataset_name in RESICS45; do
 for model in textual_fpl visual_fpl multimodal_fpl; do # 
