@@ -4,7 +4,7 @@ for dataset_dir in '/Users/menga/Desktop/github/zsl_taglets/development'; do
 for vis_encoder in 'ViT-B/32'; do 
 for split_seed in 500; do 
 for dataset_name in Flowers102; do
-for model in textual_fpl; do 
+for model in grip_textual; do 
 for optim_seed in 1; do 
     
     export OPTIM_SEED="$optim_seed"
@@ -14,8 +14,8 @@ for optim_seed in 1; do
     export MODEL="$model"
     export DATASET_DIR="$dataset_dir"
 
-    accelerate launch --config_file ./accelerate_localtest_config.yml ./run_main_ssl.py \
-                    --model_config ${model}_config.yml --learning_paradigm ssl
+    accelerate launch --config_file ./accelerate_localtest_config.yml ./run_main_trzsl.py \
+                    --model_config ${model}_config.yml --learning_paradigm trzsl
 
 done
 done
