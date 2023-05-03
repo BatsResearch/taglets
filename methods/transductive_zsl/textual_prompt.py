@@ -270,8 +270,10 @@ class TextualPrompt(TrainingStrategy):
                 log.info(f"Validation UNSEEN accuracy after Epoch: {unseen_accuracy}")
                 log.info(f"Validation HARMONIC accuracy after Epoch: {accuracy}")
 
-        
-        self.model.classes = self.classes
+        if torch.cuda.is_available():
+            self.model.module.classes = self.classes 
+        else:
+            self.model.classes = self.classes
         
         return accuracy
 
