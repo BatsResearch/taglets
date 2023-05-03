@@ -270,8 +270,8 @@ class TextualPrompt(TrainingStrategy):
                 log.info(f"Validation UNSEEN accuracy after Epoch: {unseen_accuracy}")
                 log.info(f"Validation HARMONIC accuracy after Epoch: {accuracy}")
 
-        if self.val_unseen_files is None:
-            self.model.classes = self.classes
+        
+        self.model.classes = self.classes
         
         return accuracy
 
