@@ -15,7 +15,7 @@ source ../../zsl/bin/activate
 
 sleep $[ ( $RANDOM % 30 )  + 40 ]s
 
-for dataset_dir in '/users/adelwort/data/bats/datasets/classification' ; do
+for dataset_dir in '/users/cmenghin/data/bats/datasets/classification' ; do
 for vis_encoder in 'ViT-B/32'; do # 'ViT-B/32'  'RN50' 'ViT-L/14' 'RN101'
 for split_seed in 500; do #  0 200
 for dataset_name in MNIST; do
@@ -30,7 +30,7 @@ for optim_seed in 1 2 3 4 5; do # 2 3 4 5; do #10 100 50 400 250; do
     export DATASET_DIR="$dataset_dir"
 
 
-    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12071/'  accelerate_config.yml
+    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12070/'  accelerate_config.yml
     accelerate launch --config_file ./accelerate_config.yml ./run_main_ul.py \
                     --model_config ${model}_config.yml --learning_paradigm ul
 done
