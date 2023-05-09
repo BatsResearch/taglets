@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=EUL-tGRIP
+#SBATCH --job-name=EUL-mGRIP
 #SBATCH --output=logs/ul_eurosat_multi_grip.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
