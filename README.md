@@ -1,6 +1,6 @@
 # Run on CCV (03/06)
 
-Clone the branch `testing` of the repository.
+Clone the branch `transductive_zsl` of the repository.
 
 ```
 git clone -b testing https://github.com/BatsResearch/co-training-clip.git
