@@ -20,6 +20,8 @@ python3 -m venv zsl
 
 On CCV, install the required library running with `sbatch` the following script. Note that you have to correctly specify the path of the environment when you activate it.
 
+In this case, I call the environment `zsl`. I suggest to follow this name in order to avoid changing the name of the env in the scripts to run.
+
 ```bash
 #!/bin/bash
 #SBATCH --job-name=setup
