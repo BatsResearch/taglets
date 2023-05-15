@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=RTR-tIFPL
-#SBATCH --output=logs/trzsl_resics_text_ifpl_vit.out
+#SBATCH --output=logs/trzsl_resics_text_ifpl_split_2.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=40G
@@ -16,8 +16,8 @@ source ../../zsl/bin/activate
 sleep $[ ( $RANDOM % 30 )  + 40 ]s
 
 for dataset_dir in '/users/cmenghin/data/bats/datasets/classification' ; do
-for vis_encoder in 'ViT-L/14'; do # 'ViT-B/32'  'RN50' 'ViT-L/14' 'RN101'
-for split_seed in 500; do #  0 200
+for vis_encoder in 'ViT-B/32'; do # 'ViT-B/32'  'RN50' 'ViT-L/14' 'RN101'
+for split_seed in 0; do #  0 200
 for dataset_name in RESICS45; do
 for model in iterative_textual_fpl; do # coop_baseline
 for optim_seed in 1 2 3 4 5; do # 2 3 4 5; do #10 100 50 400 250; do
@@ -29,7 +29,7 @@ for optim_seed in 1 2 3 4 5; do # 2 3 4 5; do #10 100 50 400 250; do
     export MODEL="$model"
     export DATASET_DIR="$dataset_dir"
 
-    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12077/'  accelerate_config.yml
+    sed -i 's/^\(\s*main_process_port\s*:\s*\).*/\12073/'  accelerate_config.yml
     accelerate launch --config_file ./accelerate_config.yml ./run_main_trzsl.py \
                     --model_config ${model}_config.yml --learning_paradigm trzsl
 done
