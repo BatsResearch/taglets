@@ -19,7 +19,7 @@ sleep $[ ( $RANDOM % 30 )  + 40 ]s
 for dataset_dir in '/users/cmenghin/data/bats/datasets/classification' ; do
 for vis_encoder in 'ViT-B/32'; do # 'ViT-B/32'  'RN50' 'ViT-L/14' 'RN101'
 for split_seed in 0; do #  0 200
-for dataset_name in RESICS45; do
+for dataset_name in EuroSAT; do
 for model in grip_textual; do # coop_baseline
 for optim_seed in 1 2 3 4 5; do # 2 3 4 5; do #10 100 50 400 250; do
     
